@@ -5,12 +5,66 @@ package interviewcamp;
 
 import java.util.Arrays;
 
-public class Chapter3 {
+public class Chapter3_and_4 {
 	public static void main(String[] args) {
 		System.out.println(Arrays.toString(binarySearch(new Integer[]{1, 2, 4, 6, 8, 10, 11, 13, 15, 20, 22}, 13)));
 		System.out.println(Arrays.toString(binarySearchWithDuplicates(new Integer[]{1, 2, 4, 6, 8, 10, 11, 13, 13, 13, 13, 13, 15, 20, 22}, 13)));
 		System.out.println((findIndex(new Integer[]{2, 3, 4, 6, 8}, 2)));
 		System.out.println((binarySearchOrClosest(new Integer[]{1, 2, 4, 11, 13, 15, 20, 22}, 5)));
+		System.out.println((findSmallestRotated(new Integer[]{4, 5, 6, 2, 3})));
+		System.out.println((squareRoot(1234544444433234446L)));
+		System.out.println(Arrays.toString(findPeak(new int[]{1, 3, 4, 5, 2})));
+
+	}
+
+	private static int[] findPeak(int[] a) {
+		int start = 0, end = a.length - 1;
+		while (true) {
+			int mid = start + (end - start) / 2;
+			if (mid > 0 && a[mid] > a[mid - 1] && a[mid] > a[mid + 1]) {
+				return new int[]{a[mid], mid};
+			} else if (a[mid] < a[mid + 1]) {
+				start = mid + 1;
+			} else {
+				end = mid - 1;
+			}
+		}
+	}
+
+	private static long squareRoot(long target) {
+		long low = 0, high = target / 2;
+		long best = Integer.MAX_VALUE;
+		while (high >= low) {
+			long mid = low + (high - low) / 2;
+			long square = mid * mid;
+			if (Math.abs(square - target) < Math.abs(best * best - target)) {
+				best = mid;
+			}
+			if (target < square) {
+				high = mid - 1;
+			} else if (target > square) {
+				low = mid + 1;
+			} else {
+				return mid;
+			}
+		}
+		return best;
+	}
+
+	private static int findSmallestRotated(Integer[] a) {
+		int maxSecondGroup = a[a.length - 1];
+		int low = 0, high = a.length / 2;
+		while (true) {
+			int mid = low + (high - low) / 2;
+			int midVal = a[mid];
+			if (mid > 0 && midVal < a[mid - 1]) {
+				return a[mid];
+			} else if (midVal > maxSecondGroup) {
+				low = mid + 1;
+			} else if (midVal < maxSecondGroup) {
+				high = mid - 1;
+			}
+		}
 	}
 
 	private static int findIndex(Integer[] a, int target) {
