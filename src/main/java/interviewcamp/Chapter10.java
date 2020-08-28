@@ -2,6 +2,7 @@ package interviewcamp;
 
 import java.util.ArrayDeque;
 import java.util.Arrays;
+import java.util.LinkedList;
 import java.util.Queue;
 
 public class Chapter10 {
@@ -24,5 +25,25 @@ public class Chapter10 {
 			}
 		}
 		return result;
+	}
+
+	class QueueWithMax {
+		LinkedList<Integer> valQueue = new LinkedList<>();
+		LinkedList<Integer> maxQueue = new LinkedList<>();
+
+		void add(int i) {
+			valQueue.addFirst(i);
+			if (maxQueue.peekFirst() < i) {
+
+			}
+		}
+
+		void remove() {
+			int removed = valQueue.removeLast();
+		}
+
+		int max() {
+			return maxQueue.peekFirst();
+		}
 	}
 }

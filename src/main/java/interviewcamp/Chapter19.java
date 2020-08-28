@@ -6,8 +6,36 @@ import java.util.Random;
 public class Chapter19 {
 	public static void main(String[] args) {
 		int[] a = {4, 5, 2, 6, 6, 23, 4, 56, 2, 23, 3, 5, 6};
-		quickSort(a, 0, a.length - 1);
+		myQuickSort(a, 0, a.length );
 		System.out.println(Arrays.toString(a));
+	}
+
+
+	private static int[] myQuickSort(int[] a, int low, int high) {
+		if (high <= low) {
+			return a;
+		}
+		int rand = low + (int) (Math.random() * (high - low));
+		int randVal = a[rand];
+		int i = low;
+		int innerLow = low, innerHigh = high;
+		while (i < innerHigh) {
+			if (a[i] > randVal) {
+				swap(a, i, innerHigh - 1);
+				innerHigh--;
+			} else if (a[i] < randVal) {
+				swap(a, i, innerLow);
+				innerLow++;
+				i++;
+			} else {
+				i++;
+			}
+		}
+
+		myQuickSort(a, low, innerLow);
+		myQuickSort(a, innerHigh, high);
+
+		return a;
 	}
 
 	private static void quickSort(int[] a, int start, int end) {

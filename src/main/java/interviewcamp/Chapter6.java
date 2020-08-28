@@ -35,11 +35,13 @@ public class Chapter6 {
 		System.out.println();
 		System.out.println();
 		System.out.println();
+		System.out.println("+++++++++++++++++++");
 		coins(Arrays.asList(1, 2, 5), 5, 0, new ArrayList<>());
 		System.out.println();
 		System.out.println();
 		System.out.println();
 		System.out.println();
+		System.out.println("+++++++++++++++++++");
 		System.out.println(exists(new int[][]{
 				new int[]{0, 0, 0, 1},
 				new int[]{0, 1, 0, 1},

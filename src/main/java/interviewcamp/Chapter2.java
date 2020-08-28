@@ -75,7 +75,6 @@ public class Chapter2 {
 		return max;
 	}
 
-
 	private static int[] twoNumersSum(int[] a, int sum) {
 		HashMap<Integer, Integer> ints = new HashMap<>();
 		for (int aa : a) {
