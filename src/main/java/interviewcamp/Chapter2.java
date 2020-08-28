@@ -38,7 +38,6 @@ public class Chapter2 {
 		throw new IllegalArgumentException();
 	}
 
-
 	private static int[] sumsToZeroSubarray(int[] a) {
 		int[] b = new int[a.length];
 		int sum = 0;
