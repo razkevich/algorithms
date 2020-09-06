@@ -26,37 +26,47 @@ public class Chapter15 {
 		n5.addNeighbor(n6);
 
 		Graph graph = new Graph(Arrays.asList(n1, n2, n3, n4, n5, n6));
-		dfs(graph, 6);
+		dfsVisit(n1, 6);
 
 	}
 
-	public static Node dfs(Graph graph, int value) {
-		for (Node node : graph.nodes) {
-			if (node.state == State.UNVISITED) {
-				Node found = dfsVisit(node, value);
-				if (found != null) {
-					return found;
+//	public static Node dfs(Graph graph, int value) {
+//		for (Node node : graph.nodes) {
+//			if (node.state == State.UNVISITED) {
+//				Node found = dfsVisit(node, value);
+//				if (found != null) {
+//					return found;
+//				}
+//			}
+//		}
+//		return null;
+//	}
+
+	private static Node dfsVisit(Node start, int value) {
+		Stack<Path> queue = new Stack<>();
+		queue.add(new Path(start, 0));
+
+		while (!queue.isEmpty()) {
+			Path current = queue.pop();
+			System.out.println(current.lastNode.data + ":" + current.level);
+			for (Node neighbor : current.lastNode.neighbors) {
+				if (neighbor.state == State.UNVISITED) {
+					neighbor.setState(State.VISITING);
+					queue.push(new Path(neighbor, current.level + 1));
 				}
 			}
 		}
 		return null;
 	}
 
-	private static Node dfsVisit(Node start, int value) {
-		Stack<Node> queue = new Stack<>();
-		queue.add(start);
+	static class Path {
+		Node lastNode;
+		int level;
 
-		while (!queue.isEmpty()) {
-			Node current = queue.pop();
-			System.out.println(current.data);
-			current.setState(State.VISITED);
-			for (Node neighbor : current.neighbors) {
-				if (neighbor.state == State.UNVISITED)
-					neighbor.setState(State.VISITING);
-					queue.push(neighbor);
-			}
+		public Path(Node lastNode, int level) {
+			this.lastNode = lastNode;
+			this.level = level;
 		}
-		return null;
 	}
 
 	public static class Graph {
