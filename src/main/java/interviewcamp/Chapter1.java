@@ -4,6 +4,7 @@
 package interviewcamp;
 
 import java.util.Arrays;
+import java.util.Comparator;
 
 public class Chapter1 {
 	public static void main(String[] args) {
@@ -140,5 +141,36 @@ public class Chapter1 {
 			}
 		}
 		return ints;
+	}
+
+
+	public String[] reorderLogFiles(String[] logs) {
+		int start = 0, end = logs.length - 1, i = 0;
+		while (i <= end) {
+			if (isDigit(logs[i])) {
+				swap(logs, i, end);
+				end--;
+			} else {
+				start++;
+				i++;
+			}
+		}
+		Arrays.sort(logs, 0, start, Comparator.comparing(b -> ((String) b).split(" ")[1]).thenComparing
+				(b -> ((String) b).split(" ")[0]));
+
+
+		return logs;
+	}
+
+	static void swap(String[] a, int i, int j) {
+		String temp = a[j];
+		a[j] = a[i];
+		a[i] = temp;
+	}
+
+	public static boolean isDigit(String s) {
+
+		char c = s.split(" ")[1].charAt(0);
+		return (c == '1' || c == '2' || c == '3' || c == '4' || c == '5' || c == '6' || c == '7' || c == '8' || c == '9' || c == '0');
 	}
 }
