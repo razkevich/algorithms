@@ -90,7 +90,7 @@ public class Chapter6 {
 	}
 
 	enum Status {
-		NO_PATH,
+		VISITED,
 		VISITING,
 		UNVISITED;
 	}
