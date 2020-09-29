@@ -19,10 +19,35 @@ public class Chapter8 {
 		System.out.println(stackWithMax.max());
 		stackWithMax.remove();
 		System.out.println(stackWithMax.max());
-		System.out.println(eval("1+3*2+2-1"));
+		System.out.println("==========================");
+		System.out.println(eval("1+3*2*1+2-1"));
+		System.out.println("==========================");
 		System.out.println(eval("1+2*(2+0)-2"));
 
 	}
+
+	private static char eval2(String s) {
+		Stack<Character> operatorStack = new Stack<>();
+		Stack<Character> operandStack = new Stack<>();
+		for (char ch : s.toCharArray()) {
+			if (isOperator(ch)) {
+				while (!operatorStack.isEmpty() && precedence(operatorStack.peek()) >= precedence(ch)) {
+					char res = process(operatorStack.pop(), operandStack.pop(), operandStack.pop());
+					operandStack.push(res);
+				}
+				operatorStack.push(ch);
+			} else if (isOperand(ch)) {
+				operandStack.push(ch);
+			}
+		}
+		while (!operatorStack.isEmpty()) {
+			char res = process(operatorStack.pop(), operandStack.pop(), operandStack.pop());
+			operandStack.push(res);
+		}
+
+		return operandStack.peek();
+	}
+
 
 	private static char eval(String s) {
 		Stack<Character> operatorStack = new Stack<>();
