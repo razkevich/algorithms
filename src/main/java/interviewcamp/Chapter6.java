@@ -90,7 +90,7 @@ public class Chapter6 {
 	}
 
 	enum Status {
-		VISITED,
+		PUSHED_CHILDREN,
 		VISITING,
 		UNVISITED;
 	}

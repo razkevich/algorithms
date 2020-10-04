@@ -4,34 +4,17 @@ import java.util.Stack;
 
 public class Chapter22 {
 	public static void main(String[] args) {
-		Node n1 = new Node(10);
-		Node n2 = new Node(1);
-		Node n3 = new Node(100);
-		Node n4 = new Node(1000);
-
-
-		n3.right = n4;
-
-		n1.left = n2;
-		n1.right = n3;
-
-		preOrderVisit(n1);
-//
-//
-//				10
-//		1				100
-//								1000
-//
-//
-//
-//
+		Node n10 = new Node(10);
+		Node n1 = new Node(1);
+		Node n100 = new Node(100);
+		Node n1000 = new Node(1000);
+		Node n5 = new Node(5);
+		n100.right = n1000;
+		n100.left = n10;
+		n10.left = n1;
+		n10.right = n5;
+		inOrderVisit(n100);
 	}
-//
-//	public static void preOrderVisitRec(Node n) {
-//		System.out.println(n);
-//		preOrderVisit(n.left);
-//		preOrderVisit(n.right);
-//	}
 
 	public static void preOrderVisit(Node n) {
 		Stack<Node> stack = new Stack<>();
@@ -39,14 +22,14 @@ public class Chapter22 {
 
 		while (!stack.isEmpty()) {
 			Node peek = stack.peek();
-			if (peek.status == Chapter6.Status.VISITED) {
+			if (peek.status == Chapter6.Status.PUSHED_CHILDREN) {
 				stack.pop();
 				continue;
 			}
 			System.out.println(peek);
 			if (peek.right != null) stack.push(peek.right);
 			if (peek.left != null) stack.push(peek.left);
-			peek.status = Chapter6.Status.VISITED;
+			peek.status = Chapter6.Status.PUSHED_CHILDREN;
 		}
 	}
 
@@ -55,18 +38,30 @@ public class Chapter22 {
 		stack.push(n);
 		while (!stack.isEmpty()) {
 			Node peek = stack.peek();
-			if (peek.status == Chapter6.Status.VISITED) {
+			if (peek.status == Chapter6.Status.PUSHED_CHILDREN) {
 				System.out.println(stack.pop());
 				continue;
 			}
 			if (peek.right != null) stack.push(peek.right);
 			if (peek.left != null) stack.push(peek.left);
-			peek.status = Chapter6.Status.VISITED;
+			peek.status = Chapter6.Status.PUSHED_CHILDREN;
 		}
 	}
 
 	public static void inOrderVisit(Node n) {
-
+		Stack<Node> stack = new Stack<>();
+		stack.push(n);
+		while (!stack.isEmpty()) {
+			Node pop = stack.pop();
+			if (pop.status == Chapter6.Status.PUSHED_CHILDREN) {
+				System.out.println(pop);
+			} else {
+				if (pop.right != null) stack.push(pop.right);
+				stack.push(pop);
+				if (pop.left != null) stack.push(pop.left);
+				pop.status = Chapter6.Status.PUSHED_CHILDREN;
+			}
+		}
 	}
 
 	public static class Node {
