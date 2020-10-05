@@ -15,16 +15,22 @@ public class Amazon {
 	}
 
 	public static int getMinScore(int productNodes, List<Integer> productsFrom, List<Integer> productsTo) {
-		Map<Integer, List<Integer>> neighboursMap = new HashMap<>();
-		for (int i = 0; i < productsFrom.size(); i++) {
-			neighboursMap.merge(productsFrom.get(i), List.of(productsTo.get(i)), ListUtils::union);
-			neighboursMap.merge(productsTo.get(i), List.of(productsFrom.get(i)), ListUtils::union);
-		}
+		Map<Integer, List<Integer>> neighboursMap = buildNeighboursMap(productsFrom, productsTo);
+
 		return getTriangles(List.of(neighboursMap.keySet().iterator().next()), new HashMap<>(), neighboursMap).stream()
 				.peek(triangle -> triangle.sort(Comparator.comparingInt(b -> b)))
 				.mapToInt(triangle -> countTriangleScore(triangle, neighboursMap))
 				.min()
 				.orElse(-1);
+	}
+
+	private static Map<Integer, List<Integer>> buildNeighboursMap(List<Integer> productsFrom, List<Integer> productsTo) {
+		Map<Integer, List<Integer>> neighboursMap = new HashMap<>();
+		for (int i = 0; i < productsFrom.size(); i++) {
+			neighboursMap.merge(productsFrom.get(i), List.of(productsTo.get(i)), ListUtils::union);
+			neighboursMap.merge(productsTo.get(i), List.of(productsFrom.get(i)), ListUtils::union);
+		}
+		return neighboursMap;
 	}
 
 	public static List<List<Integer>> getTriangles(List<Integer> path, Map<Integer, State> states, Map<Integer, List<Integer>> neighboursMap) {
@@ -35,9 +41,7 @@ public class Amazon {
 		List<List<Integer>> triplets = new ArrayList<>();
 		states.put(value, State.VISITING);
 		for (Integer neighbor : neighboursMap.get(value)) {
-			List<Integer> newPath = new ArrayList<>(path);
-			newPath.add(neighbor);
-			triplets.addAll(getTriangles(newPath, states, neighboursMap));
+			triplets.addAll(getTriangles(ListUtils.union(path, List.of(neighbor)), states, neighboursMap));
 		}
 		states.put(value, State.VISITED);
 		return triplets;
