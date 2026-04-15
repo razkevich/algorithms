@@ -8,7 +8,7 @@ Check off each problem as we complete it. Solutions live in `prep/<category>/`.
 
 - [x] **Iterative BFS with queue** — `prep/graphs/BFSGraph.java`
 - [x] **Iterative DFS with explicit stack** — `prep/graphs/DFSGraph.java`
-- [ ] Recursive DFS
+- [x] **Recursive DFS** — `prep/graphs/DFSGraphRecursive.java`
 - [ ] Tree traversals: pre-order (recursive + iterative)
 - [ ] Tree traversals: in-order (recursive + iterative)
 - [ ] Tree traversals: post-order (recursive + iterative)
