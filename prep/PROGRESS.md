@@ -14,6 +14,7 @@ Check off each problem as we complete it. Solutions live in `prep/<category>/`.
 - [ ] Tree traversals: post-order (recursive + iterative)
 - [ ] Cycle detection — DFS with 3-color (directed graph)
 - [ ] Cycle detection — Kahn's algorithm (topological sort + cycle)
+- [ ] Strongly Connected Components — Kosaraju's (two passes, transpose graph)
 - [ ] Dijkstra's shortest path
 - [ ] A* search
 
