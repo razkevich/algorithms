@@ -7,7 +7,7 @@ Check off each problem as we complete it. Solutions live in `prep/<category>/`.
 ## 🎯 Immediate track (user's requested focus)
 
 - [x] **Iterative BFS with queue** — `prep/graphs/BFSGraph.java`
-- [ ] Iterative DFS with explicit stack
+- [x] **Iterative DFS with explicit stack** — `prep/graphs/DFSGraph.java`
 - [ ] Recursive DFS
 - [ ] Tree traversals: pre-order (recursive + iterative)
 - [ ] Tree traversals: in-order (recursive + iterative)
