@@ -11,7 +11,7 @@ Check off each problem as we complete it. Solutions live in `prep/<category>/`.
 - [x] **Recursive DFS** — `prep/graphs/DFSGraphRecursive.java`
 - [x] **Tree traversals: pre-order (recursive + iterative)** — `prep/trees/PreOrder.java`
 - [ ] Tree traversals: in-order (recursive + iterative)
-- [ ] Tree traversals: post-order (recursive + iterative)
+- [x] **Tree traversals: post-order (recursive + iterative)** — `prep/trees/PostOrder.java`
 - [ ] Cycle detection — DFS with 3-color (directed graph)
 - [ ] Cycle detection — Kahn's algorithm (topological sort + cycle)
 - [ ] Strongly Connected Components — Kosaraju's (two passes, transpose graph)
