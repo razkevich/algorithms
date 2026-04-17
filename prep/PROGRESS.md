@@ -12,7 +12,7 @@ Check off each problem as we complete it. Solutions live in `prep/<category>/`.
 - [x] **Tree traversals: pre-order (recursive + iterative)** — `prep/trees/PreOrder.java`
 - [x] **Tree traversals: in-order (recursive + iterative)** — `prep/trees/InOrder.java`
 - [x] **Tree traversals: post-order (recursive + iterative)** — `prep/trees/PostOrder.java`
-- [ ] Cycle detection — DFS with 3-color (directed graph)
+- [x] **Cycle detection — DFS with 3-color (directed graph)** — `prep/graphs/CycleDetection3Color.java`
 - [ ] Cycle detection — Kahn's algorithm (topological sort + cycle)
 - [ ] Strongly Connected Components — Kosaraju's (two passes, transpose graph)
 - [ ] Dijkstra's shortest path
