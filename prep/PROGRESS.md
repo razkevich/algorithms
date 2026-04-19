@@ -31,7 +31,7 @@ Target language: **Java**. Solutions live in `prep/<category>/`.
 ## 6. Arrays (pattern-unique)
 
 - [x] **Prefix / suffix products** — `prep/arrays/ProductExceptSelf.java` (two-pass O(1) extra)
-- [ ] **HashSet for O(n) sequences** — longest consecutive trick
+- [x] **HashSet for O(n) sequences** — `prep/arrays/LongestConsecutive.java` (longest consecutive trick)
 
 ## 7. Linked List
 
