@@ -18,7 +18,7 @@ Target language: **Java**. Solutions live in `prep/<category>/`.
 
 ## 2. Union-Find
 
-- [ ] **DSU with path compression + union by rank** — core template
+- [x] **DSU with path compression + union by rank** — `prep/unionfind/DSU.java`
 
 ## 3. Trees
 
