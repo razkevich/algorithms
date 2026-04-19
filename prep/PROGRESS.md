@@ -77,3 +77,36 @@ Target language: **Java**. Solutions live in `prep/<category>/`.
 - [ ] **Transactional in-memory store** — nested `BEGIN`/`COMMIT`/`ROLLBACK`, overlay stack
 - [ ] **Spreadsheet with formula evaluation** — topo sort + cycle detection + recompute
 - [ ] **Design Twitter (LC 355)** — heap + hash composition
+
+---
+
+## 🗄️ Confidence-trimmed — patterns dropped because I'm already comfortable
+
+Not active prep — kept here so coverage is documented and I can re-visit any box if I want a refresher. Without these, raw interview coverage is ~65-70%; with them, ~90%+. Each one is top-5 frequency in senior/staff loops.
+
+### Sliding window
+- [ ] **Fixed-size window** — max sum of size K, averages
+- [ ] **Variable-size window** — longest substring without repeating chars, min window substring (shrink while invariant violated)
+
+### Two pointers
+- [ ] **Converging pointers on sorted array** — 3Sum, Container With Most Water, Valid Palindrome
+- [ ] **Fast / slow pointers** — Floyd's cycle detection, find middle of linked list, remove Nth from end
+
+### Binary search
+- [ ] **Classic binary search on sorted array** — plus rotated-sorted variant, find peak, search 2D matrix
+- [ ] **Binary search on the answer space** — Koko Eating Bananas, Split Array Largest Sum, Capacity to Ship Packages (the "is X feasible?" → monotone predicate trick)
+
+### Dynamic programming
+- [ ] **1D DP** — House Robber, Coin Change, Longest Increasing Subsequence (O(n log n) with patience-sort variant worth knowing)
+- [ ] **2D DP** — Unique Paths, Longest Common Subsequence, Edit Distance, 0/1 Knapsack
+- [ ] **DP on strings / intervals** — palindrome partitioning, matrix chain, burst balloons (trickier — only if time allows)
+
+### Shortest path (weighted)
+- [ ] **Dijkstra with PQ** — Network Delay Time, Cheapest Flights Within K Stops, Path With Minimum Effort
+- [ ] **Bellman-Ford / negative edges** — only if frontier-lab / systems-heavy loop
+
+### Linked list fundamentals
+- [ ] **Reverse a linked list** — iterative + recursive; feeds into reverse-in-groups, palindrome check
+- [ ] **Merge two sorted lists** — building block for merge-K-lists (heap or divide-conquer)
+- [ ] **Reorder list / find middle / detect cycle** — Floyd's tortoise-and-hare
+- [ ] **Copy List with Random Pointer** — interleave-and-split trick or HashMap
