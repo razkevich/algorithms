@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>SCC — Strongly Connected Components</title>
+<style>
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #111;
+    color: #eee;
+    padding: 40px;
+    max-width: 900px;
+    margin: 0 auto;
+    line-height: 1.5;
+  }
+  h1 { color: #fff; }
+  h2 { color: #fff; margin-top: 40px; }
+  svg {
+    background: #1a1a1a;
+    border-radius: 8px;
+    display: block;
+    margin: 20px 0;
+  }
+  .legend { font-size: 14px; color: #aaa; }
+  .swatch {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    margin-right: 4px;
+    vertical-align: middle;
+  }
+  .note { color: #888; font-size: 13px; font-style: italic; }
+  code { background: #222; padding: 2px 6px; border-radius: 3px; color: #8be9fd; }
+</style>
+</head>
+<body>
+
+<h1>Strongly Connected Components</h1>
+
+<p>
+An <b>SCC</b> is a set of nodes where every node can reach every other node.
+An edge <i>within</i> an SCC is part of a mutual cycle; an edge <i>between</i>
+SCCs is one-way (if it were two-way, the two SCCs would merge into one).
+</p>
+
+<p class="legend">
+  <span class="swatch" style="background:#5ac8fa"></span>SCC A: {1, 2, 3} &nbsp;&nbsp;
+  <span class="swatch" style="background:#bf5af2"></span>SCC B: {4, 5} &nbsp;&nbsp;
+  <span class="swatch" style="background:#ffcc00"></span>SCC C: {6}
+</p>
+<p class="note">Solid grey arrows = edges within an SCC. Dashed red arrows = cross-SCC "bridges" (one-way, form the condensation DAG).</p>
+
+<svg width="860" height="420" viewBox="0 0 860 420">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#aaa"/>
+    </marker>
+    <marker id="arrow-cross" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#ff3b30"/>
+    </marker>
+  </defs>
+
+  <!-- SCC bubbles -->
+  <ellipse cx="180" cy="210" rx="130" ry="140" fill="#5ac8fa" fill-opacity="0.08" stroke="#5ac8fa" stroke-dasharray="4,4" stroke-opacity="0.5"/>
+  <ellipse cx="480" cy="210" rx="75" ry="110" fill="#bf5af2" fill-opacity="0.08" stroke="#bf5af2" stroke-dasharray="4,4" stroke-opacity="0.5"/>
+  <circle  cx="740" cy="210" r="55" fill="#ffcc00" fill-opacity="0.08" stroke="#ffcc00" stroke-dasharray="4,4" stroke-opacity="0.5"/>
+
+  <!-- intra-SCC edges (solid grey) -->
+  <!-- 1 → 2 -->
+  <path d="M 165 130 L 130 180" stroke="#aaa" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+  <!-- 2 → 3 -->
+  <path d="M 145 230 L 210 260" stroke="#aaa" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+  <!-- 3 → 1 -->
+  <path d="M 215 240 L 185 140" stroke="#aaa" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+  <!-- 4 → 5 -->
+  <path d="M 470 160 C 430 200 430 220 470 260" stroke="#aaa" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+  <!-- 5 → 4 -->
+  <path d="M 490 260 C 530 220 530 200 490 160" stroke="#aaa" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+
+  <!-- cross-SCC edges (dashed red) -->
+  <!-- 3 → 4 -->
+  <path d="M 250 270 L 440 170" stroke="#ff3b30" stroke-width="2" stroke-dasharray="5,5" fill="none" marker-end="url(#arrow-cross)"/>
+  <!-- 5 → 6 -->
+  <path d="M 510 265 L 710 215" stroke="#ff3b30" stroke-width="2" stroke-dasharray="5,5" fill="none" marker-end="url(#arrow-cross)"/>
+
+  <!-- nodes SCC A -->
+  <circle cx="175" cy="120" r="26" fill="#2e4a5c" stroke="#5ac8fa" stroke-width="2"/>
+  <text x="175" y="125" text-anchor="middle" fill="#fff" font-weight="bold">1</text>
+
+  <circle cx="120" cy="210" r="26" fill="#2e4a5c" stroke="#5ac8fa" stroke-width="2"/>
+  <text x="120" y="215" text-anchor="middle" fill="#fff" font-weight="bold">2</text>
+
+  <circle cx="230" cy="280" r="26" fill="#2e4a5c" stroke="#5ac8fa" stroke-width="2"/>
+  <text x="230" y="285" text-anchor="middle" fill="#fff" font-weight="bold">3</text>
+
+  <!-- nodes SCC B -->
+  <circle cx="480" cy="140" r="26" fill="#4a3c5c" stroke="#bf5af2" stroke-width="2"/>
+  <text x="480" y="145" text-anchor="middle" fill="#fff" font-weight="bold">4</text>
+
+  <circle cx="480" cy="280" r="26" fill="#4a3c5c" stroke="#bf5af2" stroke-width="2"/>
+  <text x="480" y="285" text-anchor="middle" fill="#fff" font-weight="bold">5</text>
+
+  <!-- node SCC C -->
+  <circle cx="740" cy="210" r="26" fill="#5c4a2e" stroke="#ffcc00" stroke-width="2"/>
+  <text x="740" y="215" text-anchor="middle" fill="#fff" font-weight="bold">6</text>
+
+  <!-- labels -->
+  <text x="180" y="375" text-anchor="middle" fill="#5ac8fa" font-size="14" opacity="0.9">SCC A</text>
+  <text x="480" y="345" text-anchor="middle" fill="#bf5af2" font-size="14" opacity="0.9">SCC B</text>
+  <text x="740" y="290" text-anchor="middle" fill="#ffcc00" font-size="14" opacity="0.9">SCC C</text>
+</svg>
+
+<h2>Condensation — collapse each SCC to one node</h2>
+<p>Treat each SCC as a single super-node. What remains is always a <b>DAG</b> (no cycles between SCCs — if there were, they'd be one bigger SCC).</p>
+
+<svg width="860" height="140" viewBox="0 0 860 140">
+  <defs>
+    <marker id="arrow3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#ff3b30"/>
+    </marker>
+  </defs>
+  <path d="M 230 70 L 410 70" stroke="#ff3b30" stroke-width="2" stroke-dasharray="5,5" fill="none" marker-end="url(#arrow3)"/>
+  <path d="M 540 70 L 690 70" stroke="#ff3b30" stroke-width="2" stroke-dasharray="5,5" fill="none" marker-end="url(#arrow3)"/>
+
+  <circle cx="170" cy="70" r="55" fill="#2e4a5c" stroke="#5ac8fa" stroke-width="2"/>
+  <text x="170" y="75" text-anchor="middle" fill="#fff" font-weight="bold">{1, 2, 3}</text>
+
+  <circle cx="480" cy="70" r="45" fill="#4a3c5c" stroke="#bf5af2" stroke-width="2"/>
+  <text x="480" y="75" text-anchor="middle" fill="#fff" font-weight="bold">{4, 5}</text>
+
+  <circle cx="740" cy="70" r="35" fill="#5c4a2e" stroke="#ffcc00" stroke-width="2"/>
+  <text x="740" y="75" text-anchor="middle" fill="#fff" font-weight="bold">{6}</text>
+</svg>
+
+<p class="note">
+  Reading the condensation: SCC A is a <b>source</b> (no incoming), SCC C is a <b>sink</b> (no outgoing).
+  Kosaraju's trick: the highest-finish-time node lives in a source SCC of the original; after transposing
+  the graph, that source SCC becomes a sink — so DFS from it is trapped in one SCC. Peel, repeat.
+</p>
+
+</body>
+</html>

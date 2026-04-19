@@ -14,7 +14,7 @@ Target language: **Java**. Solutions live in `prep/<category>/`.
 - [x] **Recursive DFS** — `prep/graphs/DFSGraphRecursive.java`
 - [x] **Cycle detection — DFS with 3-color** — `prep/graphs/CycleDetection3Color.java`
 - [x] **Topological sort — Kahn's BFS** — `prep/graphs/TopologicalSortKahn.java` (DFS reverse post-order covered in file header)
-- [ ] **Kosaraju's SCC** — two passes on transpose
+- [x] **Kosaraju's SCC** — intuition only (full DFS forest + finish stack + transpose + peel); `prep/graphs/scc-visualization.html`
 
 ## 2. Union-Find
 
@@ -32,6 +32,10 @@ Target language: **Java**. Solutions live in `prep/<category>/`.
 
 - [ ] **Prefix / suffix products** — two-pass O(1) extra
 - [ ] **HashSet for O(n) sequences** — longest consecutive trick
+
+## 7. Linked List
+
+- [x] **LRU Cache** — `prep/linkedlist/LRUCache.java` (HashMap + DLL with sentinels; the canonical "compose two data structures" problem)
 
 ## 8. Stack / Monotonic Stack
 
