@@ -10,3 +10,9 @@ out
 
 # Ignore Gradle build output directory
 build
+
+# Eclipse / javac output
+bin
+
+# Serena tool config
+.serena

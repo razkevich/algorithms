@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DFS: Why Record on Pop?</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    background: #0f1117;
+    color: #c9d1d9;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 32px 16px;
+  }
+  h1 {
+    font-size: 1.4rem;
+    color: #e6edf3;
+    margin-bottom: 8px;
+  }
+  .subtitle {
+    color: #7d8590;
+    font-size: 0.85rem;
+    margin-bottom: 32px;
+  }
+
+  .main-layout {
+    display: flex;
+    gap: 48px;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    justify-content: center;
+    max-width: 1100px;
+    width: 100%;
+  }
+
+  /* --- Tree --- */
+  .tree-panel {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .tree-panel h2 { font-size: 0.9rem; color: #7d8590; margin-bottom: 16px; }
+  svg.tree { overflow: visible; }
+  .edge { stroke: #30363d; stroke-width: 2; }
+  .node-circle {
+    r: 22;
+    fill: #161b22;
+    stroke: #30363d;
+    stroke-width: 2;
+    transition: fill 0.3s, stroke 0.3s;
+  }
+  .node-label {
+    fill: #c9d1d9;
+    font-size: 16px;
+    text-anchor: middle;
+    dominant-baseline: central;
+    font-family: inherit;
+    font-weight: 600;
+    transition: fill 0.3s;
+  }
+  .node-circle.on-stack   { fill: #1c2333; stroke: #58a6ff; }
+  .node-circle.processing { fill: #58a6ff; stroke: #79c0ff; }
+  .node-label.processing  { fill: #0f1117; }
+  .node-circle.done       { fill: #1a2e1a; stroke: #3fb950; }
+  .node-label.done        { fill: #3fb950; }
+
+  /* --- Right panel --- */
+  .right-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    min-width: 340px;
+  }
+
+  /* --- Stack --- */
+  .section-label {
+    font-size: 0.8rem;
+    color: #7d8590;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .stack-container {
+    display: flex;
+    flex-direction: column-reverse;
+    border: 1px solid #30363d;
+    border-radius: 8px;
+    min-height: 54px;
+    padding: 6px;
+    gap: 4px;
+    background: #161b22;
+  }
+  .stack-item {
+    background: #1c2333;
+    border: 1px solid #58a6ff;
+    color: #58a6ff;
+    border-radius: 6px;
+    padding: 6px 16px;
+    font-size: 1rem;
+    font-weight: 600;
+    text-align: center;
+    animation: slideIn 0.25s ease-out;
+  }
+  .stack-item.top-item {
+    background: #58a6ff;
+    color: #0f1117;
+  }
+  .stack-empty {
+    color: #484f58;
+    font-size: 0.8rem;
+    text-align: center;
+    padding: 12px;
+    font-style: italic;
+  }
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* --- Results --- */
+  .result-row {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    min-height: 38px;
+    align-items: center;
+  }
+  .result-item {
+    width: 36px; height: 36px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 0.95rem;
+    animation: popIn 0.3s ease-out;
+  }
+  .result-item.pop-result {
+    background: #1a2e1a;
+    border: 1px solid #3fb950;
+    color: #3fb950;
+  }
+  .result-item.push-result {
+    background: #2a1a1a;
+    border: 1px solid #f85149;
+    color: #f85149;
+  }
+  .result-item.push-result.wrong {
+    text-decoration: line-through;
+    opacity: 0.6;
+  }
+  @keyframes popIn {
+    from { opacity: 0; transform: scale(0.7); }
+    to   { opacity: 1; transform: scale(1); }
+  }
+
+  .result-label {
+    font-size: 0.75rem;
+    margin-bottom: 4px;
+  }
+  .result-label.correct { color: #3fb950; }
+  .result-label.wrong   { color: #f85149; }
+
+  /* --- Narration --- */
+  .narration {
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 8px;
+    padding: 14px 18px;
+    font-size: 0.85rem;
+    line-height: 1.55;
+    color: #c9d1d9;
+    min-height: 60px;
+  }
+  .narration em { color: #58a6ff; font-style: normal; font-weight: 600; }
+  .narration strong { color: #3fb950; }
+  .narration .wrong-hl { color: #f85149; font-weight: 600; }
+
+  /* --- Controls --- */
+  .controls {
+    display: flex;
+    gap: 12px;
+    margin-top: 32px;
+    align-items: center;
+  }
+  button {
+    font-family: inherit;
+    font-size: 0.9rem;
+    padding: 10px 24px;
+    border-radius: 8px;
+    border: 1px solid #30363d;
+    background: #21262d;
+    color: #c9d1d9;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  button:hover:not(:disabled) {
+    background: #30363d;
+    border-color: #58a6ff;
+  }
+  button:disabled {
+    opacity: 0.35;
+    cursor: default;
+  }
+  button.primary {
+    background: #238636;
+    border-color: #2ea043;
+    color: #fff;
+  }
+  button.primary:hover:not(:disabled) {
+    background: #2ea043;
+  }
+  .step-counter {
+    color: #7d8590;
+    font-size: 0.8rem;
+    min-width: 80px;
+    text-align: center;
+  }
+
+  /* --- Legend --- */
+  .legend {
+    display: flex;
+    gap: 20px;
+    margin-top: 24px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.75rem;
+    color: #7d8590;
+  }
+  .legend-dot {
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    border: 2px solid;
+  }
+  .legend-dot.on-stack   { background: #1c2333; border-color: #58a6ff; }
+  .legend-dot.processing { background: #58a6ff; border-color: #79c0ff; }
+  .legend-dot.done       { background: #1a2e1a; border-color: #3fb950; }
+</style>
+</head>
+<body>
+
+<h1>Iterative Pre-Order DFS: Why Record on Pop?</h1>
+<p class="subtitle">Step through the algorithm and watch push-order vs pop-order diverge</p>
+
+<div class="main-layout">
+  <!-- Tree -->
+  <div class="tree-panel">
+    <h2>Binary Tree</h2>
+    <svg class="tree" width="280" height="240" viewBox="-10 0 280 240">
+      <!-- Edges -->
+      <line class="edge" x1="130" y1="35" x2="60"  y2="105"/>
+      <line class="edge" x1="130" y1="35" x2="200" y2="105"/>
+      <line class="edge" x1="60"  y1="105" x2="20" y2="175"/>
+      <line class="edge" x1="60"  y1="105" x2="100" y2="175"/>
+      <line class="edge" x1="200" y1="105" x2="240" y2="175"/>
+      <!-- Nodes -->
+      <g id="node-1"><circle class="node-circle" cx="130" cy="35"/><text class="node-label" x="130" y="35">1</text></g>
+      <g id="node-2"><circle class="node-circle" cx="60"  cy="105"/><text class="node-label" x="60"  y="105">2</text></g>
+      <g id="node-3"><circle class="node-circle" cx="200" cy="105"/><text class="node-label" x="200" y="105">3</text></g>
+      <g id="node-4"><circle class="node-circle" cx="20"  cy="175"/><text class="node-label" x="20"  y="175">4</text></g>
+      <g id="node-5"><circle class="node-circle" cx="100" cy="175"/><text class="node-label" x="100" y="175">5</text></g>
+      <g id="node-6"><circle class="node-circle" cx="240" cy="175"/><text class="node-label" x="240" y="175">6</text></g>
+    </svg>
+    <div class="legend">
+      <div class="legend-item"><div class="legend-dot on-stack"></div>On stack</div>
+      <div class="legend-item"><div class="legend-dot processing"></div>Popping now</div>
+      <div class="legend-item"><div class="legend-dot done"></div>Done</div>
+    </div>
+  </div>
+
+  <!-- Right side -->
+  <div class="right-panel">
+    <!-- Stack -->
+    <div>
+      <div class="section-label">Stack (top is highlighted)</div>
+      <div class="stack-container" id="stack-view">
+        <div class="stack-empty">empty</div>
+      </div>
+    </div>
+
+    <!-- Results comparison -->
+    <div>
+      <div class="result-label correct">&#10003; Record on POP (correct pre-order)</div>
+      <div class="result-row" id="pop-result"></div>
+    </div>
+    <div>
+      <div class="result-label wrong">&#10007; Record on PUSH (wrong order)</div>
+      <div class="result-row" id="push-result"></div>
+    </div>
+
+    <!-- Narration -->
+    <div>
+      <div class="section-label">What's happening</div>
+      <div class="narration" id="narration">
+        Press <em>Next Step</em> to begin. We'll push node 1 onto the stack.
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="controls">
+  <button id="btn-reset" onclick="reset()">Reset</button>
+  <span class="step-counter" id="step-counter">0 / 13</span>
+  <button id="btn-next" class="primary" onclick="nextStep()">Next Step &rarr;</button>
+</div>
+
+<script>
+// Each step: { action, node, stack (after), popResult (after), pushResult (after), nodeStates, narration }
+// nodeStates: { nodeId: 'on-stack' | 'processing' | 'done' | '' }
+const steps = [
+  {
+    stack: [],
+    popResult: [],
+    pushResult: [],
+    nodeStates: {},
+    narration: 'Press <em>Next Step</em> to begin. We\'ll push node 1 onto the stack.'
+  },
+  {
+    action: 'push 1',
+    stack: [1],
+    popResult: [],
+    pushResult: [1],
+    nodeStates: {1:'on-stack'},
+    narration: '<em>Push 1</em> onto the stack. If we recorded on push, we\'d add 1 to the result now. That happens to be correct for the root\u2026 but watch what happens next.'
+  },
+  {
+    action: 'pop 1',
+    stack: [],
+    popResult: [1],
+    pushResult: [1],
+    nodeStates: {1:'processing'},
+    narration: '<em>Pop 1</em>. This is the moment we <strong>commit</strong> to processing node 1. Record it: <strong>[1]</strong>. Now we\'ll push its children \u2014 right first, then left.'
+  },
+  {
+    action: 'push 3, push 2',
+    stack: [3, 2],
+    popResult: [1],
+    pushResult: [1, 3, 2],
+    nodeStates: {1:'done', 2:'on-stack', 3:'on-stack'},
+    narration: '<em>Push 3</em> (right), then <em>push 2</em> (left). Node 2 is on top. <br><br>Push-order result is now <span class="wrong-hl">[1, 3, 2]</span> \u2014 it recorded 3 before 2, but we haven\'t visited 3 yet! It\'s buried in the stack. <strong>This is where push-order breaks.</strong>'
+  },
+  {
+    action: 'pop 2',
+    stack: [3],
+    popResult: [1, 2],
+    pushResult: [1, 3, 2],
+    nodeStates: {1:'done', 2:'processing', 3:'on-stack'},
+    narration: '<em>Pop 2</em>. Record it: <strong>[1, 2]</strong>. <br><br>Node 3 is still sitting in the stack, untouched. Pop-order correctly reflects that we\'re in node 2\'s subtree right now, not node 3\'s.'
+  },
+  {
+    action: 'push 5, push 4',
+    stack: [3, 5, 4],
+    popResult: [1, 2],
+    pushResult: [1, 3, 2, 5, 4],
+    nodeStates: {1:'done', 2:'done', 3:'on-stack', 4:'on-stack', 5:'on-stack'},
+    narration: '<em>Push 5</em> (right), then <em>push 4</em> (left). Node 4 is on top.<br><br>Push-order: <span class="wrong-hl">[1, 3, 2, 5, 4]</span> \u2014 has 3 and 5 recorded before we\'ve actually reached them. The order is scrambled.'
+  },
+  {
+    action: 'pop 4',
+    stack: [3, 5],
+    popResult: [1, 2, 4],
+    pushResult: [1, 3, 2, 5, 4],
+    nodeStates: {1:'done', 2:'done', 3:'on-stack', 4:'processing', 5:'on-stack'},
+    narration: '<em>Pop 4</em>. No children. Record it: <strong>[1, 2, 4]</strong>. <br><br>We\'re going deep down the left side first, exactly like recursion would. Pop-order captures this perfectly.'
+  },
+  {
+    action: 'pop 5',
+    stack: [3],
+    popResult: [1, 2, 4, 5],
+    pushResult: [1, 3, 2, 5, 4],
+    nodeStates: {1:'done', 2:'done', 3:'on-stack', 4:'done', 5:'processing'},
+    narration: '<em>Pop 5</em>. No children. Record it: <strong>[1, 2, 4, 5]</strong>. <br><br>Node 2\'s entire subtree is done. Now node 3 (which has been waiting in the stack) will finally surface.'
+  },
+  {
+    action: 'pop 3',
+    stack: [],
+    popResult: [1, 2, 4, 5, 3],
+    pushResult: [1, 3, 2, 5, 4],
+    nodeStates: {1:'done', 2:'done', 3:'processing', 4:'done', 5:'done'},
+    narration: '<em>Pop 3</em>. Record it: <strong>[1, 2, 4, 5, 3]</strong>. <br><br>Node 3 was pushed back in step 3 but only now gets processed \u2014 after the entire left subtree. <strong>That\'s why push-time recording is wrong</strong>: push = "I plan to visit", pop = "I\'m visiting now".'
+  },
+  {
+    action: 'push 6',
+    stack: [6],
+    popResult: [1, 2, 4, 5, 3],
+    pushResult: [1, 3, 2, 5, 4, 6],
+    nodeStates: {1:'done', 2:'done', 3:'done', 4:'done', 5:'done', 6:'on-stack'},
+    narration: '<em>Push 6</em> (right child of 3; no left child).'
+  },
+  {
+    action: 'pop 6',
+    stack: [],
+    popResult: [1, 2, 4, 5, 3, 6],
+    pushResult: [1, 3, 2, 5, 4, 6],
+    nodeStates: {1:'done', 2:'done', 3:'done', 4:'done', 5:'done', 6:'processing'},
+    narration: '<em>Pop 6</em>. Record it: <strong>[1, 2, 4, 5, 3, 6]</strong>. Stack is empty \u2014 done!'
+  },
+  {
+    stack: [],
+    popResult: [1, 2, 4, 5, 3, 6],
+    pushResult: [1, 3, 2, 5, 4, 6],
+    nodeStates: {1:'done', 2:'done', 3:'done', 4:'done', 5:'done', 6:'done'},
+    narration: '<strong>Final comparison:</strong><br><br>' +
+      '<strong>Pop-order:&nbsp; [1, 2, 4, 5, 3, 6]</strong> \u2714 correct pre-order<br>' +
+      '<span class="wrong-hl">Push-order: [1, 3, 2, 5, 4, 6]</span> \u2718 scrambled<br><br>' +
+      'The stack reorders when things actually execute. <em>Push = intent, pop = commitment.</em> The traversal records commitments.'
+  }
+];
+
+let currentStep = 0;
+const totalSteps = steps.length - 1;
+
+function render(step) {
+  const s = steps[step];
+
+  // Stack
+  const stackView = document.getElementById('stack-view');
+  if (s.stack.length === 0) {
+    stackView.innerHTML = '<div class="stack-empty">empty</div>';
+  } else {
+    stackView.innerHTML = s.stack.map((val, i) => {
+      const isTop = i === s.stack.length - 1;
+      return `<div class="stack-item${isTop ? ' top-item' : ''}">${val}</div>`;
+    }).join('');
+  }
+
+  // Pop result
+  const popView = document.getElementById('pop-result');
+  popView.innerHTML = s.popResult.map(v =>
+    `<div class="result-item pop-result">${v}</div>`
+  ).join('') || '<span style="color:#484f58;font-size:0.8rem;font-style:italic">—</span>';
+
+  // Push result
+  const pushView = document.getElementById('push-result');
+  const correctOrder = [1, 2, 4, 5, 3, 6];
+  pushView.innerHTML = s.pushResult.map((v, i) => {
+    const isWrong = v !== correctOrder[i];
+    return `<div class="result-item push-result${isWrong ? ' wrong' : ''}">${v}</div>`;
+  }).join('') || '<span style="color:#484f58;font-size:0.8rem;font-style:italic">—</span>';
+
+  // Node states
+  for (let id = 1; id <= 6; id++) {
+    const g = document.getElementById(`node-${id}`);
+    const circle = g.querySelector('.node-circle');
+    const label = g.querySelector('.node-label');
+    const state = (s.nodeStates && s.nodeStates[id]) || '';
+    circle.className.baseVal = 'node-circle' + (state ? ` ${state}` : '');
+    label.className.baseVal = 'node-label' + (state ? ` ${state}` : '');
+  }
+
+  // Narration
+  document.getElementById('narration').innerHTML = s.narration;
+
+  // Controls
+  document.getElementById('step-counter').textContent = `${step} / ${totalSteps}`;
+  document.getElementById('btn-next').disabled = step >= totalSteps;
+  document.getElementById('btn-reset').disabled = step === 0;
+}
+
+function nextStep() {
+  if (currentStep < totalSteps) {
+    currentStep++;
+    render(currentStep);
+  }
+}
+
+function reset() {
+  currentStep = 0;
+  render(0);
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); nextStep(); }
+  if (e.key === 'ArrowLeft') { e.preventDefault(); if (currentStep > 0) { currentStep--; render(currentStep); } }
+  if (e.key === 'r') reset();
+});
+
+render(0);
+</script>
+</body>
+</html>
