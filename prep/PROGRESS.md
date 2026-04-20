@@ -48,7 +48,7 @@ Target language: **Java**. Solutions live in `prep/<category>/`.
 
 ## 11. Backtracking
 
-- [ ] **Subsets / combinations** — choose / not-choose template (with-repetition is the same with an index tweak)
+- [x] **Subsets / combinations** — `prep/backtracking/Subsets.java` (functional-copy variant; mutate-and-restore noted in header as the form needed for grid/N-Queens)
 - [ ] **Grid backtracking** — DFS with visited marker and restore
 
 ## 12. Greedy / Intervals
