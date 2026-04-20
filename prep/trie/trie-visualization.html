@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Trie — Prefix Tree</title>
+<style>
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #111;
+    color: #eee;
+    padding: 40px;
+    max-width: 980px;
+    margin: 0 auto;
+    line-height: 1.55;
+  }
+  h1, h2 { color: #fff; }
+  h2 { margin-top: 40px; }
+  svg {
+    background: #1a1a1a;
+    border-radius: 8px;
+    display: block;
+    margin: 20px 0;
+  }
+  .legend { font-size: 14px; color: #aaa; }
+  .swatch {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    margin-right: 4px;
+    vertical-align: middle;
+  }
+  .note { color: #888; font-size: 13px; font-style: italic; }
+  code { background: #222; padding: 2px 6px; border-radius: 3px; color: #8be9fd; font-size: 13px; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0;
+    font-size: 14px;
+  }
+  th, td {
+    text-align: left;
+    padding: 8px 12px;
+    border-bottom: 1px solid #333;
+  }
+  th { color: #8be9fd; font-weight: 600; }
+  td code { background: #222; }
+  .ok  { color: #32d74b; }
+  .bad { color: #ff453a; }
+</style>
+</head>
+<body>
+
+<h1>Trie (Prefix Tree)</h1>
+
+<p>
+Edges carry <b>characters</b>, nodes carry <b>no character</b> — the path from root to a node <i>is</i> the string.
+A boolean <code>isWord</code> flag on a node marks "a complete inserted word ends here." The same node can be both
+a word-end AND a passthrough prefix for longer words.
+</p>
+
+<p>Inserted words: <code>cat</code>, <code>car</code>, <code>care</code>, <code>cars</code>, <code>do</code>, <code>dog</code></p>
+
+<p class="legend">
+  <span class="swatch" style="background:#2e4a5c; border: 2px solid #5ac8fa; box-sizing: border-box"></span>Prefix-only node &nbsp;&nbsp;
+  <span class="swatch" style="background:#1f5c3a; border: 2px solid #32d74b; box-sizing: border-box"></span><code>isWord = true</code> (a real word ends here)
+</p>
+
+<svg width="900" height="500" viewBox="0 0 900 500">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#666"/>
+    </marker>
+  </defs>
+
+  <!-- ===== edges (drawn before nodes so nodes sit on top) ===== -->
+  <!-- root -> c -->
+  <line x1="450" y1="75" x2="252" y2="125" stroke="#666" stroke-width="1.5"/>
+  <text x="340" y="95" fill="#8be9fd" font-size="14" font-weight="bold">c</text>
+  <!-- root -> d -->
+  <line x1="450" y1="75" x2="648" y2="125" stroke="#666" stroke-width="1.5"/>
+  <text x="555" y="95" fill="#8be9fd" font-size="14" font-weight="bold">d</text>
+
+  <!-- c -> a -->
+  <line x1="250" y1="155" x2="250" y2="205" stroke="#666" stroke-width="1.5"/>
+  <text x="258" y="185" fill="#8be9fd" font-size="14" font-weight="bold">a</text>
+  <!-- d -> o  (o is isWord = "do") -->
+  <line x1="650" y1="155" x2="650" y2="205" stroke="#666" stroke-width="1.5"/>
+  <text x="658" y="185" fill="#8be9fd" font-size="14" font-weight="bold">o</text>
+
+  <!-- a -> t (cat) -->
+  <line x1="237" y1="250" x2="135" y2="300" stroke="#666" stroke-width="1.5"/>
+  <text x="175" y="275" fill="#8be9fd" font-size="14" font-weight="bold">t</text>
+  <!-- a -> r (car) -->
+  <line x1="263" y1="250" x2="380" y2="300" stroke="#666" stroke-width="1.5"/>
+  <text x="325" y="275" fill="#8be9fd" font-size="14" font-weight="bold">r</text>
+  <!-- o -> g (dog) -->
+  <line x1="650" y1="250" x2="650" y2="300" stroke="#666" stroke-width="1.5"/>
+  <text x="658" y="280" fill="#8be9fd" font-size="14" font-weight="bold">g</text>
+
+  <!-- r -> e (care) -->
+  <line x1="365" y1="325" x2="305" y2="395" stroke="#666" stroke-width="1.5"/>
+  <text x="325" y="365" fill="#8be9fd" font-size="14" font-weight="bold">e</text>
+  <!-- r -> s (cars) -->
+  <line x1="395" y1="325" x2="455" y2="395" stroke="#666" stroke-width="1.5"/>
+  <text x="435" y="365" fill="#8be9fd" font-size="14" font-weight="bold">s</text>
+
+  <!-- ===== nodes ===== -->
+  <!-- root -->
+  <circle cx="450" cy="60" r="22" fill="#2e4a5c" stroke="#5ac8fa" stroke-width="2"/>
+  <text x="450" y="65" text-anchor="middle" fill="#fff" font-size="12">root</text>
+
+  <!-- c (prefix only) -->
+  <circle cx="250" cy="140" r="18" fill="#2e4a5c" stroke="#5ac8fa" stroke-width="2"/>
+  <!-- d (prefix only) -->
+  <circle cx="650" cy="140" r="18" fill="#2e4a5c" stroke="#5ac8fa" stroke-width="2"/>
+  <!-- a (prefix only) -->
+  <circle cx="250" cy="225" r="18" fill="#2e4a5c" stroke="#5ac8fa" stroke-width="2"/>
+  <!-- o (isWord — "do") -->
+  <circle cx="650" cy="225" r="20" fill="#1f5c3a" stroke="#32d74b" stroke-width="2.5"/>
+  <text x="650" y="248" text-anchor="middle" fill="#32d74b" font-size="10">"do"</text>
+  <!-- t (isWord — "cat") -->
+  <circle cx="120" cy="315" r="20" fill="#1f5c3a" stroke="#32d74b" stroke-width="2.5"/>
+  <text x="120" y="348" text-anchor="middle" fill="#32d74b" font-size="10">"cat"</text>
+  <!-- r (isWord — "car") -->
+  <circle cx="380" cy="315" r="20" fill="#1f5c3a" stroke="#32d74b" stroke-width="2.5"/>
+  <text x="380" y="300" text-anchor="middle" fill="#32d74b" font-size="10">"car"</text>
+  <!-- g (isWord — "dog") -->
+  <circle cx="650" cy="315" r="20" fill="#1f5c3a" stroke="#32d74b" stroke-width="2.5"/>
+  <text x="650" y="348" text-anchor="middle" fill="#32d74b" font-size="10">"dog"</text>
+  <!-- e (isWord — "care") -->
+  <circle cx="290" cy="410" r="20" fill="#1f5c3a" stroke="#32d74b" stroke-width="2.5"/>
+  <text x="290" y="443" text-anchor="middle" fill="#32d74b" font-size="10">"care"</text>
+  <!-- s (isWord — "cars") -->
+  <circle cx="470" cy="410" r="20" fill="#1f5c3a" stroke="#32d74b" stroke-width="2.5"/>
+  <text x="470" y="443" text-anchor="middle" fill="#32d74b" font-size="10">"cars"</text>
+</svg>
+
+<p class="note">
+  Notice three interesting things:
+  (1) <code>car</code>'s node is BOTH a word-end (green) AND a passthrough for <code>care</code>/<code>cars</code>.
+  (2) <code>do</code> is a complete word AND a prefix of <code>dog</code> — same pattern.
+  (3) <code>ca</code> is reachable (you can walk there) but its node has <code>isWord = false</code>, so <code>search("ca")</code> returns false while <code>startsWith("ca")</code> returns true. That flag is the entire difference between the two APIs.
+</p>
+
+<h2>search vs startsWith — the distinction</h2>
+
+<p>Both walk the same path. The only difference is what they check at the end node.</p>
+
+<table>
+  <thead>
+    <tr><th>Query</th><th>Walk reaches a node?</th><th><code>isWord</code> at landing?</th><th><code>search</code></th><th><code>startsWith</code></th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>"car"</code></td><td>yes (the green "car" node)</td><td>true</td>
+      <td class="ok">✓ true</td><td class="ok">✓ true</td>
+    </tr>
+    <tr>
+      <td><code>"ca"</code></td><td>yes (the grey "a" node)</td><td>false</td>
+      <td class="bad">✗ false</td><td class="ok">✓ true</td>
+    </tr>
+    <tr>
+      <td><code>"care"</code></td><td>yes (the green "care" node)</td><td>true</td>
+      <td class="ok">✓ true</td><td class="ok">✓ true</td>
+    </tr>
+    <tr>
+      <td><code>"card"</code></td><td>no (no <code>d</code> child under <code>r</code>)</td><td>—</td>
+      <td class="bad">✗ false</td><td class="bad">✗ false</td>
+    </tr>
+    <tr>
+      <td><code>"do"</code></td><td>yes (green "do" node)</td><td>true</td>
+      <td class="ok">✓ true</td><td class="ok">✓ true</td>
+    </tr>
+    <tr>
+      <td><code>"dog"</code></td><td>yes (green "dog" node)</td><td>true</td>
+      <td class="ok">✓ true</td><td class="ok">✓ true</td>
+    </tr>
+    <tr>
+      <td><code>"cow"</code></td><td>no (no <code>o</code> child under <code>c</code>)</td><td>—</td>
+      <td class="bad">✗ false</td><td class="bad">✗ false</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Why this shape unlocks hard problems</h2>
+
+<p>
+  The trie turns a set of strings into a <b>shared-prefix state machine</b>. That matters whenever you'd otherwise
+  repeat prefix work across many strings:
+</p>
+
+<ul>
+  <li><b>Word Search II</b> (grid + dictionary) — one trie of all words; DFS the grid while walking the trie in lockstep.
+      The moment the current path has no matching child in the trie, prune the entire subtree of DFS calls.
+      Without the trie you'd re-solve Word Search I per word and TLE.</li>
+  <li><b>Auto-complete</b> — <code>walk(prefix)</code> lands you at a subtree whose every descendant with
+      <code>isWord = true</code> is a suggestion. Emit via DFS.</li>
+  <li><b>Replace Words</b> — walk the input word char-by-char and stop at the first <code>isWord</code> node encountered.
+      That's the shortest root that forms a prefix.</li>
+  <li><b>Binary trie for Max XOR of Two Numbers</b> — the alphabet is <code>{0, 1}</code> and keys are 32-bit numbers.
+      To maximize XOR you greedily take the opposite-bit branch at each level. O(n·32) instead of O(n²) pairwise.</li>
+</ul>
+
+<p class="note">
+  The mental shift: "trie" isn't really about strings — it's the right structure for any <b>fixed-alphabet
+  sequential-key</b> data set where prefixes are meaningful. Strings and bit-strings are just the two common cases.
+</p>
+
+</body>
+</html>

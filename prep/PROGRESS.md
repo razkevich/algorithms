@@ -57,7 +57,7 @@ Target language: **Java**. Solutions live in `prep/<category>/`.
 
 ## 13. Tries
 
-- [ ] **Trie implementation** — insert / search / startsWith (+ optional: combine with grid backtracking for multi-word search)
+- [x] **Trie implementation** — `prep/trie/Trie.java` + `prep/trie/trie-visualization.html` (revisit, not hand-rolled)
 
 ---
 
