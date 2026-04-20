@@ -53,7 +53,7 @@ Target language: **Java**. Solutions live in `prep/<category>/`.
 
 ## 12. Greedy / Intervals
 
-- [ ] **Intervals — sort + sweep** — merge intervals, meeting rooms (min-heap of end times or sweep line)
+- [x] **Intervals — sweep line with events** — `prep/intervals/MergeIntervalsSweepLine.java` (PQ + START-before-END tie-break; template for Meeting Rooms II / Skyline)
 
 ## 13. Tries
 
