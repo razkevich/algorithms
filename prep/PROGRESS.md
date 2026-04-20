@@ -44,7 +44,7 @@ Target language: **Java**. Solutions live in `prep/<category>/`.
 ## 9. Heap / Priority Queue
 
 - [x] **Top-K / K-way merge with heap** — `prep/heap/KthLargest.java` (min-heap of size K; K-way merge noted in header)
-- [ ] **Two heaps for running median** — max-heap + min-heap balance
+- [x] **Two heaps for running median** — `prep/heap/MedianFinder.java` (max-heap lower half + min-heap upper half, straddle-the-median)
 
 ## 11. Backtracking
 
