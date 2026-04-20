@@ -39,7 +39,7 @@ Target language: **Java**. Solutions live in `prep/<category>/`.
 
 ## 8. Stack / Monotonic Stack
 
-- [ ] **Monotonic stack** — next-greater / histogram rectangle
+- [x] **Monotonic stack** — `prep/arrays/DailyTemperatures.java` (next-greater template; histogram is the same shape with "first smaller on both sides")
 
 ## 9. Heap / Priority Queue
 
