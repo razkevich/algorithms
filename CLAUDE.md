@@ -30,3 +30,15 @@ Interactive coding-interview prep session. The user is an experienced engineer p
 See `prep/PROGRESS.md` for the full list. Built from:
 1. A pattern-focused foundation list (templates that unlock many problems)
 2. Select additions from a NeetCode-150-style 14-day plan (only non-overlapping, genuinely necessary ones)
+
+## Style preferences (accumulated from practice sessions)
+
+- **Preserve the user's solution shape.** When the user's code is correct but non-idiomatic, fix bugs *within* their structure rather than swapping in the canonical version. Show the canonical form as an alternative in the file header, but keep the user's code as the primary. Typical phrasing: "fix my version without changing idiomatic."
+- **Revisit mode is a valid mode.** For patterns the user feels confident on, they may ask for a reference implementation + brief discussion instead of a practice cycle. Don't force a solve-review loop when the user asks to "just revisit" or "show me and discuss."
+- **HTML visualizations welcome for conceptual topics.** Dark-themed, inline SVG (e.g. `prep/graphs/scc-visualization.html`, `prep/trie/trie-visualization.html`). Use for structural/relational concepts where a picture clarifies in a way text can't.
+- **Comparison tables for competing approaches.** When multiple templates solve the same problem family, present a "when to use which" table instead of prescribing one. The user builds a decision framework from these, not a single-answer rule.
+- **Recommend the next problem; don't dump a menu.** Default to "my pick: X" with one-line reasoning; list 2–3 alternatives briefly. The user redirects if they want something else.
+- **Confidence-trimmed patterns** live in a dedicated section at the bottom of PROGRESS.md — unchecked but documented, so coverage is visible and the user can revisit any box later.
+- **Direction cheat-sheets are useful.** Small recall aids like "min-heap for top-K largest, max-heap for top-K smallest" or "sort-by-start for merge, sort-by-end for min-remove" help. Include them in file headers where the direction is easy to slip on.
+- **Call out recurring Java API traps** briefly. `PriorityQueue` has `peek/poll/offer` not `getMin/pop/push`; `Deque` is an interface (instantiate with `ArrayDeque`); `Comparator.reverseOrder()` beats `Comparator.comparing(a -> a).reversed()`. Mention once when the trap recurs, not every time.
+- **Articulate *why* a choice matters in the file header**, not just what the code does. Invariants, trade-offs, and pattern transfer are the load-bearing content; Java syntax is not.
