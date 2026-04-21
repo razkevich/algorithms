@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Max Path Sum — Values-UP Tree Recursion</title>
+<style>
+  :root {
+    --bg: #14171f;
+    --panel: #1c2029;
+    --text: #e6e9ef;
+    --muted: #8892a6;
+    --line: #2a2f3a;
+    --accent: #5ab8ff;      /* "arm" returned upward */
+    --bend:   #ff9f6e;      /* "bend" = global candidate */
+    --global: #9dd56b;      /* global answer */
+    --leaf:   #3a414f;
+    --active: #ffd76e;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: ui-sans-serif, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.5;
+    padding: 24px;
+  }
+  h1 { margin: 0 0 8px; font-size: 22px; font-weight: 600; }
+  .sub { color: var(--muted); font-size: 14px; margin-bottom: 20px; }
+  .layout { display: grid; grid-template-columns: 1fr 320px; gap: 20px; max-width: 1100px; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 16px; }
+  svg { width: 100%; height: 440px; display: block; }
+
+  /* Tree node styling */
+  .node-circle { fill: var(--leaf); stroke: var(--line); stroke-width: 2; transition: fill .2s, stroke .2s; }
+  .node-circle.active { stroke: var(--active); stroke-width: 3; }
+  .node-circle.visited { fill: #2b3140; stroke: var(--line); }
+  .node-val { fill: var(--text); font: 600 15px ui-sans-serif; text-anchor: middle; dominant-baseline: central; }
+  .edge { stroke: var(--line); stroke-width: 2; fill: none; }
+
+  .badge { font: 600 12px ui-monospace, monospace; dominant-baseline: central; }
+  .badge-arm  { fill: var(--accent); text-anchor: end; }
+  .badge-bend { fill: var(--bend);   text-anchor: start; }
+
+  /* Controls */
+  .controls { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+  button {
+    background: #2a2f3a; color: var(--text); border: 1px solid var(--line);
+    padding: 8px 14px; border-radius: 6px; cursor: pointer; font: 500 13px inherit;
+  }
+  button:hover { background: #353b48; }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+  button.primary { background: #2c5a8c; border-color: #3a74b0; }
+  button.primary:hover { background: #346aa5; }
+
+  /* Right panel */
+  .legend { display: flex; flex-direction: column; gap: 10px; font-size: 13px; }
+  .legend-row { display: flex; align-items: center; gap: 10px; }
+  .chip { width: 14px; height: 14px; border-radius: 3px; flex-shrink: 0; }
+  .chip-arm    { background: var(--accent); }
+  .chip-bend   { background: var(--bend); }
+  .chip-global { background: var(--global); }
+
+  .global-box {
+    margin-top: 14px; padding: 12px; border-radius: 6px;
+    background: #1a2433; border: 1px solid #2a3a50;
+  }
+  .global-box .label { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .05em; }
+  .global-box .val { font: 700 28px ui-monospace, monospace; color: var(--global); margin-top: 4px; }
+
+  .step-log {
+    margin-top: 14px; padding: 12px; border-radius: 6px;
+    background: #181c24; border: 1px solid var(--line);
+    font: 12px ui-monospace, monospace; color: var(--muted);
+    min-height: 80px; white-space: pre-wrap;
+  }
+  .step-log .hl { color: var(--text); }
+  .step-log .arm  { color: var(--accent); }
+  .step-log .bend { color: var(--bend); }
+
+  .code {
+    margin-top: 20px; background: #12151c; border: 1px solid var(--line);
+    border-radius: 6px; padding: 14px; font: 12px ui-monospace, monospace;
+    color: #c8ccd4; overflow-x: auto;
+  }
+  .code .kw { color: #c678dd; }
+  .code .ret { color: var(--accent); }
+  .code .upd { color: var(--bend); }
+  .code .cmt { color: var(--muted); }
+</style>
+</head>
+<body>
+  <h1>Max Path Sum — Values-UP Tree Recursion</h1>
+  <div class="sub">
+    Each call <b>returns</b> the best <b>oneArm</b> value — parent keeps just one side (accent).
+    Each call <b>updates</b> a global with the <b>bothArms</b> value = <code>left + node + right</code> (orange).
+    One value goes up; the other is a side effect. That tension is the pattern.
+  </div>
+
+  <div class="layout">
+    <div class="panel">
+      <svg viewBox="0 0 720 440" xmlns="http://www.w3.org/2000/svg">
+        <!-- edges -->
+        <path class="edge" d="M 320 60 L 140 160" />
+        <path class="edge" d="M 320 60 L 500 160" />
+        <path class="edge" d="M 500 160 L 400 280" />
+        <path class="edge" d="M 500 160 L 600 280" />
+
+        <!-- nodes: -10 (root), 9 (left), 20 (right), 15 (20.left), 7 (20.right) -->
+        <g data-node="root">
+          <circle class="node-circle" cx="320" cy="60" r="26" />
+          <text class="node-val" x="320" y="60">-10</text>
+          <text class="badge badge-arm"  x="286"  y="46" data-role="arm"></text>
+          <text class="badge badge-bend" x="354"  y="46" data-role="bend"></text>
+        </g>
+        <g data-node="L">
+          <circle class="node-circle" cx="140" cy="160" r="26" />
+          <text class="node-val" x="140" y="160">9</text>
+          <text class="badge badge-arm"  x="106" y="146" data-role="arm"></text>
+          <text class="badge badge-bend" x="174" y="146" data-role="bend"></text>
+        </g>
+        <g data-node="R">
+          <circle class="node-circle" cx="500" cy="160" r="26" />
+          <text class="node-val" x="500" y="160">20</text>
+          <text class="badge badge-arm"  x="466" y="146" data-role="arm"></text>
+          <text class="badge badge-bend" x="534" y="146" data-role="bend"></text>
+        </g>
+        <g data-node="RL">
+          <circle class="node-circle" cx="400" cy="280" r="26" />
+          <text class="node-val" x="400" y="280">15</text>
+          <text class="badge badge-arm"  x="366" y="266" data-role="arm"></text>
+          <text class="badge badge-bend" x="434" y="266" data-role="bend"></text>
+        </g>
+        <g data-node="RR">
+          <circle class="node-circle" cx="600" cy="280" r="26" />
+          <text class="node-val" x="600" y="280">7</text>
+          <text class="badge badge-arm"  x="566" y="266" data-role="arm"></text>
+          <text class="badge badge-bend" x="634" y="266" data-role="bend"></text>
+        </g>
+      </svg>
+
+      <div class="controls">
+        <button id="next" class="primary">Next step ▸</button>
+        <button id="reset">Reset</button>
+        <button id="all">Run all</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="legend">
+        <div class="legend-row"><div class="chip chip-arm"></div><div><b>oneArm</b> — returned upward (pick the better side)</div></div>
+        <div class="legend-row"><div class="chip chip-bend"></div><div><b>bothArms</b> — left + node + right (global candidate)</div></div>
+        <div class="legend-row"><div class="chip chip-global"></div><div><b>global max</b> — best <b>bothArms</b> seen so far</div></div>
+      </div>
+
+      <div class="global-box">
+        <div class="label">Global max</div>
+        <div class="val" id="global">—</div>
+      </div>
+
+      <div class="step-log" id="log">Click <b>Next step</b> to begin.
+Post-order: leaves first, then ancestors.</div>
+    </div>
+  </div>
+
+  <div class="code">
+<span class="cmt">// Values-UP template</span>
+<span class="kw">int</span> best = Integer.MIN_VALUE;
+
+<span class="kw">public int</span> maxPathSum(TreeNode root) {
+    oneArm(root);
+    <span class="kw">return</span> best;
+}
+
+<span class="cmt">// Returns the best oneArm reach down through this node (so the parent can extend).
+// Updates `best` with the bothArms value (full path turning at this node).</span>
+<span class="kw">int</span> oneArm(TreeNode n) {
+    <span class="kw">if</span> (n == <span class="kw">null</span>) <span class="kw">return</span> 0;
+    <span class="kw">int</span> L = Math.max(oneArm(n.left),  0);   <span class="cmt">// clamp negatives (skip that side)</span>
+    <span class="kw">int</span> R = Math.max(oneArm(n.right), 0);
+    best = Math.max(best, n.val + L + R);      <span class="upd">// bothArms: update global (side effect)</span>
+    <span class="kw">return</span> n.val + Math.max(L, R);          <span class="ret">// oneArm: return upward (pick ONE side)</span>
+}
+  </div>
+
+<script>
+(function () {
+  // Post-order visit order: leaves first, then ancestors
+  // Tree:            -10
+  //                 /    \
+  //                9     20
+  //                     /  \
+  //                    15   7
+  //
+  // Order: L(9), RL(15), RR(7), R(20), root(-10)
+
+  const steps = [
+    { id: 'L',    val: 9,   L: 0,  R: 0,
+      note: 'Leaf 9: oneArm = 9, bothArms = 9. global = 9.' },
+    { id: 'RL',   val: 15,  L: 0,  R: 0,
+      note: 'Leaf 15: oneArm = 15, bothArms = 15. global = 15.' },
+    { id: 'RR',   val: 7,   L: 0,  R: 0,
+      note: 'Leaf 7: oneArm = 7, bothArms = 7. global still 15.' },
+    { id: 'R',    val: 20,  L: 15, R: 7,
+      note: 'Node 20: max(15,7)=15 → oneArm = 20+15 = 35. bothArms = 20+15+7 = 42. global = 42. ★' },
+    { id: 'root', val: -10, L: 9,  R: 35,
+      note: 'Root -10: max(9,35)=35 → oneArm = -10+35 = 25. bothArms = -10+9+35 = 34. global stays 42.' },
+  ];
+
+  let i = 0;
+  let global = -Infinity;
+
+  const $ = (sel, el = document) => el.querySelector(sel);
+  const $$ = (sel, el = document) => Array.from(el.querySelectorAll(sel));
+
+  const nextBtn  = $('#next');
+  const resetBtn = $('#reset');
+  const allBtn   = $('#all');
+  const globalEl = $('#global');
+  const logEl    = $('#log');
+
+  function nodeGroup(id) { return document.querySelector(`[data-node="${id}"]`); }
+
+  function setActive(id) {
+    $$('.node-circle').forEach(c => c.classList.remove('active'));
+    if (id) nodeGroup(id).querySelector('.node-circle').classList.add('active');
+  }
+
+  function applyStep(step) {
+    const oneArm   = step.val + Math.max(step.L, step.R);
+    const bothArms = step.val + step.L + step.R;
+    global = Math.max(global, bothArms);
+
+    const g = nodeGroup(step.id);
+    g.querySelector('[data-role="arm"]').textContent  = `oneArm ${oneArm}`;
+    g.querySelector('[data-role="bend"]').textContent = `bothArms ${bothArms}`;
+    g.querySelector('.node-circle').classList.add('visited');
+
+    setActive(step.id);
+    globalEl.textContent = global;
+
+    logEl.innerHTML =
+      `<span class="hl">step ${i + 1}/${steps.length}</span> — visit ${step.id} (val=${step.val})\n` +
+      `  L=${step.L}, R=${step.R}\n` +
+      `  <span class="arm">oneArm   = val + max(L,R) = ${oneArm}</span>\n` +
+      `  <span class="bend">bothArms = val + L + R     = ${bothArms}</span>\n\n${step.note}`;
+  }
+
+  function next() {
+    if (i >= steps.length) return;
+    applyStep(steps[i]);
+    i++;
+    nextBtn.disabled = i >= steps.length;
+  }
+
+  function reset() {
+    i = 0;
+    global = -Infinity;
+    globalEl.textContent = '—';
+    $$('[data-role]').forEach(t => t.textContent = '');
+    $$('.node-circle').forEach(c => c.classList.remove('visited', 'active'));
+    logEl.innerHTML = 'Click <b>Next step</b> to begin.\nPost-order: leaves first, then ancestors.';
+    nextBtn.disabled = false;
+  }
+
+  function runAll() {
+    reset();
+    const step = () => {
+      if (i < steps.length) { next(); setTimeout(step, 700); }
+    };
+    step();
+  }
+
+  nextBtn.addEventListener('click', next);
+  resetBtn.addEventListener('click', reset);
+  allBtn.addEventListener('click', runAll);
+})();
+</script>
+</body>
+</html>
