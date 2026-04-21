@@ -1,0 +1,344 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Serialize / Deserialize — Null Markers Encode Tree Shape</title>
+<style>
+  :root {
+    --bg: #14171f;
+    --panel: #1c2029;
+    --text: #e6e9ef;
+    --muted: #8892a6;
+    --line: #2a2f3a;
+    --real: #5ab8ff;
+    --null: #ff9f6e;
+    --active: #ffd76e;
+    --emitted: #9dd56b;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: ui-sans-serif, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.5; padding: 24px;
+  }
+  h1 { margin: 0 0 8px; font-size: 22px; font-weight: 600; }
+  .sub { color: var(--muted); font-size: 14px; margin-bottom: 20px; max-width: 780px; }
+  .sub code { color: var(--real); background: #0f1218; padding: 1px 6px; border-radius: 3px; }
+
+  .layout { display: grid; grid-template-columns: 1fr 340px; gap: 20px; max-width: 1140px; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 16px; }
+  svg { width: 100%; height: 480px; display: block; }
+
+  /* Real nodes */
+  .node-real { fill: #2b3140; stroke: var(--line); stroke-width: 2; transition: all .25s; }
+  .node-real.active   { stroke: var(--active); stroke-width: 3; }
+  .node-real.visited  { fill: #1f3b5c; stroke: var(--real); stroke-width: 2; }
+  .node-val { fill: var(--text); font: 600 15px ui-sans-serif; text-anchor: middle; dominant-baseline: central; }
+
+  /* Null markers */
+  .node-null { fill: #24262f; stroke: var(--line); stroke-width: 1.5; stroke-dasharray: 3 3; transition: all .25s; }
+  .node-null.active   { stroke: var(--active); stroke-width: 2.5; }
+  .node-null.visited  { fill: #3a2b1e; stroke: var(--null); stroke-dasharray: 0; }
+  .null-mark { fill: var(--null); font: 600 13px ui-monospace, monospace; text-anchor: middle; dominant-baseline: central; opacity: .6; }
+  .null-mark.visited { opacity: 1; }
+
+  .edge { stroke: var(--line); stroke-width: 2; fill: none; }
+  .edge.null { stroke-dasharray: 4 4; opacity: .5; }
+
+  /* Controls */
+  .controls { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+  button {
+    background: #2a2f3a; color: var(--text); border: 1px solid var(--line);
+    padding: 8px 14px; border-radius: 6px; cursor: pointer; font: 500 13px inherit;
+  }
+  button:hover { background: #353b48; }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+  button.primary { background: #2c5a8c; border-color: #3a74b0; }
+  button.primary:hover { background: #346aa5; }
+
+  /* Right panel */
+  .legend { display: flex; flex-direction: column; gap: 10px; font-size: 13px; margin-bottom: 14px; }
+  .legend-row { display: flex; align-items: center; gap: 10px; }
+  .chip { width: 14px; height: 14px; border-radius: 3px; flex-shrink: 0; }
+  .chip-real { background: var(--real); }
+  .chip-null { background: var(--null); }
+
+  .output {
+    background: #0f1218; border: 1px solid var(--line); border-radius: 6px;
+    padding: 14px; font: 600 14px ui-monospace, monospace;
+    min-height: 60px; word-break: break-all; letter-spacing: .05em;
+  }
+  .output .tok-real { color: var(--real); }
+  .output .tok-null { color: var(--null); }
+  .output .tok-new  { background: var(--active); color: #14171f; padding: 1px 4px; border-radius: 3px; }
+  .output .sep { color: var(--muted); }
+  .output-label { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 6px; }
+
+  .step-log {
+    margin-top: 14px; padding: 12px; border-radius: 6px;
+    background: #181c24; border: 1px solid var(--line);
+    font: 12px ui-monospace, monospace; color: var(--muted);
+    min-height: 80px; white-space: pre-wrap;
+  }
+  .step-log .hl { color: var(--text); }
+  .step-log .real { color: var(--real); }
+  .step-log .null { color: var(--null); }
+
+  .code-block {
+    margin-top: 20px; background: #12151c; border: 1px solid var(--line);
+    border-radius: 6px; padding: 14px; font: 12px ui-monospace, monospace;
+    color: #c8ccd4; overflow-x: auto; max-width: 1140px;
+  }
+  .code-block .kw { color: #c678dd; }
+  .code-block .cmt { color: var(--muted); }
+  .code-block .str { color: var(--emitted); }
+
+  .insight {
+    background: #1a2433; border: 1px solid #2a3a50; border-left: 4px solid var(--real);
+    padding: 14px 18px; border-radius: 6px; margin-top: 20px; max-width: 1140px;
+    font-size: 14px;
+  }
+  .insight b { color: var(--real); }
+</style>
+</head>
+<body>
+  <h1>Serialize / Deserialize — Null Markers Encode Tree Shape</h1>
+  <div class="sub">
+    A single traversal alone can't recover a tree's shape — that's why most reconstruction problems need
+    <i>two</i> traversals (pre+in, post+in). But a traversal <b>with null markers</b> is invertible:
+    the nulls tell you "no child here, come back up." One walk encodes; the reverse walk rebuilds.
+    <br><br>
+    Example tree: <code>[1, 2, 3, null, null, 4, 5]</code>. Pre-order with <code>#</code> for null →
+    target output: <code>1,2,#,#,3,4,#,#,5,#,#</code>.
+  </div>
+
+  <div class="layout">
+    <div class="panel">
+      <svg viewBox="0 0 700 480" xmlns="http://www.w3.org/2000/svg">
+        <!-- Edges from real → real -->
+        <path class="edge" d="M 340 60 L 180 160" />
+        <path class="edge" d="M 340 60 L 500 160" />
+        <path class="edge" d="M 500 160 L 420 260" />
+        <path class="edge" d="M 500 160 L 580 260" />
+
+        <!-- Edges from real → null children -->
+        <path class="edge null" d="M 180 160 L 140 250" />
+        <path class="edge null" d="M 180 160 L 220 250" />
+        <path class="edge null" d="M 420 260 L 380 340" />
+        <path class="edge null" d="M 420 260 L 460 340" />
+        <path class="edge null" d="M 580 260 L 540 340" />
+        <path class="edge null" d="M 580 260 L 620 340" />
+
+        <!-- Real nodes -->
+        <g data-step="0">
+          <circle class="node-real" cx="340" cy="60" r="26" />
+          <text class="node-val" x="340" y="60">1</text>
+        </g>
+        <g data-step="1">
+          <circle class="node-real" cx="180" cy="160" r="26" />
+          <text class="node-val" x="180" y="160">2</text>
+        </g>
+        <g data-step="2">
+          <rect class="node-null" x="126" y="236" width="28" height="28" rx="4" />
+          <text class="null-mark" x="140" y="250">#</text>
+        </g>
+        <g data-step="3">
+          <rect class="node-null" x="206" y="236" width="28" height="28" rx="4" />
+          <text class="null-mark" x="220" y="250">#</text>
+        </g>
+        <g data-step="4">
+          <circle class="node-real" cx="500" cy="160" r="26" />
+          <text class="node-val" x="500" y="160">3</text>
+        </g>
+        <g data-step="5">
+          <circle class="node-real" cx="420" cy="260" r="26" />
+          <text class="node-val" x="420" y="260">4</text>
+        </g>
+        <g data-step="6">
+          <rect class="node-null" x="366" y="326" width="28" height="28" rx="4" />
+          <text class="null-mark" x="380" y="340">#</text>
+        </g>
+        <g data-step="7">
+          <rect class="node-null" x="446" y="326" width="28" height="28" rx="4" />
+          <text class="null-mark" x="460" y="340">#</text>
+        </g>
+        <g data-step="8">
+          <circle class="node-real" cx="580" cy="260" r="26" />
+          <text class="node-val" x="580" y="260">5</text>
+        </g>
+        <g data-step="9">
+          <rect class="node-null" x="526" y="326" width="28" height="28" rx="4" />
+          <text class="null-mark" x="540" y="340">#</text>
+        </g>
+        <g data-step="10">
+          <rect class="node-null" x="606" y="326" width="28" height="28" rx="4" />
+          <text class="null-mark" x="620" y="340">#</text>
+        </g>
+      </svg>
+
+      <div class="controls">
+        <button id="next" class="primary">Next step ▸</button>
+        <button id="reset">Reset</button>
+        <button id="all">Run all</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="legend">
+        <div class="legend-row"><div class="chip chip-real"></div><div><b>Real node</b> — emit its value</div></div>
+        <div class="legend-row"><div class="chip chip-null"></div><div><b>Null child</b> — emit <code>#</code> (anchors the shape)</div></div>
+      </div>
+
+      <div class="output-label">Serialized output</div>
+      <div class="output" id="out">—</div>
+
+      <div class="step-log" id="log">Click <b>Next step</b> to begin.
+Pre-order DFS: visit node, then left subtree, then right.
+Every node emits a token (real or null).</div>
+    </div>
+  </div>
+
+  <div class="code-block">
+<span class="cmt">// Pre-order DFS with null markers — the canonical template</span>
+<span class="kw">public</span> String serialize(TreeNode root) {
+    StringBuilder sb = <span class="kw">new</span> StringBuilder();
+    ser(root, sb);
+    <span class="kw">return</span> sb.toString();
+}
+<span class="kw">private void</span> ser(TreeNode n, StringBuilder sb) {
+    <span class="kw">if</span> (n == <span class="kw">null</span>) { sb.append(<span class="str">"#,"</span>); <span class="kw">return</span>; }
+    sb.append(n.val).append(<span class="str">","</span>);
+    ser(n.left, sb);
+    ser(n.right, sb);
+}
+
+<span class="cmt">// Deserialize mirrors it: a shared token queue, same recursion shape.
+// The call stack tracks where in the tree we are — no index bookkeeping.</span>
+<span class="kw">public</span> TreeNode deserialize(String data) {
+    Deque&lt;String&gt; tokens = <span class="kw">new</span> ArrayDeque&lt;&gt;(Arrays.asList(data.split(<span class="str">","</span>)));
+    <span class="kw">return</span> des(tokens);
+}
+<span class="kw">private</span> TreeNode des(Deque&lt;String&gt; tokens) {
+    String t = tokens.poll();
+    <span class="kw">if</span> (t.equals(<span class="str">"#"</span>)) <span class="kw">return null</span>;
+    TreeNode n = <span class="kw">new</span> TreeNode(Integer.parseInt(t));
+    n.left  = des(tokens);   <span class="cmt">// recursion pairs calls with tokens automatically</span>
+    n.right = des(tokens);
+    <span class="kw">return</span> n;
+}
+  </div>
+
+  <div class="insight">
+    <b>Why this is invertible.</b> Without the <code>#</code> markers, the string <code>1,2,3,4,5</code> could
+    correspond to many different trees — there's no way to know where one subtree ends and another begins.
+    The nulls act as <i>terminators</i>: when the deserializer sees <code>#</code>, it knows "this subtree is empty,
+    return up a level." That's the same thing the serializer's recursion did on its way down.
+    One token per recursive call — symmetric by construction. <br><br>
+    <b>Transfer.</b> This template is the backbone of subtree-hashing problems
+    (Subtree of Another Tree, Find Duplicate Subtrees) and any case where you need to
+    persist or compare trees. For k-ary trees, emit <code>k</code> children per node, or use a
+    closing marker like <code>)</code>.
+  </div>
+
+<script>
+(function () {
+  // Pre-order walk of:
+  //          1
+  //         / \
+  //        2   3
+  //           / \
+  //          4   5
+  // Tokens in emit order (matches data-step index):
+  const steps = [
+    { step: 0,  token: '1',  kind: 'real', note: 'Visit root 1 → emit "1". Descend left.' },
+    { step: 1,  token: '2',  kind: 'real', note: 'Visit 2 → emit "2". Descend left.' },
+    { step: 2,  token: '#',  kind: 'null', note: '2.left is null → emit "#". Back up.' },
+    { step: 3,  token: '#',  kind: 'null', note: '2.right is null → emit "#". Back up past 2 (done).' },
+    { step: 4,  token: '3',  kind: 'real', note: 'Back at 1, go right. Visit 3 → emit "3". Descend left.' },
+    { step: 5,  token: '4',  kind: 'real', note: 'Visit 4 → emit "4". Descend left.' },
+    { step: 6,  token: '#',  kind: 'null', note: '4.left is null → emit "#". Back up.' },
+    { step: 7,  token: '#',  kind: 'null', note: '4.right is null → emit "#". Back up past 4.' },
+    { step: 8,  token: '5',  kind: 'real', note: 'Back at 3, go right. Visit 5 → emit "5". Descend left.' },
+    { step: 9,  token: '#',  kind: 'null', note: '5.left is null → emit "#". Back up.' },
+    { step: 10, token: '#',  kind: 'null', note: '5.right is null → emit "#". Back up past 5, 3, 1. Done.' },
+  ];
+
+  let i = 0;
+  let tokens = [];
+
+  const $ = (sel, el = document) => el.querySelector(sel);
+  const $$ = (sel, el = document) => Array.from(el.querySelectorAll(sel));
+
+  const nextBtn  = $('#next');
+  const resetBtn = $('#reset');
+  const allBtn   = $('#all');
+  const outEl    = $('#out');
+  const logEl    = $('#log');
+
+  function group(step) { return document.querySelector(`[data-step="${step}"]`); }
+
+  function setActive(step) {
+    $$('.node-real, .node-null').forEach(el => el.classList.remove('active'));
+    const g = group(step);
+    const shape = g.querySelector('.node-real, .node-null');
+    if (shape) shape.classList.add('active');
+  }
+
+  function renderOutput(newIdx) {
+    if (tokens.length === 0) { outEl.innerHTML = '—'; return; }
+    outEl.innerHTML = tokens.map((t, idx) => {
+      const cls = t.kind === 'real' ? 'tok-real' : 'tok-null';
+      const newClass = idx === newIdx ? ' tok-new' : '';
+      return `<span class="${cls}${newClass}">${t.token}</span>`;
+    }).join('<span class="sep">,</span>');
+  }
+
+  function applyStep(s) {
+    const g = group(s.step);
+    const shape = g.querySelector('.node-real, .node-null');
+    shape.classList.add('visited');
+    const nullMark = g.querySelector('.null-mark');
+    if (nullMark) nullMark.classList.add('visited');
+
+    tokens.push({ token: s.token, kind: s.kind });
+    setActive(s.step);
+    renderOutput(tokens.length - 1);
+
+    const cls = s.kind === 'real' ? 'real' : 'null';
+    logEl.innerHTML =
+      `<span class="hl">step ${i + 1}/${steps.length}</span> — emit <span class="${cls}">${s.token}</span>\n\n${s.note}`;
+  }
+
+  function next() {
+    if (i >= steps.length) return;
+    applyStep(steps[i]);
+    i++;
+    nextBtn.disabled = i >= steps.length;
+  }
+
+  function reset() {
+    i = 0;
+    tokens = [];
+    outEl.innerHTML = '—';
+    $$('.node-real, .node-null').forEach(el => el.classList.remove('active', 'visited'));
+    $$('.null-mark').forEach(el => el.classList.remove('visited'));
+    logEl.innerHTML = 'Click <b>Next step</b> to begin.\nPre-order DFS: visit node, then left subtree, then right.\nEvery node emits a token (real or null).';
+    nextBtn.disabled = false;
+  }
+
+  function runAll() {
+    reset();
+    const step = () => {
+      if (i < steps.length) { next(); setTimeout(step, 650); }
+    };
+    step();
+  }
+
+  nextBtn.addEventListener('click', next);
+  resetBtn.addEventListener('click', reset);
+  allBtn.addEventListener('click', runAll);
+})();
+</script>
+</body>
+</html>

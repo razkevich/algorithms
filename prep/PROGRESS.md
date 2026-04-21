@@ -27,7 +27,7 @@ Target language: **Java**. Solutions live in `prep/<category>/`.
 - [x] **Post-order** — `prep/trees/PostOrder.java`
 - [x] **Tree recursion — bounds DOWN** — `prep/trees/ValidateBST.java` (caller tightens bounds; transfers to Range Sum of BST / Recover BST / in-range count)
 - [x] **Tree recursion — values UP** — `prep/trees/MaxPathSum.java` (return one thing, side-effect a global with another; tuple-return variant unlocks House Robber III / Cameras / tree DP)
-- [ ] **Serialize / deserialize** — pre-order with null markers (the one non-recursion tree skill — encoding/parsing)
+- [x] **Serialize / deserialize** — `prep/trees/SerializeDeserializeBinaryTree.java` (pre-order + null markers → invertible encoding; BFS variant for LC's own format; unlocks subtree hashing / duplicate subtrees)
 
 ## 6. Arrays (pattern-unique)
 
