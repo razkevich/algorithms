@@ -25,7 +25,8 @@ Target language: **Java**. Solutions live in `prep/<category>/`.
 - [x] **Pre-order** — `prep/trees/PreOrder.java`
 - [x] **In-order** — `prep/trees/InOrder.java`
 - [x] **Post-order** — `prep/trees/PostOrder.java`
-- [ ] **Tree recursion with state** — bounds **down** (BST validation) and values **up** (Tree DP, LCA, max path sum)
+- [x] **Tree recursion — bounds DOWN** — `prep/trees/ValidateBST.java` (caller tightens bounds; transfers to Range Sum of BST / Recover BST / in-range count)
+- [ ] **Tree recursion — values UP** — max path sum / diameter / LCA (each call returns info, parent combines; global answer updated on the way up)
 - [ ] **Serialize / deserialize** — pre-order with null markers (the one non-recursion tree skill — encoding/parsing)
 
 ## 6. Arrays (pattern-unique)
