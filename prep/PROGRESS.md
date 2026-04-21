@@ -50,7 +50,7 @@ Target language: **Java**. Solutions live in `prep/<category>/`.
 ## 11. Backtracking
 
 - [x] **Subsets / combinations** — `prep/backtracking/Subsets.java` (functional-copy variant; mutate-and-restore noted in header as the form needed for grid/N-Queens)
-- [ ] **Grid backtracking** — DFS with visited marker and restore
+- [x] **Grid backtracking** — `prep/backtracking/WordSearch.java` (mutate-and-restore with visited set; canonical `board[i][j]='#'` in-place marker noted in header)
 
 ## 12. Greedy / Intervals
 
