@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>LC 875 — Koko Eating Bananas</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --panel: #171a20;
+    --border: #272b33;
+    --text: #e6e6e6;
+    --muted: #9aa3ad;
+    --accent: #fbbf24;
+    --accent-dark: #b8860b;
+    --pass: #34d399;
+    --fail: #f87171;
+    --fail-bg: #3a1414;
+    --pass-bg: #103a22;
+  }
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    margin: 0;
+    padding: 2rem;
+    max-width: 960px;
+    margin: 0 auto;
+    line-height: 1.5;
+  }
+  h1 { color: var(--accent); margin-top: 0; font-size: 1.5rem; }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1rem 1.2rem;
+    margin-bottom: 1rem;
+  }
+  .rule { color: var(--muted); font-size: 0.92rem; }
+  .rule b { color: var(--text); }
+  code {
+    background: #0a0c10;
+    padding: 2px 6px;
+    border-radius: 3px;
+    color: var(--accent);
+    font-family: "SF Mono", Menlo, monospace;
+  }
+  .controls {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .controls label { color: var(--muted); font-size: 0.9rem; }
+  select {
+    background: #0a0c10;
+    color: var(--text);
+    border: 1px solid var(--border);
+    padding: 0.4rem 0.6rem;
+    border-radius: 4px;
+    font-family: inherit;
+  }
+  .k-control {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin: 1rem 0 0.5rem;
+  }
+  .k-label { color: var(--muted); font-size: 0.9rem; }
+  .k-val {
+    color: var(--accent);
+    font-weight: 700;
+    font-size: 1.6rem;
+    min-width: 3ch;
+    text-align: right;
+    font-family: "SF Mono", Menlo, monospace;
+  }
+  input[type="range"] {
+    flex: 1;
+    accent-color: var(--accent);
+  }
+  .piles {
+    display: flex;
+    gap: 1.2rem;
+    align-items: flex-end;
+    justify-content: center;
+    min-height: 260px;
+    padding: 1rem 0;
+    overflow-x: auto;
+  }
+  .pile {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+  .pile-stack {
+    display: flex;
+    flex-direction: column-reverse;
+    gap: 2px;
+    align-items: center;
+  }
+  .unit {
+    width: 36px;
+    height: 7px;
+    background: var(--accent);
+    border-radius: 2px;
+  }
+  .unit.chunk-b { background: var(--accent-dark); }
+  .chunk-gap { height: 3px; }
+  .pile-label {
+    color: var(--muted);
+    font-size: 0.8rem;
+    text-align: center;
+    font-family: "SF Mono", Menlo, monospace;
+  }
+  .pile-label .hrs { color: var(--accent); font-weight: 600; }
+  .timeline {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 0.8rem;
+  }
+  .hour-cell {
+    padding: 0.3rem 0.55rem;
+    background: #0a0c10;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-size: 0.78rem;
+    font-family: "SF Mono", Menlo, monospace;
+    color: var(--text);
+  }
+  .hour-cell.over {
+    background: var(--fail-bg);
+    border-color: var(--fail);
+    color: var(--fail);
+  }
+  .hour-cell .pile-tag { color: var(--muted); }
+  .status {
+    margin-top: 1rem;
+    padding: 0.7rem 1rem;
+    border-radius: 6px;
+    font-family: "SF Mono", Menlo, monospace;
+    font-size: 0.95rem;
+  }
+  .status.pass { background: var(--pass-bg); color: var(--pass); border: 1px solid var(--pass); }
+  .status.fail { background: var(--fail-bg); color: var(--fail); border: 1px solid var(--fail); }
+  .summary { color: var(--muted); font-size: 0.85rem; margin-top: 0.3rem; }
+  .legend {
+    display: flex;
+    gap: 1.2rem;
+    font-size: 0.8rem;
+    color: var(--muted);
+    margin-top: 0.3rem;
+    justify-content: center;
+  }
+  .legend-swatch {
+    display: inline-block;
+    width: 14px;
+    height: 8px;
+    border-radius: 2px;
+    vertical-align: middle;
+    margin-right: 4px;
+  }
+</style>
+</head>
+<body>
+
+<h1>LC 875 — Koko Eating Bananas</h1>
+
+<div class="panel">
+  <div class="rule">
+    Koko has piles of bananas. Each hour she picks <b>one pile</b> and eats up to <code>k</code> bananas from it.<br>
+    If the pile has fewer than <code>k</code>, she eats what's there and <b>waits out the hour</b> — she can't move to another pile mid-hour.<br>
+    She must finish all piles within <code>h</code> hours.
+    <br><br>
+    <b>Question:</b> what's the smallest integer <code>k</code> that works?
+  </div>
+</div>
+
+<div class="panel">
+  <div class="controls">
+    <label>Example:
+      <select id="example"></select>
+    </label>
+    <div class="k-label">h (hours allowed) = <b id="h-val" style="color: var(--text)"></b></div>
+  </div>
+
+  <div class="k-control">
+    <span class="k-label">k =</span>
+    <span class="k-val" id="k-val">1</span>
+    <input type="range" id="k" min="1" max="30" value="1">
+  </div>
+
+  <div class="legend">
+    <span><span class="legend-swatch" style="background: var(--accent)"></span>hour chunk A</span>
+    <span><span class="legend-swatch" style="background: var(--accent-dark)"></span>hour chunk B</span>
+    <span style="color: var(--muted)">— adjacent chunks of size ≤ k; each is one hour</span>
+  </div>
+
+  <div class="piles" id="piles"></div>
+
+  <div class="summary" id="summary"></div>
+  <div class="timeline" id="timeline"></div>
+  <div class="status" id="status"></div>
+</div>
+
+<script>
+  const examples = [
+    { piles: [3, 6, 7, 11], h: 8 },
+    { piles: [30, 11, 23, 4, 20], h: 6 },
+    { piles: [30, 11, 23, 4, 20], h: 5 },
+    { piles: [1, 1, 1, 999999999], h: 10 },
+  ];
+
+  const exSel = document.getElementById('example');
+  examples.forEach((ex, i) => {
+    const o = document.createElement('option');
+    o.value = i;
+    const pilesStr = ex.piles.length > 4 ? ex.piles.slice(0, 4).join(',') + '...' : ex.piles.join(',');
+    o.textContent = `piles=[${pilesStr}], h=${ex.h}`;
+    exSel.appendChild(o);
+  });
+
+  let current = examples[0];
+
+  const kSlider = document.getElementById('k');
+  const kVal = document.getElementById('k-val');
+  const hVal = document.getElementById('h-val');
+  const pilesDiv = document.getElementById('piles');
+  const timelineDiv = document.getElementById('timeline');
+  const statusDiv = document.getElementById('status');
+  const summaryDiv = document.getElementById('summary');
+
+  const MAX_VIS_UNITS = 40; // cap stack height; taller piles show a "…" marker
+  const MAX_TIMELINE_CELLS = 60;
+
+  function render() {
+    const k = parseInt(kSlider.value);
+    kVal.textContent = k;
+
+    pilesDiv.innerHTML = '';
+    timelineDiv.innerHTML = '';
+
+    const hoursPerPile = current.piles.map(p => Math.ceil(p / k));
+    const totalHours = hoursPerPile.reduce((a, b) => a + b, 0);
+
+    // Piles: each banana is a unit; color alternates per k-chunk so hours are visible.
+    current.piles.forEach((pile, i) => {
+      const pileEl = document.createElement('div');
+      pileEl.className = 'pile';
+      const stack = document.createElement('div');
+      stack.className = 'pile-stack';
+
+      const visibleUnits = Math.min(pile, MAX_VIS_UNITS);
+      for (let u = 0; u < visibleUnits; u++) {
+        // chunk index = floor(u / k); alternate color per chunk
+        const chunkIdx = Math.floor(u / k);
+        const unit = document.createElement('div');
+        unit.className = 'unit' + (chunkIdx % 2 === 1 ? ' chunk-b' : '');
+        stack.appendChild(unit);
+
+        // small gap between chunks to make hour boundaries visible
+        if ((u + 1) % k === 0 && u + 1 < visibleUnits) {
+          const gap = document.createElement('div');
+          gap.className = 'chunk-gap';
+          stack.appendChild(gap);
+        }
+      }
+      if (pile > MAX_VIS_UNITS) {
+        const more = document.createElement('div');
+        more.className = 'pile-label';
+        more.textContent = `+${pile - MAX_VIS_UNITS} more`;
+        stack.appendChild(more);
+      }
+      pileEl.appendChild(stack);
+
+      const lbl = document.createElement('div');
+      lbl.className = 'pile-label';
+      lbl.innerHTML = `pile ${i + 1}: ${pile}<br>→ <span class="hrs">${hoursPerPile[i]}h</span>`;
+      pileEl.appendChild(lbl);
+
+      pilesDiv.appendChild(pileEl);
+    });
+
+    // Timeline: hour-by-hour breakdown. Cap to MAX_TIMELINE_CELLS for huge cases.
+    let hourCount = 0;
+    let truncated = false;
+    outer: for (let i = 0; i < current.piles.length; i++) {
+      let remaining = current.piles[i];
+      while (remaining > 0) {
+        hourCount++;
+        const eaten = Math.min(k, remaining);
+        if (hourCount > MAX_TIMELINE_CELLS) {
+          truncated = true;
+          break outer;
+        }
+        const cell = document.createElement('div');
+        cell.className = 'hour-cell' + (hourCount > current.h ? ' over' : '');
+        cell.innerHTML = `h${hourCount} <span class="pile-tag">p${i + 1}</span> eat ${eaten}`;
+        timelineDiv.appendChild(cell);
+        remaining -= k;
+      }
+    }
+    if (truncated) {
+      const cell = document.createElement('div');
+      cell.className = 'hour-cell';
+      cell.textContent = `… ${totalHours - MAX_TIMELINE_CELLS} more hours`;
+      timelineDiv.appendChild(cell);
+    }
+
+    summaryDiv.textContent = `hours per pile = [${hoursPerPile.join(', ')}]  ·  sum = ${totalHours}`;
+
+    if (totalHours <= current.h) {
+      statusDiv.className = 'status pass';
+      statusDiv.textContent = `PASS — ${totalHours} hours ≤ h=${current.h}. k=${k} works.`;
+    } else {
+      statusDiv.className = 'status fail';
+      statusDiv.textContent = `FAIL — ${totalHours} hours > h=${current.h}. k=${k} is too slow.`;
+    }
+  }
+
+  function setExample(idx) {
+    current = examples[idx];
+    hVal.textContent = current.h;
+    const maxPile = Math.max(...current.piles);
+    // slider cap: min(max pile, 50) so the UI stays usable; you can still type values
+    kSlider.max = Math.min(maxPile, 50);
+    kSlider.value = 1;
+    render();
+  }
+
+  exSel.addEventListener('change', e => setExample(parseInt(e.target.value)));
+  kSlider.addEventListener('input', render);
+  setExample(0);
+</script>
+
+</body>
+</html>

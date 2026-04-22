@@ -95,7 +95,7 @@ Not active prep — kept here so coverage is documented and I can re-visit any b
 
 ### Binary search
 - [x] **Classic binary search on sorted array** — plus rotated-sorted variant, find peak, search 2D matrix
-- [ ] **Binary search on the answer space** — Koko Eating Bananas, Split Array Largest Sum, Capacity to Ship Packages (the "is X feasible?" → monotone predicate trick)
+- [x] **Binary search on the answer space** — `prep/binary-search/KokoEatingBananas.java` (monotone predicate over candidate answers; template transfers to Capacity to Ship / Split Array Largest Sum / Aggressive Cows)
 
 ### Dynamic programming
 - [ ] **1D DP** — House Robber, Coin Change, Longest Increasing Subsequence (O(n log n) with patience-sort variant worth knowing) *(HR + Coin Change confident; LIS O(n log n) still worth practicing)*
