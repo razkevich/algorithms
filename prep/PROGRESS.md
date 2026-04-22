@@ -98,12 +98,15 @@ Not active prep — kept here so coverage is documented and I can re-visit any b
 - [x] **Binary search on the answer space** — `prep/binary-search/KokoEatingBananas.java` (monotone predicate over candidate answers; template transfers to Capacity to Ship / Split Array Largest Sum / Aggressive Cows)
 
 ### Dynamic programming
-- [ ] **1D DP** — House Robber, Coin Change, Longest Increasing Subsequence (O(n log n) with patience-sort variant worth knowing) *(HR + Coin Change confident; LIS O(n log n) still worth practicing)*
-- [ ] **2D DP** — Unique Paths, Longest Common Subsequence, Edit Distance, 0/1 Knapsack
-- [x] **DP on strings / intervals** — palindrome partitioning, matrix chain, burst balloons (trickier — only if time allows)
+- [x] **1D DP — House Robber / Coin Change / Word Break / Decode Ways** — confident, skip drilling
+- [ ] **1D DP — LIS in O(n log n)** — patience-sort variant; worth one rep
+- [ ] **2D DP — Edit Distance** — canonical Sequence DP; unlocks LCS / Distinct Subsequences / Regex via same template
+- [x] **2D DP — Unique Paths** — trivial grid DP, skip
+- [x] **2D DP — 0/1 Knapsack** — light-touch (recognize take-or-skip recurrence); don't drill
+- [x] **DP on strings / intervals** — palindrome partitioning, matrix chain, burst balloons (dropped — rare in senior/staff loops)
 
 ### Shortest path (weighted)
-- [ ] **Dijkstra with PQ** — Network Delay Time, Cheapest Flights Within K Stops, Path With Minimum Effort
+- [x] **Dijkstra with PQ** — `prep/graphs/Dijkstra.java` (lazy-deletion template: first pop finalizes; no decrease-key, skip stale entries; transfers to Network Delay Time / Cheapest Flights K Stops / Path With Minimum Effort via min-of-max relaxation)
 - [x] **Bellman-Ford / negative edges** — only if frontier-lab / systems-heavy loop
 
 ### Linked list fundamentals
