@@ -15,6 +15,7 @@ Target language: **Java**. Solutions live in `prep/<category>/`.
 - [x] **Cycle detection — DFS with 3-color** — `prep/graphs/CycleDetection3Color.java`
 - [x] **Topological sort — Kahn's BFS** — `prep/graphs/TopologicalSortKahn.java` (DFS reverse post-order covered in file header)
 - [x] **Kosaraju's SCC** — intuition only (full DFS forest + finish stack + transpose + peel); `prep/graphs/scc-visualization.html`
+- [x] **Dijkstra — lazy PQ variant** — `prep/graphs/Dijkstra.java` (BFS with a PQ; first-pop-wins invariant; template for Network Delay / Cheapest Flights / Min Effort Path)
 
 ## 2. Union-Find
 
@@ -106,7 +107,7 @@ Not active prep — kept here so coverage is documented and I can re-visit any b
 - [x] **DP on strings / intervals** — palindrome partitioning, matrix chain, burst balloons (dropped — rare in senior/staff loops)
 
 ### Shortest path (weighted)
-- [x] **Dijkstra with PQ** — `prep/graphs/Dijkstra.java` (lazy-deletion template: first pop finalizes; no decrease-key, skip stale entries; transfers to Network Delay Time / Cheapest Flights K Stops / Path With Minimum Effort via min-of-max relaxation)
+- [ ] **Dijkstra with PQ** — Network Delay Time, Cheapest Flights Within K Stops, Path With Minimum Effort
 - [x] **Bellman-Ford / negative edges** — only if frontier-lab / systems-heavy loop
 
 ### Linked list fundamentals

@@ -2,47 +2,43 @@ package prep.graphs;
 
 import java.util.*;
 
-/**
- * Single-source shortest paths on a weighted directed graph with
- * NON-NEGATIVE edge weights. Returns map: node -> shortest distance from source.
+/*
+ * Dijkstra — single-source shortest paths, non-negative weights.
  *
- * Adjacency format: graph.get(u) = list of int[]{v, weight} for each edge u -> v.
+ * Pattern: **BFS with a priority queue instead of a FIFO queue**.
+ * BFS guarantees shortest hop-count because the queue is sorted by insertion
+ * order (= hops). Dijkstra generalizes: sort the frontier by cumulative edge
+ * weight, and the first time a node pops you've got its minimum distance.
+ * (Proof sketch: any later path to that node goes through some *other* node
+ *  already in the PQ at equal-or-greater distance + a non-negative edge →
+ *  can't be shorter. Breaks if edges can be negative — use Bellman-Ford.)
  *
- * Template — "lazy deletion" Dijkstra:
- *  1. Min-heap keyed by tentative distance.
- *  2. Pop (node, d). If node is already finalized, skip (stale entry).
- *  3. Otherwise finalize: the first pop of a node IS its shortest distance.
- *     Proof sketch: min-heap gives us the smallest tentative d across the
- *     frontier; with non-negative weights, no later path can be shorter.
- *  4. Push every neighbor with tentative distance d + w. Don't bother
- *     comparing against existing tentative distances — stale entries get
- *     filtered on pop. This is the "decrease-key-free" trick; the PQ can
- *     hold O(E) entries instead of O(V).
+ * Variant used here: **lazy Dijkstra**.
+ *   - No decrease-key. Instead, push a fresh (node, dist) entry every time
+ *     we find an improvement, and on pop skip nodes already finalized.
+ *   - PQ may hold stale duplicates; that's fine — they get filtered on pop.
+ *   - O((V+E) log E). The alternative (eager: separate tentative-dist map
+ *     + indexed heap) is O((V+E) log V) but uglier in Java without a library.
  *
- * Why no separate `visited` set: the result map IS the finalized set.
- * `result.containsKey(node)` answers "is this node done?".
+ * Invariants:
+ *   - `dist` holds FINAL distances only (set once, never updated).
+ *   - PQ entries are tentative; the first pop of a node wins.
  *
- * When Dijkstra breaks:
- *  - Negative edges → use Bellman-Ford (or SPFA). Dijkstra finalizes on first
- *    pop, so a cheaper-but-later path via a negative edge is missed.
- *  - Need shortest path TREE / actual path → track `parent[v] = u` whenever
- *    you'd push (v, d+w) and v is not yet finalized; then walk back from target.
+ * Graph shape: Map<node, List<int[]>> where each int[] = {neighbor, weight}.
  *
- * Pattern transfer:
- *  - Network Delay Time — run Dijkstra, return max over all finalized distances.
- *  - Cheapest Flights Within K Stops — Dijkstra variant with a stops budget in
- *    the PQ key, or Bellman-Ford relaxed K+1 times.
- *  - Path With Minimum Effort — grid Dijkstra with edge weight =
- *    |heightA - heightB| and relaxation = max(curEffort, edgeWeight) instead
- *    of sum. Same template, different combiner.
- *  - Swim in Rising Water — same min-of-max relaxation on a grid.
- *
- * Complexity: O((V + E) log V) with binary heap. Space O(V + E).
+ * Transfer / family:
+ *   - LC 743  Network Delay Time         — vanilla Dijkstra from a source.
+ *   - LC 787  Cheapest Flights ≤ K Stops — add a "stops" dimension to the state.
+ *   - LC 1631 Path With Minimum Effort   — cost = max(edge) along path (not sum);
+ *                                          same template, different relax rule.
+ *   - LC 778  Swim in Rising Water       — same as above with grid edges.
+ *   - 0/1 weights → BFS on a deque (push-front for 0, push-back for 1) is faster.
+ *   - Negative weights → Bellman-Ford; negative cycles → detect with V-th relax pass.
  *
  * Java API traps:
- *  - PriorityQueue: offer/poll/peek (NOT add/remove/element for the algorithmic flavor).
- *  - `Comparator.comparingInt(a -> a[1])` over `Comparator.comparing(a -> a[1])`
- *    to avoid autoboxing on every compare.
+ *   - `Comparator.comparingInt` over `Comparator.comparing` on int[] — avoids boxing.
+ *   - `getOrDefault(key, List.of())` over null-checks or external utility libs.
+ *   - PriorityQueue: offer/poll/peek (not add/remove/element).
  */
 public class Dijkstra {
 
@@ -54,32 +50,15 @@ public class Dijkstra {
         while (!pq.isEmpty()) {
             int[] cur = pq.poll();
             int node = cur[0], d = cur[1];
-
             if (dist.containsKey(node)) continue;   // stale entry — already finalized
-            dist.put(node, d);                      // first pop wins: this is the shortest
+            dist.put(node, d);
 
-            for (int[] edge : graph.getOrDefault(node, List.of())) {
-                int nei = edge[0], w = edge[1];
-                if (!dist.containsKey(nei)) {
-                    pq.offer(new int[]{nei, d + w});
-                }
+            for (int[] nei : graph.getOrDefault(node, List.of())) {
+                int next = nei[0], w = nei[1];
+                if (dist.containsKey(next)) continue; // small optimization: don't push finalized
+                pq.offer(new int[]{next, d + w});
             }
         }
         return dist;
-    }
-
-    public static void main(String[] args) {
-        // Graph:
-        //   1 --4--> 2 --1--> 3
-        //   1 --2--> 3 --3--> 4
-        //   2 --5--> 4
-        // Shortest from 1: {1:0, 2:4, 3:2, 4:5}
-        Map<Integer, List<int[]>> graph = Map.of(
-                1, List.of(new int[]{2, 4}, new int[]{3, 2}),
-                2, List.of(new int[]{3, 1}, new int[]{4, 5}),
-                3, List.of(new int[]{4, 3}),
-                4, List.of()
-        );
-        System.out.println(dijkstra(graph, 1)); // {1=0, 2=4, 3=2, 4=5}
     }
 }
