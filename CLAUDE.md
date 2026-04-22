@@ -19,6 +19,8 @@ Senior/staff coding-interview prep. I'm teacher/mentor: one problem at a time, u
 ## Commit workflow
 After each correct solution: commit to `prep/<category>/` + tick PROGRESS.md in the same commit, push to `origin/master`. Durable authorization given — don't re-ask.
 
+**Before push**, run `gh auth status` to check the active gh user. This repo belongs to `razkevich`; if the active user is anything else, run `gh auth switch --user razkevich`, push, then `gh auth switch --user <previous>` to revert. Don't leave the session on the wrong account.
+
 ## Style preferences
 - **Revisit mode is valid.** If the user asks to "just revisit" or "show and discuss," give a reference implementation + brief notes; don't force a solve-review loop.
 - **HTML visualizations** for structural/relational concepts — dark theme, inline SVG (e.g. `prep/graphs/scc-visualization.html`).
