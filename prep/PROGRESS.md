@@ -110,7 +110,7 @@ Not active prep — kept here so coverage is documented and I can re-visit any b
 - [x] **Reverse a linked list** — iterative + recursive; feeds into reverse-in-groups, palindrome check
 - [x] **Merge two sorted lists** — building block for merge-K-lists (heap or divide-conquer)
 - [x] **Reorder list / find middle / detect cycle** — Floyd's tortoise-and-hare
-- [ ] **Copy List with Random Pointer** — interleave-and-split trick or HashMap
+- [x] **Copy List with Random Pointer** — `prep/linkedlist/CopyRandomList.java` (hashmap primary; interleave-and-split O(1)-space trick in header)
 
 ### Intervals — minimum-removal / maximum-selection (complement to sweep-line)
 Sweep-line handles merge / count / state-at-point problems. This second template is the one sweep-line can't cleanly solve: "remove the fewest" or "keep the most non-overlapping." Covered sort-by-start + sweep and sweep-line with events; this closes the gap.
