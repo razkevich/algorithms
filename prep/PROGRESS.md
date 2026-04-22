@@ -87,7 +87,7 @@ Not active prep — kept here so coverage is documented and I can re-visit any b
 
 ### Sliding window
 - [x] **Fixed-size window** — max sum of size K, averages
-- [ ] **Variable-size window** — longest substring without repeating chars, min window substring (shrink while invariant violated)
+- [x] **Variable-size window** — `prep/sliding-window/MinimumWindowSubstring.java` (shrink-while-valid template; expand unconditionally, shrink conditionally, record before each shrink)
 
 ### Two pointers
 - [x] **Converging pointers on sorted array** — 3Sum, Container With Most Water, Valid Palindrome
