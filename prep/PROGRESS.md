@@ -107,7 +107,6 @@ Not active prep — kept here so coverage is documented and I can re-visit any b
 - [x] **DP on strings / intervals** — palindrome partitioning, matrix chain, burst balloons (dropped — rare in senior/staff loops)
 
 ### Shortest path (weighted)
-- [ ] **Dijkstra with PQ** — Network Delay Time, Cheapest Flights Within K Stops, Path With Minimum Effort
 - [x] **Bellman-Ford / negative edges** — only if frontier-lab / systems-heavy loop
 
 ### Linked list fundamentals
