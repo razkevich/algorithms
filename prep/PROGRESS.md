@@ -69,7 +69,6 @@ Target language: **Java**. Solutions live in `prep/<category>/`.
 ### Concurrency — Java's killer area (`java.util.concurrent`)
 
 - [ ] **Bounded Blocking Queue (LC 1188)** — `ReentrantLock` + two `Condition`s
-- [ ] **Thread-safe LRU** — extend LRU with `ReentrantReadWriteLock`
 - [ ] **Parallel Task Runner with deps** — topo sort + `ExecutorService` + `CountDownLatch`/`CompletableFuture`; composes concurrency with another algorithm (Databricks-flavored)
 - [ ] **Token Bucket rate limiter** — `ScheduledExecutorService` + `Semaphore`
 
@@ -79,7 +78,6 @@ Target language: **Java**. Solutions live in `prep/<category>/`.
 - [ ] **LFU Cache (LC 460)** — two-tier DLL
 - [ ] **Transactional in-memory store** — nested `BEGIN`/`COMMIT`/`ROLLBACK`, overlay stack
 - [ ] **Spreadsheet with formula evaluation** — topo sort + cycle detection + recompute
-- [ ] **Design Twitter (LC 355)** — heap + hash composition
 
 ---
 
