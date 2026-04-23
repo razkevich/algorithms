@@ -100,7 +100,7 @@ Not active prep — kept here so coverage is documented and I can re-visit any b
 
 ### Dynamic programming
 - [x] **1D DP — House Robber / Coin Change / Word Break / Decode Ways** — confident, skip drilling
-- [ ] **1D DP — LIS in O(n log n)** — patience-sort variant; worth one rep
+- [x] **1D DP — LIS** — `prep/dp/LIS.java` (O(n²) suffix DP primary; O(n log n) patience-sort in header — `tails` is NOT the LIS, only its length matters)
 - [ ] **2D DP — Edit Distance** — canonical Sequence DP; unlocks LCS / Distinct Subsequences / Regex via same template
 - [x] **2D DP — Unique Paths** — trivial grid DP, skip
 - [x] **2D DP — 0/1 Knapsack** — light-touch (recognize take-or-skip recurrence); don't drill

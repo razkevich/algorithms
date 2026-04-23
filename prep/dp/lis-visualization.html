@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>LIS — Patience Sort (O(n log n))</title>
+<style>
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #111;
+    color: #eee;
+    padding: 40px;
+    max-width: 960px;
+    margin: 0 auto;
+    line-height: 1.55;
+  }
+  h1, h2, h3 { color: #fff; }
+  h2 { margin-top: 40px; }
+  code, .mono { font-family: 'SF Mono', Menlo, monospace; background: #222; padding: 2px 6px; border-radius: 3px; color: #8be9fd; }
+  .note { color: #888; font-size: 13px; font-style: italic; }
+  .panel {
+    background: #1a1a1a;
+    border-radius: 8px;
+    padding: 24px;
+    margin: 20px 0;
+  }
+  .controls {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    margin-bottom: 20px;
+  }
+  button {
+    background: #2a2a2a;
+    color: #eee;
+    border: 1px solid #444;
+    border-radius: 4px;
+    padding: 6px 14px;
+    font-size: 14px;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  button:hover:not(:disabled) { background: #3a3a3a; }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+  .step-counter { color: #888; font-size: 13px; margin-left: auto; }
+
+  .row { display: flex; gap: 6px; margin: 14px 0; flex-wrap: wrap; align-items: center; }
+  .label { color: #888; font-size: 13px; width: 90px; }
+  .cell {
+    width: 48px;
+    height: 48px;
+    border: 1px solid #444;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'SF Mono', Menlo, monospace;
+    font-size: 16px;
+    background: #222;
+    color: #ddd;
+    transition: all 0.25s;
+    position: relative;
+  }
+  .cell.cursor { border-color: #ffcc00; background: #3a3000; color: #ffcc00; box-shadow: 0 0 12px rgba(255,204,0,0.3); }
+  .cell.done { opacity: 0.4; }
+  .cell.tail-replaced { border-color: #ff9500; background: #3a2500; color: #ff9500; box-shadow: 0 0 12px rgba(255,149,0,0.4); }
+  .cell.tail-appended { border-color: #30d158; background: #0d3018; color: #30d158; box-shadow: 0 0 12px rgba(48,209,88,0.4); }
+  .cell.bs-range { background: #1a2530; border-color: #5ac8fa; }
+  .cell.bs-mid { background: #1a3550; border-color: #5ac8fa; color: #5ac8fa; }
+  .cell .idx { position: absolute; top: -18px; font-size: 10px; color: #666; }
+
+  .narration {
+    background: #151515;
+    border-left: 3px solid #5ac8fa;
+    padding: 12px 16px;
+    margin: 16px 0;
+    font-size: 14px;
+    min-height: 48px;
+  }
+  .narration .key { color: #ff9500; font-weight: 600; }
+  .narration .append { color: #30d158; font-weight: 600; }
+
+  table { border-collapse: collapse; margin: 16px 0; font-size: 13px; }
+  th, td { border: 1px solid #333; padding: 6px 12px; text-align: center; }
+  th { background: #222; color: #aaa; font-weight: 500; }
+  td.mono { background: #1a1a1a; color: #ddd; font-family: 'SF Mono', Menlo, monospace; }
+
+  .swatch { display: inline-block; width: 12px; height: 12px; border-radius: 2px; margin-right: 5px; vertical-align: middle; }
+</style>
+</head>
+<body>
+
+<h1>LIS — Patience Sort <span style="color:#888; font-weight: 400; font-size: 20px;">O(n log n)</span></h1>
+
+<p>
+Maintain <code>tails[i]</code> = <b>smallest possible tail value</b> of any increasing
+subsequence of length <code>i+1</code>. For each <code>num</code>, binary-search for
+the leftmost slot <code>j</code> with <code>tails[j] &ge; num</code> and replace it —
+or append if <code>num</code> exceeds every tail.
+</p>
+
+<p class="note">
+<span class="swatch" style="background:#ffcc00"></span>current num &nbsp;
+<span class="swatch" style="background:#5ac8fa"></span>binary-search range &nbsp;
+<span class="swatch" style="background:#ff9500"></span>replaced slot &nbsp;
+<span class="swatch" style="background:#30d158"></span>appended slot
+</p>
+
+<div class="panel">
+  <div class="controls">
+    <button id="prev">← Prev</button>
+    <button id="next">Next →</button>
+    <button id="reset">Reset</button>
+    <button id="play">Play</button>
+    <span class="step-counter" id="counter">step 0</span>
+  </div>
+
+  <div class="row">
+    <div class="label">nums</div>
+    <div id="nums-row" style="display:flex; gap:6px;"></div>
+  </div>
+
+  <div class="row" style="margin-top: 28px;">
+    <div class="label">tails</div>
+    <div id="tails-row" style="display:flex; gap:6px; min-height: 48px;"></div>
+  </div>
+
+  <div class="narration" id="narration">Click <b>Next</b> to step through.</div>
+</div>
+
+<h2>Why <code>tails</code> stays sorted</h2>
+<p>
+A length-<code>k+1</code> increasing subsequence has a length-<code>k</code> prefix whose
+tail is strictly less than its length-<code>k+1</code> tail. So the <i>smallest</i>
+length-<code>k+1</code> tail is <code>&ge;</code> the smallest length-<code>k</code> tail.
+The array is sorted by construction &rarr; binary-searchable.
+</p>
+
+<h2>Why replacing improves things</h2>
+<p>
+If we find an existing length-<code>j+1</code> IS ending in <code>tails[j]</code>, and the
+current <code>num &lt; tails[j]</code>, then <code>num</code> is a <i>better</i> tail for
+length-<code>j+1</code> — easier to extend later. Shorter tails dominate.
+</p>
+
+<h2>⚠ Frankenstein warning</h2>
+<p>
+<code>tails</code> is NOT the actual LIS — only a bookkeeping array. Intermediate states
+can look like sequences that never appeared in the input. Example: on
+<code>[3, 1, 4, 1, 5, 9, 2, 6]</code> the final <code>tails = [1, 2, 5, 6]</code>, but that
+exact sequence is not a subsequence of the input (the <code>5</code> at index 4 comes
+<i>before</i> the <code>2</code> at index 6). The <i>length</i> 4 is still correct —
+e.g. the real LIS <code>[1, 4, 5, 9]</code> or <code>[1, 4, 5, 6]</code>. To reconstruct
+the actual subsequence you need a separate predecessor array.
+</p>
+
+<h2>Variants</h2>
+<table>
+  <tr><th>Problem</th><th>Comparison in binary search</th><th>Transfer</th></tr>
+  <tr><td>Strictly increasing LIS</td><td class="mono">tails[mid] &lt; num</td><td>this file</td></tr>
+  <tr><td>Non-decreasing LIS</td><td class="mono">tails[mid] &le; num</td><td>LC 1964 Longest Obstacle Course</td></tr>
+  <tr><td>Russian Doll Envelopes (LC 354)</td><td class="mono">sort by w asc, h DESC, then LIS on h</td><td>the DESC tie-break prevents same-width nesting</td></tr>
+</table>
+
+<script>
+const nums = [10, 9, 2, 5, 3, 7, 101, 18];
+const steps = [];
+
+// Generate step trace
+(function buildSteps() {
+  const tails = [];
+  steps.push({ i: -1, tails: [], msg: "Start. <code>tails</code> is empty. Click Next to begin.", mode: null });
+
+  for (let i = 0; i < nums.length; i++) {
+    const num = nums[i];
+
+    // Step A: announce current num + show bs range
+    const beforeTails = [...tails];
+    steps.push({
+      i, tails: [...beforeTails], mode: 'search',
+      bsLo: 0, bsHi: tails.length,
+      msg: `Consider <span class="key">num = ${num}</span>. Binary-search for leftmost <code>tails[j] &ge; ${num}</code> in range <code>[0, ${tails.length})</code>.`
+    });
+
+    // Compute lower_bound
+    let lo = 0, hi = tails.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >>> 1;
+      if (tails[mid] < num) lo = mid + 1;
+      else hi = mid;
+    }
+
+    // Step B: show where bs landed
+    if (lo === tails.length) {
+      // append
+      tails.push(num);
+      steps.push({
+        i, tails: [...tails], mode: 'append', appendedIdx: lo,
+        msg: `<code>${num}</code> is greater than every tail &rarr; <span class="append">APPEND</span>. Longest IS now has length <b>${tails.length}</b>.`
+      });
+    } else {
+      const oldVal = tails[lo];
+      tails[lo] = num;
+      steps.push({
+        i, tails: [...tails], mode: 'replace', replacedIdx: lo,
+        msg: `Leftmost tail &ge; ${num} is <code>tails[${lo}] = ${oldVal}</code>. <span class="key">REPLACE</span> with ${num} &mdash; we now have a length-${lo+1} IS with a smaller (better) tail.`
+      });
+    }
+  }
+
+  steps.push({
+    i: nums.length, tails: [...tails], mode: 'done',
+    msg: `Done. <code>tails.length = ${tails.length}</code> &rarr; LIS length is <b>${tails.length}</b>. (Remember: <code>tails</code> may not be an actual subsequence of the input.)`
+  });
+})();
+
+let cur = 0;
+let playTimer = null;
+
+const numsRow = document.getElementById('nums-row');
+const tailsRow = document.getElementById('tails-row');
+const narration = document.getElementById('narration');
+const counter = document.getElementById('counter');
+const btnPrev = document.getElementById('prev');
+const btnNext = document.getElementById('next');
+const btnReset = document.getElementById('reset');
+const btnPlay = document.getElementById('play');
+
+function render() {
+  const s = steps[cur];
+
+  // nums row
+  numsRow.innerHTML = '';
+  nums.forEach((v, idx) => {
+    const cell = document.createElement('div');
+    cell.className = 'cell';
+    cell.innerHTML = `<span class="idx">${idx}</span>${v}`;
+    if (idx < s.i) cell.classList.add('done');
+    if (idx === s.i) cell.classList.add('cursor');
+    numsRow.appendChild(cell);
+  });
+
+  // tails row
+  tailsRow.innerHTML = '';
+  if (s.tails.length === 0) {
+    const empty = document.createElement('div');
+    empty.style.cssText = 'color:#555; font-style:italic; font-size:14px; padding: 14px 0;';
+    empty.textContent = '(empty)';
+    tailsRow.appendChild(empty);
+  } else {
+    s.tails.forEach((v, idx) => {
+      const cell = document.createElement('div');
+      cell.className = 'cell';
+      cell.innerHTML = `<span class="idx">${idx}</span>${v}`;
+      if (s.mode === 'search' && s.bsLo !== undefined && idx >= s.bsLo && idx < s.bsHi) cell.classList.add('bs-range');
+      if (s.mode === 'replace' && idx === s.replacedIdx) cell.classList.add('tail-replaced');
+      if (s.mode === 'append' && idx === s.appendedIdx) cell.classList.add('tail-appended');
+      tailsRow.appendChild(cell);
+    });
+  }
+
+  narration.innerHTML = s.msg;
+  counter.textContent = `step ${cur} / ${steps.length - 1}`;
+  btnPrev.disabled = cur === 0;
+  btnNext.disabled = cur === steps.length - 1;
+}
+
+btnPrev.onclick = () => { if (cur > 0) { cur--; render(); } };
+btnNext.onclick = () => { if (cur < steps.length - 1) { cur++; render(); } };
+btnReset.onclick = () => { stopPlay(); cur = 0; render(); };
+
+function stopPlay() {
+  if (playTimer) { clearInterval(playTimer); playTimer = null; btnPlay.textContent = 'Play'; }
+}
+btnPlay.onclick = () => {
+  if (playTimer) { stopPlay(); return; }
+  btnPlay.textContent = 'Pause';
+  playTimer = setInterval(() => {
+    if (cur < steps.length - 1) { cur++; render(); }
+    else stopPlay();
+  }, 900);
+};
+
+render();
+</script>
+
+</body>
+</html>
