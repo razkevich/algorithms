@@ -68,7 +68,7 @@ Target language: **Java**. Solutions live in `prep/<category>/`.
 
 ### Concurrency — Java's killer area (`java.util.concurrent`)
 
-- [ ] **Bounded Blocking Queue (LC 1188)** — `ReentrantLock` + two `Condition`s
+- [x] **Bounded Blocking Queue (LC 1188)** — `prep/concurrency/BoundedBlockingQueue.java` (`ReentrantLock` + `notFull`/`notEmpty`; `while`-loop on predicate; producer signals consumer-condition and vice versa; same shape as `ArrayBlockingQueue`)
 - [ ] **Parallel Task Runner with deps** — topo sort + `ExecutorService` + `CountDownLatch`/`CompletableFuture`; composes concurrency with another algorithm (Databricks-flavored)
 - [ ] **Token Bucket rate limiter** — `ScheduledExecutorService` + `Semaphore`
 
