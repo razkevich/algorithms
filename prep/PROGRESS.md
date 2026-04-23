@@ -14,6 +14,7 @@ Target language: **Java**. Solutions live in `prep/<category>/`.
 - [x] **Recursive DFS** — `prep/graphs/DFSGraphRecursive.java`
 - [x] **Cycle detection — DFS with 3-color** — `prep/graphs/CycleDetection3Color.java`
 - [x] **Topological sort — Kahn's BFS** — `prep/graphs/TopologicalSortKahn.java` (DFS reverse post-order covered in file header)
+- [ ] **Alien Dictionary (LC 269)** — topo sort over string-derived edges; parsing + graph build + Kahn — staff-loop classic
 - [x] **Kosaraju's SCC** — intuition only (full DFS forest + finish stack + transpose + peel); `prep/graphs/scc-visualization.html`
 - [x] **Dijkstra — lazy PQ variant** — `prep/graphs/Dijkstra.java` (BFS with a PQ; first-pop-wins invariant; template for Network Delay / Cheapest Flights / Min Effort Path)
 
@@ -68,8 +69,8 @@ Target language: **Java**. Solutions live in `prep/<category>/`.
 ### Concurrency — Java's killer area (`java.util.concurrent`)
 
 - [ ] **Bounded Blocking Queue (LC 1188)** — `ReentrantLock` + two `Condition`s
-- [ ] **Web Crawler Multithreaded (LC 1242)** — `ExecutorService` + `ConcurrentHashMap`
 - [ ] **Thread-safe LRU** — extend LRU with `ReentrantReadWriteLock`
+- [ ] **Parallel Task Runner with deps** — topo sort + `ExecutorService` + `CountDownLatch`/`CompletableFuture`; composes concurrency with another algorithm (Databricks-flavored)
 - [ ] **Token Bucket rate limiter** — `ScheduledExecutorService` + `Semaphore`
 
 ### Production-flavored design (frontier labs + Shopify)
