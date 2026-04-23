@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Java Concurrency — Interview Reference</title>
+<style>
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #0f0f11;
+    color: #e4e4e7;
+    padding: 40px 32px;
+    max-width: 1280px;
+    margin: 0 auto;
+    line-height: 1.55;
+  }
+  h1 { color: #fff; font-size: 28px; margin-bottom: 4px; }
+  h2 {
+    color: #fff;
+    margin-top: 48px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #2a2a2e;
+    font-size: 20px;
+  }
+  h3 { color: #e4e4e7; margin-top: 28px; font-size: 16px; }
+  .subtitle { color: #9ca3af; font-size: 14px; margin-bottom: 32px; }
+  code, .mono {
+    font-family: 'SF Mono', Menlo, Consolas, monospace;
+    background: #1c1c22;
+    padding: 2px 6px;
+    border-radius: 3px;
+    color: #7dd3fc;
+    font-size: 13px;
+  }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 16px 0;
+    font-size: 13.5px;
+  }
+  th, td {
+    text-align: left;
+    padding: 10px 12px;
+    vertical-align: top;
+    border-bottom: 1px solid #24242a;
+  }
+  th {
+    background: #18181d;
+    color: #fbbf24;
+    font-weight: 600;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  td.cls { white-space: nowrap; color: #a5f3fc; font-family: 'SF Mono', Menlo, monospace; }
+  td.methods { font-family: 'SF Mono', Menlo, monospace; color: #fcd34d; font-size: 12.5px; }
+  td.when { color: #c7d2fe; }
+  tr:hover td { background: #161619; }
+  .warn { color: #fca5a5; }
+  .hint { color: #93c5fd; }
+  .ok { color: #86efac; }
+  .callout {
+    background: #1a1a1f;
+    border-left: 3px solid #fbbf24;
+    padding: 12px 16px;
+    margin: 24px 0;
+    border-radius: 0 4px 4px 0;
+  }
+  .callout strong { color: #fde68a; }
+  .danger {
+    background: #1a1010;
+    border-left: 3px solid #f87171;
+  }
+  .danger strong { color: #fecaca; }
+  pre {
+    background: #0a0a0d;
+    color: #e4e4e7;
+    padding: 14px 16px;
+    border-radius: 6px;
+    overflow-x: auto;
+    font-family: 'SF Mono', Menlo, monospace;
+    font-size: 13px;
+    line-height: 1.5;
+    margin: 12px 0;
+  }
+  pre .c { color: #71717a; }     /* comment */
+  pre .k { color: #c4b5fd; }     /* keyword */
+  pre .s { color: #86efac; }     /* string */
+  pre .t { color: #7dd3fc; }     /* type */
+  ul { padding-left: 22px; }
+  li { margin: 6px 0; }
+</style>
+</head>
+<body>
+
+<h1>Java Concurrency — Interview Reference</h1>
+<p class="subtitle">
+  Every primitive, pattern, and pitfall that shows up in senior/staff JVM loops (Databricks,
+  Netflix, Anthropic, Shopify). Grouped by purpose, with the <em>why</em> next to the <em>what</em>.
+</p>
+
+<div class="callout">
+  <strong>The mental model:</strong> every concurrency problem is one of four shapes —
+  <strong>mutual exclusion</strong> (one at a time),
+  <strong>coordination</strong> (wait for something),
+  <strong>communication</strong> (hand off data), or
+  <strong>composition</strong> (assemble many async tasks). Pick the primitive that matches the shape,
+  don't reach for the heaviest hammer.
+</div>
+
+<h2>1. Threads — lifecycle & interruption</h2>
+<table>
+  <tr><th>Concept</th><th>Java</th><th>What it does</th><th>Gotchas</th></tr>
+
+  <tr>
+    <td>Start a thread</td>
+    <td class="cls">new Thread(runnable).start()</td>
+    <td>Forks a new OS thread running <code>runnable.run()</code>.</td>
+    <td><span class="warn">Call <code>start()</code>, NOT <code>run()</code>.</span> <code>run()</code> just invokes on the current thread.</td>
+  </tr>
+
+  <tr>
+    <td>Task interface</td>
+    <td class="cls">Runnable, Callable&lt;T&gt;</td>
+    <td><code>Runnable</code> returns void, can't throw checked.<br><code>Callable</code> returns <code>T</code>, can throw.</td>
+    <td>Use <code>Callable</code> with <code>ExecutorService.submit</code> to get a <code>Future&lt;T&gt;</code>.</td>
+  </tr>
+
+  <tr>
+    <td>Wait for a thread</td>
+    <td class="cls">thread.join()</td>
+    <td>Block until the thread finishes.</td>
+    <td>Throws <code>InterruptedException</code>. Rarely used directly outside tests — prefer <code>ExecutorService</code>.</td>
+  </tr>
+
+  <tr>
+    <td>Interruption</td>
+    <td class="cls">thread.interrupt(),<br>Thread.interrupted(),<br>isInterrupted()</td>
+    <td>Cooperative cancellation signal. Methods that block (<code>sleep</code>, <code>wait</code>, <code>await</code>, <code>take</code>, <code>join</code>) throw <code>InterruptedException</code> and <em>clear</em> the flag.</td>
+    <td><span class="warn">Don't swallow <code>InterruptedException</code></span> — either rethrow or restore the flag: <code>Thread.currentThread().interrupt();</code></td>
+  </tr>
+
+  <tr>
+    <td>Sleep</td>
+    <td class="cls">Thread.sleep(ms)</td>
+    <td>Block without releasing locks.</td>
+    <td><span class="warn">Doesn't release the lock</span> — unlike <code>wait()</code>. Common bug: sleeping inside a <code>synchronized</code> block starves everyone.</td>
+  </tr>
+
+  <tr>
+    <td>Yield / daemon</td>
+    <td class="cls">Thread.yield(),<br>thread.setDaemon(true)</td>
+    <td><code>yield</code>: hint to scheduler. <code>setDaemon</code>: don't block JVM exit.</td>
+    <td><code>yield</code> is almost never useful. Daemon threads are killed abruptly on shutdown — don't use for stateful work.</td>
+  </tr>
+</table>
+
+<h2>2. Mutual exclusion — one at a time</h2>
+<table>
+  <tr><th>Primitive</th><th>Java</th><th>Key methods</th><th>When to use</th></tr>
+
+  <tr>
+    <td>Intrinsic lock</td>
+    <td class="cls">synchronized (block / method)</td>
+    <td class="methods">— (language-level)</td>
+    <td class="when">Simple mutual exclusion. Every object has a monitor. Concise but inflexible — no timeout, no interruptible acquire, no multiple conditions.</td>
+  </tr>
+
+  <tr>
+    <td>Explicit reentrant lock</td>
+    <td class="cls">ReentrantLock</td>
+    <td class="methods">lock(), unlock(),<br>tryLock(), tryLock(timeout),<br>lockInterruptibly(),<br>newCondition()</td>
+    <td class="when">When you need <strong>timeout</strong>, <strong>interruptible acquire</strong>, <strong>multiple Conditions</strong>, or <strong>fairness</strong> (constructor arg). <span class="warn">Always <code>unlock()</code> in <code>finally</code>.</span></td>
+  </tr>
+
+  <tr>
+    <td>Reader-writer lock</td>
+    <td class="cls">ReentrantReadWriteLock</td>
+    <td class="methods">readLock().lock(),<br>writeLock().lock()</td>
+    <td class="when">Many readers, occasional writers. <span class="warn">Wins only when reads heavily dominate</span> — overhead is higher than plain <code>ReentrantLock</code>, so balanced workloads lose.</td>
+  </tr>
+
+  <tr>
+    <td>Optimistic read</td>
+    <td class="cls">StampedLock</td>
+    <td class="methods">tryOptimisticRead(),<br>validate(stamp),<br>readLock(), writeLock()</td>
+    <td class="when">Read-heavy hot paths. <span class="warn">Not reentrant.</span> Optimistic reads don't block writers; you re-read if the stamp is invalidated.</td>
+  </tr>
+
+  <tr>
+    <td>Volatile</td>
+    <td class="cls">volatile T field;</td>
+    <td class="methods">— (field modifier)</td>
+    <td class="when">Visibility without mutual exclusion. Every read/write is a memory barrier — other threads see the latest value. <span class="warn">Doesn't make compound ops atomic</span> (<code>count++</code> is still a race even on a volatile int).</td>
+  </tr>
+</table>
+
+<div class="callout">
+  <strong><code>synchronized</code> vs <code>ReentrantLock</code> — the interview answer:</strong>
+  <ul>
+    <li><code>synchronized</code> — simpler, auto-release on exception, JIT-friendly. Default choice.</li>
+    <li><code>ReentrantLock</code> — use when you need <em>tryLock with timeout</em>, <em>multiple Conditions on one lock</em> (Bounded Blocking Queue template), <em>interruptible acquisition</em>, or <em>fairness</em>.</li>
+  </ul>
+</div>
+
+<h2>3. Coordination — wait for something</h2>
+<table>
+  <tr><th>Primitive</th><th>Java</th><th>Key methods</th><th>When to use</th></tr>
+
+  <tr>
+    <td>Condition variable</td>
+    <td class="cls">Condition<br>(from Lock.newCondition())</td>
+    <td class="methods">await(),<br>await(timeout),<br>signal(),<br>signalAll()</td>
+    <td class="when">Wait until some predicate becomes true. <span class="warn">Always in <code>while (!predicate) cond.await();</code></span> — spurious wakeups are real. Multiple Conditions per Lock = Bounded Blocking Queue (<code>notFull</code> + <code>notEmpty</code>).</td>
+  </tr>
+
+  <tr>
+    <td>Intrinsic wait/notify</td>
+    <td class="cls">Object.wait(),<br>notify(), notifyAll()</td>
+    <td class="methods">(must hold monitor)</td>
+    <td class="when">Legacy counterpart of <code>Condition</code>. Same <code>while</code>-guard discipline. Prefer <code>Condition</code> for new code — only one "condition" per monitor is a limitation.</td>
+  </tr>
+
+  <tr>
+    <td>Counting semaphore</td>
+    <td class="cls">Semaphore</td>
+    <td class="methods">acquire(),<br>acquire(n),<br>release(),<br>tryAcquire(timeout),<br>availablePermits()</td>
+    <td class="when">N-at-a-time throttling, rate limiting (Token Bucket), connection pools. Bounded resources that aren't inherently mutex-shaped.</td>
+  </tr>
+
+  <tr>
+    <td>One-shot gate</td>
+    <td class="cls">CountDownLatch</td>
+    <td class="methods">await(),<br>countDown(),<br>getCount()</td>
+    <td class="when">"Wait until N tasks finish" or "release everyone at once." <span class="warn">Single use</span> — cannot reset.</td>
+  </tr>
+
+  <tr>
+    <td>Cyclic barrier</td>
+    <td class="cls">CyclicBarrier</td>
+    <td class="methods">await() (blocks until N),<br>reset()</td>
+    <td class="when">Phase synchronization — "wait for all N threads to reach this point, then all proceed." Reusable. Optional <code>Runnable</code> runs when barrier trips.</td>
+  </tr>
+
+  <tr>
+    <td>Phaser</td>
+    <td class="cls">Phaser</td>
+    <td class="methods">register(), arrive(),<br>arriveAndAwaitAdvance(),<br>arriveAndDeregister()</td>
+    <td class="when">Like <code>CyclicBarrier</code> but parties can dynamically join/leave. Rare in interviews; know it exists.</td>
+  </tr>
+
+  <tr>
+    <td>Exchanger</td>
+    <td class="cls">Exchanger&lt;T&gt;</td>
+    <td class="methods">exchange(t)</td>
+    <td class="when">Two threads swap values at a rendezvous. Rare; mostly a curiosity.</td>
+  </tr>
+</table>
+
+<h3>The canonical wait pattern</h3>
+<pre><span class="k">lock</span>.lock();
+<span class="k">try</span> {
+    <span class="k">while</span> (!predicate) {          <span class="c">// while, not if — spurious wakeups</span>
+        condition.await();
+    }
+    <span class="c">// predicate now true; do the work</span>
+    ...
+    otherCondition.signalAll();    <span class="c">// wake waiters whose predicate may now hold</span>
+} <span class="k">finally</span> {
+    lock.unlock();
+}</pre>
+
+<h2>4. Communication — thread-safe handoff</h2>
+<table>
+  <tr><th>Structure</th><th>Java</th><th>Key methods</th><th>When to use</th></tr>
+
+  <tr>
+    <td>Bounded blocking queue</td>
+    <td class="cls">ArrayBlockingQueue</td>
+    <td class="methods">put (blocks if full),<br>take (blocks if empty),<br>offer(timeout),<br>poll(timeout)</td>
+    <td class="when">Producer-consumer with <strong>back-pressure</strong>. Fixed capacity means producers block when consumers can't keep up — a feature, not a bug.</td>
+  </tr>
+
+  <tr>
+    <td>Unbounded blocking queue</td>
+    <td class="cls">LinkedBlockingQueue</td>
+    <td class="methods">(same interface)</td>
+    <td class="when">Producer-consumer when you trust producers not to overwhelm. <span class="warn">Risk: memory explosion</span> if consumers lag.</td>
+  </tr>
+
+  <tr>
+    <td>Synchronous handoff</td>
+    <td class="cls">SynchronousQueue</td>
+    <td class="methods">put, take</td>
+    <td class="when">Capacity zero — every <code>put</code> must meet a <code>take</code>. The engine of <code>Executors.newCachedThreadPool</code>.</td>
+  </tr>
+
+  <tr>
+    <td>Priority blocking queue</td>
+    <td class="cls">PriorityBlockingQueue</td>
+    <td class="methods">(blocking + PQ order)</td>
+    <td class="when">Priority scheduling with consumer threads. Unbounded.</td>
+  </tr>
+
+  <tr>
+    <td>Delay queue</td>
+    <td class="cls">DelayQueue&lt;T extends Delayed&gt;</td>
+    <td class="methods">put, take (blocks until head expires)</td>
+    <td class="when">Timeouts, scheduled cleanup, retry-after. Element emerges only after its delay.</td>
+  </tr>
+
+  <tr>
+    <td>Lock-free queue</td>
+    <td class="cls">ConcurrentLinkedQueue</td>
+    <td class="methods">offer, poll, peek</td>
+    <td class="when">Non-blocking, high-throughput. <span class="warn">No blocking semantics</span> — <code>poll</code> returns <code>null</code> if empty. Use when you don't need to wait for data.</td>
+  </tr>
+
+  <tr>
+    <td>Thread-safe map</td>
+    <td class="cls">ConcurrentHashMap</td>
+    <td class="methods">get, put (atomic),<br>putIfAbsent,<br>compute, computeIfAbsent,<br>merge</td>
+    <td class="when">Lock-striped, scales to many writers. <span class="warn">Compound ops (<code>get</code>-then-<code>put</code>) are NOT atomic</span> — use <code>compute</code> / <code>merge</code> / <code>putIfAbsent</code>.</td>
+  </tr>
+
+  <tr>
+    <td>Sorted concurrent map</td>
+    <td class="cls">ConcurrentSkipListMap</td>
+    <td class="methods">(TreeMap interface, concurrent)</td>
+    <td class="when">Thread-safe ordered map. <code>floorKey</code>, range queries, etc. — concurrent but O(log n) expected.</td>
+  </tr>
+
+  <tr>
+    <td>Copy-on-write list</td>
+    <td class="cls">CopyOnWriteArrayList,<br>CopyOnWriteArraySet</td>
+    <td class="methods">(List/Set interface)</td>
+    <td class="when">Read-heavy, write-rare (e.g., listener lists). Every mutation copies the whole array. <span class="warn">Don't use for frequent writes.</span></td>
+  </tr>
+</table>
+
+<h2>5. Executors — thread pool machinery</h2>
+<table>
+  <tr><th>Type</th><th>Java</th><th>Key methods</th><th>When to use</th></tr>
+
+  <tr>
+    <td>Fixed pool</td>
+    <td class="cls">Executors.newFixedThreadPool(n)</td>
+    <td class="methods">submit, invokeAll, shutdown</td>
+    <td class="when">Bounded parallelism. Unbounded task queue — backlog can explode.</td>
+  </tr>
+
+  <tr>
+    <td>Cached pool</td>
+    <td class="cls">Executors.newCachedThreadPool()</td>
+    <td class="methods">(same)</td>
+    <td class="when">Short-lived tasks; creates threads as needed, reuses idle ones (60s TTL). <span class="warn">No upper bound on threads</span> — unsafe for heavy loads.</td>
+  </tr>
+
+  <tr>
+    <td>Single-threaded</td>
+    <td class="cls">Executors.newSingleThreadExecutor()</td>
+    <td class="methods">(same)</td>
+    <td class="when">Sequential task processing with thread-safety guarantees (implicit serialization).</td>
+  </tr>
+
+  <tr>
+    <td>Scheduled pool</td>
+    <td class="cls">Executors.newScheduledThreadPool(n),<br>ScheduledExecutorService</td>
+    <td class="methods">schedule,<br>scheduleAtFixedRate,<br>scheduleWithFixedDelay</td>
+    <td class="when">Delayed or periodic tasks. <code>FixedRate</code> = start-to-start interval; <code>FixedDelay</code> = end-to-start interval. Engine of Token Bucket.</td>
+  </tr>
+
+  <tr>
+    <td>Work-stealing pool</td>
+    <td class="cls">Executors.newWorkStealingPool(),<br>ForkJoinPool</td>
+    <td class="methods">submit, invoke</td>
+    <td class="when">Many small recursive tasks (divide-and-conquer). Each thread has its own deque; idle threads steal from others. Underlies parallel streams.</td>
+  </tr>
+
+  <tr>
+    <td>Custom pool</td>
+    <td class="cls">new ThreadPoolExecutor(<br>&nbsp;&nbsp;core, max, keepAlive,<br>&nbsp;&nbsp;queue, threadFactory,<br>&nbsp;&nbsp;rejectionHandler)</td>
+    <td class="methods">(ExecutorService interface)</td>
+    <td class="when"><span class="hint">The production answer.</span> Tune core/max, use a <strong>bounded</strong> queue (<code>ArrayBlockingQueue</code>), and set a rejection policy (<code>CallerRunsPolicy</code> gives back-pressure to the caller).</td>
+  </tr>
+</table>
+
+<h3>submit vs execute vs invokeAll</h3>
+<table>
+  <tr><th>Method</th><th>Takes</th><th>Returns</th><th>Exceptions</th></tr>
+  <tr><td><code>execute</code></td><td><code>Runnable</code></td><td>void</td><td>Uncaught → UncaughtExceptionHandler (usually stderr).</td></tr>
+  <tr><td><code>submit</code></td><td><code>Runnable / Callable&lt;T&gt;</code></td><td><code>Future&lt;T&gt;</code></td><td>Wrapped in <code>ExecutionException</code> when you <code>get()</code>.</td></tr>
+  <tr><td><code>invokeAll</code></td><td><code>Collection&lt;Callable&lt;T&gt;&gt;</code></td><td><code>List&lt;Future&lt;T&gt;&gt;</code></td><td>Blocks until all complete.</td></tr>
+  <tr><td><code>invokeAny</code></td><td><code>Collection&lt;Callable&lt;T&gt;&gt;</code></td><td><code>T</code></td><td>Blocks until first succeeds; cancels the rest.</td></tr>
+</table>
+
+<div class="callout danger">
+  <strong>Shutdown discipline:</strong> <code>ExecutorService</code>s have non-daemon threads by default — if you don't call <code>shutdown()</code>, the JVM won't exit. Pattern:
+  <pre><span class="k">try</span> {
+    pool.shutdown();
+    <span class="k">if</span> (!pool.awaitTermination(30, TimeUnit.SECONDS)) {
+        pool.shutdownNow();   <span class="c">// interrupt remaining</span>
+    }
+} <span class="k">catch</span> (InterruptedException e) {
+    pool.shutdownNow();
+    Thread.currentThread().interrupt();
+}</pre>
+</div>
+
+<h2>6. Async composition — CompletableFuture</h2>
+<table>
+  <tr><th>Method</th><th>Takes</th><th>Returns</th><th>Meaning</th></tr>
+
+  <tr>
+    <td class="cls">supplyAsync(Supplier)</td>
+    <td><code>Supplier&lt;T&gt;</code></td>
+    <td><code>CF&lt;T&gt;</code></td>
+    <td>Run a computation async (default: ForkJoinPool.commonPool; pass an <code>Executor</code> to override).</td>
+  </tr>
+
+  <tr>
+    <td class="cls">runAsync(Runnable)</td>
+    <td><code>Runnable</code></td>
+    <td><code>CF&lt;Void&gt;</code></td>
+    <td>Same, for side-effecting work.</td>
+  </tr>
+
+  <tr>
+    <td class="cls">thenApply(Function)</td>
+    <td><code>T → U</code></td>
+    <td><code>CF&lt;U&gt;</code></td>
+    <td>Map. Sync transformation when upstream completes.</td>
+  </tr>
+
+  <tr>
+    <td class="cls">thenAccept(Consumer)</td>
+    <td><code>T → void</code></td>
+    <td><code>CF&lt;Void&gt;</code></td>
+    <td>Consume, no return.</td>
+  </tr>
+
+  <tr>
+    <td class="cls">thenCompose(Function)</td>
+    <td><code>T → CF&lt;U&gt;</code></td>
+    <td><code>CF&lt;U&gt;</code></td>
+    <td><span class="hint">FlatMap.</span> When your continuation itself returns a CF, <code>thenCompose</code> unwraps (vs <code>thenApply</code> which gives <code>CF&lt;CF&lt;U&gt;&gt;</code>).</td>
+  </tr>
+
+  <tr>
+    <td class="cls">thenCombine(other, BiFn)</td>
+    <td><code>(T, U) → V</code></td>
+    <td><code>CF&lt;V&gt;</code></td>
+    <td>Zip two CFs. Runs the BiFunction when both complete.</td>
+  </tr>
+
+  <tr>
+    <td class="cls">allOf(cf...)</td>
+    <td><code>CF&lt;?&gt;...</code></td>
+    <td><code>CF&lt;Void&gt;</code></td>
+    <td>"Wait for all." Result is Void — collect values separately by joining each input.</td>
+  </tr>
+
+  <tr>
+    <td class="cls">anyOf(cf...)</td>
+    <td><code>CF&lt;?&gt;...</code></td>
+    <td><code>CF&lt;Object&gt;</code></td>
+    <td>"First to complete wins." Winning value (as Object).</td>
+  </tr>
+
+  <tr>
+    <td class="cls">exceptionally(fn)</td>
+    <td><code>Throwable → T</code></td>
+    <td><code>CF&lt;T&gt;</code></td>
+    <td>Recover from failure. Only runs if upstream failed.</td>
+  </tr>
+
+  <tr>
+    <td class="cls">handle(BiFn)</td>
+    <td><code>(T, Throwable) → U</code></td>
+    <td><code>CF&lt;U&gt;</code></td>
+    <td>Runs on success OR failure — general "finally-like" transform.</td>
+  </tr>
+
+  <tr>
+    <td class="cls">whenComplete(BiConsumer)</td>
+    <td><code>(T, Throwable) → void</code></td>
+    <td><code>CF&lt;T&gt;</code></td>
+    <td>Side-effect on completion without transforming the value.</td>
+  </tr>
+
+  <tr>
+    <td class="cls">get() / get(timeout)</td>
+    <td>—</td>
+    <td><code>T</code></td>
+    <td>Block + unwrap. Throws <code>ExecutionException</code> (wraps cause) + <code>InterruptedException</code>.</td>
+  </tr>
+
+  <tr>
+    <td class="cls">join()</td>
+    <td>—</td>
+    <td><code>T</code></td>
+    <td>Same as <code>get</code> but throws unchecked. Preferred in stream/pipeline code.</td>
+  </tr>
+</table>
+
+<div class="callout">
+  <strong>Staff-loop pattern — fan-out + combine:</strong>
+  <pre><span class="t">List</span>&lt;<span class="t">CompletableFuture</span>&lt;<span class="t">Result</span>&gt;&gt; futures = ids.stream()
+    .map(id -&gt; <span class="t">CompletableFuture</span>.supplyAsync(() -&gt; fetch(id), pool))
+    .toList();
+
+<span class="t">List</span>&lt;<span class="t">Result</span>&gt; results = <span class="t">CompletableFuture</span>
+    .allOf(futures.toArray(<span class="k">new</span> <span class="t">CompletableFuture</span>[0]))
+    .thenApply(v -&gt; futures.stream().map(<span class="t">CompletableFuture</span>::join).toList())
+    .join();</pre>
+  The <code>allOf(...).thenApply(...join)</code> dance is idiomatic — commit it to muscle memory.
+</div>
+
+<h2>7. Atomics &amp; lock-free</h2>
+<table>
+  <tr><th>Class</th><th>Key methods</th><th>When to use</th></tr>
+
+  <tr>
+    <td class="cls">AtomicInteger,<br>AtomicLong,<br>AtomicBoolean</td>
+    <td class="methods">get, set,<br>incrementAndGet,<br>getAndIncrement,<br>compareAndSet,<br>updateAndGet(UnaryOp),<br>accumulateAndGet</td>
+    <td class="when">Lock-free counters and flags. <code>updateAndGet(x -&gt; ...)</code> is a CAS loop packaged nicely.</td>
+  </tr>
+
+  <tr>
+    <td class="cls">AtomicReference&lt;T&gt;</td>
+    <td class="methods">get, set,<br>compareAndSet,<br>updateAndGet,<br>accumulateAndGet</td>
+    <td class="when">Single-slot object state with CAS. Build lock-free linked structures.</td>
+  </tr>
+
+  <tr>
+    <td class="cls">AtomicStampedReference&lt;T&gt;,<br>AtomicMarkableReference&lt;T&gt;</td>
+    <td class="methods">compareAndSet(exp, new,<br>&nbsp;&nbsp;expStamp, newStamp)</td>
+    <td class="when">Fix the <strong>ABA problem</strong>: CAS can't tell that a value went A→B→A. Stamp tracks version count.</td>
+  </tr>
+
+  <tr>
+    <td class="cls">LongAdder, DoubleAdder</td>
+    <td class="methods">add, increment,<br>sum, reset</td>
+    <td class="when"><span class="hint">High-contention counters.</span> Striped internally — multiple cells reduce CAS contention. <span class="warn"><code>sum()</code> is approximate during concurrent updates.</span> Prefer over <code>AtomicLong</code> when many threads increment.</td>
+  </tr>
+
+  <tr>
+    <td class="cls">LongAccumulator,<br>DoubleAccumulator</td>
+    <td class="methods">accumulate,<br>get</td>
+    <td class="when">Generalized <code>LongAdder</code> with a custom binary op (e.g., max, min).</td>
+  </tr>
+</table>
+
+<h2>8. Thread-local state</h2>
+<table>
+  <tr><th>Class</th><th>Key methods</th><th>When to use</th></tr>
+
+  <tr>
+    <td class="cls">ThreadLocal&lt;T&gt;</td>
+    <td class="methods">get, set, remove,<br>ThreadLocal.withInitial</td>
+    <td class="when">Per-thread state (e.g., <code>SimpleDateFormat</code>, request context, DB connection). <span class="warn">In thread pools, ALWAYS <code>remove()</code></span> when done — leaked ThreadLocals are a classic memory-leak source.</td>
+  </tr>
+
+  <tr>
+    <td class="cls">InheritableThreadLocal&lt;T&gt;</td>
+    <td class="methods">(same as ThreadLocal)</td>
+    <td class="when">Child thread inherits parent's value at creation. <span class="warn">Doesn't work cleanly with thread pools</span> (threads are reused, not created per task).</td>
+  </tr>
+
+  <tr>
+    <td class="cls">ScopedValue (Java 21+)</td>
+    <td class="methods">ScopedValue.where(v).run(...)</td>
+    <td class="when">Structured replacement for ThreadLocal — automatic cleanup, immutable, plays well with virtual threads. Know it exists for modern JDKs.</td>
+  </tr>
+</table>
+
+<h2>9. Virtual threads (Java 21+)</h2>
+<div class="callout">
+  <strong><code>Thread.ofVirtual().start(r)</code></strong> or <strong><code>Executors.newVirtualThreadPerTaskExecutor()</code></strong>.
+  <ul>
+    <li>Millions of lightweight threads; the JVM multiplexes them onto a small pool of OS carriers.</li>
+    <li>Blocking I/O no longer requires async code — write synchronous, get async throughput.</li>
+    <li><span class="warn">Still pins on <code>synchronized</code></span> (the carrier can't park) — prefer <code>ReentrantLock</code> in code paths meant for virtual threads.</li>
+    <li>Don't pool virtual threads; create one per task.</li>
+  </ul>
+</div>
+
+<h2>10. Memory model essentials</h2>
+<table>
+  <tr><th>Concept</th><th>What it means</th><th>Interview-critical takeaway</th></tr>
+
+  <tr>
+    <td>happens-before</td>
+    <td>Ordering guarantee: actions before a release are visible after the matching acquire.</td>
+    <td>Established by: <code>synchronized</code> unlock→lock, <code>volatile</code> write→read, <code>Thread.start</code>, <code>Thread.join</code>, thread-safe collection put/get, <code>CountDownLatch</code> countDown/await.</td>
+  </tr>
+
+  <tr>
+    <td>Data race</td>
+    <td>Two threads access the same non-final, non-volatile field; at least one writes; no happens-before between them.</td>
+    <td><span class="warn">Undefined behavior</span> — may see torn values (<code>long</code>/<code>double</code> on 32-bit) or stale reads. "Works on my machine" is not a proof.</td>
+  </tr>
+
+  <tr>
+    <td><code>volatile</code> semantics</td>
+    <td>Write = release barrier; read = acquire barrier.</td>
+    <td>Guarantees visibility, not atomicity. <code>volatile int i; i++;</code> is still racy.</td>
+  </tr>
+
+  <tr>
+    <td><code>final</code> field safety</td>
+    <td>Correctly constructed final fields are visible to other threads without synchronization.</td>
+    <td><span class="hint">Immutability is the fastest concurrency strategy.</span> Prefer <code>record</code>s and final fields.</td>
+  </tr>
+
+  <tr>
+    <td>Safe publication</td>
+    <td>How a newly-created object becomes visible to other threads.</td>
+    <td>Safe idioms: static initializer, <code>volatile</code>/<code>final</code>/<code>AtomicReference</code>, concurrent collection. Unsafe: plain field assignment from constructor + unsynchronized reads.</td>
+  </tr>
+
+  <tr>
+    <td>Double-checked locking</td>
+    <td>Singleton pattern for lazy init.</td>
+    <td><span class="warn">Broken without <code>volatile</code></span> on the instance field (pre-Java 5 bug that the memory model explicitly fixes). Modern canonical form:
+      <pre><span class="k">private static volatile</span> <span class="t">X</span> inst;
+<span class="k">public static</span> <span class="t">X</span> get() {
+  <span class="t">X</span> i = inst;
+  <span class="k">if</span> (i == <span class="k">null</span>) <span class="k">synchronized</span>(X.<span class="k">class</span>) {
+    i = inst;
+    <span class="k">if</span> (i == <span class="k">null</span>) inst = i = <span class="k">new</span> <span class="t">X</span>();
+  }
+  <span class="k">return</span> i;
+}</pre>
+    </td>
+  </tr>
+</table>
+
+<h2>11. Canonical patterns</h2>
+
+<h3>Producer-Consumer (the foundation)</h3>
+<pre><span class="t">BlockingQueue</span>&lt;<span class="t">Task</span>&gt; q = <span class="k">new</span> <span class="t">ArrayBlockingQueue</span>&lt;&gt;(100);
+<span class="c">// producer</span>
+q.put(task);                    <span class="c">// blocks if full → back-pressure</span>
+<span class="c">// consumer</span>
+<span class="t">Task</span> t = q.take();              <span class="c">// blocks if empty</span></pre>
+<p class="subtitle">Roll-your-own: <code>ReentrantLock</code> + <code>notFull</code> <code>Condition</code> + <code>notEmpty</code> <code>Condition</code>. That's Bounded Blocking Queue (LC 1188).</p>
+
+<h3>Fan-out / fan-in with CompletableFuture</h3>
+<p class="subtitle">See section 6 for the <code>allOf(...).thenApply(...join)</code> idiom.</p>
+
+<h3>Thread-safe lazy cache (Java Concurrency in Practice §5.6)</h3>
+<pre><span class="t">ConcurrentHashMap</span>&lt;<span class="t">K</span>, <span class="t">CompletableFuture</span>&lt;<span class="t">V</span>&gt;&gt; cache = <span class="k">new</span> <span class="t">ConcurrentHashMap</span>&lt;&gt;();
+
+<span class="k">public</span> <span class="t">V</span> get(<span class="t">K</span> key) {
+    <span class="k">return</span> cache.computeIfAbsent(key, k -&gt;
+        <span class="t">CompletableFuture</span>.supplyAsync(() -&gt; expensiveCompute(k))
+    ).join();
+}</pre>
+<p class="subtitle">Caches the <em>future</em>, not the value — multiple concurrent misses for the same key share one computation. The Brian Goetz classic.</p>
+
+<h3>Rate limiter — Token Bucket</h3>
+<pre><span class="t">Semaphore</span> tokens = <span class="k">new</span> <span class="t">Semaphore</span>(burst);
+<span class="t">ScheduledExecutorService</span> refiller = <span class="t">Executors</span>.newScheduledThreadPool(1);
+refiller.scheduleAtFixedRate(() -&gt; {
+    <span class="k">if</span> (tokens.availablePermits() &lt; burst) tokens.release();
+}, 0, refillMs, TimeUnit.MILLISECONDS);
+
+<span class="c">// caller:</span>
+<span class="k">if</span> (!tokens.tryAcquire(timeout, TimeUnit.MILLISECONDS)) <span class="k">throw</span> ...;</pre>
+
+<h3>Parallel task runner with deps (topo sort + ExecutorService)</h3>
+<p class="subtitle">Kahn's topo sort gives you the ready set; submit ready tasks, each completion decrements deps and enqueues newly-ready tasks. Synchronize via <code>CountDownLatch</code> (wait for all) or <code>CompletableFuture.allOf</code>.</p>
+
+<h2>12. Classic pitfalls</h2>
+<table>
+  <tr><th>Pitfall</th><th>What happens</th><th>Fix</th></tr>
+
+  <tr>
+    <td>Deadlock</td>
+    <td>Two threads each hold a lock the other wants.</td>
+    <td><strong>Consistent lock ordering</strong> (always acquire A before B). For multi-object locks, sort by identity hash. Or use <code>tryLock(timeout)</code>.</td>
+  </tr>
+
+  <tr>
+    <td>Livelock</td>
+    <td>Threads keep yielding/retrying and making no progress.</td>
+    <td>Add randomized backoff (jitter). Common in optimistic CAS retry loops.</td>
+  </tr>
+
+  <tr>
+    <td>Starvation</td>
+    <td>A thread never gets the lock because others keep taking it.</td>
+    <td>Use a <strong>fair</strong> <code>ReentrantLock</code> or fair <code>Semaphore</code>. Accepts throughput hit for fairness.</td>
+  </tr>
+
+  <tr>
+    <td>Priority inversion</td>
+    <td>Low-priority thread holding a lock blocks a high-priority thread waiting on it.</td>
+    <td>Mostly an RTOS concern; in JVM, don't rely on thread priorities.</td>
+  </tr>
+
+  <tr>
+    <td>Swallowed InterruptedException</td>
+    <td>Catch-and-ignore kills cancellation semantics.</td>
+    <td>Rethrow, or <code>Thread.currentThread().interrupt();</code> to restore the flag.</td>
+  </tr>
+
+  <tr>
+    <td>Unbounded task queue</td>
+    <td><code>Executors.newFixedThreadPool</code> backlog OOMs under load.</td>
+    <td>Use <code>ThreadPoolExecutor</code> directly with a <strong>bounded</strong> queue and <code>CallerRunsPolicy</code> for back-pressure.</td>
+  </tr>
+
+  <tr>
+    <td>ThreadLocal leak in pool</td>
+    <td>Pooled thread retains state across unrelated tasks, blocks GC.</td>
+    <td><code>try/finally { tl.remove(); }</code>. Or use <code>ScopedValue</code> (Java 21).</td>
+  </tr>
+
+  <tr>
+    <td>Forgotten <code>shutdown()</code></td>
+    <td>JVM never exits; tests hang.</td>
+    <td>Always pair construction with shutdown. Daemon threads OK for fire-and-forget.</td>
+  </tr>
+
+  <tr>
+    <td>Racy "check-then-act" on ConcurrentHashMap</td>
+    <td><code>if (!map.containsKey(k)) map.put(k, v);</code> is racy across threads.</td>
+    <td>Use <code>putIfAbsent</code>, <code>compute</code>, or <code>merge</code>.</td>
+  </tr>
+
+  <tr>
+    <td>Pinning on virtual threads</td>
+    <td>Virtual thread enters <code>synchronized</code> and pins its carrier.</td>
+    <td>Prefer <code>ReentrantLock</code> in code paths running on virtual threads (Java 21+ migration tip).</td>
+  </tr>
+</table>
+
+<h2>Quick-pick cheat sheet</h2>
+<div class="callout">
+  <ul>
+    <li><strong>Mutual exclusion</strong> → <code>synchronized</code> (simple) / <code>ReentrantLock</code> (need timeout / multi-condition / fairness).</li>
+    <li><strong>Read-heavy</strong> → <code>ReentrantReadWriteLock</code> or <code>StampedLock</code> (optimistic).</li>
+    <li><strong>Wait for N tasks</strong> → <code>CountDownLatch</code>.</li>
+    <li><strong>Phase sync (all arrive, then proceed, repeat)</strong> → <code>CyclicBarrier</code>.</li>
+    <li><strong>Throttle to N-at-a-time</strong> → <code>Semaphore</code>.</li>
+    <li><strong>Producer/consumer</strong> → <code>ArrayBlockingQueue</code> (bounded) / build with <code>Lock</code> + 2 <code>Condition</code>s.</li>
+    <li><strong>Safe shared map</strong> → <code>ConcurrentHashMap</code> + <code>compute</code>/<code>merge</code> for compound ops.</li>
+    <li><strong>Lock-free counter</strong> → <code>AtomicLong</code> (low contention), <code>LongAdder</code> (high).</li>
+    <li><strong>Async composition</strong> → <code>CompletableFuture</code>: <code>supplyAsync</code> → <code>thenCompose</code> / <code>thenCombine</code> / <code>allOf</code>.</li>
+    <li><strong>Scheduled / periodic</strong> → <code>ScheduledExecutorService.scheduleAtFixedRate</code>.</li>
+    <li><strong>CPU-bound divide-and-conquer</strong> → <code>ForkJoinPool</code>.</li>
+    <li><strong>I/O-bound at massive concurrency</strong> → virtual threads (Java 21+).</li>
+  </ul>
+</div>
+
+</body>
+</html>

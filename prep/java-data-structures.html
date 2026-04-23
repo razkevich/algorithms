@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Java Data Structures — Interview Reference</title>
+<style>
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #0f0f11;
+    color: #e4e4e7;
+    padding: 40px 32px;
+    max-width: 1100px;
+    margin: 0 auto;
+    line-height: 1.55;
+  }
+  h1 { color: #fff; font-size: 28px; margin-bottom: 4px; }
+  h2 {
+    color: #fff;
+    margin-top: 48px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #2a2a2e;
+    font-size: 20px;
+  }
+  .subtitle { color: #9ca3af; font-size: 14px; margin-bottom: 32px; }
+  code, .mono {
+    font-family: 'SF Mono', Menlo, Consolas, monospace;
+    background: #1c1c22;
+    padding: 2px 6px;
+    border-radius: 3px;
+    color: #7dd3fc;
+    font-size: 13px;
+  }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 16px 0;
+    font-size: 13.5px;
+  }
+  th, td {
+    text-align: left;
+    padding: 10px 12px;
+    vertical-align: top;
+    border-bottom: 1px solid #24242a;
+  }
+  th {
+    background: #18181d;
+    color: #fbbf24;
+    font-weight: 600;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  td.label { white-space: nowrap; font-weight: 600; color: #e4e4e7; width: 28%; }
+  td.big-o { font-family: 'SF Mono', Menlo, monospace; color: #86efac; white-space: nowrap; }
+  td.methods { font-family: 'SF Mono', Menlo, monospace; color: #fcd34d; font-size: 12.5px; }
+  tr:hover td { background: #161619; }
+  .warn { color: #fca5a5; }
+  .hint { color: #93c5fd; }
+  .callout {
+    background: #1a1a1f;
+    border-left: 3px solid #fbbf24;
+    padding: 12px 16px;
+    margin: 24px 0;
+    border-radius: 0 4px 4px 0;
+  }
+  .callout strong { color: #fde68a; }
+  ul { padding-left: 22px; }
+  li { margin: 6px 0; }
+</style>
+</head>
+<body>
+
+<h1>Java Data Structures — Interview Reference</h1>
+<p class="subtitle">
+  Trimmed to the two with genuinely non-obvious Java idioms — the ones people routinely miss
+  or reach for the wrong class. Everything else (<code>ArrayList</code>, <code>HashMap</code>,
+  <code>PriorityQueue</code>, <code>HashSet</code>, <code>StringBuilder</code>) is already in your
+  muscle memory; the traps for those live in the file headers of the specific solutions that use them.
+</p>
+
+<div class="callout">
+  <strong>API traps for the ones not listed here (keep mental):</strong>
+  <ul>
+    <li><code>PriorityQueue</code> / <code>Deque</code> / <code>Queue</code> use <code>peek / poll / offer</code>. <span class="warn">Not <code>peek / pop / push</code>.</span></li>
+    <li><code>Deque</code> is an <em>interface</em>. Instantiate with <code>new ArrayDeque&lt;&gt;()</code>.</li>
+    <li>Reverse-sorted collection: <code>Comparator.reverseOrder()</code>. <code>.reversed()</code> only exists on an existing comparator.</li>
+    <li>Top-K largest → <em>min</em>-heap of size K. Top-K smallest → max-heap.</li>
+  </ul>
+</div>
+
+<h2>ArrayDeque — the stack / queue / deque answer</h2>
+<p class="subtitle">
+  Every "I need a stack" and "I need a queue" in Java should reach for this. <code>Stack</code> is
+  legacy and synchronized; <code>LinkedList</code>-as-queue is cache-unfriendly. <code>ArrayDeque</code>
+  is a circular buffer: O(1) on both ends, no allocations per op.
+</p>
+
+<table>
+  <tr><th>Aspect</th><th>Detail</th></tr>
+
+  <tr>
+    <td class="label">Class</td>
+    <td class="methods">java.util.ArrayDeque&lt;T&gt; implements Deque&lt;T&gt;, Queue&lt;T&gt;</td>
+  </tr>
+
+  <tr>
+    <td class="label">Big-O</td>
+    <td class="big-o">push/pop/peek: O(1)<br>offer/poll/peek: O(1)<br>contains / remove(Object): O(n)</td>
+  </tr>
+
+  <tr>
+    <td class="label">Stack API</td>
+    <td class="methods">push(t), pop(), peek()</td>
+  </tr>
+
+  <tr>
+    <td class="label">Queue API</td>
+    <td class="methods">offer(t), poll(), peek()</td>
+  </tr>
+
+  <tr>
+    <td class="label">Deque API</td>
+    <td class="methods">offerFirst / offerLast,<br>pollFirst / pollLast,<br>peekFirst / peekLast</td>
+  </tr>
+
+  <tr>
+    <td class="label">Why not Stack?</td>
+    <td>Legacy (pre-collections-framework), synchronized (slow), extends <code>Vector</code>. Never use in new code.</td>
+  </tr>
+
+  <tr>
+    <td class="label">Why not LinkedList as queue?</td>
+    <td>Node-per-element allocations; bad cache locality; <code>ArrayDeque</code> is faster on every benchmark.</td>
+  </tr>
+
+  <tr>
+    <td class="label">Gotchas</td>
+    <td><span class="warn">Throws <code>NullPointerException</code> on null</span> — don't store nulls. <code>poll()</code> returns <code>null</code> if empty; <code>remove()</code> throws. Pick the version that matches your control flow.</td>
+  </tr>
+
+  <tr>
+    <td class="label">Canonical uses</td>
+    <td>
+      <ul style="margin: 0;">
+        <li><strong>Stack</strong>: iterative DFS, monotonic stack (Daily Temperatures, histogram), balanced parens, expression eval.</li>
+        <li><strong>Queue</strong>: BFS, level-order tree traversal.</li>
+        <li><strong>Deque</strong>: sliding window maximum (monotonic deque), 0-1 BFS.</li>
+      </ul>
+    </td>
+  </tr>
+</table>
+
+<h2>TreeMap — the secret weapon</h2>
+<p class="subtitle">
+  Red-black tree, O(log n) everything, keys kept sorted. The killer methods are
+  <code>floorKey</code> / <code>ceilingKey</code> / <code>floorEntry</code> / <code>subMap</code> —
+  "nearest key ≤ X" and range queries that are awkward to write by hand. When a problem says
+  "most recent", "nearest timestamp", "intervals by endpoint", "calendar booking" —
+  <code>TreeMap</code> is usually the answer.
+</p>
+
+<table>
+  <tr><th>Aspect</th><th>Detail</th></tr>
+
+  <tr>
+    <td class="label">Class</td>
+    <td class="methods">java.util.TreeMap&lt;K,V&gt; implements NavigableMap&lt;K,V&gt;</td>
+  </tr>
+
+  <tr>
+    <td class="label">Big-O</td>
+    <td class="big-o">get/put/remove: O(log n)<br>floor/ceiling/higher/lower: O(log n)<br>firstKey/lastKey: O(log n)<br>subMap view: O(log n) setup, range iter O(k + log n)</td>
+  </tr>
+
+  <tr>
+    <td class="label">Ordering</td>
+    <td>Natural order (<code>Comparable</code>) or custom <code>Comparator</code> in the constructor. For descending iteration: <code>descendingMap()</code> / <code>descendingKeySet()</code> — views, not copies.</td>
+  </tr>
+
+  <tr>
+    <td class="label">Point queries</td>
+    <td class="methods">firstKey(), lastKey(),<br>firstEntry(), lastEntry()</td>
+  </tr>
+
+  <tr>
+    <td class="label">Nearest-neighbor queries</td>
+    <td class="methods">
+      floorKey(k)   &nbsp;&nbsp;// largest key ≤ k<br>
+      ceilingKey(k) &nbsp;&nbsp;// smallest key ≥ k<br>
+      lowerKey(k)   &nbsp;&nbsp;// largest key &lt; k (strict)<br>
+      higherKey(k)  &nbsp;&nbsp;// smallest key &gt; k (strict)<br>
+      floorEntry(k) &nbsp;&nbsp;// entry variant, returns Map.Entry
+    </td>
+  </tr>
+
+  <tr>
+    <td class="label">Range views</td>
+    <td class="methods">
+      subMap(lo, hi)            &nbsp;&nbsp;// [lo, hi)<br>
+      subMap(lo, true, hi, true) &nbsp;&nbsp;// inclusive bounds<br>
+      headMap(k) / tailMap(k)   &nbsp;&nbsp;// (-∞, k) / [k, +∞)
+    </td>
+  </tr>
+
+  <tr>
+    <td class="label">Poll the endpoints</td>
+    <td class="methods">pollFirstEntry() / pollLastEntry()</td>
+  </tr>
+
+  <tr>
+    <td class="label">Gotchas</td>
+    <td>
+      <ul style="margin: 0;">
+        <li><span class="warn">Don't forget the "strict" variants</span>: <code>floor</code>/<code>ceiling</code> are inclusive (≤, ≥); <code>lower</code>/<code>higher</code> are strict (&lt;, &gt;). Off-by-one is a classic bug.</li>
+        <li>Keys must be comparable; <code>null</code> keys throw <code>NullPointerException</code>.</li>
+        <li>Views (<code>subMap</code>, <code>descendingMap</code>) are <em>backed by the map</em> — mutations flow both ways.</li>
+      </ul>
+    </td>
+  </tr>
+
+  <tr>
+    <td class="label">Canonical uses</td>
+    <td>
+      <ul style="margin: 0;">
+        <li><strong>Time-based Key-Value Store (LC 981)</strong> — <code>floorEntry(timestamp)</code> gives the most recent value at or before <code>t</code>.</li>
+        <li><strong>My Calendar I/II/III (LC 729/731/732)</strong> — interval overlap via <code>floorEntry</code> + <code>ceilingEntry</code> on interval endpoints.</li>
+        <li><strong>Range Sum in a BST-shaped problem</strong> — <code>subMap(lo, hi).values()</code> + sum.</li>
+        <li><strong>Find max window / sliding-window-like problems</strong> where monotonic deque doesn't fit because values aren't strictly monotonic — <code>TreeMap&lt;value, count&gt;</code> with increment/decrement, <code>lastKey()</code> = running max.</li>
+        <li><strong>Event-driven scheduling</strong> — <code>pollFirstEntry()</code> on a <code>TreeMap&lt;timestamp, List&lt;Event&gt;&gt;</code>.</li>
+      </ul>
+    </td>
+  </tr>
+
+  <tr>
+    <td class="label">vs. TreeSet</td>
+    <td>Same API family (<code>floor</code>, <code>ceiling</code>, etc.) on a <code>NavigableSet</code>. Use when you only care about keys.</td>
+  </tr>
+
+  <tr>
+    <td class="label">vs. PriorityQueue</td>
+    <td><code>PriorityQueue</code>: O(log n) insert, O(1) peek-min, O(log n) poll-min, but <strong>no random access / no nearest-neighbor</strong>. Use when you only ever touch the extreme. <code>TreeMap</code> when you also need "nearest key to X."</td>
+  </tr>
+
+  <tr>
+    <td class="label">vs. ConcurrentSkipListMap</td>
+    <td>Thread-safe navigable map — same API, O(log n) expected, lock-free. Drop-in replacement when concurrency matters.</td>
+  </tr>
+</table>
+
+</body>
+</html>
