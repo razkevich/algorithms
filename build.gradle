@@ -14,6 +14,19 @@ plugins {
     id 'application'
 }
 
+// Interview-prep scratch solutions live under `prep/` with packages like
+// `prep.concurrency`. Expose them to Gradle (and via it, IntelliJ) as a
+// dedicated source set rooted at the repo root, filtered to prep/**. Keeps
+// them out of `main` so the app build is unaffected.
+sourceSets {
+    prep {
+        java {
+            srcDirs = ['.']
+            include 'prep/**'
+        }
+    }
+}
+
 repositories {
     // Use jcenter for resolving dependencies.
     // You can declare any Maven/Ivy/file repository here.
