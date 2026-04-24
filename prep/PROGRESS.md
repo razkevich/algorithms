@@ -69,7 +69,7 @@ Target language: **Java**. Solutions live in `prep/<category>/`.
 ### Concurrency — Java's killer area (`java.util.concurrent`)
 
 - [x] **Bounded Blocking Queue (LC 1188)** — `prep/concurrency/BoundedBlockingQueue.java` (`ReentrantLock` + `notFull`/`notEmpty`; `while`-loop on predicate; producer signals consumer-condition and vice versa; same shape as `ArrayBlockingQueue`)
-- [ ] **Parallel Task Runner with deps** — topo sort + `ExecutorService` + `CountDownLatch`/`CompletableFuture`; composes concurrency with another algorithm (Databricks-flavored)
+- [x] **Parallel Task Runner with deps** — `prep/concurrency/TaskRunner.java` (Kahn + pool, wave-barrier variant; canonical event-driven form + `CompletableFuture` composition in header; cycle detection + try/finally-on-latch are non-optional)
 - [ ] **Token Bucket rate limiter** — `ScheduledExecutorService` + `Semaphore`
 
 ### Production-flavored design (frontier labs + Shopify)
