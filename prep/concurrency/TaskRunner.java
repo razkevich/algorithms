@@ -53,34 +53,6 @@ import java.util.concurrent.*;
  *
  * Transfers to: Spreadsheet recompute (this exact shape + cycle reject +
  *   value propagation), Make/Bazel build graphs, airflow-style DAG runners.
- *
- * ---
- * Wave-barrier vs. event-driven (refinement of approach A):
- *
- *   The implementation below is wave-barrier: drain all zero-count tasks,
- *   block on a CountDownLatch for the whole wave, advance. Simple, but loses
- *   parallelism when a wave has uneven task durations — a short chain behind
- *   a fast task must idle until the wave's slowest task finishes.
- *
- *   Canonical event-driven form (no per-wave barrier):
- *
- *     - Global `CountDownLatch done = new CountDownLatch(totalTasks);`
- *       (or a Phaser if task count is unknown up front).
- *     - Per-task `AtomicInteger remaining = new AtomicInteger(deps.size());`
- *     - submit(t): pool.execute(() -> {
- *           try { t.work.run(); }
- *           finally {
- *               for (child of t.children) {
- *                   if (remaining[child].decrementAndGet() == 0) submit(child);
- *               }
- *               done.countDown();
- *           }
- *       });
- *     - runToCompletion: submit every task with remaining == 0, then done.await().
- *     - Failure: on exception, could either still propagate (children run) or
- *       cancel downstream (skip-children); policy choice.
- *     - Cycle: if after runToCompletion fewer than totalTasks were ever
- *       submitted, the un-submitted ones form a cycle — detect via a counter.
  */
 class TaskRunner {
 
@@ -115,26 +87,24 @@ class TaskRunner {
                 }
             }
 
+            Set<String> visited = new ConcurrentSkipListSet<>();
             while (!dependencyCount.isEmpty()) {
-                int waveSize = (int) dependencyCount.entrySet().stream().filter(a -> a.getValue() == 0).count();
-                // Cycle: non-empty map but nothing can start → un-submittable tasks form a cycle.
-                if (waveSize == 0) {
-                    throw new IllegalStateException("Cycle detected among tasks: " + dependencyCount.keySet());
-                }
-                CountDownLatch cdl = new CountDownLatch(waveSize);
-                Set<String> toRemove = ConcurrentHashMap.newKeySet();
-                for (var id : dependencyCount.keySet()) {
-                    if (dependencyCount.get(id) == 0) {
+                CountDownLatch cdl = new CountDownLatch((int) dependencyCount.entrySet().stream().filter(a -> a.getValue() == 0).count());
+                Set<String > toRemove = new ConcurrentSkipListSet<>();
+                for (var indegree : dependencyCount.keySet()) {
+                    if (visited.contains(indegree)) continue;
+                    if (dependencyCount.get(indegree) == 0) {
                         pool.execute(() -> {
                             try {
-                                tasksWork.get(id).run();
-                            } finally {
-                                // In finally so a throwing task doesn't strand the latch.
-                                toRemove.add(id);
-                                cdl.countDown();
-                            }
+                                tasksWork.get(indegree).run();
+                            }finally{
+                            toRemove.add(indegree);
+                            visited.add(indegree);
+                            cdl.countDown();}
                         });
-                        inverted.get(id).forEach(d -> dependencyCount.put(d, dependencyCount.get(d) - 1));
+                        Set<String> dependants = inverted.get(indegree);
+                        dependants.forEach(d -> dependencyCount.put(d, dependencyCount.get(d) - 1));
+
                     }
                 }
                 cdl.await();
