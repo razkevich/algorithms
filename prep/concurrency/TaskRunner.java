@@ -94,6 +94,9 @@ class TaskRunner {
                 List<String> ready = dependencyCount.entrySet().stream()
                         .filter(a -> a.getValue() == 0)
                         .map(Map.Entry::getKey).collect(Collectors.toList());
+                if (ready.isEmpty()) {
+                    throw new IllegalStateException("Cycle detected among tasks: " + dependencyCount.keySet());
+                }
                 CountDownLatch cdl = new CountDownLatch(ready.size());
                 Set<String > toRemove = new ConcurrentSkipListSet<>();
                 for (var indegree : ready) {
