@@ -2,9 +2,11 @@ package prep.concurrency;
 
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.*;
+import java.util.stream.Collectors;
 
 /*
  * Parallel Task Runner with dependencies — Databricks/ETL classic.
@@ -89,23 +91,23 @@ class TaskRunner {
 
             Set<String> visited = new ConcurrentSkipListSet<>();
             while (!dependencyCount.isEmpty()) {
-                CountDownLatch cdl = new CountDownLatch((int) dependencyCount.entrySet().stream().filter(a -> a.getValue() == 0).count());
+                List<String> ready = dependencyCount.entrySet().stream()
+                        .filter(a -> a.getValue() == 0)
+                        .map(Map.Entry::getKey).collect(Collectors.toList());
+                CountDownLatch cdl = new CountDownLatch(ready.size());
                 Set<String > toRemove = new ConcurrentSkipListSet<>();
-                for (var indegree : dependencyCount.keySet()) {
+                for (var indegree : ready) {
                     if (visited.contains(indegree)) continue;
-                    if (dependencyCount.get(indegree) == 0) {
-                        pool.execute(() -> {
-                            try {
-                                tasksWork.get(indegree).run();
-                            }finally{
-                            toRemove.add(indegree);
-                            visited.add(indegree);
-                            cdl.countDown();}
-                        });
-                        Set<String> dependants = inverted.get(indegree);
-                        dependants.forEach(d -> dependencyCount.put(d, dependencyCount.get(d) - 1));
-
-                    }
+                    pool.execute(() -> {
+                        try {
+                            tasksWork.get(indegree).run();
+                        }finally{
+                        toRemove.add(indegree);
+                        visited.add(indegree);
+                        cdl.countDown();}
+                    });
+                    Set<String> dependants = inverted.get(indegree);
+                    dependants.forEach(d -> dependencyCount.put(d, dependencyCount.get(d) - 1));
                 }
                 cdl.await();
                 toRemove.forEach(dependencyCount::remove);
