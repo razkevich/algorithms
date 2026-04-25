@@ -70,7 +70,7 @@ Target language: **Java**. Solutions live in `prep/<category>/`.
 
 - [x] **Bounded Blocking Queue (LC 1188)** — `prep/concurrency/BoundedBlockingQueue.java` (`ReentrantLock` + `notFull`/`notEmpty`; `while`-loop on predicate; producer signals consumer-condition and vice versa; same shape as `ArrayBlockingQueue`)
 - [x] **Parallel Task Runner with deps** — `prep/concurrency/TaskRunner.java` (Kahn + pool, wave-barrier variant; canonical event-driven form + `CompletableFuture` composition in header; cycle detection + try/finally-on-latch are non-optional)
-- [ ] **Token Bucket rate limiter** — `ScheduledExecutorService` + `Semaphore`
+- [x] **Token Bucket rate limiter** — `prep/concurrency/TokenBucket.java` (lazy-refill: `ReentrantLock` + `Condition.awaitNanos`, `System.nanoTime()` for monotonic clock; refill-then-check-then-deduct under lock; advance `lastNano` only on refill, never on deduct, or you silently leak tokens; scheduled-refill alternative noted in header)
 
 ### Production-flavored design (frontier labs + Shopify)
 
