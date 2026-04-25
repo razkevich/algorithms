@@ -77,7 +77,7 @@ Target language: **Java**. Solutions live in `prep/<category>/`.
 - [ ] **Time-based Key-Value Store (LC 981)** — `TreeMap.floorEntry`
 - [ ] **LFU Cache (LC 460)** — two-tier DLL
 - [ ] **Transactional in-memory store** — nested `BEGIN`/`COMMIT`/`ROLLBACK`, overlay stack
-- [ ] **Spreadsheet with formula evaluation** — topo sort + cycle detection + recompute
+- [x] **Spreadsheet with formula evaluation** — `prep/design/Spreadsheet.java` (cycle reject on `setFormula` via DFS over dep chains; lazy full recompute via Kahn's over all cells on each `get`; pattern transfer = TaskRunner with values flowing through. Eager affected-subgraph recompute on `set` is the production-shape alternative — read-heavy systems want O(1) reads.)
 
 ---
 
