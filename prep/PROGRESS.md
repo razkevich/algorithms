@@ -17,6 +17,7 @@ Target language: **Java**. Solutions live in `prep/<category>/`.
 - [ ] **Alien Dictionary (LC 269)** — topo sort over string-derived edges; parsing + graph build + Kahn — staff-loop classic
 - [x] **Kosaraju's SCC** — intuition only (full DFS forest + finish stack + transpose + peel); `prep/graphs/scc-visualization.html`
 - [x] **Dijkstra — lazy PQ variant** — `prep/graphs/Dijkstra.java` (BFS with a PQ; first-pop-wins invariant; template for Network Delay / Cheapest Flights / Min Effort Path)
+- [ ] **Bipartite check / 2-coloring (LC 785)** — BFS coloring (alternate colors as you expand); odd-cycle detection in disguise; runs across all components
 
 ## 2. Union-Find
 
@@ -43,6 +44,7 @@ Target language: **Java**. Solutions live in `prep/<category>/`.
 ## 8. Stack / Monotonic Stack
 
 - [x] **Monotonic stack** — `prep/arrays/DailyTemperatures.java` (next-greater template; histogram is the same shape with "first smaller on both sides")
+- [ ] **Expression evaluation / Calculator (LC 224 / 227 / 772)** — stack + last-operator template; `+/-` defer, `*//` apply immediately; parens via recursion or stack-of-stacks. Same shape as Decode-String / Evaluate-RPN / basic-interpreter.
 
 ## 9. Heap / Priority Queue
 
