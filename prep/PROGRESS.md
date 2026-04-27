@@ -14,7 +14,7 @@ Target language: **Java**. Solutions live in `prep/<category>/`.
 - [x] **Recursive DFS** — `prep/graphs/DFSGraphRecursive.java`
 - [x] **Cycle detection — DFS with 3-color** — `prep/graphs/CycleDetection3Color.java`
 - [x] **Topological sort — Kahn's BFS** — `prep/graphs/TopologicalSortKahn.java` (DFS reverse post-order covered in file header)
-- [ ] **Alien Dictionary (LC 269)** — topo sort over string-derived edges; parsing + graph build + Kahn — staff-loop classic
+- [x] **Alien Dictionary (LC 269)** — `prep/graphs/AlienDictionary.java` (Kahn over edges from adjacent-word comparison; two non-obvious points: all chars must be vertices even ones in no derived edge, and cycle = "no zero-indegree available while indegrees non-empty" — no separate DFS pre-check needed. Edge case: `"abc"` before `"ab"` is invalid input → "".)
 - [x] **Kosaraju's SCC** — intuition only (full DFS forest + finish stack + transpose + peel); `prep/graphs/scc-visualization.html`
 - [x] **Dijkstra — lazy PQ variant** — `prep/graphs/Dijkstra.java` (BFS with a PQ; first-pop-wins invariant; template for Network Delay / Cheapest Flights / Min Effort Path)
 - [x] **Bipartite check / 2-coloring (LC 785)** — `prep/graphs/bipartite-visualization.html` (concept-level: BFS-color each component (color[] doubles as visited; outer loop over all nodes for disconnectedness; `-color[u]` flip; same-color neighbor = odd cycle = not bipartite). Bipartite is a 2-coloring property, NOT "2 components" — independent dimensions. The fact = "no odd cycles anywhere.")
