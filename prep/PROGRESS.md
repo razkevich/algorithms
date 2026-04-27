@@ -76,7 +76,7 @@ Target language: **Java**. Solutions live in `prep/<category>/`.
 
 - [ ] **Time-based Key-Value Store (LC 981)** — `TreeMap.floorEntry`
 - [x] **LFU Cache (LC 460)** — `prep/design/LFUCache.java` (per-frequency `LinkedHashSet` buckets + `keyToNode` map + monotonic `minFreq` pointer; O(1) get/put. Invariant: `minFreq` always points to a non-empty bucket between operations — bumped on get when the source bucket empties, reset to 1 on every new-key put.)
-- [ ] **Transactional in-memory store** — nested `BEGIN`/`COMMIT`/`ROLLBACK`, overlay stack
+- [x] **Transactional in-memory store** — `prep/design/TransactionalStore.java` (concept-level: overlay stack + tombstone for deletion, LIFO-scoped begin/commit/rollback. Reads walk stack top-down (first hit wins, tombstone → null), writes go to top frame, commit pops and folds into parent, rollback just pops. Only at the base does a tombstone become a real `remove`. Pattern transfers to lexical scopes, CSS cascade, OverlayFS whiteouts, CRDT tombstones, MVCC.)
 - [x] **Spreadsheet with formula evaluation** — `prep/design/Spreadsheet.java` (cycle reject on `setFormula` via DFS over dep chains; lazy full recompute via Kahn's over all cells on each `get`; pattern transfer = TaskRunner with values flowing through. Eager affected-subgraph recompute on `set` is the production-shape alternative — read-heavy systems want O(1) reads.)
 
 ---
