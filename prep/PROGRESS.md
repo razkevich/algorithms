@@ -44,7 +44,7 @@ Target language: **Java**. Solutions live in `prep/<category>/`.
 ## 8. Stack / Monotonic Stack
 
 - [x] **Monotonic stack** — `prep/arrays/DailyTemperatures.java` (next-greater template; histogram is the same shape with "first smaller on both sides")
-- [ ] **Expression evaluation / Calculator (LC 224 / 227 / 772)** — stack + last-operator template; `+/-` defer, `*//` apply immediately; parens via recursion or stack-of-stacks. Same shape as Decode-String / Evaluate-RPN / basic-interpreter.
+- [x] **Expression evaluation / Calculator (LC 227)** — `prep/stacks/BasicCalculatorII.java` (two-stack shunting-yard: numbers push; on new op, flush while `rank(top) >= rank(incoming)`, then push. Final drain. The `>=` is what gives left-associativity — same-rank ops flush before the next is pushed. Switch to `>` for right-assoc (`^`). Parens (LC 224/772) extend cleanly: `(` rank 0, `)` drains to matching `(`. Pattern transfer to Evaluate-RPN, Decode-String, mini-DSL evaluators.)
 
 ## 9. Heap / Priority Queue
 
