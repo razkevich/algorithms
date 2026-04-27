@@ -75,7 +75,7 @@ Target language: **Java**. Solutions live in `prep/<category>/`.
 ### Production-flavored design (frontier labs + Shopify)
 
 - [ ] **Time-based Key-Value Store (LC 981)** — `TreeMap.floorEntry`
-- [ ] **LFU Cache (LC 460)** — two-tier DLL
+- [x] **LFU Cache (LC 460)** — `prep/design/LFUCache.java` (per-frequency `LinkedHashSet` buckets + `keyToNode` map + monotonic `minFreq` pointer; O(1) get/put. Invariant: `minFreq` always points to a non-empty bucket between operations — bumped on get when the source bucket empties, reset to 1 on every new-key put.)
 - [ ] **Transactional in-memory store** — nested `BEGIN`/`COMMIT`/`ROLLBACK`, overlay stack
 - [x] **Spreadsheet with formula evaluation** — `prep/design/Spreadsheet.java` (cycle reject on `setFormula` via DFS over dep chains; lazy full recompute via Kahn's over all cells on each `get`; pattern transfer = TaskRunner with values flowing through. Eager affected-subgraph recompute on `set` is the production-shape alternative — read-heavy systems want O(1) reads.)
 
