@@ -17,7 +17,7 @@ Target language: **Java**. Solutions live in `prep/<category>/`.
 - [ ] **Alien Dictionary (LC 269)** — topo sort over string-derived edges; parsing + graph build + Kahn — staff-loop classic
 - [x] **Kosaraju's SCC** — intuition only (full DFS forest + finish stack + transpose + peel); `prep/graphs/scc-visualization.html`
 - [x] **Dijkstra — lazy PQ variant** — `prep/graphs/Dijkstra.java` (BFS with a PQ; first-pop-wins invariant; template for Network Delay / Cheapest Flights / Min Effort Path)
-- [ ] **Bipartite check / 2-coloring (LC 785)** — BFS coloring (alternate colors as you expand); odd-cycle detection in disguise; runs across all components
+- [x] **Bipartite check / 2-coloring (LC 785)** — `prep/graphs/bipartite-visualization.html` (concept-level: BFS-color each component (color[] doubles as visited; outer loop over all nodes for disconnectedness; `-color[u]` flip; same-color neighbor = odd cycle = not bipartite). Bipartite is a 2-coloring property, NOT "2 components" — independent dimensions. The fact = "no odd cycles anywhere.")
 
 ## 2. Union-Find
 
