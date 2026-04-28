@@ -52,9 +52,27 @@ Staff/tech-lead system design prep for first/second-tier companies (distributed 
 ### Daily shape (~3-4 hr core)
 1. **Algorithm warm-up** (30 min) — random pick from `prep/PROGRESS.md`, no full solve, just drive the template. Keeps coding sharp.
 2. **Cheat sheet for today's mock** (60 min, only Days 1/2/4/5/6/7/8) — written *before* the mock if it's a foundation; *after* if it's a gap-fill from yesterday.
-3. **MOCK** (45 min) — full timer, real conditions. User leads, I steer.
-4. **CRITIQUE** (15-20 min) — severity-rated, gap list, cheat-sheet recommendations.
-5. **Commit + PROGRESS.md tick** (5 min).
+3. **PRE-MOCK REVIEW** (5 min) — *user-led active recall.* User states what's important for this round before the mock starts. See format below.
+4. **MOCK** (45 min) — full timer, real conditions. User leads, I steer.
+5. **CRITIQUE** (15-20 min) — severity-rated, gap list, cheat-sheet recommendations. Reviewed against the targets locked in step 3.
+6. **Commit + PROGRESS.md tick** (5 min).
+
+### Pre-mock review format (5 min, before every mock)
+
+User recites — active recall, no notes:
+1. **5 framework stages + time caps** — Requirements (5) → Entities (2) → API (5) → HLD (10-15) → Deep Dive (10).
+2. **FCC + SLEDS mnemonic** — Fault-tolerance, CAP, Compliance + Scalability, Latency, Environment, Durability, Security.
+3. **DB toolbox** — name the 6 + 1, give the one-line picking criterion for each.
+4. **Today's stakes** — what concept does *this* problem test that's new/weak? Where do you predict you'll struggle? What signal are you trying to send?
+
+I respond with:
+- Corrections on any miss (drop a brief one-liner; don't lecture)
+- What *I'm* watching for in this specific problem (concept(s) most likely to be probed)
+- One-line shared agreement on round goals — both sides know what counts as a win for today
+
+Locks in calibration target: critique at the end is graded *against the stated targets*, not generic. "You said you'd nail fanout-on-write — did you?"
+
+**Tapering:** Days 1-5 full recital. Days 6+ I drop items 1-3 if the user has clearly internalized them, focus on item 4. If items 1-3 ever degrade, we go back to full recital. If user can't recite the 5 stages by Day 3, that's a framework-discipline blocker — all energy diverts there until it's solid.
 
 ### Second-pass policy (breadth > depth in 1.5 weeks)
 - **Default: move forward.** New problem each day. 8 different problems > 5 problems twice — more shapes, more concept surface.
