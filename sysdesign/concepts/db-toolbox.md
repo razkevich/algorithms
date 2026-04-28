@@ -4,6 +4,27 @@
 
 ---
 
+## 🎯 User's locked stack (Day 1 calibration)
+
+User has hands-on with the canonical 6, swapped in MongoDB as the primary scale-out NoSQL, and added ClickHouse for OLAP. Locked defaults — these are what user names *first* in mocks unless the prompt forces otherwise:
+
+| Slot | User's default | Alternate (one-line mention only) |
+|------|----------------|-----------------------------------|
+| Relational OLTP | **Postgres** | MySQL, sharded via Citus / app-level |
+| Scale-out NoSQL | **MongoDB** *(document)* | DynamoDB *(KV/wide-col, AWS-managed)*, Cassandra *(OSS)* |
+| Cache / ephemeral | **Redis** | Memcached |
+| Search / log analytics | **Elasticsearch** | OpenSearch, Algolia (managed) |
+| Event log / streaming | **Kafka** | Kinesis, Pulsar, RabbitMQ (different shape) |
+| Blob / data lake | **S3** | GCS / Azure Blob, MinIO |
+| OLAP / analytics | **ClickHouse** | BigQuery, Snowflake, Druid, Pinot |
+| Global ACID (stretch) | — *(gap)* | Spanner / CockroachDB / Yugabyte |
+
+**Decision discipline (locked):** in a mock, default-name the user's pick. Switching DB engines mid-design = engine-shopping = process tell. Pick once, defend, scale by sharding/caching/specializing — *not* by re-engine.
+
+**MongoDB ↔ DynamoDB tension:** different shapes (document vs partition-key KV). Both fit "scale-out NoSQL when Postgres can't." User's tiebreak: **Mongo for richer query / nested document workloads; Dynamo when prompt is AWS-native + simple-key-access**. State the choice, give one trade-off line, move on.
+
+---
+
 ## The decision tree
 
 ```
@@ -61,6 +82,21 @@
   - Limits: 400KB item, 25-item batch write, 1MB query result page.
 - **Alternates worth mentioning:** Cassandra (same Dynamo paper lineage, OSS, more knobs). ScyllaDB (faster Cassandra rewrite). Bigtable (Google's equivalent).
 
+### 2b. MongoDB — document-shaped scale-out NoSQL (user's primary)
+- **Internal model:** BSON document store; **replica set** (1 primary + N secondaries, async replication, automatic failover); horizontal scale via **shard key** routed through **mongos** routers; per-shard storage is WiredTiger (B-tree + LSM hybrid).
+- **Picks when:** document-shaped data (nested, schema-flexible); rich query needs (secondary indexes, aggregation pipeline, geospatial, full-text); horizontal scale needed without paying for fully-managed AWS.
+- **Mastery target:**
+  - **Shard key** choice = the whole game. Bad shard key → hot shards, scatter-gather queries. Good shard key has high cardinality + matches query patterns.
+  - **Replica set** = unit of replication; primary handles writes, secondaries replicate async; election on primary failure.
+  - **mongos** = stateless query router; clients connect to mongos, mongos consults config servers + dispatches to shards.
+  - **ACID transactions** since 4.0 (replica set) / 4.2 (sharded). *Don't claim Mongo lacks transactions — it doesn't, and the interviewer will catch it.*
+  - Schema validation (optional, per-collection) — you *can* enforce shape; "schema-on-read" is a 2015 framing, increasingly stale.
+  - Read preferences (`primary` / `secondary` / `nearest`) and read concerns (`local` / `majority` / `linearizable`) — tune the C in CAP per-query.
+  - Write concerns (`w:1` / `w:majority` / `w:0`) — durability vs latency.
+  - Aggregation pipeline (`$match`, `$group`, `$lookup`) — `$lookup` is "join lite," not a Postgres-grade join.
+  - **Not for:** strict relational with multi-table joins, OLTP with complex transactional FK constraints — Postgres still wins there.
+- **Alternates worth mentioning:** Couchbase (similar document + memory-first), DocumentDB (AWS-managed Mongo-compatible).
+
 ### 3. Redis — in-memory cache + ephemeral state default
 - **Internal model:** in-memory data structures (strings, hashes, sorted sets, streams, HyperLogLog), single-threaded command loop.
 - **Picks when:** sub-ms reads, counters, leaderboards, sessions, rate-limit buckets, ephemeral pub/sub, distributed locks (with caveats), real-time queues.
@@ -113,6 +149,17 @@
   - Eventually consistent for **listing**; strongly consistent for read-after-write on a known key.
   - With CloudFront / CDN in front for global edge caching.
 - **Alternates worth mentioning:** GCS / Azure Blob (same shape, different ecosystem). MinIO (self-hosted S3-compatible).
+
+### 6b. ClickHouse — OLAP / columnar analytics (user added)
+- **Internal model:** column-oriented, MergeTree engine (LSM-style sorted runs), vectorized execution, aggressive compression. SQL-ish dialect.
+- **Picks when:** analytical aggregations over billions of rows (dashboards, time-series, ad analytics, product metrics); ingestion is high-volume append-only; reads are scans + aggregations, not point lookups.
+- **Mastery target:**
+  - **OLAP, not OLTP.** Don't serve user-facing reads from ClickHouse — feed it async from Kafka / CDC, query it for dashboards.
+  - Sort key (the `ORDER BY` clause in table definition) determines on-disk layout — co-locating aggregations.
+  - Materialized views — pre-aggregate at write time to make read queries trivial.
+  - Distributed tables = sharded; ReplicatedMergeTree = HA per shard.
+  - No `UPDATE`/`DELETE` in the OLTP sense (mutations are async background rewrites).
+- **Alternates worth mentioning:** **BigQuery** (managed, GCP, serverless billing), **Snowflake** (managed, multi-cloud, separation of compute/storage), **Druid / Apache Pinot** (real-time aggregation, sub-second queries), **Redshift** (AWS, PG-compatible). All OLAP — same "fed by Kafka, queried by dashboards" shape.
 
 ### +1. Spanner / CockroachDB / TiDB — global ACID stretch
 - **Internal model:** Paxos/Raft replicated ranges, TrueTime (Spanner) or HLC (Cockroach) for global ordering.
