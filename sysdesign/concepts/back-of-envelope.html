@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Back-of-the-Envelope — System Design Cheat Sheet</title>
+<style>
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #111;
+    color: #eee;
+    padding: 40px;
+    max-width: 1100px;
+    margin: 0 auto;
+    line-height: 1.55;
+  }
+  h1 { color: #fff; font-size: 28px; margin-bottom: 4px; }
+  h1 + .subtitle { color: #888; font-size: 14px; font-style: italic; margin-bottom: 30px; }
+  h2 {
+    color: #fff;
+    margin-top: 48px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid #333;
+  }
+  h3 { color: #ddd; margin-top: 28px; font-size: 17px; }
+  p { color: #ccc; }
+  code, .mono {
+    font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+    background: #1f1f1f;
+    padding: 2px 6px;
+    border-radius: 3px;
+    color: #8be9fd;
+    font-size: 13px;
+  }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 12px 0 8px 0;
+    font-size: 14px;
+  }
+  th, td {
+    text-align: left;
+    padding: 8px 12px;
+    border-bottom: 1px solid #2a2a2a;
+  }
+  th { color: #8be9fd; font-weight: 600; background: #181818; }
+  tr:hover td { background: #1a1a1a; }
+  td.num, th.num { text-align: right; font-family: 'JetBrains Mono', monospace; }
+  td.eq { color: #50fa7b; font-family: 'JetBrains Mono', monospace; }
+  .note { color: #888; font-size: 13px; font-style: italic; margin-top: 6px; }
+  .callout {
+    background: #1a2030;
+    border-left: 3px solid #5ac8fa;
+    padding: 14px 18px;
+    margin: 18px 0;
+    border-radius: 0 6px 6px 0;
+  }
+  .callout.warn {
+    background: #2a1a1a;
+    border-left-color: #ff5555;
+  }
+  .callout.win {
+    background: #1a2a1a;
+    border-left-color: #50fa7b;
+  }
+  .callout h4 { margin-top: 0; color: #fff; }
+  .ritual {
+    background: #181820;
+    border: 1px solid #333;
+    border-radius: 8px;
+    padding: 22px 26px;
+    margin: 18px 0;
+  }
+  .ritual ol { margin: 8px 0; padding-left: 22px; }
+  .ritual li { margin: 8px 0; color: #eee; }
+  .ritual li b { color: #8be9fd; }
+  .grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 22px;
+  }
+  .swatch {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    margin-right: 6px;
+    vertical-align: middle;
+  }
+  svg {
+    background: #1a1a1a;
+    border-radius: 8px;
+    display: block;
+    margin: 16px 0;
+  }
+  .worked {
+    background: #15151c;
+    border: 1px solid #444;
+    border-radius: 8px;
+    padding: 20px 24px;
+    margin: 16px 0;
+  }
+  .worked .step {
+    margin: 10px 0;
+    padding-left: 14px;
+    border-left: 2px solid #5ac8fa;
+  }
+  .worked .step-label { color: #8be9fd; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; }
+  .worked .answer {
+    color: #50fa7b;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+  }
+  .pill {
+    display: inline-block;
+    padding: 1px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 600;
+    background: #333;
+    color: #ccc;
+    margin-right: 6px;
+  }
+  .pill.read { background: #1a3a4a; color: #5ac8fa; }
+  .pill.write { background: #4a1a3a; color: #ff79c6; }
+  .pill.hot { background: #4a3a1a; color: #ffb86c; }
+  hr { border: none; border-top: 1px solid #2a2a2a; margin: 32px 0; }
+</style>
+</head>
+<body>
+
+<h1>Back-of-the-Envelope</h1>
+<div class="subtitle">QPS · storage · bandwidth · latency — recallable under interview pressure.</div>
+
+<p>
+The point of estimation in a design interview isn't to be precise — it's to
+<b>justify your architecture</b>. "We need sharding" is a non-answer.
+"We have ~12K writes/sec at peak, that's beyond a single Postgres node, so we shard"
+is the answer. This page is the toolkit to get to that second sentence in 60 seconds.
+</p>
+
+<div class="callout warn">
+  <h4>Skip estimation if it doesn't fork the design.</h4>
+  Your interviewer's signal: do you know <i>when</i> numbers matter? URL Shortener at
+  100M writes/month doesn't change anything material — mention it, move on.
+  Twitter at 500M tweets/day forces fanout choices — that one matters. Don't burn
+  5 of your 45 minutes on math the design doesn't need.
+</div>
+
+<!-- ================================================================ -->
+<h2>🧮 The 5-step ritual</h2>
+
+<p>Memorize this. Every estimation in every interview reduces to these five moves:</p>
+
+<div class="ritual">
+  <ol>
+    <li><b>Pick the load anchor.</b> DAU, MAU, requests/sec, or items uploaded — pick the one the prompt gives you. <i>(If none given, ask. "How many users?" is always a fair clarifying question.)</i></li>
+    <li><b>Convert to per-second.</b> Divide by <code>86,400</code> (s/day) or <code>2.5 × 10⁶</code> (s/month). That's your <b>average QPS</b>.</li>
+    <li><b>Apply peak factor.</b> Multiply average QPS by <code>2–3×</code> for typical apps, <code>5–10×</code> for spiky workloads (sports, news, sales). State the multiplier you used.</li>
+    <li><b>Multiply by per-event size</b> for storage / bandwidth. Don't forget metadata, indexes, replication factor (<code>3×</code> default).</li>
+    <li><b>Project forward.</b> Storage = current × <code>(1 + growth)ⁿ</code> over the design horizon. Often 5 years × 1.5× growth/year is the default ask.</li>
+  </ol>
+</div>
+
+<div class="callout">
+  <h4>Round aggressively.</h4>
+  Use <code>10⁶</code> not <code>1,048,576</code>. Use <code>2.5M sec/month</code> not <code>2,592,000</code>.
+  <code>≈</code> is your friend — interviewers care that you can reason about magnitude,
+  not arithmetic. "Roughly 100GB" beats fumbled long division every time.
+</div>
+
+<!-- ================================================================ -->
+<h2>📐 Powers of 2 ↔ 10 — instant conversion</h2>
+
+<p>The conversion most people whiff under pressure. Memorize the four rows:</p>
+
+<table>
+  <tr>
+    <th>Bit-width</th>
+    <th class="num">Powers of 2</th>
+    <th class="num">≈ Powers of 10</th>
+    <th>Name</th>
+    <th>What it sizes</th>
+  </tr>
+  <tr><td>10 bits</td><td class="num">1,024</td><td class="num eq">10³ (thousand)</td><td>kilo</td><td>KB, k-users in a small region</td></tr>
+  <tr><td>20 bits</td><td class="num">1,048,576</td><td class="num eq">10⁶ (million)</td><td>mega</td><td>MB, MAU of a niche product</td></tr>
+  <tr><td>30 bits</td><td class="num">1.07 × 10⁹</td><td class="num eq">10⁹ (billion)</td><td>giga</td><td>GB, internet-scale users</td></tr>
+  <tr><td>40 bits</td><td class="num">1.10 × 10¹²</td><td class="num eq">10¹² (trillion)</td><td>tera</td><td>TB, 1 year of analytics events</td></tr>
+  <tr><td>50 bits</td><td class="num">1.13 × 10¹⁵</td><td class="num eq">10¹⁵ (quadrillion)</td><td>peta</td><td>PB, hyperscaler-tier data lake</td></tr>
+</table>
+
+<p class="note">
+  <b>Counter-trick:</b> a <code>32-bit int</code> = 4 bytes; max value ≈ 4 × 10⁹.
+  A <code>64-bit long</code> = 8 bytes; max ≈ 1.8 × 10¹⁹. Pick ID widths accordingly —
+  if your system mints 1B IDs/day, 32-bit overflows in 4 days; 64-bit lasts forever.
+</p>
+
+<!-- ================================================================ -->
+<h2>⏱ Time windows — the seconds you'll use</h2>
+
+<table>
+  <tr>
+    <th>Window</th>
+    <th class="num">Seconds</th>
+    <th class="num">Round to</th>
+    <th>Use it for</th>
+  </tr>
+  <tr><td>Minute</td><td class="num">60</td><td class="num eq">60</td><td>SLO budgets ("99% &lt; 100ms over 5min")</td></tr>
+  <tr><td>Hour</td><td class="num">3,600</td><td class="num eq">3.6 × 10³</td><td>peak-hour traffic windows</td></tr>
+  <tr><td>Day</td><td class="num">86,400</td><td class="num eq"><b>10⁵</b></td><td><b>DAU → QPS</b> (most common)</td></tr>
+  <tr><td>Month</td><td class="num">2,592,000</td><td class="num eq"><b>2.5 × 10⁶</b></td><td>monthly storage growth</td></tr>
+  <tr><td>Year</td><td class="num">31,536,000</td><td class="num eq"><b>3 × 10⁷</b></td><td>5-year capacity planning</td></tr>
+</table>
+
+<div class="callout win">
+  <h4>The QPS cheat: divide by 100,000.</h4>
+  <code>10⁵</code> seconds in a day is the magic number. <b>1B DAU × 1 action = 10K QPS avg.</b>
+  <b>100M DAU × 10 actions = 10K QPS avg.</b> <b>10M DAU × 100 actions = 10K QPS avg.</b>
+  Once you internalize <code>10⁵</code>, every QPS estimate becomes one division.
+</div>
+
+<!-- ================================================================ -->
+<h2>⚡ Latency ladder — the numbers every programmer should know</h2>
+
+<p>
+Times from L1 cache to cross-continent network, on a log scale. <b>Each tick is 10×</b>
+the previous. The right column scales them up so a CPU op = 1 second of human time —
+useful for explaining "why this network call dominates everything."
+</p>
+
+<svg viewBox="0 0 1020 460" width="100%">
+  <defs>
+    <linearGradient id="bar-fast" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#50fa7b"/>
+      <stop offset="100%" stop-color="#5ac8fa"/>
+    </linearGradient>
+    <linearGradient id="bar-mid" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#5ac8fa"/>
+      <stop offset="100%" stop-color="#bf5af2"/>
+    </linearGradient>
+    <linearGradient id="bar-slow" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#bf5af2"/>
+      <stop offset="100%" stop-color="#ff5555"/>
+    </linearGradient>
+  </defs>
+
+  <!-- axis labels -->
+  <text x="20" y="30" fill="#888" font-size="13" font-family="monospace">operation</text>
+  <text x="350" y="30" fill="#888" font-size="13" font-family="monospace">actual time</text>
+  <text x="610" y="30" fill="#888" font-size="13" font-family="monospace">log-scale bar (each tick = 10×)</text>
+  <text x="900" y="30" fill="#888" font-size="13" font-family="monospace">if 1ns = 1s</text>
+
+  <!-- rows -->
+  <g font-family="-apple-system, sans-serif" font-size="13" fill="#ddd">
+
+    <!-- L1 cache: 1ns -->
+    <text x="20" y="68">L1 cache reference</text>
+    <text x="350" y="68" font-family="monospace" fill="#50fa7b">1 ns</text>
+    <rect x="600" y="56" width="20" height="16" fill="url(#bar-fast)"/>
+    <text x="900" y="68" fill="#aaa">1 sec</text>
+
+    <!-- L2 cache: 4ns -->
+    <text x="20" y="96">L2 cache reference</text>
+    <text x="350" y="96" font-family="monospace" fill="#50fa7b">4 ns</text>
+    <rect x="600" y="84" width="40" height="16" fill="url(#bar-fast)"/>
+    <text x="900" y="96" fill="#aaa">4 sec</text>
+
+    <!-- Branch mispredict: 5ns -->
+    <text x="20" y="124">Branch mispredict</text>
+    <text x="350" y="124" font-family="monospace" fill="#50fa7b">5 ns</text>
+    <rect x="600" y="112" width="50" height="16" fill="url(#bar-fast)"/>
+    <text x="900" y="124" fill="#aaa">5 sec</text>
+
+    <!-- Mutex lock/unlock: 25ns -->
+    <text x="20" y="152">Mutex lock/unlock</text>
+    <text x="350" y="152" font-family="monospace" fill="#50fa7b">25 ns</text>
+    <rect x="600" y="140" width="80" height="16" fill="url(#bar-fast)"/>
+    <text x="900" y="152" fill="#aaa">25 sec</text>
+
+    <!-- Main memory: 100ns -->
+    <text x="20" y="180">Main memory (DRAM) ref</text>
+    <text x="350" y="180" font-family="monospace" fill="#5ac8fa">100 ns</text>
+    <rect x="600" y="168" width="120" height="16" fill="url(#bar-mid)"/>
+    <text x="900" y="180" fill="#aaa">~2 min</text>
+
+    <!-- Compress 1KB Snappy: 2µs -->
+    <text x="20" y="208">Compress 1 KB (Snappy)</text>
+    <text x="350" y="208" font-family="monospace" fill="#5ac8fa">2 µs</text>
+    <rect x="600" y="196" width="160" height="16" fill="url(#bar-mid)"/>
+    <text x="900" y="208" fill="#aaa">~33 min</text>
+
+    <!-- Network 1KB same DC: 10µs -->
+    <text x="20" y="236">Send 1 KB same datacenter</text>
+    <text x="350" y="236" font-family="monospace" fill="#5ac8fa">10 µs</text>
+    <rect x="600" y="224" width="180" height="16" fill="url(#bar-mid)"/>
+    <text x="900" y="236" fill="#aaa">~3 hrs</text>
+
+    <!-- SSD random read: 100µs -->
+    <text x="20" y="264">SSD random read</text>
+    <text x="350" y="264" font-family="monospace" fill="#bf5af2">100 µs</text>
+    <rect x="600" y="252" width="220" height="16" fill="url(#bar-mid)"/>
+    <text x="900" y="264" fill="#aaa">~1.2 days</text>
+
+    <!-- Read 1MB seq from SSD: 1ms -->
+    <text x="20" y="292">Read 1 MB seq from SSD</text>
+    <text x="350" y="292" font-family="monospace" fill="#bf5af2">1 ms</text>
+    <rect x="600" y="280" width="240" height="16" fill="url(#bar-slow)"/>
+    <text x="900" y="292" fill="#aaa">~12 days</text>
+
+    <!-- DC roundtrip: 0.5ms -->
+    <text x="20" y="320">Round trip same region</text>
+    <text x="350" y="320" font-family="monospace" fill="#bf5af2">0.5 ms</text>
+    <rect x="600" y="308" width="232" height="16" fill="url(#bar-slow)"/>
+    <text x="900" y="320" fill="#aaa">~6 days</text>
+
+    <!-- HDD seek: 10ms -->
+    <text x="20" y="348">HDD seek (legacy)</text>
+    <text x="350" y="348" font-family="monospace" fill="#bf5af2">10 ms</text>
+    <rect x="600" y="336" width="280" height="16" fill="url(#bar-slow)"/>
+    <text x="900" y="348" fill="#aaa">~4 months</text>
+
+    <!-- Read 1MB from network: 10ms -->
+    <text x="20" y="376">Read 1 MB over network</text>
+    <text x="350" y="376" font-family="monospace" fill="#ff5555">10 ms</text>
+    <rect x="600" y="364" width="280" height="16" fill="url(#bar-slow)"/>
+    <text x="900" y="376" fill="#aaa">~4 months</text>
+
+    <!-- Cross-continent: 150ms -->
+    <text x="20" y="404">Round trip cross-continent</text>
+    <text x="350" y="404" font-family="monospace" fill="#ff5555">150 ms</text>
+    <rect x="600" y="392" width="320" height="16" fill="url(#bar-slow)"/>
+    <text x="900" y="404" fill="#aaa">~5 years</text>
+
+    <!-- HTTPS handshake: 1s -->
+    <text x="20" y="432">Cold-start TLS+TCP+HTTP</text>
+    <text x="350" y="432" font-family="monospace" fill="#ff5555">~1 s</text>
+    <rect x="600" y="420" width="360" height="16" fill="url(#bar-slow)"/>
+    <text x="900" y="432" fill="#aaa">~30 years</text>
+
+  </g>
+</svg>
+
+<p class="note">
+  <b>Why the human-time column matters:</b> if your design has a hot path that does
+  <i>cache miss → SSD read → cross-region call</i>, that's "1 day + 1 day + 5 years"
+  of CPU time. Restate it in those terms when explaining a bottleneck — it's far
+  more vivid than "150ms" to a non-systems interviewer.
+</p>
+
+<!-- ================================================================ -->
+<h2>🚀 Throughput rules of thumb</h2>
+
+<h3>Single-node ceilings (rule-of-thumb max for a beefy node)</h3>
+
+<table>
+  <tr>
+    <th>Component</th>
+    <th class="num">Reads/sec</th>
+    <th class="num">Writes/sec</th>
+    <th>Why</th>
+  </tr>
+  <tr>
+    <td><span class="pill read">RDBMS</span> Postgres / MySQL</td>
+    <td class="num">~10K–50K</td>
+    <td class="num">~1K–10K</td>
+    <td>WAL fsync, B-tree contention bound writes</td>
+  </tr>
+  <tr>
+    <td><span class="pill hot">Cache</span> Redis</td>
+    <td class="num">~100K+</td>
+    <td class="num">~100K+</td>
+    <td>in-memory, single-threaded but pipelined</td>
+  </tr>
+  <tr>
+    <td><span class="pill read">Search</span> Elasticsearch</td>
+    <td class="num">~10K–50K</td>
+    <td class="num">~5K–20K</td>
+    <td>refresh interval, segment merges throttle writes</td>
+  </tr>
+  <tr>
+    <td><span class="pill write">Log</span> Kafka broker</td>
+    <td class="num">~500K+</td>
+    <td class="num">~100K–1M</td>
+    <td>append-only, batched, zero-copy sendfile</td>
+  </tr>
+  <tr>
+    <td><span class="pill read">KV</span> DynamoDB / Cassandra</td>
+    <td class="num">unlimited (scaled)</td>
+    <td class="num">unlimited (scaled)</td>
+    <td>partition-key bound; single partition ~1K–3K</td>
+  </tr>
+  <tr>
+    <td><span class="pill read">Object</span> S3</td>
+    <td class="num">~5,500/prefix</td>
+    <td class="num">~3,500/prefix</td>
+    <td>request-rate scales w/ unique prefixes</td>
+  </tr>
+</table>
+
+<div class="callout warn">
+  <h4>Single-node limits are about ordering of magnitude, not exact numbers.</h4>
+  Workload, schema, and hardware swing these by 10×. <b>What interviewers want
+  to hear:</b> "Postgres single-node ~10K writes is the wall — at 50K writes/sec
+  we're shard-or-switch-DBs territory." Not: "Postgres does 9,847 writes/sec."
+</div>
+
+<h3>Network &amp; storage throughput</h3>
+
+<table>
+  <tr>
+    <th>Medium</th>
+    <th class="num">Bandwidth</th>
+    <th>Implication</th>
+  </tr>
+  <tr><td>1 Gbps NIC</td><td class="num">~125 MB/s</td><td>1 large image (1MB) per 8ms — fine for HTTP, tight for video</td></tr>
+  <tr><td>10 Gbps NIC (datacenter)</td><td class="num">~1.25 GB/s</td><td>standard inter-service bandwidth budget</td></tr>
+  <tr><td>NVMe SSD sequential</td><td class="num">~3 GB/s</td><td>not the bottleneck — network usually is</td></tr>
+  <tr><td>NVMe SSD random IOPS</td><td class="num">~500K</td><td>plenty for OLTP; HDD was ~100, the era's gone</td></tr>
+  <tr><td>Cross-region replication</td><td class="num">~10 Mbps–1 Gbps</td><td>budget your fan-out. 100GB DB → hours to seed</td></tr>
+</table>
+
+<!-- ================================================================ -->
+<h2>📦 Payload &amp; population intuition</h2>
+
+<div class="grid-2">
+  <div>
+    <h3>Population scales</h3>
+    <table>
+      <tr><th>Cohort</th><th class="num">~Size</th></tr>
+      <tr><td>Early-stage SaaS</td><td class="num">10K–1M MAU</td></tr>
+      <tr><td>Mid-market (Slack-tier)</td><td class="num">10M–100M MAU</td></tr>
+      <tr><td>Twitter / X</td><td class="num">~400M MAU</td></tr>
+      <tr><td>WhatsApp / Instagram</td><td class="num">~2B MAU</td></tr>
+      <tr><td>Facebook</td><td class="num">~3B MAU</td></tr>
+      <tr><td>Internet (total)</td><td class="num">~5B</td></tr>
+      <tr><td>Earth (cap)</td><td class="num">~8B</td></tr>
+    </table>
+    <p class="note">DAU is typically <b>20–60%</b> of MAU.</p>
+  </div>
+  <div>
+    <h3>Payload sizes</h3>
+    <table>
+      <tr><th>Item</th><th class="num">~Size</th></tr>
+      <tr><td>Tweet / chat message (with metadata)</td><td class="num">~300 B</td></tr>
+      <tr><td>URL string + metadata</td><td class="num">~500 B</td></tr>
+      <tr><td>JWT / session token</td><td class="num">~1 KB</td></tr>
+      <tr><td>User profile row</td><td class="num">~1–5 KB</td></tr>
+      <tr><td>Mobile photo (compressed)</td><td class="num">~500 KB–2 MB</td></tr>
+      <tr><td>1080p video, 1 minute</td><td class="num">~50 MB</td></tr>
+      <tr><td>1080p stream (live)</td><td class="num">~5 Mbps</td></tr>
+      <tr><td>4K stream</td><td class="num">~25 Mbps</td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- ================================================================ -->
+<h2>📊 Read/write ratio defaults</h2>
+
+<p>You'll be expected to <i>state and justify</i> a ratio. Defaults to anchor on:</p>
+
+<table>
+  <tr>
+    <th>Workload</th>
+    <th class="num">Read : Write</th>
+    <th>Why &amp; design implication</th>
+  </tr>
+  <tr><td>Social feed (Twitter, IG)</td><td class="num">100 : 1</td><td>each post viewed by many followers — fanout-on-write often wins</td></tr>
+  <tr><td>News / content site</td><td class="num">1000 : 1</td><td>one article, many readers — heavy CDN, edge caching</td></tr>
+  <tr><td>URL shortener (resolve)</td><td class="num">100 : 1</td><td>one short URL created, many redirects — Redis cache front</td></tr>
+  <tr><td>Chat (1:1 messaging)</td><td class="num">~1 : 1</td><td>each message read once by recipient — no fanout savings</td></tr>
+  <tr><td>Group chat / Slack channel</td><td class="num">N : 1</td><td>fanout where N = active channel members</td></tr>
+  <tr><td>OLTP transactions (banking)</td><td class="num">1 : 1 to 10 : 1</td><td>balance-read-then-write, audit reads — strong consistency</td></tr>
+  <tr><td>Analytics ingestion</td><td class="num">1 : 100</td><td>write-heavy event stream; columnar store, batch reads</td></tr>
+  <tr><td>Log aggregation</td><td class="num">1 : 1000</td><td>append-mostly; Elasticsearch / S3 / cold tiers</td></tr>
+</table>
+
+<!-- ================================================================ -->
+<h2>🔢 Replication, peak, &amp; growth multipliers</h2>
+
+<table>
+  <tr><th>Multiplier</th><th class="num">Default</th><th>When to bump</th></tr>
+  <tr><td>Replication factor</td><td class="num">×3</td><td>×5+ for cross-region durability</td></tr>
+  <tr><td>Index overhead on raw data</td><td class="num">×1.5–2</td><td>heavy secondary-index workloads</td></tr>
+  <tr><td>Peak QPS / avg QPS</td><td class="num">×2–3</td><td>×5–10 for sports, news drops, BFCM sales</td></tr>
+  <tr><td>Hot-key skew (top 1% of keys)</td><td class="num">×100</td><td>celebrity follower fanout; trending</td></tr>
+  <tr><td>Annual storage growth</td><td class="num">×1.5</td><td>×2+ for analytics / log retention</td></tr>
+  <tr><td>Headroom over capacity plan</td><td class="num">×1.3–2</td><td>defensive — nobody runs at 100% load</td></tr>
+</table>
+
+<!-- ================================================================ -->
+<h2>🧪 Worked example — URL Shortener (Day 1's mock)</h2>
+
+<div class="worked">
+
+  <p><b>Prompt:</b> A URL shortener. 100M new short URLs/month. Read:write ratio 100:1. Plan for 5 years.</p>
+
+  <div class="step">
+    <div class="step-label">Step 1 — load anchor</div>
+    Writes: <code>100M / month</code>. Reads: <code>100 × writes = 10B / month</code>.
+  </div>
+
+  <div class="step">
+    <div class="step-label">Step 2 — convert to QPS</div>
+    Writes: <code>100M / 2.5×10⁶ s = 40 QPS avg</code>.<br>
+    Reads: <code>10B / 2.5×10⁶ s = 4,000 QPS avg</code>.
+  </div>
+
+  <div class="step">
+    <div class="step-label">Step 3 — peak factor (×3)</div>
+    <span class="answer">Peak writes ≈ 120 QPS. Peak reads ≈ 12,000 QPS.</span>
+  </div>
+
+  <div class="step">
+    <div class="step-label">Step 4 — storage / event size</div>
+    Per row ≈ <code>500 B</code> (short code + long URL + user_id + created_at).<br>
+    Monthly: <code>100M × 500B = 50 GB</code>.<br>
+    5-year cumulative (no growth): <code>50 GB × 60 months = 3 TB</code>.<br>
+    With <b>×3 replication</b> and <b>×1.5 index overhead</b>: <span class="answer">~14 TB total.</span>
+  </div>
+
+  <div class="step">
+    <div class="step-label">Step 5 — what does this fork?</div>
+    <ul>
+      <li>120 writes/sec, 12K reads/sec → <b>single Postgres handles writes</b>, but reads need a cache.</li>
+      <li>14 TB → <b>well within sharded Postgres or DynamoDB</b>; no exotic store needed.</li>
+      <li>Read-heavy 100:1 → <b>Redis in front of DB</b>, near-100% cache hit on hot keys.</li>
+    </ul>
+    <p>That's the entire estimation justification: <i>the math points at Postgres + Redis. No K8s magic, no sharding decisions to make on Day 1.</i></p>
+  </div>
+
+</div>
+
+<!-- ================================================================ -->
+<h2>⚠️ Common pitfalls</h2>
+
+<div class="callout warn">
+  <h4>Pitfalls that signal "junior" to a staff interviewer:</h4>
+  <ul>
+    <li><b>Ignoring peak.</b> Capacity-planning to average QPS means you melt down at lunch hour. Always state your peak factor.</li>
+    <li><b>Forgetting replication.</b> "We need 1 TB" — for one replica? Three? Six? State it.</li>
+    <li><b>One-pass write math.</b> A "write" includes WAL, indexes, replication, often a cache invalidation, often a search-index update. Single logical write = 5–10 physical IOPS.</li>
+    <li><b>Conflating MAU and DAU.</b> 1B MAU and 1B DAU are wildly different traffic profiles.</li>
+    <li><b>Hot-key blindness.</b> "10K reads/sec" averaged across 100M keys is fine. "10K reads/sec all hitting Justin Bieber's row" is your outage.</li>
+    <li><b>Endless precision.</b> 4-significant-figure arithmetic in your head, slowly, while the interviewer waits. Round to 1 sig-fig and move.</li>
+  </ul>
+</div>
+
+<div class="callout">
+  <h4>What an interviewer wants to hear in 90 seconds:</h4>
+  "Roughly 100M users, ~30M DAU at 50%, 5 actions/day each, that's 150M events/day, ~2K QPS average, peak ~6K. Each event is ~1KB so we're writing ~150GB/day, ~50TB/year — single Postgres can do this if we shard by user_id. Reads dominate at 100:1, so we'll front it with a Redis read-through cache. Let me draw the schema."
+  <br><br>
+  That's it. Three sentences of math, justified architecture choice. Move on.
+</div>
+
+<hr>
+<p class="note" style="text-align: center; margin-top: 32px;">
+  Day 1 — <code>concepts/back-of-envelope.html</code> · sysdesign prep workspace
+</p>
+
+</body>
+</html>

@@ -12,7 +12,7 @@ Mock-driven prep for staff/tech-lead loops at first/second-tier companies (distr
 
 ## 📅 10-day schedule (1.5 week sprint)
 
-Hard pace: 1 mock/day Mon–Sat, calibration mocks on Days 9–10. Tier 1 problems first; Tier 2 fills in. Daily shape: 30 min algo warmup → 1.5 hr mock → 30 min critique → 60 min cheat-sheet write OR course revisit.
+Hard pace: 1 mock/day Mon–Sat, calibration mocks on Days 9–10. Tier 1 problems first; Tier 2 fills in. Daily shape: 60 min cheat-sheet write OR course revisit → 5 min pre-mock review → 45 min mock → 15-20 min critique → commit. (No algo warm-up — this workspace is purely system design.)
 
 | Day | Mock | New cheat sheet / pattern | Course revisit |
 |-----|------|---------------------------|----------------|
@@ -30,15 +30,13 @@ Hard pace: 1 mock/day Mon–Sat, calibration mocks on Days 9–10. Tier 1 proble
 **Foundations (already written, reference daily):**
 - ✅ `concepts/interview-framework.md` — the 5-stage flow (binding for every mock)
 - ✅ `concepts/db-toolbox.md` — 6+1 DB decision tree
-
-**Day 1 still needs:** `concepts/back-of-envelope.md` written before the URL Shortener mock.
+- ✅ `concepts/back-of-envelope.html` — QPS / storage / bandwidth / latency cheat sheet (Day 1 foundation)
 
 **Course material this week:** RU case studies (Airbnb, Messenger, Notification, URL Shortener) used as *post-mock calibration*, not pre-read. Read them *after* you've designed the system yourself.
 
 **Adjustments allowed mid-sprint:** if a problem exposes deeper gaps than the day budgets, push the next day's mock back and patch the gap. Better to do 7 great mocks than 10 sloppy ones.
 
 **Assumptions baked in (correct if wrong):**
-- Algorithm rounds expected → 30 min daily warmup keeps `prep/` sharp
 - Behavioral/leveling drilled separately → if not, swap Day 7's buffer for behavioral
 - Generic distributed-systems / SaaS / backend target → if specific (frontier-lab / fintech / etc.), swap 1–2 problems
 
@@ -110,7 +108,7 @@ Tick when a problem walkthrough has *actively exercised* it (not just mentioned)
 ### Gap-fill (cheat-sheet candidates — fill as problems expose them)
 - [x] **Database toolbox decision tree** — `concepts/db-toolbox.md` _(starter — written first because it underpins every problem)_
 - [x] **Interview framework (5-stage hardcoded flow)** — `concepts/interview-framework.md` _(the canonical protocol both sides follow during every mock)_
-- [ ] **Back-of-envelope estimation cheat sheet** — `concepts/back-of-envelope.md` _(QPS / storage / bandwidth math)_
+- [x] **Back-of-envelope estimation cheat sheet** — `concepts/back-of-envelope.html` _(QPS / storage / bandwidth math + latency ladder; visual HTML format)_
 - [ ] **Messaging decision matrix** (Kafka / Kinesis / SQS / RabbitMQ / SNS) — `concepts/messaging-toolbox.md`
 - [ ] **Cache decision matrix** (Redis / Memcached / in-process / CDN edge) — `concepts/cache-toolbox.md`
 - [ ] **Consistency cheat sheet** (linearizable / sequential / causal / eventual / read-your-writes / monotonic) — `concepts/consistency-cheatsheet.md`

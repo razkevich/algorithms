@@ -6,7 +6,7 @@ Staff/tech-lead system design prep for first/second-tier companies (distributed 
 - Russian: https://course.sysdesign.online/course
 - Russian case studies (already covered): Airbnb, Messenger, Notification Service, URL Shortener, Problem-Solving Approach
 
-> **When working in `sysdesign/`, this protocol supersedes the root algorithms `CLAUDE.md`.**
+> **When working in `sysdesign/`, this file is the SOLE source of instructions — it fully overrides the root `algorithms/CLAUDE.md`. Ignore the root file entirely; do not import, blend, or fall back to its rules (Java-only, algorithm templates, `prep/` workflow, etc.). System design prep has its own language posture, workflow, commit conventions, and style — all defined here.**
 
 ## Operating modes
 
@@ -49,13 +49,14 @@ Staff/tech-lead system design prep for first/second-tier companies (distributed 
 - `"switch problems"` — abandon and pivot
 - `"end early"` — stop mock, go straight to critique
 
-### Daily shape (~3-4 hr core)
-1. **Algorithm warm-up** (30 min) — random pick from `prep/PROGRESS.md`, no full solve, just drive the template. Keeps coding sharp.
-2. **Cheat sheet for today's mock** (60 min, only Days 1/2/4/5/6/7/8) — written *before* the mock if it's a foundation; *after* if it's a gap-fill from yesterday.
-3. **PRE-MOCK REVIEW** (5 min) — *user-led active recall.* User states what's important for this round before the mock starts. See format below.
-4. **MOCK** (45 min) — full timer, real conditions. User leads, I steer.
-5. **CRITIQUE** (15-20 min) — severity-rated, gap list, cheat-sheet recommendations. Reviewed against the targets locked in step 3.
-6. **Commit + PROGRESS.md tick** (5 min).
+### Daily shape (~2.5-3 hr core)
+1. **Cheat sheet for today's mock** (60 min, only Days 1/2/4/5/6/7/8) — written *before* the mock if it's a foundation; *after* if it's a gap-fill from yesterday.
+2. **PRE-MOCK REVIEW** (5 min) — *user-led active recall.* User states what's important for this round before the mock starts. See format below.
+3. **MOCK** (45 min) — full timer, real conditions. User leads, I steer.
+4. **CRITIQUE** (15-20 min) — severity-rated, gap list, cheat-sheet recommendations. Reviewed against the targets locked in step 2.
+5. **Commit + PROGRESS.md tick** (5 min).
+
+> **No algorithm warm-up.** This workspace is purely system design — algorithm prep happens separately in `prep/`. Do not pull from `prep/PROGRESS.md` as part of the sysdesign daily shape.
 
 ### Pre-mock review format (5 min, before every mock)
 
