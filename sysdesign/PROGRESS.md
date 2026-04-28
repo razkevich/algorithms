@@ -75,6 +75,7 @@ Tick when a problem walkthrough has *actively exercised* it (not just mentioned)
 
 ### Gap-fill (cheat-sheet candidates — fill as problems expose them)
 - [x] **Database toolbox decision tree** — `concepts/db-toolbox.md` _(starter — written first because it underpins every problem)_
+- [x] **Interview framework (5-stage hardcoded flow)** — `concepts/interview-framework.md` _(the canonical protocol both sides follow during every mock)_
 - [ ] **Back-of-envelope estimation cheat sheet** — `concepts/back-of-envelope.md` _(QPS / storage / bandwidth math)_
 - [ ] **Messaging decision matrix** (Kafka / Kinesis / SQS / RabbitMQ / SNS) — `concepts/messaging-toolbox.md`
 - [ ] **Cache decision matrix** (Redis / Memcached / in-process / CDN edge) — `concepts/cache-toolbox.md`
@@ -87,7 +88,6 @@ Tick when a problem walkthrough has *actively exercised* it (not just mentioned)
 - [ ] **CDC (Change Data Capture) patterns** — `patterns/cdc.md`
 - [ ] **Multi-region / DR (RPO/RTO, active-active vs active-passive)** — `concepts/multi-region.md`
 - [ ] **Bloom filters + count-min sketch in storage paths** — `patterns/probabilistic-structures.md`
-- [ ] **Interview framework (35-min flow, time allocation)** — `concepts/interview-framework.md`
 
 ---
 
