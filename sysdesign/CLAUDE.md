@@ -31,6 +31,38 @@ Staff/tech-lead system design prep for first/second-tier companies (distributed 
 - **Time-box mocks.** 35-45 min for the interview, ~15 min for critique. Cap.
 - **Concise > comprehensive.** In real interviews, 60% depth on the right area beats 30% across everything. Coach toward the former.
 
+## Mock interview protocol (operational details)
+
+### Who leads
+- **User leads. I steer.** Like a real loop. User drives each stage in their own words; I track time, probe, push back, force-advance on cap.
+- I do *not* walk the user through the stages by asking "ok now your requirements... ok now your entities..." — that defeats the calibration. Day 1 I scaffold lightly to bootstrap cadence; Day 2+ user self-starts each stage.
+
+### Gap-capture protocol (when to teach)
+- **Process / framework errors → corrected in real time, briefly.** "You've listed 5 functional reqs — pick top 3, move on." "User-ID from request body — restate as auth-token." These lock in by Day 2 if policed every mock.
+- **Concept / technical gaps → captured silently during, raised in critique.** Wrong DB choice, missing index, hand-wavy fanout — note, let the design propagate, debrief at the end. Mirrors a real loop where the interviewer doesn't pause to teach.
+- **Critique format**: severity-rated. **Blocker** (would fail the round) / **Major** (significantly weakens signal) / **Minor** (polish). Each item links to the cheat sheet to write or course module to revisit.
+
+### User escape valves (use mid-mock, anytime)
+- `"stuck — nudge"` — small hint, not the answer
+- `"pause — explain X"` — out-of-band concept question, then resume timer
+- `"jump to deep-dive"` — skip a stage user feels solid on
+- `"switch problems"` — abandon and pivot
+- `"end early"` — stop mock, go straight to critique
+
+### Daily shape (~3-4 hr core)
+1. **Algorithm warm-up** (30 min) — random pick from `prep/PROGRESS.md`, no full solve, just drive the template. Keeps coding sharp.
+2. **Cheat sheet for today's mock** (60 min, only Days 1/2/4/5/6/7/8) — written *before* the mock if it's a foundation; *after* if it's a gap-fill from yesterday.
+3. **MOCK** (45 min) — full timer, real conditions. User leads, I steer.
+4. **CRITIQUE** (15-20 min) — severity-rated, gap list, cheat-sheet recommendations.
+5. **Commit + PROGRESS.md tick** (5 min).
+
+### Second-pass policy (breadth > depth in 1.5 weeks)
+- **Default: move forward.** New problem each day. 8 different problems > 5 problems twice — more shapes, more concept surface.
+- **Three documented exceptions where we revisit:**
+  1. **Day 9 cold re-mock** — schedule item. Worst problem from Days 1-8, no notes, full 45-min timer. Calibration win + retention test.
+  2. **Lightning drill** (15 min, targeted) — if a mock exposed one deep concept gap, replay just the deep-dive section the next morning *with* the new knowledge. Not a full re-mock; surgical.
+  3. **Day 1 framework reset** — *contingent.* If Day 1 framework discipline was rough (blew time on requirements, skipped entities), 20-min Day 2 morning re-mock of stages 1-3 of URL Shortener before News Feed. Framework must lock in or all subsequent mocks suffer.
+
 ## Workspace
 - `problems/<Problem>.md` — walkthroughs; header notes framework-stage coverage, follow-ups encountered, gaps surfaced
 - `concepts/<topic>.md` — cheat sheets and decision matrices (only when a problem exposes a gap)
