@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Two-Stack Shunting-Yard — LC 227 Visualization</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --panel: #161b22;
+    --panel-2: #21262d;
+    --border: #30363d;
+    --text: #c9d1d9;
+    --muted: #8b949e;
+    --num: #79c0ff;
+    --op: #ff7b72;
+    --highlight: #f78166;
+    --success: #3fb950;
+    --rank: #d2a8ff;
+    --warn: #f0883e;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", monospace;
+    font-size: 14px;
+    line-height: 1.5;
+    padding: 24px;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+  h1 { color: var(--text); margin-top: 0; font-size: 22px; }
+  h2 { color: var(--muted); font-size: 14px; text-transform: uppercase; letter-spacing: 1px; margin-top: 32px; }
+  .intro {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 20px;
+    margin-bottom: 20px;
+  }
+  .intro p { margin: 8px 0; }
+  code, .mono {
+    font-family: "SF Mono", Menlo, Consolas, monospace;
+    background: var(--panel-2);
+    padding: 2px 6px;
+    border-radius: 4px;
+    color: var(--rank);
+  }
+  .rule {
+    background: var(--panel-2);
+    border-left: 3px solid var(--highlight);
+    padding: 12px 16px;
+    margin: 12px 0;
+    font-family: "SF Mono", Menlo, Consolas, monospace;
+    font-size: 13px;
+  }
+  .controls {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin: 16px 0;
+    flex-wrap: wrap;
+  }
+  .expr-btn {
+    background: var(--panel);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 14px;
+    cursor: pointer;
+    font-family: "SF Mono", Menlo, Consolas, monospace;
+    font-size: 13px;
+    transition: all 0.15s;
+  }
+  .expr-btn:hover { background: var(--panel-2); border-color: var(--muted); }
+  .expr-btn.active {
+    background: var(--highlight);
+    color: var(--bg);
+    border-color: var(--highlight);
+    font-weight: 600;
+  }
+  .step-controls {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin: 16px 0;
+  }
+  .step-btn {
+    background: var(--panel);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 14px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 13px;
+  }
+  .step-btn:hover:not(:disabled) { background: var(--panel-2); }
+  .step-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+  .step-counter { color: var(--muted); margin-left: 8px; font-family: monospace; }
+
+  .viz {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 24px;
+    margin: 16px 0;
+  }
+  .tokens {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+  }
+  .token {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 14px;
+    font-family: "SF Mono", monospace;
+    font-size: 16px;
+    transition: all 0.2s;
+    min-width: 36px;
+    text-align: center;
+  }
+  .token.num { color: var(--num); }
+  .token.op { color: var(--op); }
+  .token.consumed { opacity: 0.35; }
+  .token.current {
+    background: var(--highlight);
+    color: var(--bg);
+    border-color: var(--highlight);
+    font-weight: 700;
+    box-shadow: 0 0 0 3px rgba(247, 129, 102, 0.25);
+    transform: translateY(-2px);
+  }
+  .token.drain {
+    background: transparent;
+    border: 1px dashed var(--muted);
+    color: var(--muted);
+    font-style: italic;
+  }
+
+  .stacks {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    margin-bottom: 16px;
+  }
+  .stack-col h3 {
+    color: var(--muted);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin: 0 0 8px;
+  }
+  .stack {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    min-height: 220px;
+    display: flex;
+    flex-direction: column-reverse;
+    padding: 8px;
+    gap: 4px;
+    position: relative;
+  }
+  .stack::before {
+    content: "TOP →";
+    position: absolute;
+    top: 8px;
+    right: 12px;
+    color: var(--muted);
+    font-size: 10px;
+    letter-spacing: 1px;
+  }
+  .stack-item {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 14px;
+    text-align: center;
+    font-family: "SF Mono", monospace;
+    font-size: 16px;
+    animation: slideIn 0.2s ease-out;
+  }
+  .stack-item.num { color: var(--num); }
+  .stack-item.op { color: var(--op); }
+  .stack-item.top {
+    border-color: var(--highlight);
+    box-shadow: 0 0 0 1px var(--highlight);
+  }
+  .stack-item.flushing {
+    background: rgba(247, 129, 102, 0.18);
+    border-color: var(--highlight);
+  }
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(-6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .action {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 18px;
+    font-family: "SF Mono", monospace;
+    font-size: 13px;
+    line-height: 1.7;
+    min-height: 58px;
+  }
+  .action .tag {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    margin-right: 8px;
+  }
+  .tag.push { background: rgba(121, 192, 255, 0.2); color: var(--num); }
+  .tag.flush { background: rgba(247, 129, 102, 0.25); color: var(--highlight); }
+  .tag.skip { background: rgba(139, 148, 158, 0.18); color: var(--muted); }
+  .tag.drain { background: rgba(240, 136, 62, 0.2); color: var(--warn); }
+  .tag.done { background: rgba(63, 185, 80, 0.2); color: var(--success); }
+  .tag.init { background: rgba(210, 168, 255, 0.2); color: var(--rank); }
+
+  .compare {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-top: 12px;
+  }
+  .compare-panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 20px;
+  }
+  .compare-panel.good { border-left: 3px solid var(--success); }
+  .compare-panel.bad { border-left: 3px solid var(--op); }
+  .compare-panel h4 { margin: 0 0 8px; font-family: monospace; }
+  .compare-panel.good h4 { color: var(--success); }
+  .compare-panel.bad h4 { color: var(--op); }
+
+  .footnote { color: var(--muted); font-size: 12px; margin-top: 24px; line-height: 1.7; }
+  .legend { display: flex; gap: 16px; margin: 8px 0 0; font-size: 12px; flex-wrap: wrap; }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .swatch { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+</style>
+</head>
+<body>
+
+<h1>Two-Stack Shunting-Yard — Step Through</h1>
+
+<div class="intro">
+  <p>Visualizes the algorithm for <code>BasicCalculatorII</code> (LC 227). Numbers always push to <code>numStack</code>. On a new operator, flush while <span class="mono">rank(top) >= rank(new)</span>, then push.</p>
+  <div class="rule">
+    flush rule:&nbsp;&nbsp;<span style="color:var(--highlight)">while opStack not empty AND rank(top) &gt;= rank(incoming): pop+apply, push result</span>
+  </div>
+  <p>Ranks: <code>+ −</code> = 1, <code>* /</code> = 2. The <span class="mono">&gt;=</span> is what gives left-associativity — equal-rank ops flush before the next is pushed. Swap to <span class="mono">&gt;</span> for right-associative ops (e.g. <code>^</code>).</p>
+  <div class="legend">
+    <span><span class="swatch" style="background:var(--num)"></span>number</span>
+    <span><span class="swatch" style="background:var(--op)"></span>operator</span>
+    <span><span class="swatch" style="background:var(--highlight)"></span>current / flushing</span>
+    <span><span class="swatch" style="background:var(--success)"></span>final result</span>
+  </div>
+</div>
+
+<h2>Pick an expression</h2>
+<div class="controls" id="exprBtns"></div>
+
+<div class="step-controls">
+  <button class="step-btn" id="prevBtn">◀ Prev</button>
+  <button class="step-btn" id="nextBtn">Next ▶</button>
+  <button class="step-btn" id="resetBtn">Reset</button>
+  <span class="step-counter" id="counter">step 0 / 0</span>
+</div>
+
+<div class="viz">
+  <div class="tokens" id="tokens"></div>
+  <div class="stacks">
+    <div class="stack-col">
+      <h3>Operator Stack</h3>
+      <div class="stack" id="opStack"></div>
+    </div>
+    <div class="stack-col">
+      <h3>Number Stack</h3>
+      <div class="stack" id="numStack"></div>
+    </div>
+  </div>
+  <div class="action" id="action">—</div>
+</div>
+
+<h2>Why <span class="mono">&gt;=</span> (left-assoc) vs <span class="mono">&gt;</span> (right-assoc)</h2>
+<div class="compare">
+  <div class="compare-panel good">
+    <h4>&gt;=&nbsp;&nbsp;<span style="color:var(--text);font-weight:400;font-size:13px"> 2 − 1 − 1 = 0 ✓ </span></h4>
+    <p style="margin:0;color:var(--muted);font-size:13px">At the second <code>−</code>, top is also <code>−</code>. <span class="mono">rank(−)=1 &gt;= rank(−)=1</span> → <strong>flush</strong>. The <code>2−1=1</code> happens before the next <code>−</code> goes on the stack, so the next subtraction is <code>1−1=0</code>.</p>
+  </div>
+  <div class="compare-panel bad">
+    <h4>&gt;&nbsp;&nbsp;<span style="color:var(--text);font-weight:400;font-size:13px"> 2 − 1 − 1 = 2 ✗ </span></h4>
+    <p style="margin:0;color:var(--muted);font-size:13px">With strict <code>&gt;</code>, equal-rank ops never flush. Both <code>−</code> stack up; the final drain pops them right-to-left, computing <code>2 − (1 − 1) = 2</code> — right-associative, wrong for arithmetic.</p>
+  </div>
+</div>
+
+<div class="footnote">
+  <strong>Pattern transfer:</strong> Same algorithm extends to LC 224 / 772 (parens) by giving <code>(</code> rank 0 (so nothing flushes past it) and treating <code>)</code> as "drain until matching <code>(</code>". For exponentiation <code>^</code> (right-associative), use <code>&gt;</code> instead of <code>&gt;=</code> for that operator.
+</div>
+
+<script>
+const RANK = { '+': 1, '-': 1, '*': 2, '/': 2 };
+const isOp = t => t in RANK;
+const apply = (op, l, r) => {
+  l = +l; r = +r;
+  switch (op) {
+    case '+': return l + r;
+    case '-': return l - r;
+    case '*': return l * r;
+    case '/': return Math.trunc(l / r);
+  }
+};
+
+// Build a step trace for the two-stack algorithm.
+function trace(tokens) {
+  const steps = [];
+  let num = [], op = [];
+  steps.push({
+    cursor: -1, num: [...num], op: [...op],
+    tag: 'init', text: 'initial state — both stacks empty',
+    flushIdx: -1, topNum: -1, topOp: -1,
+  });
+
+  for (let i = 0; i < tokens.length; i++) {
+    const t = tokens[i];
+    if (isOp(t)) {
+      // pre-flush loop
+      while (op.length && RANK[op[op.length-1]] >= RANK[t]) {
+        steps.push({
+          cursor: i, num: [...num], op: [...op],
+          tag: 'flush',
+          text: `${t} incoming. rank(${op[op.length-1]})=${RANK[op[op.length-1]]} >= rank(${t})=${RANK[t]} → FLUSH`,
+          flushIdx: op.length - 1, topNum: -1, topOp: op.length - 1,
+        });
+        const r = num.pop();
+        const l = num.pop();
+        const o = op.pop();
+        const v = apply(o, l, r);
+        num.push(String(v));
+        steps.push({
+          cursor: i, num: [...num], op: [...op],
+          tag: 'flush',
+          text: `applied ${l} ${o} ${r} = ${v} → push ${v} to numStack`,
+          flushIdx: -1, topNum: num.length - 1, topOp: -1,
+        });
+      }
+      // skip-no-flush note (only show if there was something to compare and we chose not to flush)
+      if (op.length && RANK[op[op.length-1]] < RANK[t]) {
+        steps.push({
+          cursor: i, num: [...num], op: [...op],
+          tag: 'skip',
+          text: `${t} incoming. rank(${op[op.length-1]})=${RANK[op[op.length-1]]} < rank(${t})=${RANK[t]} → no flush`,
+          flushIdx: -1, topNum: -1, topOp: op.length - 1,
+        });
+      }
+      op.push(t);
+      steps.push({
+        cursor: i, num: [...num], op: [...op],
+        tag: 'push',
+        text: `push operator ${t} to opStack`,
+        flushIdx: -1, topNum: -1, topOp: op.length - 1,
+      });
+    } else {
+      num.push(t);
+      steps.push({
+        cursor: i, num: [...num], op: [...op],
+        tag: 'push',
+        text: `push number ${t} to numStack`,
+        flushIdx: -1, topNum: num.length - 1, topOp: -1,
+      });
+    }
+  }
+
+  // final drain
+  while (op.length) {
+    const o = op[op.length-1];
+    steps.push({
+      cursor: tokens.length, num: [...num], op: [...op],
+      tag: 'drain',
+      text: `end of tokens — drain ${o} from opStack`,
+      flushIdx: op.length - 1, topNum: -1, topOp: op.length - 1,
+    });
+    const r = num.pop();
+    const l = num.pop();
+    op.pop();
+    const v = apply(o, l, r);
+    num.push(String(v));
+    steps.push({
+      cursor: tokens.length, num: [...num], op: [...op],
+      tag: 'drain',
+      text: `applied ${l} ${o} ${r} = ${v} → push ${v}`,
+      flushIdx: -1, topNum: num.length - 1, topOp: -1,
+    });
+  }
+
+  steps.push({
+    cursor: tokens.length, num: [...num], op: [...op],
+    tag: 'done',
+    text: `result = ${num[0]}`,
+    flushIdx: -1, topNum: 0, topOp: -1,
+  });
+  return steps;
+}
+
+const EXPRESSIONS = [
+  { label: '3 + 5 / 2',         tokens: ['3','+','5','/','2'],         note: 'precedence: high-rank waits then drains' },
+  { label: '2 − 1 − 1',         tokens: ['2','-','1','-','1'],         note: 'left-assoc — `>=` triggers mid-loop flush' },
+  { label: '14 − 3 / 2',         tokens: ['14','-','3','/','2'],        note: 'mixed: low waits, high doesn\'t' },
+  { label: '5 − 2 − 1 − 1',     tokens: ['5','-','2','-','1','-','1'], note: 'long left-assoc chain' },
+  { label: '3 + 2 * 2',         tokens: ['3','+','2','*','2'],         note: 'classic precedence' },
+  { label: '8 / 2 / 2',         tokens: ['8','/','2','/','2'],         note: 'same-rank high-prec' },
+];
+
+let currentExprIdx = 0;
+let currentStep = 0;
+let traces = EXPRESSIONS.map(e => trace(e.tokens));
+
+const exprBtns = document.getElementById('exprBtns');
+EXPRESSIONS.forEach((e, i) => {
+  const b = document.createElement('button');
+  b.className = 'expr-btn' + (i === 0 ? ' active' : '');
+  b.textContent = e.label;
+  b.title = e.note;
+  b.onclick = () => { currentExprIdx = i; currentStep = 0; updateUI(); };
+  exprBtns.appendChild(b);
+});
+
+const tokensEl = document.getElementById('tokens');
+const opStackEl = document.getElementById('opStack');
+const numStackEl = document.getElementById('numStack');
+const actionEl = document.getElementById('action');
+const counterEl = document.getElementById('counter');
+const prevBtn = document.getElementById('prevBtn');
+const nextBtn = document.getElementById('nextBtn');
+const resetBtn = document.getElementById('resetBtn');
+
+prevBtn.onclick = () => { if (currentStep > 0) { currentStep--; updateUI(); } };
+nextBtn.onclick = () => {
+  const steps = traces[currentExprIdx];
+  if (currentStep < steps.length - 1) { currentStep++; updateUI(); }
+};
+resetBtn.onclick = () => { currentStep = 0; updateUI(); };
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowLeft') prevBtn.click();
+  else if (e.key === 'ArrowRight') nextBtn.click();
+});
+
+function renderStack(el, items, topIdx, flushIdx, kind) {
+  el.innerHTML = '';
+  items.forEach((v, i) => {
+    const d = document.createElement('div');
+    d.className = 'stack-item ' + kind;
+    if (i === flushIdx) d.classList.add('flushing');
+    else if (i === topIdx) d.classList.add('top');
+    d.textContent = v;
+    el.appendChild(d);
+  });
+}
+
+function updateUI() {
+  // active expr button
+  [...exprBtns.children].forEach((b, i) => b.classList.toggle('active', i === currentExprIdx));
+
+  const expr = EXPRESSIONS[currentExprIdx];
+  const steps = traces[currentExprIdx];
+  const s = steps[currentStep];
+
+  // tokens
+  tokensEl.innerHTML = '';
+  expr.tokens.forEach((t, i) => {
+    const d = document.createElement('div');
+    d.className = 'token ' + (isOp(t) ? 'op' : 'num');
+    if (i === s.cursor) d.classList.add('current');
+    else if (i < s.cursor) d.classList.add('consumed');
+    d.textContent = t;
+    tokensEl.appendChild(d);
+  });
+  if (s.cursor === expr.tokens.length && s.tag !== 'init') {
+    const d = document.createElement('div');
+    d.className = 'token drain';
+    d.textContent = (s.tag === 'done') ? '✓' : '⤓';
+    tokensEl.appendChild(d);
+  }
+
+  // stacks
+  renderStack(opStackEl, s.op, s.topOp, s.flushIdx, 'op');
+  renderStack(numStackEl, s.num, s.topNum, -1, 'num');
+
+  // action
+  actionEl.innerHTML = `<span class="tag ${s.tag}">${s.tag.toUpperCase()}</span>${s.text}`;
+
+  // controls
+  prevBtn.disabled = currentStep === 0;
+  nextBtn.disabled = currentStep === steps.length - 1;
+  counterEl.textContent = `step ${currentStep} / ${steps.length - 1}`;
+}
+
+updateUI();
+</script>
+
+</body>
+</html>
