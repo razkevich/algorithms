@@ -10,6 +10,40 @@ Mock-driven prep for staff/tech-lead loops at first/second-tier companies (distr
 
 ---
 
+## 📅 10-day schedule (1.5 week sprint)
+
+Hard pace: 1 mock/day Mon–Sat, calibration mocks on Days 9–10. Tier 1 problems first; Tier 2 fills in. Daily shape: 30 min algo warmup → 1.5 hr mock → 30 min critique → 60 min cheat-sheet write OR course revisit.
+
+| Day | Mock | New cheat sheet / pattern | Course revisit |
+|-----|------|---------------------------|----------------|
+| 1 | URL Shortener (calibration) | `back-of-envelope.md` _(write up front before mock)_ | RU case study: URL Shortener (after mock, calibration) |
+| 2 | News Feed / Twitter | `feed-fanout.md` (write/read/hybrid) | — |
+| 3 | WhatsApp / Messenger | `idempotency.md` (delivery guarantees) | RU case study: Messenger |
+| 4 | Uber / ride-sharing | `geohashing.md` + visualization | — |
+| 5 | Distributed Cache (Redis-like) | `consistent-hashing.md` + visualization | — |
+| 6 | Rate Limiter (distributed) | `rate-limiting-algorithms.md` (token vs leaky vs sliding) | EN/RU Mod 6 — circuit breakers + bulkheads |
+| 7 | Notification System | `multi-region.md` _(if gaps surface)_ | RU case study: Notification |
+| 8 | Dropbox / Google Drive | `cdc.md` (chunking + sync exposes it) | — |
+| 9 | **Cold re-mock** of worst Day 1–8 problem | _(no notes, full 45-min timer — calibration)_ | — |
+| 10 | **Final mock under realistic pressure** | Behavioral/leveling prep | — |
+
+**Foundations (already written, reference daily):**
+- ✅ `concepts/interview-framework.md` — the 5-stage flow (binding for every mock)
+- ✅ `concepts/db-toolbox.md` — 6+1 DB decision tree
+
+**Day 1 still needs:** `concepts/back-of-envelope.md` written before the URL Shortener mock.
+
+**Course material this week:** RU case studies (Airbnb, Messenger, Notification, URL Shortener) used as *post-mock calibration*, not pre-read. Read them *after* you've designed the system yourself.
+
+**Adjustments allowed mid-sprint:** if a problem exposes deeper gaps than the day budgets, push the next day's mock back and patch the gap. Better to do 7 great mocks than 10 sloppy ones.
+
+**Assumptions baked in (correct if wrong):**
+- Algorithm rounds expected → 30 min daily warmup keeps `prep/` sharp
+- Behavioral/leveling drilled separately → if not, swap Day 7's buffer for behavioral
+- Generic distributed-systems / SaaS / backend target → if specific (frontier-lab / fintech / etc.), swap 1–2 problems
+
+---
+
 ## 🔥 Problem queue — priority-ordered for staff/tech-lead loops
 
 Tier 1 covers ~70% of distributed/SaaS/backend rounds. Tier 2 adds ~20%. Tier 3 is breadth.
