@@ -31,6 +31,12 @@ Staff/tech-lead system design prep for first/second-tier companies (distributed 
 - **Time-box mocks.** 35-45 min for the interview, ~15 min for critique. Cap.
 - **Concise > comprehensive.** In real interviews, 60% depth on the right area beats 30% across everything. Coach toward the former.
 
+### Time discipline — current mode: **CLOCK OFF**
+- User has opted out of the live clock for now. Track stages by name and order, but **do not force-advance on caps**, do not announce "X minutes left," do not display timers.
+- The 5 stages remain binding *as structure* — Requirements → Entities → API → HLD → Deep Dive in that order, each one explicitly closed before the next opens. Only the wall-clock enforcement is paused.
+- Why this is a calibrated trade-off, not a free pass: the framework still prevents "never finish a working system" by enforcing **stage closure** (each stage must be formally completed before advancing). Time caps are the secondary safety net; stage discipline is the primary one.
+- To re-enable, user says "clock on" in any session — at which point caps go back to hard enforcement.
+
 ## Mock interview protocol (operational details)
 
 ### Who leads
