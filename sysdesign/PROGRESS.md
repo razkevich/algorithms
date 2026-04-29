@@ -31,6 +31,7 @@ Hard pace: 1 mock/day Mon–Sat, calibration mocks on Days 9–10. Tier 1 proble
 - ✅ `concepts/interview-framework.md` — the 5-stage flow (binding for every mock)
 - ✅ `concepts/db-toolbox.md` — 6+1 DB decision tree
 - ✅ `concepts/back-of-envelope.html` — QPS / storage / bandwidth / latency cheat sheet (Day 1 foundation)
+- ✅ `concepts/mock-prep.html` — daily pre-mock study guide (7 tabs: framework, FCC+SLEDS, math canon, vocab, Stage 1 ritual, hot-key reflex, Day 1 recap)
 
 **Course material this week:** RU case studies (Airbnb, Messenger, Notification, URL Shortener) used as *post-mock calibration*, not pre-read. Read them *after* you've designed the system yourself.
 
