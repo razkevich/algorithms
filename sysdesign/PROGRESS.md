@@ -127,7 +127,7 @@ Tick when a problem walkthrough has *actively exercised* it (not just mentioned)
 
 | # | Date | Problem | Coverage | Communication | Notes / gaps |
 |---|------|---------|----------|---------------|--------------|
-| 1 | 2026-04-28 | URL Shortener (calibration) | _pending_ | _pending_ | Pre-mock setup → [`problems/url-shortener.md`](problems/url-shortener.md). Personal stack locked in `concepts/db-toolbox.md`. Pre-mock recall gaps: Stage 2 skipped, FCC+SLEDS not memorized, DDB/Mongo/Kafka/Redis terminology drilled. |
+| 1 | 2026-04-28 | URL Shortener (calibration) | ✅ all 5 stages | ✓ coherent; pause more | ✅ Day 1 calibration goal met. Majors: skipped-HLD ask, vendor-naming, sloppy Stage 1 close, FCC+SLEDS partial, math errors (38K→3.8K reads, base62=45→62), hot-key required probing. Strong: reset under correction, click-counter shape, ID gen, stampede insight. Full critique → [`problems/url-shortener.md`](problems/url-shortener.md). |
 
 Coverage = did all 6 framework stages get hit (clarify → estimate → API → schema → high-level → deep-dive → bottlenecks)? Communication = clarity, structure, signal density.
 
