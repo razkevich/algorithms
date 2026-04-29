@@ -221,7 +221,11 @@
     <div class="tab" data-target="math">Math Canon</div>
     <div class="tab" data-target="vocab">Vendor-Neutral Vocab</div>
     <div class="tab" data-target="ritual">Stage 1 Ritual</div>
+    <div class="tab" data-target="api">Stage 3 — API</div>
+    <div class="tab" data-target="deepdive">Stage 5 — Deep Dive Walks</div>
     <div class="tab" data-target="hotkey">Hot-Key Reflex</div>
+    <div class="tab" data-target="db-drill">DB Drill Facts</div>
+    <div class="tab" data-target="comms">Communication</div>
     <div class="tab" data-target="recap">Day 1 Recap</div>
   </div>
 </header>
@@ -800,6 +804,244 @@
   </ul>
 </section>
 
+<!-- ===================== TAB: STAGE 3 — API DESIGN ===================== -->
+<section class="panel" id="api">
+  <h2>Stage 3 — API Design</h2>
+  <div class="lede">5-min cap. Three or four endpoints is the right count for most problems. Endpoints become the spine of HLD; spec them so each one is independently designable.</div>
+
+  <h3>Protocol pick</h3>
+
+  <table>
+    <tr><th>Protocol</th><th>When</th><th>Why</th></tr>
+    <tr>
+      <td><b>REST</b> <span class="pill info">default</span></td>
+      <td>The default. Deviate only with a reason.</td>
+      <td>Caching, browser-native, infra-native, stateless. 95% of problems pick this.</td>
+    </tr>
+    <tr>
+      <td><b>GraphQL</b></td>
+      <td>Heterogeneous clients needing different data shapes (mobile vs web vs partner)</td>
+      <td>One endpoint, client-driven query shape; downsides: caching is harder, n+1 fanout risk.</td>
+    </tr>
+    <tr>
+      <td><b>gRPC / RPC</b></td>
+      <td>Internal service-to-service, perf-critical hot paths</td>
+      <td>Binary protobuf, multiplexed HTTP/2, schema-first. Mention if interview is backend-platform-flavored.</td>
+    </tr>
+    <tr>
+      <td><b>WebSockets / SSE</b></td>
+      <td>Real-time bidirectional / push (chat, notifications, live feeds)</td>
+      <td>Still design REST for create/read; layer push for updates.</td>
+    </tr>
+  </table>
+
+  <h3>Endpoint conventions — the rules you'll be graded on</h3>
+
+  <table>
+    <tr><th>Rule</th><th>Why</th><th>Example</th></tr>
+    <tr>
+      <td><b>Plural resource names</b></td>
+      <td>REST convention; the resource is the <i>collection</i>; specific items are accessed by id within it.</td>
+      <td><code>/v1/mappings</code>, <code>/v1/users</code> — not <code>/v1/mapping</code></td>
+    </tr>
+    <tr>
+      <td><b>Path params for required identifiers</b></td>
+      <td>Identity of the resource being acted on goes in the path.</td>
+      <td><code>/v1/mappings/{shortcode}</code> — not <code>?shortcode=</code></td>
+    </tr>
+    <tr>
+      <td><b>Query params for filters / pagination / time ranges</b></td>
+      <td>Optional or query-shaped inputs.</td>
+      <td><code>/v1/mappings/{shortcode}/stats?from=&to=&page=</code></td>
+    </tr>
+    <tr>
+      <td><b>Sub-resources under their parent</b></td>
+      <td>Hierarchical data lives hierarchically.</td>
+      <td><code>/v1/mappings/{shortcode}/stats</code> &gt; <code>/v1/analytics/{shortcode}/stats</code></td>
+    </tr>
+    <tr>
+      <td><b>Use IDs not user-facing data in path params</b></td>
+      <td>Full URLs / strings with special chars don't URL-encode cleanly.</td>
+      <td><code>{shortcode}</code> — not <code>{shortUrl}</code> or <code>{longUrl}</code></td>
+    </tr>
+    <tr>
+      <td><b>Auth identity from token, never request body</b></td>
+      <td>The single non-negotiable security rule. <i>The endpoint doesn't take an <code>authorId</code>; it comes from the JWT.</i></td>
+      <td><code>POST /v1/mappings { longUrl }</code> — not <code>{ longUrl, ownerId }</code></td>
+    </tr>
+    <tr>
+      <td><b>Body for input data; response for output data</b></td>
+      <td>Don't put data in headers (except auth); don't omit response shape.</td>
+      <td>Include the response JSON shape, not just the status code.</td>
+    </tr>
+  </table>
+
+  <h3>HTTP status codes you must know cold</h3>
+
+  <table>
+    <tr><th class="mono">Code</th><th>Meaning</th><th>When to use</th></tr>
+    <tr><td class="mono">200</td><td>OK</td><td>Standard read success with body</td></tr>
+    <tr><td class="mono">201</td><td>Created</td><td>POST that creates a resource; body has the new resource (or its id/URL)</td></tr>
+    <tr><td class="mono">202</td><td>Accepted</td><td>Async work queued; not done yet (e.g., bulk job submission)</td></tr>
+    <tr><td class="mono">204</td><td>No Content</td><td>Success but no body (e.g., DELETE)</td></tr>
+    <tr><td class="mono"><b>301</b></td><td><b>Moved Permanently</b></td><td><b>Browser caches the redirect — repeat clicks DON'T hit your server. Use only if you don't need analytics.</b></td></tr>
+    <tr><td class="mono"><b>302</b></td><td><b>Found (Temporary)</b></td><td><b>Browser doesn't cache. Every click hits server. Use for URL Shortener if analytics required.</b></td></tr>
+    <tr><td class="mono">307</td><td>Temporary Redirect</td><td>Like 302 but preserves request method (POST stays POST). Stricter semantics.</td></tr>
+    <tr><td class="mono">400</td><td>Bad Request</td><td>Client sent malformed data (invalid URL, missing field)</td></tr>
+    <tr><td class="mono">401</td><td>Unauthorized</td><td>Auth token missing or invalid</td></tr>
+    <tr><td class="mono">403</td><td>Forbidden</td><td>Auth OK, but user lacks permission</td></tr>
+    <tr><td class="mono">404</td><td>Not Found</td><td>Resource doesn't exist</td></tr>
+    <tr><td class="mono">409</td><td>Conflict</td><td>Custom alias already taken; concurrent modification</td></tr>
+    <tr><td class="mono">429</td><td>Too Many Requests</td><td>Rate-limited (with <code>Retry-After</code> header)</td></tr>
+    <tr><td class="mono">500</td><td>Internal Server Error</td><td>Backend exception; don't leak details</td></tr>
+    <tr><td class="mono">503</td><td>Service Unavailable</td><td>Overloaded / downstream dep failed; load balancers use this</td></tr>
+  </table>
+
+  <h3>The 301 vs 302 trap (URL Shortener canonical question)</h3>
+
+  <div class="callout warn">
+    <h4>If your design needs analytics, you must pick 302</h4>
+    <p>301 = browser remembers the redirect forever. After one click, the browser bypasses your server and goes straight to the destination. <b>Your click counter never sees subsequent clicks.</b></p>
+    <p>302 = browser asks every time. Every click hits your server. Analytics work. <b>Cost:</b> you pay one network round-trip per click instead of zero.</p>
+    <p>This is a load-bearing trade-off — own it.</p>
+  </div>
+
+  <h3>The operational-vs-business-analytics trap</h3>
+
+  <table>
+    <tr><th></th><th>Operational metrics</th><th>Business analytics</th></tr>
+    <tr><td><b>What</b></td><td>Server p99, error rate, throughput, queue depth</td><td>"How many users clicked <i>my</i> link?"</td></tr>
+    <tr><td><b>Audience</b></td><td>SRE / on-call</td><td>End users</td></tr>
+    <tr><td><b>Tool</b></td><td>Prometheus / Datadog / CloudWatch</td><td>REST endpoint backed by your DB</td></tr>
+    <tr><td><b>Day 1 trap</b></td><td colspan="2">Said "analytics served via Prometheus/Datadog" — conflated the two. Prometheus doesn't serve user data. Functional req #3 needs a real REST endpoint.</td></tr>
+  </table>
+
+  <h3>Typical 3-4 endpoint pattern (URL Shortener as template)</h3>
+
+  <pre><code>POST  /v1/mappings                                     { longUrl }                  → 201 { shortcode, shortUrl }
+GET   /{shortcode}                  [short domain]                                  → 302 redirect to longUrl
+GET   /v1/mappings/{shortcode}/stats?from=&to=                                      → 200 { totalClicks, dailyClicks: [...] }</code></pre>
+
+  <p class="lede">Three endpoints cover create, redirect, stats. Pagination and metadata endpoints are skipped unless they fork the design.</p>
+
+  <h3>Anti-patterns (caught in Day 1)</h3>
+
+  <ul>
+    <li><b>Saying "300 something" for the redirect.</b> Pick 301 / 302 / 307 specifically and defend.</li>
+    <li><b>Putting full URLs in path params.</b> Use the resource identifier (<code>{shortcode}</code>), not the full URL.</li>
+    <li><b>Designing a "POST /v1/users/{userId}/mappings" while auth is OOS.</b> Auth identity comes from token even when auth is "OOS" — pretend it would.</li>
+    <li><b>Skipping the stats endpoint and saying "Prometheus handles it".</b> Operational vs business analytics conflation.</li>
+    <li><b>Two endpoints for what could be one.</b> Defensible (different cache TTLs) but you must <i>say</i> the defense.</li>
+  </ul>
+</section>
+
+<!-- ===================== TAB: STAGE 5 — DEEP DIVE WALKS ===================== -->
+<section class="panel" id="deepdive">
+  <h2>Stage 5 — Deep Dive Walks</h2>
+  <div class="lede">10-min cap. The stage that grades depth. Drive it by walking your locked NFRs in order; each one has canonical moves. Self-volunteer; don't wait for probes.</div>
+
+  <h3>The seniority ladder (this stage is where you place)</h3>
+
+  <table>
+    <tr><th>Level</th><th>Behavior in Stage 5</th></tr>
+    <tr><td><span class="pill bad">Junior</span></td><td>Waits for interviewer to point at improvement areas. Answers when asked.</td></tr>
+    <tr><td><span class="pill warn">Mid-Senior</span></td><td>Self-identifies <i>some</i> optimization spots. Mixed depth.</td></tr>
+    <tr><td><span class="pill good">Senior</span></td><td>Self-identifies <i>all</i> the obvious spots. Leads the discussion. Names trade-offs.</td></tr>
+    <tr><td><span class="pill good">Staff+</span></td><td>Same as Senior + makes decisive trade-off calls and defends them under pushback. Pre-empts the interviewer's next probe.</td></tr>
+  </table>
+
+  <p class="lede"><b>You're targeting Senior / Staff+ → drive Stage 5 proactively.</b></p>
+
+  <h3>The walk pattern — NFR by NFR</h3>
+
+  <p>Stage 5 isn't free-form. Walk your locked NFRs in the order you stated them; for each, deliver the canonical moves below.</p>
+
+  <h4>L — Latency</h4>
+  <ul>
+    <li>State your hot-path latency budget (e.g., redirect &lt;200ms = LB 5ms + cache 5ms + redirect 10ms = 20ms typical).</li>
+    <li>Cache strategy: read-through pattern, TTL choice, invalidation, hit-rate target (90%+ for power-law).</li>
+    <li>Read replicas to absorb cache misses — count derived from QPS math, not hand-waved.</li>
+    <li>Cross-region implications if E said multi-region — multi-region replica routing.</li>
+  </ul>
+
+  <h4>F — Fault Tolerance / Availability</h4>
+  <ul>
+    <li>Walk every component: what fails → blast radius → recovery.</li>
+    <li>Stateless app tier: behind LB, K8s/orchestrator handles spinup. ✓</li>
+    <li>Database: hot standby + automated failover. <b>Name the tool</b> — Patroni, Stolon, RDS Multi-AZ.</li>
+    <li>Cache: replication factor for HA cache cluster (Redis Sentinel or Cluster mode).</li>
+    <li>Async queue: at-least-once delivery + idempotent consumers; dead-letter for poison messages.</li>
+  </ul>
+
+  <h4>S — Scalability (and the hot-key reflex — see Tab "Hot-Key Reflex")</h4>
+  <ul>
+    <li>Peak QPS handling at each tier: app, cache, DB.</li>
+    <li>Hot-key handling — three layers (CDN / cache / DB) — <b>self-volunteer.</b></li>
+    <li>Scale-out story: how would you 10× this? 100×? Sharding strategy + when you'd reach for it.</li>
+  </ul>
+
+  <h4>C — Consistency (CAP)</h4>
+  <ul>
+    <li>What's eventually consistent vs strong? Which operations? Which reads tolerate stale?</li>
+    <li>Replication lag implication: bounded staleness vs unbounded.</li>
+    <li>Cache coherence: TTL-based vs event-based invalidation.</li>
+  </ul>
+
+  <h4>D — Durability</h4>
+  <ul>
+    <li>Per-record-type tolerance: mappings = no loss; click events = lossy OK.</li>
+    <li>Backup cadence + restore RTO/RPO. Point-in-time recovery (Postgres WAL).</li>
+    <li>Cross-region backup if the data is critical.</li>
+  </ul>
+
+  <h4>E — Environment</h4>
+  <ul>
+    <li>Multi-region implications already declared in Stage 1; honor them here.</li>
+    <li>If global, name the strategy: read-local-write-anywhere, active-active with conflict resolution, etc.</li>
+    <li>If single-region, acknowledge the SLA boundary (Day 1: NA-only 200ms).</li>
+  </ul>
+
+  <h4>Self-volunteer items (don't wait for the interviewer)</h4>
+  <ul>
+    <li><b>Observability.</b> Metrics (Prometheus), logs (structured + aggregator), traces (OpenTelemetry). Senior+ never forgets to mention.</li>
+    <li><b>Security & rate limiting.</b> Even if S is OOS, mention rate-limit on creates briefly.</li>
+    <li><b>Edge cases.</b> What if user deletes a mapping? What if the long URL is malicious? What if shortcode collides on custom alias?</li>
+    <li><b>Operational concerns.</b> How do you deploy without downtime? How do you roll back a bad release?</li>
+    <li><b>Cost.</b> Briefly: which component dominates spend? When does the design break the budget?</li>
+  </ul>
+
+  <h3>The "don't talk over the interviewer" rule</h3>
+
+  <div class="callout warn">
+    <h4>Senior+ candidates often over-monologue. Mistake.</h4>
+    <p>Pause periodically. Let the interviewer probe. They have expectations you'll miss if you're filling all the air.</p>
+    <p>Soft-skill grading happens here too. Talking through follow-ups <i>with</i> the interviewer beats lecturing <i>at</i> them.</p>
+    <p><b>Pattern:</b> after each NFR walk, pause for 2-3 seconds. Check if interviewer wants to probe before moving to the next.</p>
+  </div>
+
+  <h3>The Stage 5 deliverable shape</h3>
+
+  <pre><code>"Walking my non-functional reqs in order:
+
+  L: redirect &lt;200ms — Redis read-through absorbs power-law,
+     ~95% hit rate; cache miss path = LB+app+Postgres ≈ 50ms.
+     Read replicas (3-5) absorb burst.
+
+  F: 99.95% availability — stateless app behind LB, K8s autoscale;
+     Postgres primary + hot standby with Patroni for sub-30s
+     failover; Redis Cluster with replication.
+
+  S: peak 40K reads/sec, hot-key 10× — three layers...
+     [walk hot-key reflex]
+
+  D: no loss on mappings — Postgres WAL + nightly snapshot to
+     S3 with 7-day retention; PITR for accidental data ops.
+
+  Want me to keep going, or focus somewhere?"</code></pre>
+
+  <p class="lede">That last sentence is the senior signal — explicit invitation to probe. Lets the interviewer steer to depth they care about.</p>
+</section>
+
 <!-- ===================== TAB 6: HOT-KEY REFLEX ===================== -->
 <section class="panel" id="hotkey">
   <h2>Hot-Key Reflex</h2>
@@ -928,6 +1170,264 @@ Walking layers:
   </div>
 </section>
 
+<!-- ===================== TAB: DB DRILL FACTS ===================== -->
+<section class="panel" id="db-drill">
+  <h2>DB Drill Facts</h2>
+  <div class="lede">Day 1 pre-mock recital surfaced specific factual gaps and terminology slips per database. Drill these so they're cold for Day 2's mock and beyond.</div>
+
+  <p>Full reference is in <code>concepts/db-toolbox.md</code>. This tab is the <i>minimum facts to recall under interview pressure</i>, with the Day 1 corrections highlighted.</p>
+
+  <h3>Postgres</h3>
+
+  <ul>
+    <li><b>Single-master writes.</b> WCU ceiling on a beefy node ≈ 10K writes/sec. Reads scale via streaming replicas (no native write replication).</li>
+    <li><b>Replication:</b> streaming (physical, byte-for-byte WAL shipping) for HA; logical (per-table) for selective replication and CDC.</li>
+    <li><b>Failover automation:</b> <span class="pill warn">name these</span> Patroni, Stolon, repmgr; on AWS = RDS Multi-AZ (sub-30s failover with auto promotion).</li>
+    <li><b>MVCC + isolation:</b> Read Committed default. Repeatable Read = snapshot. Serializable = SSI.</li>
+    <li><b>Sharding:</b> Citus extension (now Azure Cosmos DB for Postgres), or app-level by partition key.</li>
+    <li><b>Partitioning:</b> declarative (<code>PARTITION BY RANGE/LIST/HASH</code>), built-in. <b>Use this for archival</b> (the cleaner version of two-table tiering).</li>
+    <li><b>Connection pooling:</b> PgBouncer is mandatory at scale. Postgres scales OUT poorly (one process per connection); pool aggressively.</li>
+    <li><b>Indexes:</b> B-tree (default), GIN (full-text, JSONB), BRIN (huge sequential), partial (<code>WHERE</code> clause), expression, covering (<code>INCLUDE</code>).</li>
+  </ul>
+
+  <h3>DynamoDB</h3>
+
+  <ul>
+    <li><b>Transactions:</b> <span class="pill warn">Day 1 gap</span> <code>TransactWriteItems</code> / <code>TransactGetItems</code> — up to 100 items, single account+region, ACID.</li>
+    <li><b>Conditional writes:</b> CAS for optimistic concurrency (<code>PutItem ConditionExpression</code>).</li>
+    <li><b>Read consistency:</b> eventually consistent default; strongly consistent read available at 2× RCU cost.</li>
+    <li><b>Single-partition limit:</b> ~3,000 RCU / 1,000 WCU. Hot key = throttle. Mitigation: write-shard via key suffix.</li>
+    <li><b>Capacity:</b> on-demand (pay-per-request) or provisioned (with auto-scaling).</li>
+    <li><b>GSI/LSI:</b> Global Secondary Index = eventual consistency, separate capacity; Local SI = strong consistency, max 5 per table.</li>
+    <li><b>Single-table design</b> (Rick Houlihan): composite keys encoding multiple entity types in one table.</li>
+    <li><b>Streams:</b> change-data feed for Lambda triggers / cross-region replication.</li>
+    <li><b>Cost:</b> predictable but expensive at high QPS — can be 10× Postgres TCO. State this trade-off.</li>
+  </ul>
+
+  <h3>MongoDB</h3>
+
+  <ul>
+    <li><b>Terminology — get these right:</b> <span class="pill warn">Day 1 gap</span>
+      <ul>
+        <li><b>Shard key</b> (NOT "partition key" — that's Cassandra/DDB) — determines distribution across shards.</li>
+        <li><b>Replica set</b> — unit of replication. 1 primary + N secondaries (typically 2). Async replication. Election on primary failure.</li>
+        <li><b>mongos</b> — stateless query router. Clients talk to mongos; it consults config servers and dispatches to shards.</li>
+      </ul>
+    </li>
+    <li><b>ACID transactions since 4.0 (replica set) / 4.2 (sharded).</b> <span class="pill bad">Don't claim Mongo lacks transactions — it doesn't.</span></li>
+    <li><b>Read preferences:</b> <code>primary</code> / <code>secondary</code> / <code>nearest</code> — tune the C in CAP per-query.</li>
+    <li><b>Read concerns:</b> <code>local</code> / <code>majority</code> / <code>linearizable</code>.</li>
+    <li><b>Write concerns:</b> <code>w:1</code> / <code>w:majority</code> / <code>w:0</code> — durability vs latency.</li>
+    <li><b>Schema validation</b> is optional (per-collection JSON Schema). "Schema-on-read" is a 2015 framing; updated.</li>
+    <li><b>Aggregation pipeline:</b> <code>$match</code>, <code>$group</code>, <code>$lookup</code> ("join lite," not Postgres-grade).</li>
+  </ul>
+
+  <h3>Redis</h3>
+
+  <ul>
+    <li><span class="pill warn">Day 1 gap — "tunable consistency" was wrong.</span> Redis is single-primary per shard with async replication. There is no Cassandra-style tunable consistency.</li>
+    <li><b>What IS tunable:</b> persistence — AOF (append-only log) / RDB (snapshot) / hybrid; durability vs perf trade-off.</li>
+    <li><b>Single-threaded execution loop</b> — atomic by default; Lua scripts for compound atomicity.</li>
+    <li><b>Eviction policies:</b> <code>allkeys-lru</code>, <code>allkeys-lfu</code>, <code>volatile-ttl</code>, <code>noeviction</code>.</li>
+    <li><b>Replication:</b> primary-replica async; <b>Sentinel</b> for HA (auto-failover); <b>Cluster mode</b> for sharding (16,384 hash slots).</li>
+    <li><b>Streams:</b> the data structure (<code>XADD</code> / <code>XREAD</code> / <code>XGROUP</code>) — Kafka-lite. <span class="pill warn">name this when discussing logs.</span></li>
+    <li><b>Distributed locks:</b> <code>SET NX EX</code> for most cases. <span class="pill bad">Redlock is contested</span> (Kleppmann's critique). For correctness-critical locks: Postgres advisory lock or ZK/etcd, not Redis.</li>
+    <li><b>Sorted sets</b> (<code>ZADD</code>/<code>ZRANGE</code>): leaderboards, time-bucketed sliding-window rate limiting.</li>
+  </ul>
+
+  <h3>Kafka</h3>
+
+  <ul>
+    <li><b>Terminology:</b> <span class="pill warn">Day 1 gap</span>
+      <ul>
+        <li><b>Topic</b> = logical category. <b>Partition</b> = unit of parallelism + storage; lives on a broker.</li>
+        <li><b>Partition key</b> determines which partition a message lands in. Same key → same partition → ordered.</li>
+        <li>Ordering is <b>per-partition only</b>, never across partitions.</li>
+      </ul>
+    </li>
+    <li><b>Default: at-least-once.</b> <span class="pill warn">Exactly-once is opt-in:</span> idempotent producer + transactional producer + <code>read_committed</code> consumer.</li>
+    <li><b>Producer acks:</b> <code>0</code> (fire-and-forget) / <code>1</code> (leader ack) / <code>all</code> (ISR ack — durable).</li>
+    <li><b>Consumer offsets:</b> stored in the special <code>__consumer_offsets</code> topic by default (Kafka itself). Offset commit cadence tunable.</li>
+    <li><b>Consumer groups</b> + rebalance strategy (sticky / cooperative-sticky to reduce churn).</li>
+    <li><b>ISR (in-sync replicas).</b> Unclean leader election trade-off: availability vs durability.</li>
+    <li><b>Retention:</b> time-based / size-based / <b>compacted</b> (latest-value-per-key, for changelog topics).</li>
+    <li><b>Hot partition:</b> if one shortcode tweets viral, partition keyed on shortcode is hot. Mitigation: include random suffix in key; or hash-distribute.</li>
+  </ul>
+
+  <h3>Elasticsearch</h3>
+
+  <ul>
+    <li><b>Near-real-time, NOT real-time.</b> <span class="pill warn">Day 1 nuance</span> Default refresh interval = 1 second. Newly-indexed docs aren't searchable for ~1s.</li>
+    <li><b>Lucene inverted index;</b> sharded + replicated; BM25 scoring.</li>
+    <li><b>Sharding fixed at index creation;</b> can't reshardd without reindexing. <b>Capacity planning matters up-front.</b></li>
+    <li><b>Mapping:</b> dynamic (schema-on-write, but inferred) vs explicit. Production: explicit mappings.</li>
+    <li><b>Aggregations:</b> terms, date_histogram, percentiles — analytics shape, not search.</li>
+    <li><b>ILM (index lifecycle management):</b> hot/warm/cold tiers for log retention.</li>
+    <li><span class="pill bad">Not a system of record.</span> Always derived from a primary store (Postgres / Dynamo) via CDC / dual-write / outbox.</li>
+  </ul>
+
+  <h3>S3</h3>
+
+  <ul>
+    <li><b>Strong read-after-write consistency since Dec 2020.</b> <span class="pill warn">Day 1 gotcha</span> The "eventually consistent" answer is now stale and reads as a tell.</li>
+    <li><b>Listing</b> (LIST API) was the last to go strongly consistent — it now is too.</li>
+    <li><b>Storage classes:</b> Standard / Standard-IA / Glacier (Instant / Flexible / Deep Archive). Lifecycle rules auto-tier.</li>
+    <li><b>Pre-signed URLs:</b> time-limited direct access without proxying through your service. Important for upload/download patterns.</li>
+    <li><b>Multipart upload:</b> required for files &gt;5GB; recommended &gt;100MB.</li>
+    <li><b>Versioning + Object Lock:</b> compliance/immutability.</li>
+    <li><b>"Directories" don't exist</b> — keys are flat strings; "/" is just a delimiter convention.</li>
+  </ul>
+
+  <h3>ClickHouse / OLAP family</h3>
+
+  <ul>
+    <li><b>Column-oriented, MergeTree engine</b> (LSM-style sorted runs), vectorized execution, aggressive compression.</li>
+    <li><span class="pill bad">Never serve user-facing reads from OLAP.</span> Feed it async from Kafka / CDC; query for dashboards.</li>
+    <li><b>Sort key</b> (in <code>ORDER BY</code>) determines on-disk layout. Materialized views pre-aggregate at write time.</li>
+    <li><b>No UPDATE/DELETE in OLTP sense</b> — mutations are async background rewrites.</li>
+    <li><b>Alternates worth naming:</b> BigQuery (managed, GCP), Snowflake (managed, multi-cloud), Druid / Pinot (real-time aggregations, sub-second), Redshift (AWS).</li>
+  </ul>
+
+  <h3>Drill — recall test</h3>
+
+  <div class="callout note">
+    <p>Cover the answers, walk these prompts cold:</p>
+    <ol>
+      <li>What's the term for the routing component in MongoDB?</li>
+      <li>What's the default Kafka delivery semantic?</li>
+      <li>What's Redis's eviction policy options? Persistence options?</li>
+      <li>What's a Postgres failover automation tool? (3 names)</li>
+      <li>When does S3 strong-after-write apply? (year)</li>
+      <li>What's the partition limit for DynamoDB?</li>
+      <li>What's the default Elasticsearch refresh interval?</li>
+      <li>Why can't ClickHouse serve user-facing reads?</li>
+    </ol>
+    <p>If you fumble more than 2 of these, redo the drill the next morning. <b>Target: cold-recall all 8 within 2 minutes by Day 3.</b></p>
+  </div>
+</section>
+
+<!-- ===================== TAB: COMMUNICATION ===================== -->
+<section class="panel" id="comms">
+  <h2>Communication Patterns</h2>
+  <div class="lede">Soft-skill grading happens in parallel with technical grading. Day 1 surfaced patterns to drop and patterns to keep — drill these as discipline, not as performance.</div>
+
+  <h3>Pacing — pause and let the interviewer probe</h3>
+
+  <div class="callout warn">
+    <h4>Senior+ candidates over-monologue. The most common bad pattern.</h4>
+    <p>You speak for 200 words; you cover ground; but you also miss the hints the interviewer was trying to drop, and you signal that you can't read the room.</p>
+    <p><b>Rule:</b> after every major point (closing a stage, finishing an NFR walk, answering a probe), pause 2-3 seconds. Let the interviewer pick up the conversation if they want to.</p>
+  </div>
+
+  <p>Specific stop points where you should always pause:</p>
+
+  <ul>
+    <li>End of Stage 1 close — invite confirmation before moving to Entities.</li>
+    <li>End of each NFR walk in Stage 5 — let interviewer probe depth.</li>
+    <li>After articulating a non-obvious trade-off — the pause itself signals confidence.</li>
+    <li>After resolving a probe — don't immediately start the next thread.</li>
+  </ul>
+
+  <h3>Anti-patterns from Day 1</h3>
+
+  <table>
+    <tr><th>Anti-pattern</th><th>Why it's bad</th><th>Replace with</th></tr>
+    <tr>
+      <td><b>"Do you think it's fine to skip [stage]?"</b></td>
+      <td>Reads as memorization-mode. The discipline of starting simple IS the senior signal.</td>
+      <td>Just deliver an accelerated version. "Naive shape: LB → stateless app → Postgres + Redis read-through. Schema for mappings: id PK, shortcode UNIQUE INDEX, long_url, created_at. Moving to deep-dive."</td>
+    </tr>
+    <tr>
+      <td><b>"I think we can have..." / "Maybe we should..."</b></td>
+      <td>Hedging language. Senior+ commits.</td>
+      <td>"We'll have ___" / "I'd put ___ here". State, then defend.</td>
+    </tr>
+    <tr>
+      <td><b>"By the way, the ratio was 100:1, not 1000:1, so reads are 4K not 38K."</b></td>
+      <td>Self-correction is good; mid-monologue self-correction signals you didn't think before speaking.</td>
+      <td>Sanity-check math <i>before</i> stating it. If unsure, say "let me sanity-check — 100M/2.5M = 40 writes, ×100 = 4K reads. Yes."</td>
+    </tr>
+    <tr>
+      <td><b>Stream-of-consciousness in long answers</b></td>
+      <td>Listener loses the thread; interviewer can't grade structure.</td>
+      <td>Sentence-per-point. Pause between. Use enumerated lists aloud: "First, ___. Second, ___. Third, ___."</td>
+    </tr>
+    <tr>
+      <td><b>Naming vendor products as primary identifier</b></td>
+      <td>Mid-level signal (see Vocab tab).</td>
+      <td>Logical role first; vendor as optional translation.</td>
+    </tr>
+    <tr>
+      <td><b>"Let's just go with this primitive approach now" without committing fix-time</b></td>
+      <td>Defers without anchoring. Interviewer grades whether you actually return to it.</td>
+      <td>"Primitive for now; <b>I'll address the write-amplification problem in Stage 5 deep-dive when we walk Scalability.</b>"</td>
+    </tr>
+    <tr>
+      <td><b>Asking the interviewer "is this good enough?"</b></td>
+      <td>Reads as needing approval. Senior+ states + invites probe.</td>
+      <td>"That's the shape I'd ship for v1. Want me to deepen on a specific concern?"</td>
+    </tr>
+  </table>
+
+  <h3>Patterns to keep — Day 1 strengths</h3>
+
+  <table>
+    <tr><th>Pattern</th><th>Why it's strong</th></tr>
+    <tr>
+      <td><b>Reset under correction without sulking</b></td>
+      <td>Highest-yield senior signal. When the interviewer pushes back, take it cleanly and redeliver. Day 1 HLD restart was the canonical example.</td>
+    </tr>
+    <tr>
+      <td><b>De-scoping with reasoning chain</b></td>
+      <td>"Analytics → identity → auth → OOS, therefore stats OOS." Drives scope; doesn't passively accept.</td>
+    </tr>
+    <tr>
+      <td><b>Self-flagging "primitive" choices for deferral</b></td>
+      <td>Acknowledges a known weakness while keeping HLD moving. <b>Pair with explicit fix commitment</b> (which deep-dive section).</td>
+    </tr>
+    <tr>
+      <td><b>Trade-off articulation in one sentence</b></td>
+      <td>"Postgres single-master is the trade-off — accept some failover downtime for design simplicity." That's the staff-level shape.</td>
+    </tr>
+  </table>
+
+  <h3>Dialogue templates worth memorizing</h3>
+
+  <h4>Stage close</h4>
+  <pre><code>"Locking [stage] — [3 artifacts]. Confirmed? Moving to [next]."</code></pre>
+
+  <h4>Trade-off articulation</h4>
+  <pre><code>"X over Y because Z, accept W as the cost."
+
+example:
+"Postgres + sharded over Cassandra because the team's operational
+familiarity is high and our scale doesn't demand it; accept that
+beyond ~100K writes/sec we'd revisit."</code></pre>
+
+  <h4>Deferral with commitment</h4>
+  <pre><code>"Primitive for now — will address in Stage 5 when we walk [NFR]."</code></pre>
+
+  <h4>Probe invitation</h4>
+  <pre><code>"That's [my position]. Want me to keep walking, or focus somewhere?"</code></pre>
+
+  <h4>Self-correction (when caught wrong)</h4>
+  <pre><code>"Right — [correct answer]. Restating with that fix: [redeliver cleanly]."</code></pre>
+
+  <p class="lede">No "oh wait, sorry, let me think." Just take the correction and redeliver. The reset under correction is what gets graded, not the original miss.</p>
+
+  <h3>Length discipline</h3>
+
+  <ul>
+    <li><b>Stage 1 close:</b> ~30 sec of speaking.</li>
+    <li><b>Stage 2 entities:</b> ~20 sec.</li>
+    <li><b>Stage 3 endpoint walk:</b> ~60 sec total for 3-4 endpoints.</li>
+    <li><b>Stage 4 HLD walk:</b> ~3-5 min, with pauses.</li>
+    <li><b>Stage 5 per-NFR walk:</b> ~60-90 sec each, with 2-3 sec pause between.</li>
+  </ul>
+
+  <p class="lede">If you've been talking continuously for 90+ seconds, stop. You're either over-explaining or losing the interviewer.</p>
+</section>
+
 <!-- ===================== TAB 7: DAY 1 RECAP ===================== -->
 <section class="panel" id="recap">
   <h2>Day 1 Recap — URL Shortener</h2>
@@ -1046,10 +1546,10 @@ Walking layers:
     });
   });
 
-  // Keyboard navigation: 1-7 to switch tabs
+  // Keyboard navigation: 1-9 to switch tabs (10/11 require click)
   document.addEventListener('keydown', e => {
     const n = parseInt(e.key, 10);
-    if (n >= 1 && n <= 7 && !e.metaKey && !e.ctrlKey && !e.altKey) {
+    if (n >= 1 && n <= 9 && !e.metaKey && !e.ctrlKey && !e.altKey) {
       const tabs = document.querySelectorAll('.tab');
       if (tabs[n - 1]) tabs[n - 1].click();
     }
