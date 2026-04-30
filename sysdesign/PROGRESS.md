@@ -18,7 +18,7 @@ Hard pace: 1 mock/day Mon–Sat, calibration mocks on Days 9–10. Tier 1 proble
 |-----|------|---------------------------|----------------|
 | 1 | URL Shortener (calibration) ✅ | ✅ `back-of-envelope.html` | ✅ RU case study reviewed |
 | 2 | News Feed / Twitter | `feed-fanout.md` (write/read/hybrid) | — |
-| 3 | **Collaborative Document Editor (Google Docs)** _(swapped — Messenger covered in RU course)_ | `crdt-vs-ot.md` (real-time sync, conflict resolution) | — |
+| 3 | **Live Streaming Chat (Twitch / YouTube Live)** _(swapped — Messenger covered in RU course)_ | `realtime-fanout.md` (WebSocket connection mgmt, hot-channel sharding, read-fanout patterns) | — |
 | 4 | Uber / ride-sharing | `geohashing.md` + visualization | — |
 | 5 | Distributed Cache (Redis-like) | `consistent-hashing.md` + visualization | — |
 | 6 | Rate Limiter (distributed) | `rate-limiting-algorithms.md` (token vs leaky vs sliding) | EN/RU Mod 6 — circuit breakers + bulkheads |
@@ -28,7 +28,7 @@ Hard pace: 1 mock/day Mon–Sat, calibration mocks on Days 9–10. Tier 1 proble
 | 10 | **Final mock under realistic pressure** | Behavioral/leveling prep | — |
 
 **Schedule swap rationale (Day 3, Day 7):** user already covered Messenger + Notification Service in the Russian course case studies; re-mocking them risks pattern-matching against memory rather than driving the framework cold. Replacements preserve the same concept areas:
-- **Day 3 — Collaborative Editor** preserves Messenger's core concepts (real-time bidirectional sync, ordering, presence, delivery guarantees) and adds CRDT/OT depth — a Tier-1 distributed-systems concept the user hasn't drilled.
+- **Day 3 — Live Streaming Chat (Twitch-style)** preserves Messenger's core concepts (real-time delivery, per-channel ordering, presence, connection management at scale) and adds extreme-fanout depth (1 streamer → 100K–1M viewers per channel). Pure systems design, no algorithm trap (avoids the CRDT/OT specialization a collaborative-editor problem would force).
 - **Day 7 — Webhook Delivery** preserves Notification's core concepts (1:N reliable delivery, retry with backoff, dedup, per-consumer rate-limit) and centers on the at-least-once + idempotency-key pattern that powers every modern SaaS integration (Stripe / GitHub / etc.).
 
 **Foundations (already written, reference daily):**
@@ -54,14 +54,14 @@ Tier 1 covers ~70% of distributed/SaaS/backend rounds. Tier 2 adds ~20%. Tier 3 
 ### Tier 1 — must-do (drill before any real loop)
 - [x] **URL Shortener** — base "DB + cache + ID gen" template. _(✅ Day 1 calibration mock complete — see `problems/url-shortener.md`.)_
 - [ ] **News Feed / Twitter** — fanout-on-write vs read, hot-key handling, hybrid. _(Concept gap: feed-fanout cheat sheet.)_
-- [ ] **Collaborative Document Editor (Google Docs)** _(replaces Messenger in 10-day schedule)_ — real-time bidirectional sync, OT vs CRDT, presence, conflict resolution, edit ordering. _(Concept gap: CRDT-vs-OT cheat sheet.)_
+- [ ] **Live Streaming Chat (Twitch / YouTube Live)** _(replaces Messenger in 10-day schedule)_ — real-time fanout at extreme scale (1 streamer → 100K–1M viewers per channel), per-channel ordering, presence, hot-channel sharding, WebSocket connection mgmt, moderation pipeline. _(Concept gap: realtime-fanout cheat sheet.)_
 - [ ] **Uber / ride-sharing** — geohashing, dispatch matching, surge pricing. _(Concept gap: spatial indexing cheat sheet.)_
 - [ ] **Distributed Cache (Redis-like)** — consistent hashing, eviction, replication. _(Concept gap: consistent-hashing visualization.)_
 - [ ] **Distributed Rate Limiter** — token bucket / sliding window in shared store, edge vs central enforcement.
 - [ ] **Webhook Delivery Service** _(replaces Notification System in 10-day schedule)_ — 1:N reliable delivery, retry/backoff/dead-letter, idempotency keys, per-consumer rate-limit, replay, subscriber management.
 
 **Already covered (Russian course case studies, dropped from active queue):**
-- ~~WhatsApp / Messenger~~ — real-time, message ordering, presence, delivery guarantees. Concept areas covered by Collaborative Editor swap.
+- ~~WhatsApp / Messenger~~ — real-time, message ordering, presence, delivery guarantees. Concept areas covered by Live Streaming Chat swap.
 - ~~Notification System~~ — fanout reliability, channel abstraction, retry/dedup. Concept areas covered by Webhook Delivery swap.
 
 ### Tier 2 — high-value
@@ -127,7 +127,7 @@ Tick when a problem walkthrough has *actively exercised* it (not just mentioned)
 - [ ] **Fanout-on-write vs fanout-on-read for feeds** — `patterns/feed-fanout.md`
 - [ ] **Idempotency keys, request hedging, retries with backoff/jitter** — `patterns/idempotency.md`
 - [ ] **CDC (Change Data Capture) patterns** — `patterns/cdc.md`
-- [ ] **Conflict-free Replicated Data Types vs Operational Transformation** — `concepts/crdt-vs-ot.md` _(Day 3 collaborative editor)_
+- [ ] **Real-time fanout patterns** (WebSocket vs SSE vs long-polling, connection affinity, hot-channel sharding, pub-sub broker shape) — `concepts/realtime-fanout.md` _(Day 3 live streaming chat)_
 - [ ] **Multi-region / DR (RPO/RTO, active-active vs active-passive)** — `concepts/multi-region.md`
 - [ ] **Bloom filters + count-min sketch in storage paths** — `patterns/probabilistic-structures.md`
 
