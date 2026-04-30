@@ -217,7 +217,7 @@
   <div class="subtitle">Run through this before every mock. Tabs cover what Day 1 surfaced as the gap-list. ~30-min scan.</div>
   <div class="tabs">
     <div class="tab active" data-target="framework">5-Stage Framework</div>
-    <div class="tab" data-target="fcc-sleds">FCC + SLEDS</div>
+    <div class="tab" data-target="scalds-coo">SCALDS + COO</div>
     <div class="tab" data-target="math">Math Canon</div>
     <div class="tab" data-target="vocab">Vendor-Neutral Vocab</div>
     <div class="tab" data-target="ritual">Stage 1 Ritual</div>
@@ -251,7 +251,7 @@
     <div>
       <b>Produce:</b> 3 functional + 3-5 quantified non-functional + out-of-scope.<br>
       <b>Drive it:</b> ask the PM (interviewer) clarifying questions. <i>You synthesize, you don't invent.</i><br>
-      <b>Tools:</b> FCC + SLEDS scan checklist. Tab 2.
+      <b>Tools:</b> SCALDS + COO scan checklist. Tab 2.
     </div>
   </div>
 
@@ -327,7 +327,7 @@
 
   <p class="lede">
     Implication: anything spanning continents on the hot path blows a 200ms p99 — note
-    multi-region implications during Stage 1 (E in SLEDS).
+    multi-region implications during Stage 1 — these are deployment-context constraints, called out separately from the SCALDS attribute scan.
   </p>
 
   <h3>Anti-patterns that tank interviews</h3>
@@ -346,37 +346,20 @@
   </ul>
 </section>
 
-<!-- ===================== TAB 2: FCC + SLEDS ===================== -->
-<section class="panel" id="fcc-sleds">
-  <h2>FCC + SLEDS — the Non-Functional Scan</h2>
-  <div class="lede">Memorize the 8 letters. In Stage 1, run them as a 60-second mental scan. Pick 3-5 that apply, quantify them, explicitly say "N/A because X" for the rest.</div>
+<!-- ===================== TAB 2: SCALDS + COO ===================== -->
+<section class="panel" id="scalds-coo">
+  <h2>SCALDS + COO — the Quality-Attribute Scan</h2>
+  <div class="lede">Two distinct lists, two purposes. <b>SCALDS to commit, COO to volunteer.</b> Memorize both; recite both before every mock until automatic.</div>
 
-  <h3>The 8 letters</h3>
+  <h3>SCALDS — Stage 1 commitment set</h3>
+  <p>Pick 3-5 to commit and quantify. Each one becomes a target Stage 5 will be graded against.</p>
 
   <table>
     <tr>
       <th style="width: 40px">Letter</th>
-      <th style="width: 160px">Meaning</th>
-      <th>What to ask yourself</th>
+      <th style="width: 160px">Attribute</th>
+      <th>Probe yourself</th>
       <th>URL Shortener example</th>
-    </tr>
-    <tr>
-      <td><b style="color:#ff5555">F</b></td>
-      <td><b>Fault tolerance</b></td>
-      <td>What can fail? What's the blast radius? How do we recover?</td>
-      <td>"Postgres single-master failover via streaming replica + auto-promotion (Patroni). App tier stateless behind LB."</td>
-    </tr>
-    <tr>
-      <td><b style="color:#bf5af2">C</b></td>
-      <td><b>CAP / consistency</b></td>
-      <td>Consistency or availability under partition? What kind of consistency does each operation need?</td>
-      <td>"Eventual consistency on resolve — read-after-create gap acceptable. Strong consistency on shortcode uniqueness (DB unique constraint)."</td>
-    </tr>
-    <tr>
-      <td><b style="color:#bf5af2">C</b></td>
-      <td><b>Compliance</b></td>
-      <td>GDPR / HIPAA / SOC2 / PCI-DSS / regional data-residency? Audit logs?</td>
-      <td>"N/A — short-link mappings aren't PII; click-event IPs may be — out of scope for v1."</td>
     </tr>
     <tr>
       <td><b style="color:#5ac8fa">S</b></td>
@@ -385,66 +368,136 @@
       <td>"100M creates/mo → 40 w/s avg, 4K r/s avg. Peak 10× → 400 w/s, 40K r/s. Hot key 10× per-key."</td>
     </tr>
     <tr>
-      <td><b style="color:#50fa7b">L</b></td>
-      <td><b>Latency</b></td>
-      <td>p99 per operation? End-to-end vs single-hop?</td>
-      <td>"Read p99 &lt;200ms (NA region), write p99 &lt;1s."</td>
+      <td><b style="color:#bf5af2">C</b></td>
+      <td><b>Consistency</b></td>
+      <td>Strong / eventual / causal / read-your-writes — per-operation, not blanket.</td>
+      <td>"Eventual on resolve — read-after-create gap acceptable. Strong on shortcode uniqueness (DB unique constraint)."</td>
     </tr>
     <tr>
-      <td><b style="color:#ffb86c">E</b></td>
-      <td><b>Environment</b></td>
-      <td>Mobile / battery / low-bandwidth / multi-region / on-prem / air-gapped?</td>
-      <td>"Global service, single-region for v1; SLA enforced for NA only. Multi-region is v2."</td>
+      <td><b style="color:#ff5555">A</b></td>
+      <td><b>Availability</b></td>
+      <td>Uptime SLO? Failure modes? Failover time? <i>(absorbs "Fault Tolerance" — same axis from the user's view)</i></td>
+      <td>"99.95% (~4h/yr). Postgres single-master with hot standby + Patroni for sub-30s failover."</td>
+    </tr>
+    <tr>
+      <td><b style="color:#50fa7b">L</b></td>
+      <td><b>Latency</b></td>
+      <td>p99 per operation? End-to-end vs single-hop? Cold-cache vs warm?</td>
+      <td>"Read p99 &lt;200ms (NA region), write p99 &lt;1s."</td>
     </tr>
     <tr>
       <td><b style="color:#ff79c6">D</b></td>
       <td><b>Durability</b></td>
-      <td>How much data loss is acceptable? Per record type — different answer per type.</td>
+      <td>How much data loss is acceptable? <i>Per record-type</i> — different answer per type.</td>
       <td>"Mapping = no loss (broken links forever). Click events = lossy OK (analytics is approximate)."</td>
     </tr>
     <tr>
       <td><b style="color:#ff5555">S</b></td>
       <td><b>Security</b></td>
-      <td>Auth N/Z, data protection, rate limits, abuse prevention, DDoS?</td>
-      <td>"Out of scope for v1 (anonymous service, no PII). Production would add: rate limiting on POST, abuse-detection on long-URL pattern."</td>
+      <td>AuthN/Z, data protection, rate limits, abuse prevention, regulatory? <i>(absorbs "Compliance" — GDPR/SOC2 is a security/regulatory constraint)</i></td>
+      <td>"Out of scope for v1 (anonymous service, no PII). Production: rate-limit POST, abuse-detection on long-URL patterns."</td>
     </tr>
   </table>
+
+  <h3>+ COO — Stage 5 must-volunteer set</h3>
+  <p>Address all three <b>unprompted</b> in Deep Dive, even if not in your locked SCALDS. These are the items that separate Senior from Staff+.</p>
+
+  <table>
+    <tr>
+      <th style="width: 40px">Letter</th>
+      <th style="width: 160px">Attribute</th>
+      <th>Probe yourself</th>
+      <th>URL Shortener example</th>
+    </tr>
+    <tr>
+      <td><b style="color:#ffb86c">C</b></td>
+      <td><b>Cost</b></td>
+      <td>TCO at current scale? At 10×? What dominates the bill? When does the design break the budget?</td>
+      <td>"Postgres + Redis fits a startup budget. Reaching for Spanner / global tables would 10× the bill — defer until international expansion warrants it."</td>
+    </tr>
+    <tr>
+      <td><b style="color:#5ac8fa">O</b></td>
+      <td><b>Observability</b></td>
+      <td>Metrics, logs, traces, SLO/SLI definitions. "How would you know it's broken?"</td>
+      <td>"Per-endpoint p99 latency + error rate as RED-method dashboards. Trace IDs propagated app→cache→DB. Alert on p99 &gt; 200ms breach over 5-min window."</td>
+    </tr>
+    <tr>
+      <td><b style="color:#bf5af2">O</b></td>
+      <td><b>Operability</b></td>
+      <td>Deploy strategy, rollback, RPO/RTO, schema migrations on hot DBs.</td>
+      <td>"Blue-green deploy with health-check gating. Postgres schema migrations via expand-then-contract pattern (dual-write, backfill, switch reads, drop old col). Daily backups → S3; PITR via WAL for last 7 days."</td>
+    </tr>
+  </table>
+
+  <div class="callout win">
+    <h4>The mental model</h4>
+    <p><b>"SCALDS to commit, COO to volunteer."</b></p>
+    <p><b>Stage 1:</b> walk SCALDS as a mental scan; pick 3-5; quantify each.</p>
+    <p><b>Stage 5:</b> walk your locked SCALDS items first (you committed; you must defend); then proactively touch all three COO items even if interviewer didn't probe them.</p>
+  </div>
 
   <h3>How to use it in Stage 1</h3>
 
   <ol>
-    <li><b>Run a 60-second mental scan.</b> Walk all 8 letters silently in your head.</li>
+    <li><b>Run a 30-second mental scan</b> through SCALDS. (COO is a Stage 5 list, not Stage 1.)</li>
     <li><b>Pick 3-5 to commit.</b> The ones that fork the design or earn business signal.</li>
     <li><b>Quantify each.</b> "Highly available" is useless. "99.95% availability (~4h/year downtime)" is a target.</li>
-    <li><b>Explicitly skip with reason.</b> Don't silently omit. Say "Compliance N/A because no PII." Better signal than skipping.</li>
+    <li><b>Explicitly skip with reason.</b> Don't silently omit. Say "Security N/A for v1 — anonymous service, no PII." Better signal than skipping.</li>
   </ol>
 
-  <h3>Drill — recite cold, 60 seconds</h3>
+  <h3>Drill — recite cold</h3>
 
   <div class="callout note">
-    <h4>The recital</h4>
+    <h4>SCALDS recital (Stage 1)</h4>
     <p style="font-family: monospace; font-size: 14px; color: #50fa7b;">
-      F — Fault tolerance.<br>
-      C — CAP.<br>
-      C — Compliance.<br>
       S — Scalability.<br>
+      C — Consistency.<br>
+      A — Availability.<br>
       L — Latency.<br>
-      E — Environment.<br>
       D — Durability.<br>
       S — Security.
     </p>
-    <p>Practice this until you can do it in 30 seconds without thinking. Then practice
-    walking each one with a one-line probe question and a generic example. <b>Goal: muscle memory by Day 3.</b></p>
+    <h4 style="margin-top:18px">+ COO recital (Stage 5)</h4>
+    <p style="font-family: monospace; font-size: 14px; color: #ffb86c;">
+      C — Cost.<br>
+      O — Observability.<br>
+      O — Operability.
+    </p>
+    <p>Goal: 30 seconds for SCALDS, 15 seconds for COO. Then practice walking each with a one-line probe + generic example. <b>Muscle memory target: Day 3.</b></p>
   </div>
+
+  <h3>Deployment context (call out separately, not in mnemonic)</h3>
+
+  <p>Things that aren't true quality attributes but constrain the design — surface in the Stage 1 PM conversation, before SCALDS:</p>
+  <ul>
+    <li><b>Geographic scope</b> — global / regional / single-region? <i>(load-bearing for latency targets — cross-continent RT alone is ~150ms)</i></li>
+    <li><b>Client environment</b> — mobile / battery / low-bandwidth?</li>
+    <li><b>Deployment</b> — cloud / on-prem / air-gapped / hybrid?</li>
+    <li><b>Compliance regime</b> — GDPR / HIPAA / SOC2 / PCI-DSS — drives Security depth.</li>
+  </ul>
 
   <h3>Common stumbles</h3>
 
   <ul>
-    <li><b>Forgetting Environment (E).</b> The most-skipped letter. Often load-bearing — multi-region implications can blow your latency SLA.</li>
-    <li><b>Conflating Durability with Availability.</b> Different axes. Durability = data loss; availability = uptime.</li>
+    <li><b>Skipping COO.</b> Day 1 didn't have COO; you only did the Stage 1 set. From now on, all three COO items must surface in every Stage 5.</li>
+    <li><b>Conflating Durability with Availability.</b> Different axes. Durability = data loss; Availability = uptime.</li>
     <li><b>Hand-waving Scalability.</b> "Should scale" is not an answer. State peak QPS, data volume, growth.</li>
-    <li><b>Naming Compliance/Security as in-scope without commitment.</b> If you say it, design for it. Otherwise explicitly out.</li>
+    <li><b>Letting Compliance hide.</b> If the domain is regulated (fintech, health, EU), Security expands to include compliance — don't omit.</li>
+    <li><b>Treating Cost as out-of-scope.</b> Even if not in your locked SCALDS, mention TCO trade-offs in Stage 5. Staff+ candidates always do.</li>
   </ul>
+
+  <h3>Why this isn't FCC + SLEDS anymore</h3>
+
+  <details>
+    <summary>The migration story (read once, then forget)</summary>
+    <p>Day 1 used <b>FCC + SLEDS</b>: Fault Tolerance, CAP, Compliance, Scalability, Latency, Environment, Durability, Security. Three problems with that framework:</p>
+    <ol>
+      <li><b>Two C's and two S's were confusable</b> — F vs A vs CAP overlap; Compliance vs Security overlap.</li>
+      <li><b>No slot for Cost, Observability, Operability</b> — the three areas that separate Senior from Staff+.</li>
+      <li><b>Environment is a deployment constraint, not a quality attribute.</b> Belongs in the PM conversation, not the NFR list.</li>
+    </ol>
+    <p>SCALDS + COO is one-letter-per-attribute, covers the three gaps, and uses real words ("scalds" + "coo") for memorability. Compliance folds into Security; Environment moves to deployment-context probes.</p>
+  </details>
 </section>
 
 <!-- ===================== TAB 3: MATH CANON ===================== -->
@@ -733,7 +786,7 @@
     </div>
     <div class="card">
       <h4>2. 3-5 Quantified Non-Functional</h4>
-      <p>FCC + SLEDS scan visible. Each one quantified.</p>
+      <p>SCALDS scan visible. Each one quantified.</p>
       <p>"99.95% availability" not "highly available". "&lt;200ms p99 read" not "fast".</p>
     </div>
     <div class="card">
@@ -773,7 +826,7 @@
       <div class="label">❌ Sloppy (Day 1 baseline)</div>
       "Yeah, latency is one. Let's say 99.9% availability. Let's keep custom aliases out. Now let's talk about entities."
       <p style="margin-top: 10px; font-size: 13px; color: #888;">
-        — No top-3 functional list, NFRs not quantified consistently, OOS scattered, no verbal sign-off, no FCC+SLEDS scan visible. Interviewer has to backtrack you.
+        — No top-3 functional list, NFRs not quantified consistently, OOS scattered, no verbal sign-off, no SCALDS scan visible. Interviewer has to backtrack you.
       </p>
     </div>
     <div class="good-side">
@@ -791,7 +844,7 @@
   <ul>
     <li><b>Critique calibration.</b> End-of-mock grading is "did you hit X" — needs an explicit X.</li>
     <li><b>Stops scope creep.</b> If "click stats" wasn't on the list, you don't have to design for it. Force the interviewer to bring it up explicitly.</li>
-    <li><b>Forces FCC + SLEDS scan.</b> The recital structure makes the missing letters glaring.</li>
+    <li><b>Forces SCALDS scan.</b> The recital structure makes the missing letters glaring.</li>
     <li><b>Process signal.</b> Senior+ candidates close stages cleanly. Mid candidates blur boundaries.</li>
   </ul>
 
@@ -800,7 +853,7 @@
   <ul>
     <li><b>"Let's also have ___" mid-Stage 4.</b> If it wasn't on the locked list, push back: "I locked OOS for ___ — do you want me to swap it in for one of the locked items?" Forces tradeoff conversation.</li>
     <li><b>Quantification skipped under pressure.</b> "We need it to be available" — caught instantly. Always pair every NFR with a number.</li>
-    <li><b>FCC + SLEDS half-scanned.</b> Skipping E and D is the most common pattern. Drill specifically on these two.</li>
+    <li><b>SCALDS half-scanned.</b> Skipping D (Durability) and S (Security) silently is the most common pattern. Walk each letter aloud.</li>
   </ul>
 </section>
 
@@ -1476,9 +1529,9 @@ beyond ~100K writes/sec we'd revisit."</code></pre>
     </tr>
     <tr>
       <td>M4</td>
-      <td>FCC + SLEDS partial scan (E, D, second C skipped silently)</td>
+      <td>FCC+SLEDS partial scan (E, D, second C skipped silently) — Day 1 used the older FCC+SLEDS mnemonic, since superseded by SCALDS+COO</td>
       <td>Memorize. Recite. 60-sec mental scan in Stage 1.</td>
-      <td>FCC+SLEDS</td>
+      <td>SCALDS+COO</td>
     </tr>
     <tr>
       <td>M5</td>
@@ -1523,7 +1576,7 @@ beyond ~100K writes/sec we'd revisit."</code></pre>
     <p><b>Pre-mock prep:</b> write <code>concepts/feed-fanout.md</code> as the foundation cheat sheet. Glance at the canonical Twitter design (course module or Alex Xu Vol 1 ch.).</p>
     <p><b>Specific Day 1 majors that will resurface:</b></p>
     <ul>
-      <li>FCC + SLEDS scan — every mock from now on</li>
+      <li>SCALDS scan in Stage 1 + COO walk in Stage 5 — every mock from now on</li>
       <li>Hot-key reflex — Twitter celeb fanout is the canonical hot-key problem</li>
       <li>Math canon — DAU × tweets/user × follower fanout = a lot</li>
       <li>Vendor-neutral vocab — practice in the morning before mock</li>

@@ -16,22 +16,26 @@ Hard pace: 1 mock/day Mon–Sat, calibration mocks on Days 9–10. Tier 1 proble
 
 | Day | Mock | New cheat sheet / pattern | Course revisit |
 |-----|------|---------------------------|----------------|
-| 1 | URL Shortener (calibration) | `back-of-envelope.md` _(write up front before mock)_ | RU case study: URL Shortener (after mock, calibration) |
+| 1 | URL Shortener (calibration) ✅ | ✅ `back-of-envelope.html` | ✅ RU case study reviewed |
 | 2 | News Feed / Twitter | `feed-fanout.md` (write/read/hybrid) | — |
-| 3 | WhatsApp / Messenger | `idempotency.md` (delivery guarantees) | RU case study: Messenger |
+| 3 | **Collaborative Document Editor (Google Docs)** _(swapped — Messenger covered in RU course)_ | `crdt-vs-ot.md` (real-time sync, conflict resolution) | — |
 | 4 | Uber / ride-sharing | `geohashing.md` + visualization | — |
 | 5 | Distributed Cache (Redis-like) | `consistent-hashing.md` + visualization | — |
 | 6 | Rate Limiter (distributed) | `rate-limiting-algorithms.md` (token vs leaky vs sliding) | EN/RU Mod 6 — circuit breakers + bulkheads |
-| 7 | Notification System | `multi-region.md` _(if gaps surface)_ | RU case study: Notification |
+| 7 | **Webhook Delivery Service** _(swapped — Notification covered in RU course)_ | `idempotency.md` (at-least-once + idempotent consumers, retry/backoff/dead-letter) | — |
 | 8 | Dropbox / Google Drive | `cdc.md` (chunking + sync exposes it) | — |
 | 9 | **Cold re-mock** of worst Day 1–8 problem | _(no notes, full 45-min timer — calibration)_ | — |
 | 10 | **Final mock under realistic pressure** | Behavioral/leveling prep | — |
+
+**Schedule swap rationale (Day 3, Day 7):** user already covered Messenger + Notification Service in the Russian course case studies; re-mocking them risks pattern-matching against memory rather than driving the framework cold. Replacements preserve the same concept areas:
+- **Day 3 — Collaborative Editor** preserves Messenger's core concepts (real-time bidirectional sync, ordering, presence, delivery guarantees) and adds CRDT/OT depth — a Tier-1 distributed-systems concept the user hasn't drilled.
+- **Day 7 — Webhook Delivery** preserves Notification's core concepts (1:N reliable delivery, retry with backoff, dedup, per-consumer rate-limit) and centers on the at-least-once + idempotency-key pattern that powers every modern SaaS integration (Stripe / GitHub / etc.).
 
 **Foundations (already written, reference daily):**
 - ✅ `concepts/interview-framework.md` — the 5-stage flow (binding for every mock)
 - ✅ `concepts/db-toolbox.md` — 6+1 DB decision tree
 - ✅ `concepts/back-of-envelope.html` — QPS / storage / bandwidth / latency cheat sheet (Day 1 foundation)
-- ✅ `concepts/mock-prep.html` — daily pre-mock study guide (7 tabs: framework, FCC+SLEDS, math canon, vocab, Stage 1 ritual, hot-key reflex, Day 1 recap)
+- ✅ `concepts/mock-prep.html` — daily pre-mock study guide (11 tabs: framework, SCALDS+COO, math canon, vocab, Stage 1 ritual, Stage 3 API, Stage 5 deep dive, hot-key reflex, DB drill facts, communication, Day 1 recap)
 
 **Course material this week:** RU case studies (Airbnb, Messenger, Notification, URL Shortener) used as *post-mock calibration*, not pre-read. Read them *after* you've designed the system yourself.
 
@@ -48,13 +52,17 @@ Hard pace: 1 mock/day Mon–Sat, calibration mocks on Days 9–10. Tier 1 proble
 Tier 1 covers ~70% of distributed/SaaS/backend rounds. Tier 2 adds ~20%. Tier 3 is breadth.
 
 ### Tier 1 — must-do (drill before any real loop)
-- [ ] **URL Shortener** — base "DB + cache + ID gen" template. _(Russian course has case study — review after attempt for canonical comparison.)_
+- [x] **URL Shortener** — base "DB + cache + ID gen" template. _(✅ Day 1 calibration mock complete — see `problems/url-shortener.md`.)_
 - [ ] **News Feed / Twitter** — fanout-on-write vs read, hot-key handling, hybrid. _(Concept gap: feed-fanout cheat sheet.)_
-- [ ] **WhatsApp / Messenger** — real-time, message ordering, presence, delivery guarantees. _(Russian course has case study — compare after.)_
+- [ ] **Collaborative Document Editor (Google Docs)** _(replaces Messenger in 10-day schedule)_ — real-time bidirectional sync, OT vs CRDT, presence, conflict resolution, edit ordering. _(Concept gap: CRDT-vs-OT cheat sheet.)_
 - [ ] **Uber / ride-sharing** — geohashing, dispatch matching, surge pricing. _(Concept gap: spatial indexing cheat sheet.)_
 - [ ] **Distributed Cache (Redis-like)** — consistent hashing, eviction, replication. _(Concept gap: consistent-hashing visualization.)_
 - [ ] **Distributed Rate Limiter** — token bucket / sliding window in shared store, edge vs central enforcement.
-- [ ] **Notification System** — fanout reliability, channel abstraction (email/SMS/push), retry/dedup. _(Russian course has case study — compare after.)_
+- [ ] **Webhook Delivery Service** _(replaces Notification System in 10-day schedule)_ — 1:N reliable delivery, retry/backoff/dead-letter, idempotency keys, per-consumer rate-limit, replay, subscriber management.
+
+**Already covered (Russian course case studies, dropped from active queue):**
+- ~~WhatsApp / Messenger~~ — real-time, message ordering, presence, delivery guarantees. Concept areas covered by Collaborative Editor swap.
+- ~~Notification System~~ — fanout reliability, channel abstraction, retry/dedup. Concept areas covered by Webhook Delivery swap.
 
 ### Tier 2 — high-value
 - [ ] **Airbnb / booking** — concurrency, double-booking prevention, search + filtering. _(Russian course has case study — compare after.)_
@@ -119,6 +127,7 @@ Tick when a problem walkthrough has *actively exercised* it (not just mentioned)
 - [ ] **Fanout-on-write vs fanout-on-read for feeds** — `patterns/feed-fanout.md`
 - [ ] **Idempotency keys, request hedging, retries with backoff/jitter** — `patterns/idempotency.md`
 - [ ] **CDC (Change Data Capture) patterns** — `patterns/cdc.md`
+- [ ] **Conflict-free Replicated Data Types vs Operational Transformation** — `concepts/crdt-vs-ot.md` _(Day 3 collaborative editor)_
 - [ ] **Multi-region / DR (RPO/RTO, active-active vs active-passive)** — `concepts/multi-region.md`
 - [ ] **Bloom filters + count-min sketch in storage paths** — `patterns/probabilistic-structures.md`
 
@@ -128,7 +137,7 @@ Tick when a problem walkthrough has *actively exercised* it (not just mentioned)
 
 | # | Date | Problem | Coverage | Communication | Notes / gaps |
 |---|------|---------|----------|---------------|--------------|
-| 1 | 2026-04-28 | URL Shortener (calibration) | ✅ all 5 stages | ✓ coherent; pause more | ✅ Day 1 calibration goal met. Majors: skipped-HLD ask, vendor-naming, sloppy Stage 1 close, FCC+SLEDS partial, math errors (38K→3.8K reads, base62=45→62), hot-key required probing. Strong: reset under correction, click-counter shape, ID gen, stampede insight. Full critique → [`problems/url-shortener.md`](problems/url-shortener.md). |
+| 1 | 2026-04-28 | URL Shortener (calibration) | ✅ all 5 stages | ✓ coherent; pause more | ✅ Day 1 calibration goal met. Majors: skipped-HLD ask, vendor-naming, sloppy Stage 1 close, FCC+SLEDS partial scan _(framework since replaced with SCALDS+COO)_, math errors (38K→3.8K reads, base62=45→62), hot-key required probing. Strong: reset under correction, click-counter shape, ID gen, stampede insight. Full critique → [`problems/url-shortener.md`](problems/url-shortener.md). |
 
 Coverage = did all 6 framework stages get hit (clarify → estimate → API → schema → high-level → deep-dive → bottlenecks)? Communication = clarity, structure, signal density.
 

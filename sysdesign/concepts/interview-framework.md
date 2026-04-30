@@ -29,15 +29,24 @@
 
 ### Non-functional ("System should be / have…")
 - **Pick top 3-5, quantified.** "Be available" is useless; "feed loads in <200ms" is a target.
-- Use the **FCC + SLEDS** checklist to scan:
-  - **F** — Fault Tolerance: redundancy, failure modes
-  - **C** — CAP: consistency vs availability for this system?
-  - **C** — Compliance: GDPR / HIPAA / SOC2 if domain demands
-  - **S** — Scalability: peak QPS, data volume, growth rate
+- Use the **SCALDS + COO** checklist. Two lists, two purposes:
+
+**SCALDS — Stage 1 commitment set** (pick 3-5 from these and quantify each):
+  - **S** — Scalability: peak QPS, data volume, growth rate, hot-key skew
+  - **C** — Consistency: strong / eventual / causal / read-your-writes — per-operation
+  - **A** — Availability: uptime SLO, failure modes, failover (absorbs "fault tolerance" — same axis from the user's view)
   - **L** — Latency: p99 targets per operation
-  - **E** — Environment: mobile / battery / low-bandwidth / regions?
-  - **D** — Durability: how much data loss is acceptable?
-  - **S** — Security: data protection, access control
+  - **D** — Durability: data-loss tolerance per record-type
+  - **S** — Security: AuthN/Z, data protection, rate limits, abuse (absorbs "compliance" — GDPR/SOC2 is a security/regulatory constraint)
+
+**COO — Stage 5 must-volunteer set** (raise unprompted in Deep Dive even if not in your locked SCALDS):
+  - **C** — Cost: TCO at current scale + at 10×; what dominates the bill
+  - **O** — Observability: metrics, logs, traces, SLO/SLI; "how would you know it's broken?"
+  - **O** — Operability: deploy strategy, rollback, RPO/RTO, schema migrations on hot DBs
+
+> **Mental model:** "**SCALDS to commit, COO to volunteer.**" Stage 1 = pick from SCALDS + quantify. Stage 5 = address all three COO items unprompted alongside the SCALDS items you locked.
+
+- **Deployment context (not in the mnemonic, surface in Stage 1 separately):** global vs regional? mobile / battery / low-bandwidth? on-prem? Multi-region? These are *constraints* that drive design, not quality attributes per se — ask the PM upfront.
 
 ### Estimation (back-of-envelope)
 - **Default: skip.** Tell the interviewer "I'll do the math later if it affects the design."

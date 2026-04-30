@@ -6,7 +6,7 @@
 
 ## 🔒 Round agreement (was locked pre-mock)
 
-> Goal: complete all 5 stages, end-to-end. Stage 2 (Entities) explicitly executed. FCC + SLEDS scan visible in Stage 1. Pick *one* DB and stick with it (no engine-shopping mid-design).
+> Goal: complete all 5 stages, end-to-end. Stage 2 (Entities) explicitly executed. FCC + SLEDS scan visible in Stage 1. Pick *one* DB and stick with it (no engine-shopping mid-design). _(Note: Day 1 ran with the FCC+SLEDS mnemonic, which has since been replaced by **SCALDS + COO** — see `concepts/interview-framework.md`. Going forward, the scan = SCALDS in Stage 1, COO in Stage 5.)_
 
 **Day 1 calibration prioritized process over depth — better to land a complete working system than to perfect any single stage.** Goal achieved.
 
@@ -19,7 +19,7 @@
 2. Resolve short link → 302 redirect to long URL
 3. Collect & expose click statistics (public per-link, no auth gate)
 
-### Non-functional (quantified, FCC+SLEDS scanned)
+### Non-functional (quantified, FCC+SLEDS scanned — _historical: Day 1 used FCC+SLEDS_)
 | Letter | Requirement |
 |--------|-------------|
 | **L** | Read p99 < 200ms (NA region), write p99 < 1s |
@@ -36,7 +36,7 @@ Custom aliases · frontend · auth/signup (anonymous) · security/DDoS · multi-
 
 ### Process notes captured during Stage 1
 - Initial close was sloppy — had to be force-closed with explicit artifact list. **Drill: end Stage 1 with verbal sign-off "locking these three: [funcs] [NFRs] [OOS]."**
-- FCC+SLEDS partial scan — `E` and `D` only addressed when prompted. Both proved load-bearing (E: 200ms cross-continent RT impossible from one region; D: lost mapping = broken link forever).
+- FCC+SLEDS partial scan — `E` and `D` only addressed when prompted. Both proved load-bearing (E: 200ms cross-continent RT impossible from one region; D: lost mapping = broken link forever). _(Day 1 used FCC+SLEDS; framework has since been replaced with SCALDS+COO. Going forward the scan covers Cost / Observability / Operability — the three gaps that surfaced from Day 1.)_
 - Read QPS math 10× off (38K → 3.8K). Self-corrected after prompt.
 - Availability self-quoted at 99.9% but PM brief specified 99.95%. Locked at 99.95.
 
@@ -174,7 +174,7 @@ Round agreement met. All 5 stages closed end-to-end. Day 1 calibration goal achi
 1. **Asked to skip HLD entirely** — read as memorization in a real loop. Use "accelerated HLD" instead.
 2. **Vendor-specific naming** on first HLD pass (EKS / API Gateway / Deployment). Logical-first vocabulary needs muscle memory.
 3. **Stage 1 sloppy close** — required force-closure with explicit artifact list.
-4. **FCC + SLEDS partial scan** — `E`, `D`, second `C` skipped silently. E was load-bearing (cross-continent RT vs 200ms p99). Memorize before Day 2.
+4. **FCC + SLEDS partial scan** — `E`, `D`, second `C` skipped silently. E was load-bearing (cross-continent RT vs 200ms p99). _(Framework since replaced by SCALDS + COO; deployment context now surfaced separately. Memorize SCALDS recital before Day 2; add COO walk to Stage 5 going forward.)_
 5. **Math errors not pre-caught** — 38K vs 3.8K reads; base62 = 45 vs 62. Drill: 100M/mo → 40 w/s, 4K r/s @ 100:1; base62 = 62; 62⁶ ≈ 57B.
 6. **Hot-key on Redis required probing** — should self-volunteer anytime "burst" / "viral" / "popular" appears in NFRs.
 
@@ -196,7 +196,7 @@ Round agreement met. All 5 stages closed end-to-end. Day 1 calibration goal achi
 
 ## 🎯 Day 2 drill list (priority)
 
-1. **FCC + SLEDS memorization** — full recital target before Day 2 mock
+1. **SCALDS + COO memorization** — SCALDS recital cold (Stage 1 commit set: Scalability, Consistency, Availability, Latency, Durability, Security); COO recital cold (Stage 5 must-volunteer set: Cost, Observability, Operability). Drill before Day 2 mock.
 2. **Stage 1 closing ritual** — verbal sign-off with the 3 artifacts (top-3 funcs / 3-5 NFRs / OOS)
 3. **Vendor-neutral architecture vocabulary** — drill "logical-first" phrasing
 4. **Math canon (URL Shortener)** — 100M/mo → 40 w/s, 4K r/s @ 100:1; base62 = 62; 62⁶ ≈ 57B; 62⁷ ≈ 3.5T
