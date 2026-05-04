@@ -1,0 +1,1665 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Database Atlas — Postgres · Mongo · Cassandra · Redis · Elasticsearch · DynamoDB</title>
+<meta name="description" content="An interactive field guide to six databases for senior, staff, and tech-lead interview prep." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT,WONK@9..144,300..900,0..100,0..1&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+:root{
+  --ink-0:#0a0c11;
+  --ink-1:#10131b;
+  --ink-2:#161a24;
+  --ink-3:#1d2230;
+  --ink-4:#262c3d;
+  --line:#2b3144;
+  --line-soft:#222636;
+  --paper:#ece6d8;
+  --paper-2:#dcd4c1;
+  --text:#eae6dc;
+  --text-2:#b6b3a8;
+  --text-3:#7d8095;
+  --amber:#e8a45a;
+  --amber-2:#caa067;
+  --teal:#5fb5b1;
+  --rose:#e26d6d;
+  --leaf:#7fb573;
+  --plum:#b58cd9;
+  --pg:#5c8fb8;          /* postgres */
+  --mongo:#7fb573;       /* mongo */
+  --cassandra:#c98a51;   /* cassandra */
+  --redis:#e26d6d;       /* redis */
+  --elastic:#d9b94e;     /* elasticsearch */
+  --dynamo:#7aa2e6;      /* dynamodb */
+  --shadow: 0 1px 0 rgba(255,255,255,.04), 0 12px 36px -16px rgba(0,0,0,.7);
+  --r-1:6px; --r-2:10px; --r-3:16px;
+  --maxw:1180px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  background:
+    radial-gradient(1100px 700px at 100% -10%, rgba(232,164,90,0.07), transparent 60%),
+    radial-gradient(1000px 700px at -20% 30%, rgba(95,181,177,0.05), transparent 60%),
+    var(--ink-0);
+  color:var(--text);
+  font-family:"IBM Plex Sans","Helvetica Neue",sans-serif;
+  font-size:15.5px;
+  line-height:1.55;
+  -webkit-font-smoothing:antialiased;
+  font-feature-settings:"ss01","ss02","cv11";
+}
+a{color:var(--amber);text-decoration:none;border-bottom:1px solid rgba(232,164,90,.35)}
+a:hover{color:#fff;border-bottom-color:#fff}
+hr{border:0;border-top:1px solid var(--line-soft);margin:2.4rem 0}
+code,kbd,samp,.mono{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.92em}
+.mono{letter-spacing:.01em}
+.eyebrow{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--text-3)}
+h1,h2,h3,h4{font-family:"Fraunces",Georgia,serif;font-weight:600;color:#fff;letter-spacing:-.01em;margin:0 0 .5em}
+h1{font-size:clamp(2.4rem,4.4vw,3.6rem); font-variation-settings:"opsz" 144,"SOFT" 30,"WONK" 1; line-height:1.02; letter-spacing:-.025em}
+h2{font-size:clamp(1.6rem,2.4vw,2.1rem); font-variation-settings:"opsz" 96,"SOFT" 20; line-height:1.1; letter-spacing:-.018em}
+h3{font-size:1.2rem; font-variation-settings:"opsz" 36,"SOFT" 12; letter-spacing:-.01em}
+h4{font-size:1.02rem; font-family:"IBM Plex Sans"; text-transform:uppercase; letter-spacing:.12em; color:var(--text-2)}
+p{margin:0 0 .9em}
+.lede{font-family:"Fraunces",Georgia,serif; font-variation-settings:"opsz" 24,"SOFT" 30; font-size:1.18rem; line-height:1.45; color:var(--text-2); max-width:64ch}
+em{font-style:italic;color:#fff}
+strong{color:#fff;font-weight:600}
+section{padding:5.6rem 0; border-top:1px solid var(--line-soft); position:relative}
+section:first-of-type{border-top:0}
+.wrap{max-width:var(--maxw); margin:0 auto; padding:0 1.6rem}
+.label{font-family:"IBM Plex Mono",monospace; font-size:11px; color:var(--text-3); letter-spacing:.18em; text-transform:uppercase}
+.kicker{display:inline-block; font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.22em; text-transform:uppercase; color:var(--amber); padding:.32rem .6rem; border:1px solid rgba(232,164,90,.4); border-radius:99px}
+
+/* nav */
+.topbar{position:sticky; top:0; z-index:50; backdrop-filter:saturate(140%) blur(12px); background:rgba(10,12,17,.78); border-bottom:1px solid var(--line-soft)}
+.topbar .row{display:flex;align-items:center;gap:1rem; padding:.85rem 1.6rem; max-width:var(--maxw); margin:0 auto}
+.brand{font-family:"Fraunces",serif; font-variation-settings:"opsz" 96,"SOFT" 30,"WONK" 1; font-size:1.18rem; letter-spacing:-.01em}
+.brand .dot{display:inline-block; width:.55rem; height:.55rem; border-radius:50%; background:var(--amber); margin-right:.5rem; transform:translateY(-2px); box-shadow:0 0 0 4px rgba(232,164,90,.18)}
+nav.crumbs{margin-left:auto; display:flex; gap:1rem; flex-wrap:wrap}
+nav.crumbs a{font-family:"IBM Plex Mono",monospace; font-size:11.5px; letter-spacing:.16em; text-transform:uppercase; color:var(--text-2); border-bottom:0}
+nav.crumbs a:hover{color:#fff}
+
+/* cover */
+.cover{padding-top:6rem}
+.cover .grid{display:grid; grid-template-columns: 1.3fr 1fr; gap:3rem; align-items:end}
+@media (max-width:880px){ .cover .grid{grid-template-columns:1fr; gap:2rem} }
+.cover .meta{font-family:"IBM Plex Mono",monospace; color:var(--text-3); font-size:12px; letter-spacing:.16em; text-transform:uppercase}
+.cover .meta .pipe{margin:0 .55rem; opacity:.5}
+.cover h1 em{color:var(--amber); font-style:italic}
+.cover .lede{margin-top:1.6rem}
+.cover .specsheet{border:1px solid var(--line); border-radius:var(--r-2); padding:1.4rem 1.4rem 1rem; background:linear-gradient(180deg,rgba(255,255,255,.012),transparent)}
+.specsheet dl{display:grid; grid-template-columns:auto 1fr; gap:.45rem 1rem; margin:0; font-size:13.5px}
+.specsheet dt{color:var(--text-3); font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.18em; text-transform:uppercase; padding-top:.18rem}
+.specsheet dd{margin:0}
+.specsheet dd b{color:#fff}
+
+/* quick matrix */
+.matrix{overflow-x:auto; margin-top:1rem; border:1px solid var(--line); border-radius:var(--r-2); background:linear-gradient(180deg,rgba(255,255,255,.012),transparent)}
+.matrix table{width:100%; border-collapse:collapse; min-width:780px}
+.matrix th, .matrix td{padding:.72rem .9rem; text-align:left; border-bottom:1px solid var(--line-soft); vertical-align:top; font-size:13.5px}
+.matrix th{font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.18em; text-transform:uppercase; color:var(--text-3); background:rgba(255,255,255,.018)}
+.matrix th:first-child{position:sticky; left:0; background:rgba(20,24,33,.96)}
+.matrix td:first-child{position:sticky; left:0; background:rgba(20,24,33,.96); font-weight:600; color:#fff}
+.matrix td{color:var(--text-2)}
+.matrix tr:hover td{background:rgba(232,164,90,.04)}
+.dbpill{display:inline-flex; align-items:center; gap:.5rem; font-family:"IBM Plex Sans"; font-weight:600}
+.dbpill .swatch{width:8px; height:8px; border-radius:50%}
+
+/* per-db profile */
+.profiles{display:grid; gap:2rem}
+.profile{
+  position:relative;
+  border:1px solid var(--line);
+  border-radius:var(--r-3);
+  background:linear-gradient(180deg, rgba(255,255,255,.018), rgba(255,255,255,.004));
+  padding:1.8rem 1.8rem 1.6rem;
+  scroll-margin-top:80px;
+  box-shadow:var(--shadow);
+}
+.profile::before{
+  content:""; position:absolute; left:0; top:0; bottom:0; width:4px;
+  border-radius:var(--r-3) 0 0 var(--r-3);
+  background:var(--accent, var(--amber));
+}
+.profile[data-db="pg"]{--accent:var(--pg)}
+.profile[data-db="mongo"]{--accent:var(--mongo)}
+.profile[data-db="cassandra"]{--accent:var(--cassandra)}
+.profile[data-db="redis"]{--accent:var(--redis)}
+.profile[data-db="elastic"]{--accent:var(--elastic)}
+.profile[data-db="dynamo"]{--accent:var(--dynamo)}
+.profile .ph{display:flex; align-items:flex-start; justify-content:space-between; gap:1.4rem; flex-wrap:wrap}
+.profile h2{margin-bottom:.05em}
+.profile .sub{color:var(--text-2); margin:.1rem 0 0; font-family:"Fraunces"; font-style:italic; font-variation-settings:"opsz" 36,"SOFT" 30}
+.profile .badges{display:flex; gap:.4rem; flex-wrap:wrap}
+.badge{font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:.16em; text-transform:uppercase; padding:.32rem .55rem; border:1px solid var(--line); border-radius:99px; color:var(--text-2); background:rgba(255,255,255,.014)}
+.badge.ok{color:#cfe9b8; border-color:rgba(127,181,115,.3); background:rgba(127,181,115,.06)}
+.badge.warn{color:#f0c995; border-color:rgba(232,164,90,.35); background:rgba(232,164,90,.06)}
+.badge.bad{color:#f1b3b3; border-color:rgba(226,109,109,.4); background:rgba(226,109,109,.07)}
+.badge.cool{color:#bee0de; border-color:rgba(95,181,177,.3); background:rgba(95,181,177,.06)}
+.profile .deck{display:grid; grid-template-columns: 1.1fr 1fr; gap:1.6rem 2rem; margin-top:1.4rem}
+@media (max-width:880px){ .profile .deck{grid-template-columns:1fr} }
+.profile .quickfacts{display:grid; grid-template-columns:auto 1fr; gap:.4rem 1rem; font-size:13.5px}
+.profile .quickfacts dt{color:var(--text-3); font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:.16em; text-transform:uppercase; padding-top:.18rem}
+.profile .quickfacts dd{margin:0; color:var(--text)}
+.profile h4{margin:1.2rem 0 .3rem}
+.profile ul{margin:.2rem 0 .6rem; padding-left:1.05rem}
+.profile li{margin:.18rem 0; color:var(--text-2)}
+.profile li b{color:#fff}
+.split2{display:grid; grid-template-columns:1fr 1fr; gap:1rem 1.4rem}
+@media (max-width:720px){ .split2{grid-template-columns:1fr} }
+.gotcha{
+  border-left:2px solid var(--accent, var(--amber));
+  padding:.4rem .9rem; margin:.6rem 0;
+  color:var(--text-2); background:rgba(255,255,255,.018); border-radius:0 var(--r-1) var(--r-1) 0;
+  font-size:13.8px;
+}
+.gotcha b{color:#fff}
+
+/* labs */
+.lab{border:1px solid var(--line); border-radius:var(--r-3); padding:1.6rem 1.6rem 1.4rem; background:linear-gradient(180deg,rgba(255,255,255,.018),rgba(255,255,255,.004)); box-shadow:var(--shadow); margin-bottom:1.6rem}
+.lab .lh{display:flex; align-items:flex-start; justify-content:space-between; gap:1rem; flex-wrap:wrap}
+.lab h3{margin:0}
+.lab .lh .meta{font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.18em; text-transform:uppercase; color:var(--text-3)}
+.lab .body{display:grid; grid-template-columns:1fr 1fr; gap:1.6rem; margin-top:1rem}
+@media (max-width:880px){ .lab .body{grid-template-columns:1fr} }
+.controls{display:grid; gap:.9rem}
+.ctrl{display:grid; gap:.35rem}
+.ctrl label{font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:var(--text-3); display:flex; justify-content:space-between; align-items:center}
+.ctrl label .v{color:var(--amber); letter-spacing:.04em}
+input[type=range]{
+  -webkit-appearance:none; appearance:none; width:100%; height:24px; background:transparent;
+}
+input[type=range]::-webkit-slider-runnable-track{height:4px; background:var(--ink-3); border-radius:99px}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none; appearance:none; width:18px; height:18px; border-radius:50%; background:var(--amber); border:3px solid var(--ink-0); margin-top:-7px; cursor:pointer; box-shadow:0 0 0 1px rgba(232,164,90,.5)}
+input[type=range]::-moz-range-track{height:4px; background:var(--ink-3); border-radius:99px}
+input[type=range]::-moz-range-thumb{width:18px; height:18px; border-radius:50%; background:var(--amber); border:3px solid var(--ink-0); cursor:pointer}
+select, input[type=number], input[type=text]{
+  background:var(--ink-2); color:var(--text); border:1px solid var(--line); border-radius:var(--r-1);
+  padding:.55rem .7rem; font-family:"IBM Plex Mono",monospace; font-size:13px;
+}
+.seg{display:inline-flex; padding:3px; border:1px solid var(--line); border-radius:99px; gap:2px; background:var(--ink-2)}
+.seg button{background:transparent; border:0; color:var(--text-2); padding:.4rem .85rem; font-family:"IBM Plex Mono",monospace; font-size:11.5px; letter-spacing:.14em; text-transform:uppercase; border-radius:99px; cursor:pointer}
+.seg button.on{background:var(--amber); color:#1a140a; font-weight:600}
+.readout{display:grid; grid-template-columns:1fr 1fr; gap:.6rem; margin-top:.7rem}
+.read{border:1px solid var(--line); border-radius:var(--r-2); padding:.7rem .9rem; background:rgba(255,255,255,.014)}
+.read .k{font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:.18em; text-transform:uppercase; color:var(--text-3)}
+.read .v{font-family:"Fraunces",serif; font-variation-settings:"opsz" 96,"SOFT" 20; font-size:1.5rem; color:#fff; line-height:1.1; margin-top:.15rem}
+.read.bad .v{color:#f1b3b3}
+.read.ok .v{color:#cfe9b8}
+.read.warn .v{color:#f0c995}
+.note{font-size:12.5px; color:var(--text-3); margin-top:.6rem; line-height:1.5}
+.bar{height:6px; background:var(--ink-3); border-radius:99px; overflow:hidden; margin-top:.4rem}
+.bar > i{display:block; height:100%; background:linear-gradient(90deg,var(--amber),var(--rose)); transition:width .25s ease}
+.tag{font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--text-3)}
+table.cmp{width:100%; border-collapse:collapse; font-size:13px}
+table.cmp th, table.cmp td{padding:.55rem .7rem; border-bottom:1px solid var(--line-soft); text-align:left}
+table.cmp th{font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:.18em; text-transform:uppercase; color:var(--text-3)}
+.recommend{display:flex; gap:.5rem; flex-wrap:wrap; margin-top:.6rem}
+.rec-pill{display:inline-flex; align-items:center; gap:.5rem; border:1px solid var(--line); border-radius:99px; padding:.4rem .8rem; background:rgba(255,255,255,.018)}
+.rec-pill .swatch{width:8px; height:8px; border-radius:50%}
+.rec-pill .score{font-family:"IBM Plex Mono",monospace; font-size:11px; color:var(--amber); letter-spacing:.04em}
+
+/* CAP plot */
+.cap-frame{border:1px solid var(--line); border-radius:var(--r-2); background:rgba(255,255,255,.014); padding:1rem; aspect-ratio:1.1/1}
+.cap-frame svg{width:100%; height:auto; display:block}
+.cap-axis{stroke:var(--line); stroke-width:1}
+.cap-grid{stroke:var(--line-soft); stroke-width:.5; stroke-dasharray:2,4}
+.cap-label{fill:var(--text-3); font-family:"IBM Plex Mono",monospace; font-size:10px; letter-spacing:.16em; text-transform:uppercase}
+.cap-edge{fill:none; stroke:var(--line); stroke-width:1}
+.cap-corner{fill:#fff; font-family:"Fraunces",serif; font-style:italic; font-size:14px; font-variation-settings:"opsz" 24}
+.cap-pt{transition:transform .2s ease}
+.cap-pt:hover{transform:scale(1.4)}
+
+/* topology */
+.topo{border:1px solid var(--line); border-radius:var(--r-2); background:rgba(255,255,255,.014); padding:1rem; min-height:280px}
+.topo svg{width:100%; height:auto; display:block}
+.node{transition:fill .2s ease}
+.edge{stroke-dasharray:4,4; stroke:var(--text-3); animation:dash 1.4s linear infinite}
+.edge.fast{animation-duration:.7s}
+.edge.slow{animation-duration:2.2s}
+.edge.sync{stroke-dasharray:0; stroke:var(--leaf)}
+.edge.async{stroke:var(--amber)}
+.edge.gossip{stroke:var(--plum)}
+@keyframes dash{to{stroke-dashoffset:-16}}
+
+/* Q&A */
+details.qa{border:1px solid var(--line); border-radius:var(--r-2); background:rgba(255,255,255,.012); padding:0; margin:.6rem 0; overflow:hidden}
+details.qa[open]{background:rgba(232,164,90,.04); border-color:rgba(232,164,90,.35)}
+details.qa summary{cursor:pointer; padding:.95rem 1.1rem; list-style:none; display:flex; gap:.7rem; align-items:center; font-family:"Fraunces",serif; font-variation-settings:"opsz" 36; font-size:1.04rem; color:#fff}
+details.qa summary::-webkit-details-marker{display:none}
+details.qa summary::before{content:""; width:8px; height:8px; border-right:2px solid var(--amber); border-bottom:2px solid var(--amber); transform:rotate(-45deg); transition:transform .2s ease; flex-shrink:0; margin-left:.2rem}
+details.qa[open] summary::before{transform:rotate(45deg)}
+details.qa .ans{padding:0 1.1rem 1rem 2rem; color:var(--text-2); font-size:14px; line-height:1.55}
+details.qa .ans p{margin:.4rem 0}
+details.qa .ans b{color:#fff}
+
+/* decision tree */
+.tree{border:1px solid var(--line); border-radius:var(--r-2); padding:1.2rem; background:rgba(255,255,255,.012)}
+.q{margin-bottom:.7rem}
+.q .qt{font-family:"Fraunces",serif; font-variation-settings:"opsz" 36; font-size:1.05rem; color:#fff; margin-bottom:.35rem}
+.q .opts{display:flex; gap:.5rem; flex-wrap:wrap}
+.opts button{
+  background:rgba(255,255,255,.02); color:var(--text-2);
+  border:1px solid var(--line); border-radius:99px;
+  padding:.45rem .85rem; font-family:"IBM Plex Mono",monospace;
+  font-size:11.5px; letter-spacing:.12em; text-transform:uppercase; cursor:pointer;
+}
+.opts button:hover{color:#fff; border-color:var(--text-3)}
+.opts button.on{background:var(--amber); color:#1a140a; border-color:var(--amber); font-weight:600}
+.scoreboard{margin-top:1rem; display:grid; gap:.5rem}
+.score-row{display:grid; grid-template-columns: 1fr auto; align-items:center; gap:.8rem}
+.score-row .name{display:inline-flex; align-items:center; gap:.5rem; font-weight:600; color:#fff}
+.score-row .name .swatch{width:8px; height:8px; border-radius:50%}
+.score-row .meter{height:8px; background:var(--ink-3); border-radius:99px; position:relative; min-width:120px; max-width:340px; flex:1; margin-left:.6rem}
+.score-row .meter > i{display:block; height:100%; background:linear-gradient(90deg,var(--amber),var(--leaf)); border-radius:99px; transition:width .35s ease}
+.score-row .pct{font-family:"IBM Plex Mono",monospace; font-size:12px; color:var(--amber)}
+
+/* footer */
+footer{padding:3rem 0 5rem; color:var(--text-3); font-size:13px}
+footer .wrap{display:flex; justify-content:space-between; gap:2rem; flex-wrap:wrap}
+.colophon{font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.16em; text-transform:uppercase}
+.print{margin-top:1rem; font-family:"Fraunces",serif; font-variation-settings:"opsz" 24,"SOFT" 30; font-style:italic; color:var(--text-2)}
+
+/* anchor offset for sticky */
+:target{scroll-margin-top:80px}
+
+/* utility */
+.row{display:flex; gap:1rem; flex-wrap:wrap}
+.muted{color:var(--text-3)}
+.amber{color:var(--amber)}
+.cap-letter{fill:var(--amber); font-family:"Fraunces",serif; font-style:italic; font-size:18px}
+.tip{font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.14em; color:var(--text-3); text-transform:uppercase}
+.divider{display:block; height:1px; background:linear-gradient(90deg,transparent,var(--line),transparent); margin:1.4rem 0}
+.callout{
+  border:1px dashed var(--line); border-radius:var(--r-2);
+  padding:1rem 1.2rem; background:rgba(232,164,90,.04);
+  font-size:14px; color:var(--text-2);
+}
+.callout b{color:#fff}
+.tab-row{display:flex; gap:.4rem; flex-wrap:wrap; margin-bottom:.8rem}
+.tab-row button{
+  background:transparent; border:1px solid var(--line); color:var(--text-2);
+  padding:.4rem .8rem; border-radius:99px; cursor:pointer;
+  font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.14em; text-transform:uppercase;
+}
+.tab-row button.on{background:var(--amber); color:#1a140a; border-color:var(--amber); font-weight:600}
+.tab-row button .swatch{display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:.4rem}
+@media print{
+  body{background:#fff; color:#222}
+  .topbar, footer, .lab, .tree{display:none}
+}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="row">
+    <div class="brand"><span class="dot"></span>Database Atlas</div>
+    <nav class="crumbs">
+      <a href="#matrix">Matrix</a>
+      <a href="#profiles">Profiles</a>
+      <a href="#labs">Labs</a>
+      <a href="#decision">Decide</a>
+      <a href="#qa">Interview Q&amp;A</a>
+    </nav>
+  </div>
+</header>
+
+<!-- COVER -->
+<section class="cover">
+  <div class="wrap">
+    <div class="grid">
+      <div>
+        <div class="meta">Vol. I <span class="pipe">·</span> Field guide for staff &amp; tech-lead candidates <span class="pipe">·</span> 2026</div>
+        <h1 style="margin-top:1rem">A field guide to <em>six</em> databases &mdash;<br/>and the trade-offs they hide.</h1>
+        <p class="lede">A senior-level interview turns on choices, not trivia. This atlas covers the architectures, consistency knobs, scaling models, and operational pitfalls of <strong>Postgres, MongoDB, Cassandra, Redis, Elasticsearch,</strong> and <strong>DynamoDB</strong>&mdash;then lets you pull the levers yourself.</p>
+        <p class="muted" style="margin-top:1rem; max-width:60ch">Six engines covers ~90% of the systems you&rsquo;ll be asked to defend in a system-design loop. Depth beats breadth: the goal is to make a defensible choice, justify it, and know exactly where it breaks.</p>
+      </div>
+      <aside class="specsheet">
+        <div class="eyebrow" style="margin-bottom:.8rem">How to use this</div>
+        <dl>
+          <dt>Read</dt><dd><b>Quick matrix</b> for orientation, then per-DB profile.</dd>
+          <dt>Play</dt><dd><b>Labs</b> let you tune CAP, capacity, and quorums.</dd>
+          <dt>Drill</dt><dd><b>Q&amp;A</b> covers the questions interviewers actually ask.</dd>
+          <dt>Decide</dt><dd><b>DB Picker</b> ranks fits against your scenario.</dd>
+        </dl>
+        <div class="divider"></div>
+        <div class="eyebrow" style="margin-bottom:.4rem">Six engines, six colors</div>
+        <div style="display:flex;flex-wrap:wrap;gap:.4rem 1rem; font-size:13px">
+          <span class="dbpill"><span class="swatch" style="background:var(--pg)"></span>Postgres</span>
+          <span class="dbpill"><span class="swatch" style="background:var(--mongo)"></span>MongoDB</span>
+          <span class="dbpill"><span class="swatch" style="background:var(--cassandra)"></span>Cassandra</span>
+          <span class="dbpill"><span class="swatch" style="background:var(--redis)"></span>Redis</span>
+          <span class="dbpill"><span class="swatch" style="background:var(--elastic)"></span>Elasticsearch</span>
+          <span class="dbpill"><span class="swatch" style="background:var(--dynamo)"></span>DynamoDB</span>
+        </div>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<!-- QUICK MATRIX -->
+<section id="matrix">
+  <div class="wrap">
+    <span class="kicker">§ 01 &nbsp;Quick Reference</span>
+    <h2 style="margin-top:.7rem">The matrix &mdash; six engines, fifteen seconds.</h2>
+    <p class="lede" style="margin-bottom:1.4rem">Not a tier list. A coordinate system. Look up where each engine sits before you commit to one in an interview.</p>
+    <div class="matrix">
+      <table>
+        <thead><tr>
+          <th>&nbsp;</th><th>Category</th><th>Default CAP</th><th>Default consistency</th><th>Scaling</th><th>Indexing</th><th>Sweet spot</th><th>Anti-pattern</th>
+        </tr></thead>
+        <tbody>
+          <tr>
+            <td><span class="dbpill"><span class="swatch" style="background:var(--pg)"></span>Postgres</span></td>
+            <td>Relational (ORDBMS)</td><td>CP &mdash; single-primary</td><td>Serializable available; default Read Committed</td>
+            <td>Vertical + read replicas; Citus for sharding</td>
+            <td>B-tree, GIN, GiST, BRIN, hash</td>
+            <td>OLTP, complex queries, integrity-critical</td>
+            <td>Linear write fan-out across shards</td>
+          </tr>
+          <tr>
+            <td><span class="dbpill"><span class="swatch" style="background:var(--mongo)"></span>MongoDB</span></td>
+            <td>Document (BSON)</td><td>CP &mdash; tunable</td><td>w:majority + linearizable reads available</td>
+            <td>Replica sets + sharding by shard key</td>
+            <td>Compound, multikey, text, geo, TTL</td>
+            <td>Polymorphic docs, fast iteration</td>
+            <td>Highly relational + cross-shard txns</td>
+          </tr>
+          <tr>
+            <td><span class="dbpill"><span class="swatch" style="background:var(--cassandra)"></span>Cassandra</span></td>
+            <td>Wide-column (BigTable)</td><td>AP &mdash; tunable per query</td><td>QUORUM if R+W&gt;RF; else eventual</td>
+            <td>Linear horizontal; masterless ring</td>
+            <td>Partition + clustering keys; weak 2ndary</td>
+            <td>Massive writes, time-series, multi-DC</td>
+            <td>Ad-hoc queries, joins, mutating txns</td>
+          </tr>
+          <tr>
+            <td><span class="dbpill"><span class="swatch" style="background:var(--redis)"></span>Redis</span></td>
+            <td>In-memory KV (data structures)</td><td>CP w/ Sentinel; AP w/ Cluster</td><td>Async repl by default; <code>WAIT</code> for sync</td>
+            <td>Cluster: 16,384 hash slots</td>
+            <td>None on values; sorted-set keys</td>
+            <td>Cache, sessions, leaderboards, queues</td>
+            <td>Primary store w/o explicit persistence design</td>
+          </tr>
+          <tr>
+            <td><span class="dbpill"><span class="swatch" style="background:var(--elastic)"></span>Elasticsearch</span></td>
+            <td>Search (Lucene, doc-oriented)</td><td>AP-leaning, near-real-time</td><td>Refresh-bounded (default 1s)</td>
+            <td>Shards fixed at index creation; tiers</td>
+            <td>Inverted index, doc values, dense_vector</td>
+            <td>Search, log analytics, observability</td>
+            <td>Source of truth, OLTP, heavy updates</td>
+          </tr>
+          <tr>
+            <td><span class="dbpill"><span class="swatch" style="background:var(--dynamo)"></span>DynamoDB</span></td>
+            <td>Managed KV/document</td><td>AP default; CP-tunable</td><td>Eventual default; strong &amp; transactional opt-in</td>
+            <td>Auto-partitioned by key; serverless</td>
+            <td>PK + sort key; GSI/LSI</td>
+            <td>Predictable key access at hyperscale</td>
+            <td>Ad-hoc queries, large items, late modeling</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="note" style="margin-top:.9rem">CAP is a coarse map; <a href="#cap">PACELC</a> (else, latency vs. consistency) is the more honest rubric. The matrix shows defaults &mdash; tunability is the whole point of the labs below.</p>
+  </div>
+</section>
+
+<!-- PROFILES -->
+<section id="profiles">
+  <div class="wrap">
+    <span class="kicker">§ 02 &nbsp;Engine Profiles</span>
+    <h2 style="margin-top:.7rem">Six profiles. Each one defensible.</h2>
+    <p class="lede" style="margin-bottom:1.6rem">The fastest way to lose a system-design loop is to wave at &ldquo;NoSQL&rdquo; and hope. Each engine has a personality, a write path, and a place where it falls over.</p>
+
+    <div class="profiles">
+
+      <!-- POSTGRES -->
+      <article class="profile" data-db="pg" id="pg">
+        <div class="ph">
+          <div>
+            <div class="eyebrow">Relational · Single-primary · MVCC</div>
+            <h2 style="margin-top:.3rem">PostgreSQL</h2>
+            <p class="sub">The default answer that&rsquo;s correct more often than people admit.</p>
+          </div>
+          <div class="badges">
+            <span class="badge ok">ACID</span>
+            <span class="badge ok">SERIALIZABLE</span>
+            <span class="badge cool">JSONB</span>
+            <span class="badge warn">Vertical-first</span>
+          </div>
+        </div>
+
+        <div class="deck">
+          <div>
+            <h4>Architecture</h4>
+            <p>Single primary, one or more <b>streaming replicas</b> (async by default, synchronous available per-transaction). Writes go to <b>WAL</b>, then heap; reads use <b>MVCC</b> (each row is multi-versioned by transaction ID; old versions reclaimed by <code>VACUUM</code>).</p>
+            <p>Logical replication enables per-table replication and zero-downtime upgrades. <b>Citus</b> (now Microsoft) bolts on sharding for OLAP/OLTP fan-out; for hyperscale, <b>CockroachDB</b>/<b>Yugabyte</b>/<b>Aurora</b> reimplement the wire protocol on a distributed engine.</p>
+
+            <h4>Consistency &amp; Transactions</h4>
+            <p>Full ACID. <b>Read Committed</b> default; <b>Repeatable Read</b> is snapshot isolation; <b>Serializable</b> is true SSI (Serializable Snapshot Isolation) &mdash; rare among open-source engines. Cross-row, cross-table guarantees just work.</p>
+
+            <h4>Indexing</h4>
+            <p>B-tree, hash, <b>GIN</b> (inverted, great for JSONB / arrays / FTS), <b>GiST</b> (geometric, FTS, fuzzy), <b>BRIN</b> (block-range, cheap for time-series), expression, partial, covering (<code>INCLUDE</code>). <b>pg_trgm</b> for similarity search; <b>pgvector</b> for embeddings.</p>
+          </div>
+
+          <div>
+            <h4>Scalability</h4>
+            <ul>
+              <li><b>Vertical first.</b> A modern node can do 100k+ TPS comfortably.</li>
+              <li><b>Read replicas</b> scale reads linearly &mdash; mind replication lag for read-after-write.</li>
+              <li><b>Connection bottleneck:</b> use <b>PgBouncer</b> (transaction pooling) before you scale up.</li>
+              <li><b>Partitioning</b> (declarative, by range/list/hash) for big tables; pair with BRIN.</li>
+              <li>Sharding requires app-level work or Citus; not native.</li>
+            </ul>
+
+            <h4>Operational reality</h4>
+            <ul>
+              <li><b>Vacuum</b> debt: long transactions block cleanup; bloat eats disk and slows scans.</li>
+              <li><b>txid wraparound</b> is the boogeyman; autovacuum mostly handles it.</li>
+              <li><b>Failover</b> is not built-in; needs Patroni/Stolon/RDS multi-AZ.</li>
+              <li>HOT updates avoid index rewrite when no indexed column changes.</li>
+            </ul>
+
+            <h4>Best fits / Anti-patterns</h4>
+            <div class="split2">
+              <div><b style="color:var(--leaf)">Use it for</b><br/><span class="muted">OLTP, integrity-critical writes, complex joins, geospatial (PostGIS), small-mid analytics, JSONB-tinged hybrid models.</span></div>
+              <div><b style="color:var(--rose)">Avoid for</b><br/><span class="muted">Petabyte write fan-out, multi-region active-active, mutable schema-less workloads at extreme scale.</span></div>
+            </div>
+            <div class="gotcha"><b>Interview gotcha:</b> The default isolation level is <i>Read Committed</i>, not Serializable. Saying &ldquo;Postgres is fully ACID&rdquo; without picking the level is a yellow flag at staff. Also: you don&rsquo;t &ldquo;scale Postgres horizontally&rdquo; &mdash; you scale reads, partition tables, and route by tenant.</div>
+          </div>
+        </div>
+      </article>
+
+      <!-- MONGODB -->
+      <article class="profile" data-db="mongo" id="mongo">
+        <div class="ph">
+          <div>
+            <div class="eyebrow">Document · Replica sets + sharding · WiredTiger</div>
+            <h2 style="margin-top:.3rem">MongoDB</h2>
+            <p class="sub">Document-shaped data and a shard key you&rsquo;d better get right.</p>
+          </div>
+          <div class="badges">
+            <span class="badge ok">ACID (multi-doc)</span>
+            <span class="badge cool">Causal consistency</span>
+            <span class="badge warn">Shard-key-sensitive</span>
+            <span class="badge bad">16 MB doc cap</span>
+          </div>
+        </div>
+
+        <div class="deck">
+          <div>
+            <h4>Architecture</h4>
+            <p>A <b>replica set</b> = 1 primary + N secondaries with an oplog. Writes go to primary, replicate to secondaries; secondary heartbeats elect a new primary on failure (Raft-like, since 3.4).</p>
+            <p>A <b>sharded cluster</b> adds <b>config servers</b> (themselves a replica set), one or more <b>shards</b> (each its own replica set), and <b>mongos</b> routers that pre-process queries and broadcast or target by shard key. Storage is <b>WiredTiger</b> &mdash; B-tree, MVCC, document-level locking.</p>
+
+            <h4>Consistency &amp; Transactions</h4>
+            <p>Two knobs: <b>write concern</b> (<code>w:1</code> &mdash; primary only, fast; <code>w:majority</code> &mdash; durable, slower) and <b>read concern</b> (<code>local</code>, <code>majority</code>, <code>linearizable</code>, <code>snapshot</code>). <b>Causal sessions</b> guarantee read-your-writes across primary+secondaries.</p>
+            <p>Multi-document ACID since <b>4.0</b> (replica sets) and <b>4.2</b> (sharded). Real, but: latency cost is real, and txns spanning shards are coordinator-heavy. Treat them as a tool, not a pattern.</p>
+
+            <h4>Indexing</h4>
+            <p>B-tree-style. Compound, multikey (auto on arrays), <b>text</b> (basic), <b>2dsphere</b> (geo), <b>partial</b>, <b>TTL</b>, <b>wildcard</b> (catch-all on dynamic fields), Atlas Search bridges to Lucene.</p>
+          </div>
+
+          <div>
+            <h4>Scalability</h4>
+            <ul>
+              <li><b>Shard key is the architecture.</b> Bad shard key = hot shard, query broadcast, rebalance hell.</li>
+              <li>Hashed shard key spreads writes; ranged supports range queries but risks hot shards on monotonic keys.</li>
+              <li><b>Zone sharding</b> pins ranges to nodes (e.g., region locality).</li>
+              <li>Reads from secondaries scale read throughput &mdash; at the cost of staleness.</li>
+            </ul>
+
+            <h4>Operational reality</h4>
+            <ul>
+              <li><b>Resharding</b> is now online (4.4+) but expensive; pre-plan.</li>
+              <li>Document size cap (<b>16 MB</b>) drives schema choices &mdash; use GridFS for blobs.</li>
+              <li>Oplog window: too short = secondary rebuild on restart; too long = wasted disk.</li>
+              <li>Atlas hides much of this; self-managed is more work than people expect.</li>
+            </ul>
+
+            <h4>Best fits / Anti-patterns</h4>
+            <div class="split2">
+              <div><b style="color:var(--leaf)">Use it for</b><br/><span class="muted">User profiles, content, catalogs, telemetry with rich nesting, fast iteration on schema.</span></div>
+              <div><b style="color:var(--rose)">Avoid for</b><br/><span class="muted">Heavy joins, cross-shard transactions at scale, strict cost-of-consistency budgets.</span></div>
+            </div>
+            <div class="gotcha"><b>Interview gotcha:</b> When asked &ldquo;why Mongo?&rdquo;, never say &ldquo;it&rsquo;s schemaless.&rdquo; It isn&rsquo;t &mdash; the schema lives in the application. Better answer: <i>document-shaped data, replica-set HA, predictable scaling once we&rsquo;ve modeled the access pattern around the shard key.</i></div>
+          </div>
+        </div>
+      </article>
+
+      <!-- CASSANDRA -->
+      <article class="profile" data-db="cassandra" id="cassandra">
+        <div class="ph">
+          <div>
+            <div class="eyebrow">Wide-column · Masterless · LSM</div>
+            <h2 style="margin-top:.3rem">Apache Cassandra</h2>
+            <p class="sub">Linear-scale writes, gossip-coordinated, opinionated to the bone.</p>
+          </div>
+          <div class="badges">
+            <span class="badge ok">Linear write scale</span>
+            <span class="badge cool">Tunable per query</span>
+            <span class="badge warn">Query-first modeling</span>
+            <span class="badge bad">No joins</span>
+          </div>
+        </div>
+
+        <div class="deck">
+          <div>
+            <h4>Architecture</h4>
+            <p><b>Peer-to-peer ring.</b> Every node is identical; coordination via <b>gossip</b>. Data placed on the ring by <b>consistent hashing</b> over the partition key, with <b>vnodes</b> (256/node by default) so additions and failures rebalance smoothly. <b>Replication factor (RF)</b> is per-keyspace; placement is rack/DC-aware via <code>NetworkTopologyStrategy</code>.</p>
+            <p>Storage is an <b>LSM tree</b>: writes hit the <b>commit log</b> + an in-memory <b>memtable</b>, flushed periodically to <b>SSTables</b>; reads merge candidates and use bloom filters. <b>Compaction</b> (size-tiered, leveled, or time-window) is the engine&rsquo;s ongoing tax.</p>
+
+            <h4>Consistency model</h4>
+            <p>Per-query consistency level: <code>ANY</code>, <code>ONE</code>, <code>LOCAL_ONE</code>, <code>QUORUM</code>, <code>LOCAL_QUORUM</code>, <code>EACH_QUORUM</code>, <code>ALL</code>. <b>Strong consistency holds when R + W &gt; RF</b> (most teams: RF=3, R=W=QUORUM=2). Multi-DC apps almost always use <code>LOCAL_QUORUM</code>.</p>
+            <p><b>Lightweight Transactions (LWT)</b> use Paxos for compare-and-set on a single partition &mdash; useful but slow (multi-round trip). No general ACID; no joins; aggregation is best done in app or batch pipeline.</p>
+
+            <h4>Indexing</h4>
+            <p>Primary key = <b>partition key + clustering columns</b>. Within a partition, rows are sorted by clustering columns (so range scans inside a partition are cheap). Secondary indexes exist; they&rsquo;re <i>local</i> per node and slow at scale &mdash; design tables per query instead. <b>SAI</b> (Storage-Attached Indexes, 5.0) improves this materially.</p>
+          </div>
+
+          <div>
+            <h4>Scalability</h4>
+            <ul>
+              <li><b>Linear writes</b> &mdash; doubling nodes ~doubles write throughput.</li>
+              <li>Reads scale similarly but read amp can hurt on wide partitions / many SSTables.</li>
+              <li><b>Multi-DC active-active</b> is a first-class deployment, not an afterthought.</li>
+            </ul>
+
+            <h4>Operational reality</h4>
+            <ul>
+              <li><b>Tombstones</b> from deletes/TTLs can slow reads dramatically (<code>tombstone_warn_threshold</code> exists for a reason).</li>
+              <li><b>Repair</b> (anti-entropy via Merkle trees) is mandatory; mishandled, it overloads the cluster.</li>
+              <li><b>Hot partitions</b> are the #1 design failure &mdash; partition keys must spread writes.</li>
+              <li>JVM tuning still matters; off-heap and chunk caches help.</li>
+            </ul>
+
+            <h4>Best fits / Anti-patterns</h4>
+            <div class="split2">
+              <div><b style="color:var(--leaf)">Use it for</b><br/><span class="muted">Time-series, IoT, audit/event logs, write-heavy feeds, multi-region with regional locality.</span></div>
+              <div><b style="color:var(--rose)">Avoid for</b><br/><span class="muted">Ad-hoc analytics, multi-row mutations, small datasets, transactional workflows.</span></div>
+            </div>
+            <div class="gotcha"><b>Interview gotcha:</b> Cassandra is <i>query-first</i>. You don&rsquo;t model entities and relationships and then write queries; you write the queries first and design tables to serve them &mdash; possibly duplicating data across tables. Saying &ldquo;we&rsquo;ll join later&rdquo; is the staff-level red flag.</div>
+          </div>
+        </div>
+      </article>
+
+      <!-- REDIS -->
+      <article class="profile" data-db="redis" id="redis">
+        <div class="ph">
+          <div>
+            <div class="eyebrow">In-memory · Single-thread per shard · Cluster slots</div>
+            <h2 style="margin-top:.3rem">Redis</h2>
+            <p class="sub">A toolbox of data structures that happens to be a server.</p>
+          </div>
+          <div class="badges">
+            <span class="badge cool">Sub-ms latency</span>
+            <span class="badge ok">Atomic ops</span>
+            <span class="badge warn">Async repl by default</span>
+            <span class="badge warn">RAM-bounded</span>
+          </div>
+        </div>
+
+        <div class="deck">
+          <div>
+            <h4>Architecture</h4>
+            <p>A <b>single-threaded event loop</b> per shard (multi-thread I/O exists for parsing/output, not for command execution). <b>Sentinel</b> provides leader election + failover for non-clustered HA. <b>Cluster</b> partitions the key space across <b>16,384 hash slots</b>; each slot lives on one master + N replicas. Clients are slot-aware (CRC16(key) mod 16384), with <code>MOVED</code>/<code>ASK</code> redirects on resharding.</p>
+            <p>Persistence: <b>RDB</b> snapshots (point-in-time, fork-and-dump), <b>AOF</b> append-only file with rewriting (always/everysec/no fsync). Most teams enable both: AOF for durability, RDB for fast restart.</p>
+
+            <h4>Data structures (the actual reason)</h4>
+            <p>Strings, Lists, Hashes, Sets, Sorted Sets (skiplist + hash &mdash; the leaderboard structure), Streams (since 5.0; consumer groups), Bitmaps, HyperLogLog (cardinality with ~0.8% error), Geospatial (geohash on a sorted set), Pub/Sub, Functions (server-side Lua/Wasm). Redis-Cell, Bloom filters via modules.</p>
+          </div>
+
+          <div>
+            <h4>Consistency &amp; durability</h4>
+            <ul>
+              <li><b>Async replication by default</b> &mdash; primary acks before replicas confirm. <code>WAIT n ms</code> approximates synchronous writes.</li>
+              <li><b>MULTI/EXEC</b> queues commands atomically (no rollback). <b>Lua scripts</b> run atomically end-to-end &mdash; the real transaction primitive.</li>
+              <li>Failover loses non-replicated writes; budget for it.</li>
+              <li><b>Cluster split-brain:</b> <code>cluster-require-full-coverage</code> + quorum sizing.</li>
+            </ul>
+
+            <h4>Scalability</h4>
+            <ul>
+              <li>Single shard ≈ one CPU core. Throughput is bounded by <b>request rate</b> and <b>RAM</b>.</li>
+              <li>Cluster scales linearly across shards; pipeline + multi-key ops within a slot only.</li>
+              <li>Hot key kills you &mdash; shard, randomize, or precompute.</li>
+            </ul>
+
+            <h4>Best fits / Anti-patterns</h4>
+            <div class="split2">
+              <div><b style="color:var(--leaf)">Use it for</b><br/><span class="muted">Cache (the canonical use), session store, rate limiting, leaderboards, queues (Streams), distributed locks (with Redlock caveats), real-time counters.</span></div>
+              <div><b style="color:var(--rose)">Avoid for</b><br/><span class="muted">Source-of-truth without explicit durability + ops design, large objects (multi-MB strings), workloads bound by disk economics.</span></div>
+            </div>
+            <div class="gotcha"><b>Interview gotcha:</b> &ldquo;Redis as the database&rdquo; is fine if you can speak to AOF tuning, replication, RDB recovery, and the shape of the failure on power-loss. <b>Redlock</b> for distributed locks is contested (Kleppmann/Antirez debate); know it. Cluster transactions &amp; multi-key ops require keys in the same slot &mdash; <b>hash tags</b> (<code>{user:42}:cart</code>) are the lever.</div>
+          </div>
+        </div>
+      </article>
+
+      <!-- ELASTICSEARCH -->
+      <article class="profile" data-db="elastic" id="elastic">
+        <div class="ph">
+          <div>
+            <div class="eyebrow">Search · Lucene · Inverted index</div>
+            <h2 style="margin-top:.3rem">Elasticsearch</h2>
+            <p class="sub">A search engine that some teams pretend is a database.</p>
+          </div>
+          <div class="badges">
+            <span class="badge ok">Full-text + vector</span>
+            <span class="badge cool">Near-real-time</span>
+            <span class="badge warn">Reindex to reshard</span>
+            <span class="badge bad">Not a system of record</span>
+          </div>
+        </div>
+
+        <div class="deck">
+          <div>
+            <h4>Architecture</h4>
+            <p>A cluster has <b>master-eligible</b>, <b>data</b> (hot/warm/cold/frozen tiered since 7.x), <b>ingest</b>, <b>coordinating</b>, and <b>ML</b> nodes. An <b>index</b> is split into <b>primary shards</b> (fixed at creation) plus <b>replicas</b>; each shard is a Lucene index made of <b>segments</b>.</p>
+            <p>Writes go to a primary shard, then replicate to replicas in the replication group. Index changes become visible on <b>refresh</b> (default every <b>1s</b>) &mdash; that&rsquo;s the &ldquo;near-real-time&rdquo;. <b>Translog</b> provides durability between flushes.</p>
+
+            <h4>Consistency model</h4>
+            <p><b>Eventually consistent reads</b> bounded by refresh interval. Document versioning + optimistic concurrency (<code>if_seq_no</code> / <code>if_primary_term</code>). Discovery + master election rewritten in 7.0 (no more split-brain footgun &mdash; quorum-based now, finally).</p>
+
+            <h4>Indexing</h4>
+            <p>Inverted index by default (analyzed text); <b>doc_values</b> (column-store) power aggregations and sorting; <b>keyword</b> for exact matches; <b>dense_vector</b> for kNN/ANN; <b>scaled_float</b>, <b>geo_point/shape</b>, <b>nested</b>, <b>parent/child</b> (join). Mapping is stricter than people remember; dynamic mapping at scale = pain.</p>
+          </div>
+
+          <div>
+            <h4>Scalability</h4>
+            <ul>
+              <li><b>Shard count is a permanent commitment</b> for an index; reshard = reindex.</li>
+              <li>Rule of thumb: shards 10&ndash;50 GB each; aim for &lt;1000 shards/node.</li>
+              <li>Tiers move data by age: hot (SSD/replicas) &rarr; warm &rarr; cold &rarr; frozen (S3-backed).</li>
+              <li>Aggregations can be expensive; pre-aggregate (rollups, transforms) for dashboards.</li>
+            </ul>
+
+            <h4>Operational reality</h4>
+            <ul>
+              <li><b>Heavy updates</b> are anti-pattern: each update writes a new document version; segments must merge. Append-only is the happy path.</li>
+              <li><b>Mapping explosions</b> from dynamic JSON kill nodes (especially with deeply nested docs).</li>
+              <li>JVM heap should not exceed ~31 GB (compressed oops); rest goes to OS page cache for Lucene.</li>
+              <li>Search vs. analytics workloads benefit from <b>cross-cluster search</b> + dedicated tiers.</li>
+            </ul>
+
+            <h4>Best fits / Anti-patterns</h4>
+            <div class="split2">
+              <div><b style="color:var(--leaf)">Use it for</b><br/><span class="muted">Full-text search, log/metric/trace observability (the ELK/Elastic stack), product search with relevance ranking, vector / hybrid retrieval.</span></div>
+              <div><b style="color:var(--rose)">Avoid for</b><br/><span class="muted">Source of truth, transactional writes, frequently-mutated documents, &ldquo;just throw it all in ES&rdquo; observability without retention tiers.</span></div>
+            </div>
+            <div class="gotcha"><b>Interview gotcha:</b> &ldquo;Why is search slow at p99?&rdquo; almost always traces to one of: refresh interval too aggressive, segment merge contention, hot shard, or a query that fans out across thousands of shards. Know the difference between <b>query phase</b> (each shard returns top-K) and <b>fetch phase</b> (coordinator hydrates final docs); deep paging breaks both &mdash; use <b>search_after</b> or <b>PIT</b>.</div>
+          </div>
+        </div>
+      </article>
+
+      <!-- DYNAMODB -->
+      <article class="profile" data-db="dynamo" id="dynamo">
+        <div class="ph">
+          <div>
+            <div class="eyebrow">Managed · Auto-partitioned · Serverless-friendly</div>
+            <h2 style="margin-top:.3rem">DynamoDB</h2>
+            <p class="sub">No knobs, no servers, no second chances on your key design.</p>
+          </div>
+          <div class="badges">
+            <span class="badge ok">Single-digit ms</span>
+            <span class="badge ok">Multi-region active-active</span>
+            <span class="badge warn">Hot partition risk</span>
+            <span class="badge bad">No ad-hoc queries</span>
+          </div>
+        </div>
+
+        <div class="deck">
+          <div>
+            <h4>Architecture</h4>
+            <p>Fully managed by AWS. Items are placed on a partition by hash of the <b>partition key</b>; each partition is replicated 3&times; across AZs in a region with internal multi-Paxos for strong consistency. Storage is SSD; the engine, schedulers, and partition splitting are all opaque &mdash; you see only the API.</p>
+            <p><b>Global Tables</b> add multi-region active-active with last-writer-wins reconciliation. <b>DAX</b> is an in-front, write-through cache for read-heavy paths. <b>Streams</b> push change records into Lambda / Kinesis.</p>
+
+            <h4>Consistency &amp; transactions</h4>
+            <p>Default reads are <b>eventually consistent</b> (1/2 cost). <b>Strongly consistent reads</b> are an opt-in flag in single-region. <b>TransactWriteItems</b>/<b>TransactGetItems</b> give ACID across up to 100 items / 4 MB &mdash; idempotent via client tokens. <b>ConditionExpression</b> gives optimistic concurrency without a transaction.</p>
+
+            <h4>Indexing</h4>
+            <p>Primary key: <b>HASH</b> only or <b>HASH + RANGE (sort key)</b>. <b>LSI</b> shares the partition key, alternate sort key, must be created at table create, max 5/table, eventually consistent only for non-key projections. <b>GSI</b> picks new partition+sort keys, eventually consistent, separate WCU/RCU, can be added/removed online &mdash; the workhorse for alternate access patterns.</p>
+          </div>
+
+          <div>
+            <h4>Capacity model</h4>
+            <ul>
+              <li><b>RCU:</b> 1 strongly-consistent read of an item up to 4 KB; 2 eventually-consistent reads at the same size; transactional reads cost 2&times;.</li>
+              <li><b>WCU:</b> 1 write of an item up to 1 KB; transactional writes cost 2&times;.</li>
+              <li><b>On-demand</b> auto-scales but costs ~7&times; provisioned for the same throughput &mdash; great for spiky/unknown, expensive for steady-state.</li>
+              <li><b>Adaptive capacity</b> redistributes hot keys somewhat; a true hot key still throttles.</li>
+            </ul>
+
+            <h4>Operational reality</h4>
+            <ul>
+              <li><b>Partition limits:</b> a single partition tops out at <b>3000 RCU / 1000 WCU / 10 GB</b>. Above that, design or split keys.</li>
+              <li><b>Single-table design</b> packs multiple entity types behind composite keys to minimize cross-entity calls; learn it before claiming Dynamo expertise.</li>
+              <li>Item size cap <b>400 KB</b>; large blobs go to S3 with the key in Dynamo.</li>
+              <li>No GROUP BY, no SUM, no joins. Aggregations live in Streams + downstream pipelines.</li>
+            </ul>
+
+            <h4>Best fits / Anti-patterns</h4>
+            <div class="split2">
+              <div><b style="color:var(--leaf)">Use it for</b><br/><span class="muted">Predictable key-based access at hyperscale, serverless AWS apps, multi-region active-active, session/token stores, IoT ingest with Streams.</span></div>
+              <div><b style="color:var(--rose)">Avoid for</b><br/><span class="muted">Discovery queries, evolving access patterns, large items, anything where you want to write the schema later.</span></div>
+            </div>
+            <div class="gotcha"><b>Interview gotcha:</b> The fundamental trade is &ldquo;model the access pattern up front, pay nothing later&rdquo; vs. &ldquo;model nothing up front, pay forever in Scans + GSIs.&rdquo; If a candidate proposes Dynamo and then needs JOINs and aggregations, that&rsquo;s the failure mode.</div>
+          </div>
+        </div>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- LABS -->
+<section id="labs">
+  <div class="wrap">
+    <span class="kicker">§ 03 &nbsp;Interactive Labs</span>
+    <h2 style="margin-top:.7rem">Pull the levers. Watch what breaks.</h2>
+    <p class="lede" style="margin-bottom:1.6rem">Reading about CAP is a vibes-based education. Sliding R, W, and RF until the numbers don&rsquo;t add up is how you actually learn.</p>
+
+    <!-- LAB: CAP / PACELC plot -->
+    <article class="lab" id="cap">
+      <div class="lh">
+        <h3>1 &middot; CAP &amp; PACELC plot</h3>
+        <span class="meta">drag tunable engines</span>
+      </div>
+      <p class="muted" style="margin-top:.4rem; max-width:62ch">CAP is a triangle of pick-two-under-partition. PACELC adds the honest follow-up: <i>else, latency vs. consistency.</i> Three of these engines have knobs &mdash; move them.</p>
+      <div class="body">
+        <div>
+          <div class="cap-frame">
+            <svg id="capSvg" viewBox="0 0 460 420" aria-label="CAP plot"></svg>
+          </div>
+        </div>
+        <div>
+          <div class="controls">
+            <div class="ctrl">
+              <label>Cassandra consistency level <span class="v" id="capCassLabel">QUORUM (R+W=4 / RF=3)</span></label>
+              <input type="range" id="capCass" min="0" max="3" step="1" value="2" />
+              <div class="tip">ANY &middot; ONE &middot; QUORUM &middot; ALL</div>
+            </div>
+            <div class="ctrl">
+              <label>MongoDB read/write concern <span class="v" id="capMongoLabel">w:majority + read majority</span></label>
+              <input type="range" id="capMongo" min="0" max="3" step="1" value="2" />
+              <div class="tip">w:1 / local &middot; majority &middot; linearizable &middot; snapshot</div>
+            </div>
+            <div class="ctrl">
+              <label>DynamoDB read mode <span class="v" id="capDynLabel">strongly consistent</span></label>
+              <input type="range" id="capDyn" min="0" max="2" step="1" value="1" />
+              <div class="tip">eventual &middot; strong &middot; transactional</div>
+            </div>
+          </div>
+          <div class="callout" style="margin-top:1rem">
+            <b>Read-it-aloud rule.</b> &ldquo;During a network partition, this system favors X. When the network is healthy, it favors low <i>L</i>atency over <i>C</i>onsistency.&rdquo; Practice that sentence for each engine.
+          </div>
+        </div>
+      </div>
+    </article>
+
+    <!-- LAB: Quorum calculator -->
+    <article class="lab" id="quorum">
+      <div class="lh">
+        <h3>2 &middot; Quorum calculator</h3>
+        <span class="meta">cassandra · mongo · any quorum system</span>
+      </div>
+      <p class="muted" style="margin-top:.4rem; max-width:64ch">Strong consistency holds when <span class="mono">R + W &gt; RF</span>. The remaining levers are <b>read availability</b> (RF&minus;R+1 nodes can fail) and <b>write availability</b> (RF&minus;W+1 nodes can fail). Tune until your latency &amp; failure tolerance match the SLO.</p>
+      <div class="body">
+        <div>
+          <div class="controls">
+            <div class="ctrl">
+              <label>Replication factor (RF) <span class="v" id="qRFv">3</span></label>
+              <input type="range" id="qRF" min="1" max="7" step="1" value="3" />
+            </div>
+            <div class="ctrl">
+              <label>Read consistency (R) <span class="v" id="qRv">2</span></label>
+              <input type="range" id="qR" min="1" max="7" step="1" value="2" />
+            </div>
+            <div class="ctrl">
+              <label>Write consistency (W) <span class="v" id="qWv">2</span></label>
+              <input type="range" id="qW" min="1" max="7" step="1" value="2" />
+            </div>
+          </div>
+          <p class="note">Heuristics: <code>RF=3, R=W=QUORUM</code> is the multi-tenant default. Bump <code>W</code> when audit-grade durability matters; bump <code>R</code> when read-after-write must hold.</p>
+        </div>
+        <div class="readout">
+          <div class="read" id="qStrongCard">
+            <div class="k">Strong consistency</div>
+            <div class="v" id="qStrong">YES</div>
+          </div>
+          <div class="read">
+            <div class="k">Read latency posture</div>
+            <div class="v" id="qReadLat">balanced</div>
+          </div>
+          <div class="read">
+            <div class="k">Read availability</div>
+            <div class="v" id="qReadAvail">2 nodes can fail</div>
+          </div>
+          <div class="read">
+            <div class="k">Write availability</div>
+            <div class="v" id="qWriteAvail">2 nodes can fail</div>
+          </div>
+        </div>
+      </div>
+    </article>
+
+    <!-- LAB: DynamoDB capacity calculator -->
+    <article class="lab" id="dyncalc">
+      <div class="lh">
+        <h3>3 &middot; DynamoDB capacity &amp; cost</h3>
+        <span class="meta">RCU · WCU · partitions · $</span>
+      </div>
+      <p class="muted" style="margin-top:.4rem; max-width:64ch">RCU/WCU math is interview catnip. Strong reads cost 2&times; eventual; transactional reads cost 2&times; strong; transactional writes cost 2&times;. Item-size rounding hurts more than people expect.</p>
+      <div class="body">
+        <div>
+          <div class="controls">
+            <div class="ctrl">
+              <label>Average item size (KB) <span class="v" id="dynSizeV">2</span></label>
+              <input type="range" id="dynSize" min="1" max="100" step="1" value="2" />
+            </div>
+            <div class="ctrl">
+              <label>Reads / sec <span class="v" id="dynRpsV">3000</span></label>
+              <input type="range" id="dynRps" min="100" max="200000" step="100" value="3000" />
+            </div>
+            <div class="ctrl">
+              <label>Writes / sec <span class="v" id="dynWpsV">800</span></label>
+              <input type="range" id="dynWps" min="0" max="200000" step="100" value="800" />
+            </div>
+            <div class="ctrl">
+              <label>Read mode</label>
+              <div class="seg" data-name="dynReadMode" id="dynReadMode">
+                <button data-v="eventual" class="on">Eventual</button>
+                <button data-v="strong">Strong</button>
+                <button data-v="txn">Txn</button>
+              </div>
+            </div>
+            <div class="ctrl">
+              <label>Pricing mode</label>
+              <div class="seg" data-name="dynPriceMode" id="dynPriceMode">
+                <button data-v="prov" class="on">Provisioned</button>
+                <button data-v="ond">On-demand</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="readout">
+            <div class="read"><div class="k">RCUs / sec</div><div class="v" id="dynRCU">&mdash;</div></div>
+            <div class="read"><div class="k">WCUs / sec</div><div class="v" id="dynWCU">&mdash;</div></div>
+            <div class="read"><div class="k">Min partitions</div><div class="v" id="dynParts">&mdash;</div></div>
+            <div class="read" id="dynCostCard"><div class="k">Est. monthly cost (us-east-1)</div><div class="v" id="dynCost">&mdash;</div></div>
+          </div>
+          <div class="callout" id="dynNote" style="margin-top:1rem">&hellip;</div>
+          <p class="note">Indicative figures (provisioned: $0.00065/WCU-hr, $0.00013/RCU-hr; on-demand: $1.25/M WCU, $0.25/M RCU as eventual baseline). Real bills include storage, replication, GSIs, transfer; this is the order-of-magnitude.</p>
+        </div>
+      </div>
+    </article>
+
+    <!-- LAB: Replication topology -->
+    <article class="lab" id="topo">
+      <div class="lh">
+        <h3>4 &middot; Replication topology</h3>
+        <span class="meta">how a write actually moves</span>
+      </div>
+      <p class="muted" style="margin-top:.4rem; max-width:64ch">Pick an engine. The animation traces the write path with the replication style: <span style="color:var(--leaf)">solid green = synchronous</span>, <span style="color:var(--amber)">dashed amber = async</span>, <span style="color:var(--plum)">dashed plum = gossip</span>.</p>
+      <div class="body">
+        <div>
+          <div class="tab-row" id="topoTabs">
+            <button class="on" data-v="pg"><span class="swatch" style="background:var(--pg)"></span>Postgres</button>
+            <button data-v="mongo"><span class="swatch" style="background:var(--mongo)"></span>Mongo</button>
+            <button data-v="cassandra"><span class="swatch" style="background:var(--cassandra)"></span>Cassandra</button>
+            <button data-v="redis"><span class="swatch" style="background:var(--redis)"></span>Redis</button>
+            <button data-v="elastic"><span class="swatch" style="background:var(--elastic)"></span>Elastic</button>
+            <button data-v="dynamo"><span class="swatch" style="background:var(--dynamo)"></span>Dynamo</button>
+          </div>
+          <div class="topo">
+            <svg id="topoSvg" viewBox="0 0 480 320"></svg>
+          </div>
+        </div>
+        <div>
+          <h4 id="topoTitle" style="margin-top:0">Postgres &middot; primary + streaming replicas</h4>
+          <p id="topoBlurb" class="muted" style="margin-bottom:.6rem">A single primary accepts writes and streams the WAL to replicas. Async by default; you can flip a transaction to <code>synchronous_commit=on</code> with a synchronous standby for write-after-read durability.</p>
+          <table class="cmp">
+            <tbody id="topoFacts"></tbody>
+          </table>
+          <div class="callout" id="topoFail" style="margin-top:1rem">&hellip;</div>
+        </div>
+      </div>
+    </article>
+
+    <!-- LAB: Latency vs Consistency band -->
+    <article class="lab" id="band">
+      <div class="lh">
+        <h3>5 &middot; Latency vs. consistency band</h3>
+        <span class="meta">where each engine sits at p99</span>
+      </div>
+      <p class="muted" style="margin-top:.4rem; max-width:64ch">Move the slider to set <b>required consistency</b>. Engines drop out of the &ldquo;fits your SLO&rdquo; band when the latency they need to deliver that consistency would blow your budget.</p>
+      <div class="body">
+        <div>
+          <div class="controls">
+            <div class="ctrl">
+              <label>Required consistency <span class="v" id="bandConsV">read-your-writes (causal)</span></label>
+              <input type="range" id="bandCons" min="0" max="4" step="1" value="2" />
+              <div class="tip">eventual &middot; monotonic &middot; causal &middot; linearizable &middot; serializable</div>
+            </div>
+            <div class="ctrl">
+              <label>p99 budget (ms) <span class="v" id="bandLatV">25</span></label>
+              <input type="range" id="bandLat" min="1" max="500" step="1" value="25" />
+            </div>
+          </div>
+        </div>
+        <div>
+          <div id="bandList" class="recommend"></div>
+          <p class="note" id="bandNote" style="margin-top:.7rem">&hellip;</p>
+        </div>
+      </div>
+    </article>
+
+  </div>
+</section>
+
+<!-- DECISION GUIDE -->
+<section id="decision">
+  <div class="wrap">
+    <span class="kicker">§ 04 &nbsp;Decision Guide</span>
+    <h2 style="margin-top:.7rem">Pick a database for the workload, not the resume.</h2>
+    <p class="lede" style="margin-bottom:1.4rem">Answer five honest questions about the workload. The picker scores each engine. Disagree with the result &mdash; out loud &mdash; that&rsquo;s the rehearsal.</p>
+
+    <div class="tree" id="picker">
+      <div class="q" data-q="primaryKey"><div class="qt">1. Primary access pattern?</div><div class="opts">
+        <button data-v="oltp">Joins / OLTP queries</button>
+        <button data-v="kv">Key / composite-key lookup</button>
+        <button data-v="search">Full-text or relevance search</button>
+        <button data-v="docs">Document-shaped reads</button>
+        <button data-v="ts">Time-series / append-mostly</button>
+      </div></div>
+      <div class="q" data-q="consistency"><div class="qt">2. Consistency requirement?</div><div class="opts">
+        <button data-v="strict">Strict (linearizable / serializable)</button>
+        <button data-v="strong">Strong (single-region)</button>
+        <button data-v="rmw">Read-your-writes / causal</button>
+        <button data-v="eventual">Eventual is fine</button>
+      </div></div>
+      <div class="q" data-q="scale"><div class="qt">3. Scale of writes?</div><div class="opts">
+        <button data-v="small">&lt; 5k WPS</button>
+        <button data-v="mid">5k&ndash;50k WPS</button>
+        <button data-v="big">50k&ndash;500k WPS</button>
+        <button data-v="huge">&gt; 500k WPS</button>
+      </div></div>
+      <div class="q" data-q="region"><div class="qt">4. Geography?</div><div class="opts">
+        <button data-v="single">Single region</button>
+        <button data-v="multi">Multi-region active-passive</button>
+        <button data-v="aa">Multi-region active-active</button>
+      </div></div>
+      <div class="q" data-q="ops"><div class="qt">5. Operations posture?</div><div class="opts">
+        <button data-v="self">Self-managed (DBAs welcome)</button>
+        <button data-v="hybrid">Cloud-managed (RDS/Atlas)</button>
+        <button data-v="serverless">Serverless / no-ops</button>
+      </div></div>
+
+      <div class="scoreboard" id="pickerOut">
+        <div class="muted">Pick options to see how the engines score against your workload.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- INTERVIEW Q&A -->
+<section id="qa">
+  <div class="wrap">
+    <span class="kicker">§ 05 &nbsp;Interview Q&amp;A</span>
+    <h2 style="margin-top:.7rem">The questions that actually come up.</h2>
+    <p class="lede" style="margin-bottom:1.6rem">A staff loop probes whether you understand <i>why</i> a system makes its trade-offs. These are the questions that separate &ldquo;I&rsquo;ve used it&rdquo; from &ldquo;I can defend it&rdquo;.</p>
+
+    <h3 style="margin-top:1rem">Cross-cutting</h3>
+
+    <details class="qa"><summary>Explain CAP. Then explain why CAP is wrong.</summary><div class="ans">
+      <p><b>CAP:</b> in the presence of a network partition, a system must trade <i>consistency</i> for <i>availability</i>. CAP is a useful triangle but it&rsquo;s narrow &mdash; it only describes behavior under partition.</p>
+      <p><b>PACELC</b> (Abadi) is the honest version: <i>else (when no partition), a system trades latency for consistency.</i> Cassandra is PA/EL, DynamoDB strong reads is PC/EC, Spanner is PC/EC, Postgres single-primary is PC/EC, Mongo replica sets default to PA/EC.</p>
+      <p>Saying the right thing in an interview: &ldquo;CAP forces a partition-time choice; PACELC tells me how the system trades latency for consistency in normal operation. Both matter for the SLO.&rdquo;</p>
+    </div></details>
+
+    <details class="qa"><summary>What&rsquo;s the difference between linearizable, sequential, causal, and eventual consistency?</summary><div class="ans">
+      <p><b>Linearizable:</b> every operation appears to take effect at a single instant between its start and end &mdash; a single global timeline. Strongest single-object guarantee.</p>
+      <p><b>Sequential:</b> all clients see operations in some single order, but that order may not match real-time.</p>
+      <p><b>Causal:</b> if A happened-before B, every client sees A before B; concurrent ops can appear in any order. The intuitive &ldquo;read-your-writes + monotonic reads&rdquo; bundle.</p>
+      <p><b>Eventual:</b> if writes stop, all replicas converge. Says nothing about <i>when</i>.</p>
+      <p>Picking the weakest model that meets the use case is a senior-level move. Most user-facing apps need causal, not linearizable.</p>
+    </div></details>
+
+    <details class="qa"><summary>Why are LSM trees better than B-trees for write-heavy workloads?</summary><div class="ans">
+      <p>B-trees do <b>in-place updates</b> &mdash; each write may rewrite a page (and its WAL entry). LSMs append to an in-memory <b>memtable</b>, flush sequentially to immutable <b>SSTables</b>, and reconcile via <b>compaction</b>. Sequential writes pin the disk to its peak throughput.</p>
+      <p>The trade is <b>read amplification</b> (a read may consult multiple SSTables; bloom filters help) and <b>write amplification</b> (compaction rewrites data many times). Tunable via compaction strategy: <b>size-tiered</b> (Cassandra default, write-favored), <b>leveled</b> (read-favored), <b>time-window</b> (best for time-series).</p>
+    </div></details>
+
+    <details class="qa"><summary>How would you choose a shard key?</summary><div class="ans">
+      <p>Three properties at once: <b>cardinality</b> (enough distinct values), <b>uniformity</b> (writes spread evenly &mdash; no hot shard), and <b>locality</b> (queries you actually run can be answered by hitting one or few shards).</p>
+      <p>Bad choices: monotonic (timestamp, autoincrement) &mdash; hot tail; very low cardinality (country, status) &mdash; few partitions to spread across; user-unaware (random hash) when most queries are per-tenant.</p>
+      <p>Good answer: in Mongo, <b>compound shard key with a hashed prefix</b> (e.g., <code>{tenantId: hashed, createdAt: 1}</code>). In Cassandra, <b>compound partition key</b> + clustering columns to keep tenant data co-located while spreading writes.</p>
+    </div></details>
+
+    <details class="qa"><summary>How does multi-region active-active actually work?</summary><div class="ans">
+      <p>Three approaches:</p>
+      <p><b>Last-writer-wins (LWW):</b> DynamoDB Global Tables, Cassandra, Mongo. Conflicts resolved by timestamp. Simple, lossy &mdash; never use for counters or money.</p>
+      <p><b>Per-region partitioning:</b> shard so each region owns a key range. No conflicts, but cross-region access is expensive. <b>Zone sharding</b> in Mongo, <b>NetworkTopologyStrategy</b> in Cassandra.</p>
+      <p><b>Consensus across regions:</b> Spanner, CockroachDB, Aurora Limitless. Real linearizability, latency cost = round-trip time.</p>
+      <p>The senior framing: &ldquo;Most apps don&rsquo;t need multi-region active-active &mdash; they need active-passive with fast failover. Active-active forces conflict resolution into the app.&rdquo;</p>
+    </div></details>
+
+    <details class="qa"><summary>What are common consistency footguns?</summary><div class="ans">
+      <p><b>Read-after-write</b> across primary &amp; secondary: Mongo <code>w:1</code> + secondary read; Postgres replica without sync. Solution: read from primary or use causal sessions.</p>
+      <p><b>Stale write to GSI:</b> Dynamo GSIs are eventually consistent &mdash; query it &lt;1s after a write and you may not see the row.</p>
+      <p><b>Concurrent updates:</b> &ldquo;last write wins&rdquo; is a bug for inventory, balances, counters. Use conditional writes (Dynamo <code>ConditionExpression</code>, Mongo <code>findOneAndUpdate</code>, SQL <code>SELECT &hellip; FOR UPDATE</code>).</p>
+      <p><b>Cassandra deletes returning data:</b> tombstones + read-repair lag mean a deleted row may reappear if RF&gt;repair window. Run repair on schedule.</p>
+    </div></details>
+
+    <h3 style="margin-top:1.6rem">Engine-specific</h3>
+
+    <details class="qa"><summary>Postgres &middot; What is MVCC and why does VACUUM matter?</summary><div class="ans">
+      <p>MVCC = multi-version concurrency control. Every row has visibility info (<code>xmin</code>, <code>xmax</code>); writers create new versions instead of blocking readers. <b>VACUUM</b> reclaims dead tuples once no transaction can see them.</p>
+      <p>Failure mode: a long-running transaction (e.g., a forgotten <code>BEGIN</code>) holds open the visibility horizon, vacuum can&rsquo;t clean, tables bloat, queries slow. Monitor <code>pg_stat_activity</code> for old transactions; consider <code>idle_in_transaction_session_timeout</code>.</p>
+    </div></details>
+
+    <details class="qa"><summary>Mongo &middot; What changes when you go from a replica set to a sharded cluster?</summary><div class="ans">
+      <p>Routing moves to <b>mongos</b>; you need <b>config servers</b> (themselves a replica set); every query needs a shard key strategy (or it broadcasts); <b>multi-document transactions</b> across shards work but are 5&ndash;10&times; slower; uniqueness across shards is only enforced on the shard key; aggregations gain a coordinate-and-merge phase.</p>
+      <p>A common mistake: starting unsharded, then sharding without revisiting indexes. Many indexes that worked on a replica set become non-targeted on shards (no shard-key prefix), forcing scatter-gather.</p>
+    </div></details>
+
+    <details class="qa"><summary>Cassandra &middot; Why &ldquo;query-first&rdquo; modeling?</summary><div class="ans">
+      <p>No joins, weak secondary indexes, expensive cross-partition reads. The model that works: <b>one table per query</b>, partition key chosen so the data needed is in a single partition, clustering columns to slice within it.</p>
+      <p>Cost: write fan-out (one logical entity may live in 3&ndash;5 tables). Done well, reads are sub-ms and predictable. Done poorly, you bolt SQL habits on top and hate Cassandra.</p>
+    </div></details>
+
+    <details class="qa"><summary>Redis &middot; How would you implement a distributed lock? Where does Redlock fail?</summary><div class="ans">
+      <p>Single-node: <code>SET key value NX PX 30000</code> (atomic set-if-not-exists with TTL). Release with a Lua script that checks the value before deleting.</p>
+      <p><b>Redlock</b> coordinates across N independent masters; you need a quorum of acquires within a clock-skew bound. Kleppmann&rsquo;s critique: GC pauses or clock jumps can violate mutual exclusion. Antirez&rsquo;s rebuttal: bound it with fencing tokens.</p>
+      <p>Senior answer: &ldquo;For best-effort mutexes (cache stampede, rate limit), Redlock is fine. For correctness-critical locks (money, inventory), use a system-of-record fencing token from a strongly-consistent store &mdash; the lock is just for fairness.&rdquo;</p>
+    </div></details>
+
+    <details class="qa"><summary>Elasticsearch &middot; Why is reindexing a constant fact of life?</summary><div class="ans">
+      <p>Shard count is fixed at index creation; many mapping fields can&rsquo;t be changed in place; analyzers can&rsquo;t be updated for existing docs without reanalysis. Anything that materially affects the inverted index requires a new index + reindex.</p>
+      <p>Operational pattern: <b>aliases</b> point apps at the current index; reindex into <code>v2</code>; flip the alias. The alias is the contract.</p>
+    </div></details>
+
+    <details class="qa"><summary>DynamoDB &middot; Walk through single-table design.</summary><div class="ans">
+      <p>One table holds multiple entity types. Partition key is a generic <code>PK</code>, sort key is <code>SK</code>; values are typed prefixes (<code>USER#42</code>, <code>ORDER#42#001</code>). Common access patterns are answered by collocating items under a shared <code>PK</code>.</p>
+      <p>GSIs are alternate access paths over the same items. <b>GSI overloading</b> (e.g., <code>GSI1PK / GSI1SK</code>) lets one GSI serve multiple lookups.</p>
+      <p>Trade: harder to onboard, painful to evolve once data is large, easy to scan accidentally if you forget the index. The win: every operation is constant-time and predictable.</p>
+    </div></details>
+
+    <h3 style="margin-top:1.6rem">Closing the loop</h3>
+
+    <details class="qa"><summary>If I gave you 30 seconds to defend a database choice, what&rsquo;s your structure?</summary><div class="ans">
+      <p>Four sentences: <b>(1) workload</b> &mdash; access pattern, scale, consistency, geography; <b>(2) candidate engines</b> &mdash; the 2&ndash;3 with matching shape; <b>(3) trade-off you&rsquo;re accepting</b> &mdash; e.g., &ldquo;eventual reads on the cache, strong on the source of truth&rdquo;; <b>(4) failure mode</b> &mdash; what breaks, what we monitor, what the runbook does.</p>
+      <p>Anything missing one of those four signals &ldquo;hasn&rsquo;t run this in production.&rdquo;</p>
+    </div></details>
+
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div>
+      <div class="colophon">Database Atlas &middot; Vol. I &middot; 2026</div>
+      <div class="print">Set in <i>Fraunces</i>, IBM Plex Sans, IBM Plex Mono. Built as a single self-contained file. Open in any modern browser.</div>
+    </div>
+    <div class="muted" style="font-size:12px; max-width:36ch; text-align:right">
+      Numbers in the labs are rule-of-thumb. Real production sizing is a function of percentile latency, item-size distribution, and operational maturity. The point is the shape of the trade-off, not the third decimal place.
+    </div>
+  </div>
+</footer>
+
+<script>
+/* ============================================================
+   1. CAP / PACELC plot
+   - Postgres, Elastic, Redis are plotted statically
+   - Cassandra, Mongo, Dynamo move along their tunable arc
+   ============================================================ */
+(function(){
+  const svg = document.getElementById('capSvg');
+  const W=460, H=420, M=46;
+  // triangle corners: C top, A bottom-left, P bottom-right
+  const C={x:W/2,y:M+10}, A={x:M+10,y:H-M-10}, P={x:W-M-10,y:H-M-10};
+
+  function el(tag, attrs){const n=document.createElementNS('http://www.w3.org/2000/svg',tag); for(const k in attrs) n.setAttribute(k,attrs[k]); return n;}
+  function add(tag, attrs, parent){const n=el(tag,attrs); (parent||svg).appendChild(n); return n;}
+
+  // edges
+  add('polygon',{points:`${C.x},${C.y} ${A.x},${A.y} ${P.x},${P.y}`, class:'cap-edge'});
+  // grid
+  for(let i=1;i<5;i++){
+    const t=i/5;
+    add('line',{x1:A.x+(P.x-A.x)*t, y1:A.y, x2:C.x+(A.x-C.x)*(1-t), y2:C.y+(A.y-C.y)*(1-t), class:'cap-grid'});
+    add('line',{x1:A.x+(P.x-A.x)*t, y1:A.y, x2:C.x+(P.x-C.x)*t, y2:C.y+(P.y-C.y)*t, class:'cap-grid'});
+  }
+  // corner labels
+  add('text',{x:C.x, y:C.y-8, 'text-anchor':'middle', class:'cap-corner'}).textContent='Consistency';
+  add('text',{x:A.x-4, y:A.y+18, 'text-anchor':'start', class:'cap-corner'}).textContent='Availability';
+  add('text',{x:P.x+4, y:P.y+18, 'text-anchor':'end', class:'cap-corner'}).textContent='Partition tolerance';
+
+  // helper: barycentric to xy. weights c,a,p must sum to 1.
+  function bary(c,a,p){
+    const s=c+a+p; c/=s;a/=s;p/=s;
+    return {x:C.x*c+A.x*a+P.x*p, y:C.y*c+A.y*a+P.y*p};
+  }
+  function dot(label, color, c,a,p, sub){
+    const pos=bary(c,a,p);
+    const g=add('g',{class:'cap-pt', transform:`translate(${pos.x},${pos.y})`});
+    add('circle',{r:8, fill:color, stroke:'#0a0c11', 'stroke-width':2}, g);
+    add('text',{x:12, y:5, fill:'#fff','font-family':'IBM Plex Sans','font-size':12,'font-weight':600}, g).textContent=label;
+    if(sub) add('text',{x:12, y:19, fill:'#7d8095','font-family':'IBM Plex Mono','font-size':9.5,'letter-spacing':'.14em','text-transform':'uppercase'}, g).textContent=sub;
+    return g;
+  }
+
+  // static
+  dot('Postgres','#5c8fb8', .55, .15, .30, 'CP · single-primary');
+  dot('Elastic','#d9b94e', .15, .45, .40, 'AP-leaning');
+  dot('Redis','#e26d6d', .25, .5, .25, 'PA/EL · async');
+
+  // dynamic
+  const cassG=dot('Cassandra','#c98a51', .15,.5,.35, 'tunable');
+  const mongoG=dot('Mongo','#7fb573', .55,.20,.25, 'tunable');
+  const dynG=dot('Dynamo','#7aa2e6', .50,.20,.30, 'tunable');
+
+  function setG(g,c,a,p){const pos=bary(c,a,p); g.setAttribute('transform',`translate(${pos.x},${pos.y})`);}
+
+  // Cassandra slider (consistency level)
+  const cass=document.getElementById('capCass');
+  const cassLab=document.getElementById('capCassLabel');
+  const cassMap=[
+    {l:'ANY (write only) · max availability', c:.05,a:.65,p:.30},
+    {l:'ONE · low latency, eventual', c:.18,a:.52,p:.30},
+    {l:'QUORUM (R+W=4 / RF=3) · strong', c:.55,a:.20,p:.25},
+    {l:'ALL · strongest, lowest availability', c:.70,a:.05,p:.25},
+  ];
+  cass.addEventListener('input',()=>{
+    const m=cassMap[+cass.value]; cassLab.textContent=m.l; setG(cassG,m.c,m.a,m.p);
+  }); cass.dispatchEvent(new Event('input'));
+
+  const mongo=document.getElementById('capMongo');
+  const mongoLab=document.getElementById('capMongoLabel');
+  const mongoMap=[
+    {l:'w:1 / read local · fast, eventual on secondary',  c:.18,a:.55,p:.27},
+    {l:'w:majority + read majority · safe default',        c:.55,a:.20,p:.25},
+    {l:'linearizable reads · primary only, slow',          c:.70,a:.07,p:.23},
+    {l:'snapshot read concern (txn) · multi-doc isolated', c:.62,a:.13,p:.25},
+  ];
+  mongo.addEventListener('input',()=>{
+    const m=mongoMap[+mongo.value]; mongoLab.textContent=m.l; setG(mongoG,m.c,m.a,m.p);
+  }); mongo.dispatchEvent(new Event('input'));
+
+  const dyn=document.getElementById('capDyn');
+  const dynLab=document.getElementById('capDynLabel');
+  const dynMap=[
+    {l:'eventually consistent · 1/2 cost', c:.20,a:.55,p:.25},
+    {l:'strongly consistent · single-region', c:.62,a:.13,p:.25},
+    {l:'transactional read · ACID across items', c:.72,a:.08,p:.20},
+  ];
+  dyn.addEventListener('input',()=>{
+    const m=dynMap[+dyn.value]; dynLab.textContent=m.l; setG(dynG,m.c,m.a,m.p);
+  }); dyn.dispatchEvent(new Event('input'));
+})();
+
+/* ============================================================
+   2. Quorum calculator
+   ============================================================ */
+(function(){
+  const RF=document.getElementById('qRF'), R=document.getElementById('qR'), W=document.getElementById('qW');
+  const RFv=document.getElementById('qRFv'), Rv=document.getElementById('qRv'), Wv=document.getElementById('qWv');
+  const Strong=document.getElementById('qStrong'), StrongCard=document.getElementById('qStrongCard');
+  const ReadLat=document.getElementById('qReadLat'), ReadAvail=document.getElementById('qReadAvail'), WriteAvail=document.getElementById('qWriteAvail');
+
+  function update(){
+    let rf=+RF.value, r=Math.min(+R.value, rf), w=Math.min(+W.value, rf);
+    R.max=rf; W.max=rf;
+    if(+R.value>rf){R.value=rf}
+    if(+W.value>rf){W.value=rf}
+    r=+R.value; w=+W.value;
+    RFv.textContent=rf; Rv.textContent=r; Wv.textContent=w;
+
+    const strong = r+w>rf;
+    Strong.textContent = strong ? 'YES' : 'NO';
+    StrongCard.classList.toggle('ok', strong); StrongCard.classList.toggle('bad', !strong);
+
+    // latency posture: bigger r+w = slower
+    const sum=r+w;
+    let lat = 'balanced';
+    if(sum<=2) lat='fast / risky';
+    else if(sum<=rf) lat='balanced';
+    else if(sum<=rf+1) lat='durable';
+    else lat='heavy / safest';
+    ReadLat.textContent=lat;
+
+    ReadAvail.textContent = `${rf-r} node${rf-r===1?'':'s'} can fail`;
+    WriteAvail.textContent = `${rf-w} node${rf-w===1?'':'s'} can fail`;
+  }
+  [RF,R,W].forEach(el=>el.addEventListener('input',update)); update();
+})();
+
+/* ============================================================
+   3. DynamoDB capacity & cost
+   ============================================================ */
+(function(){
+  const $=id=>document.getElementById(id);
+  const size=$('dynSize'), rps=$('dynRps'), wps=$('dynWps');
+  const sizeV=$('dynSizeV'), rpsV=$('dynRpsV'), wpsV=$('dynWpsV');
+  const seg = (id, cb)=>{
+    const root=document.getElementById(id);
+    root.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{
+      root.querySelectorAll('button').forEach(x=>x.classList.remove('on'));
+      b.classList.add('on'); cb(b.dataset.v);
+    }));
+  };
+  let readMode='eventual', priceMode='prov';
+  seg('dynReadMode', v=>{readMode=v; update();});
+  seg('dynPriceMode', v=>{priceMode=v; update();});
+
+  function fmt(n){
+    if(n>=1e9) return (n/1e9).toFixed(2)+'B';
+    if(n>=1e6) return (n/1e6).toFixed(2)+'M';
+    if(n>=1e3) return (n/1e3).toFixed(1)+'k';
+    return Math.round(n).toString();
+  }
+  function money(n){
+    if(n>=1e6) return '$'+(n/1e6).toFixed(2)+'M';
+    if(n>=1e3) return '$'+(n/1e3).toFixed(1)+'k';
+    return '$'+n.toFixed(0);
+  }
+  function update(){
+    const s=+size.value, r=+rps.value, w=+wps.value;
+    sizeV.textContent=s; rpsV.textContent=fmt(r); wpsV.textContent=fmt(w);
+    // RCU: each unit = 4KB strong, 8KB eventual; txn = 2x strong
+    const sizeUnitsRead = Math.ceil(s/4);
+    const sizeUnitsWrite = Math.ceil(s/1);
+    let rcu;
+    if(readMode==='eventual') rcu = r * sizeUnitsRead / 2;
+    else if(readMode==='strong') rcu = r * sizeUnitsRead;
+    else rcu = r * sizeUnitsRead * 2; // transactional
+    const wcu = (w * sizeUnitsWrite) * (readMode==='txn'?1:1) * 1; // writes always provisioned at base; txn writes 2x
+    // Approximation: txn writes ALSO 2x; we don't separate read txn from write txn. Make it explicit:
+    // For simplicity, when readMode==='txn' assume same posture for writes (transactional)
+    const wcuFinal = (readMode==='txn') ? wcu*2 : wcu;
+
+    $('dynRCU').textContent=fmt(rcu);
+    $('dynWCU').textContent=fmt(wcuFinal);
+
+    // partitions: hard caps 3000 RCU, 1000 WCU, 10GB / part
+    const partsByR = Math.ceil(rcu/3000);
+    const partsByW = Math.ceil(wcuFinal/1000);
+    const minParts = Math.max(1, partsByR, partsByW);
+    $('dynParts').textContent = minParts.toString();
+
+    // monthly cost
+    let cost;
+    if(priceMode==='prov'){
+      // $0.00013/RCU-hr, $0.00065/WCU-hr  (us-east-1, indicative)
+      cost = (rcu*0.00013 + wcuFinal*0.00065) * 730;
+    } else {
+      // on-demand: ~$0.25/M reads (eventual unit baseline), $1.25/M writes
+      // For strong reads, units double, so eventual is 1/2 cost relative — already baked into rcu calc above.
+      // Approximation: charge $0.25/M for sizeUnitsRead/2 reads (eventual) or sizeUnitsRead reads (strong)
+      const ondReadUnits = (readMode==='eventual') ? r*sizeUnitsRead/2 : (readMode==='strong'? r*sizeUnitsRead : r*sizeUnitsRead*2);
+      const ondWriteUnits = w*sizeUnitsWrite*(readMode==='txn'?2:1);
+      cost = (ondReadUnits/1e6 * 0.25 + ondWriteUnits/1e6 * 1.25) * 86400 * 30;
+    }
+    $('dynCost').textContent=money(cost);
+    const card=$('dynCostCard');
+    card.classList.toggle('warn', cost>=1e4 && cost<5e4);
+    card.classList.toggle('bad', cost>=5e4);
+    card.classList.toggle('ok', cost<1e4);
+
+    // notes
+    let note='';
+    if(s>=400){ note += '<b>Item size near 400 KB cap</b> &mdash; offload to S3, store key in Dynamo. '; }
+    if(minParts>=20){ note += '<b>Many partitions</b> &mdash; if access is uneven, some throttle while others sit idle. Check key distribution. '; }
+    if(readMode==='txn'){ note += 'Transactional reads cost 2&times; strong; transactional writes cost 2&times; standard. Reserve for atomic multi-item updates. '; }
+    if(priceMode==='ond' && cost>1e4){ note += '<b>On-demand at this throughput is expensive</b> &mdash; provisioned w/ auto-scaling typically wins above 30% baseline utilization. '; }
+    if(!note) note = 'Numbers are an order-of-magnitude. GSIs duplicate WCU and storage costs; budget per access pattern.';
+    $('dynNote').innerHTML = note;
+  }
+  [size,rps,wps].forEach(el=>el.addEventListener('input',update));
+  update();
+})();
+
+/* ============================================================
+   4. Replication topology
+   ============================================================ */
+(function(){
+  const svg=document.getElementById('topoSvg');
+  const tabs=document.getElementById('topoTabs');
+  const title=document.getElementById('topoTitle');
+  const blurb=document.getElementById('topoBlurb');
+  const facts=document.getElementById('topoFacts');
+  const fail=document.getElementById('topoFail');
+
+  function el(tag, attrs){const n=document.createElementNS('http://www.w3.org/2000/svg',tag); for(const k in attrs) n.setAttribute(k,attrs[k]); return n;}
+  function clear(){while(svg.firstChild) svg.removeChild(svg.firstChild);}
+  function node(x,y,r,fill,label){
+    const g=el('g',{transform:`translate(${x},${y})`});
+    const c=el('circle',{r:r, fill:fill, stroke:'#0a0c11','stroke-width':2}); g.appendChild(c);
+    if(label){const t=el('text',{x:0,y:r+18,'text-anchor':'middle',fill:'#eae6dc','font-family':'IBM Plex Mono','font-size':10,'letter-spacing':'.12em','text-transform':'uppercase'}); t.textContent=label; g.appendChild(t)}
+    svg.appendChild(g); return g;
+  }
+  function client(x,y,label){
+    const g=el('g',{transform:`translate(${x},${y})`});
+    const r=el('rect',{x:-22,y:-12,width:44,height:24,rx:4,fill:'transparent',stroke:'#7d8095','stroke-dasharray':'2,2'}); g.appendChild(r);
+    const t=el('text',{x:0,y:4,'text-anchor':'middle',fill:'#b6b3a8','font-family':'IBM Plex Mono','font-size':9.5,'letter-spacing':'.14em','text-transform':'uppercase'}); t.textContent=label||'client'; g.appendChild(t);
+    svg.appendChild(g); return g;
+  }
+  function edge(x1,y1,x2,y2,kind){
+    const e=el('line',{x1,y1,x2,y2,'stroke-width':1.5,class:`edge ${kind||'fast'}`});
+    if(kind==='sync') e.setAttribute('stroke','#7fb573');
+    else if(kind==='async') e.setAttribute('stroke','#e8a45a');
+    else if(kind==='gossip') e.setAttribute('stroke','#b58cd9');
+    else e.setAttribute('stroke','#7d8095');
+    svg.appendChild(e); return e;
+  }
+
+  const layouts={
+    pg:{
+      title:'Postgres &middot; primary + streaming replicas',
+      blurb:'A single primary accepts writes and streams the WAL to replicas. Async by default; flip <code>synchronous_commit=on</code> with a sync standby for write-after-read durability across the pair.',
+      facts:[['Topology','single primary, N replicas'],['Replication','WAL streaming (logical or physical)'],['Read scaling','from replicas; mind lag'],['Failover','external (Patroni/Stolon/RDS multi-AZ)']],
+      fail:'<b>Failure mode:</b> primary fails, async replicas have a small unreplicated tail. With sync standby, write latency goes up by RTT. Without one, you may lose the last few transactions on failover.',
+      draw(){
+        clear();
+        client(50,160,'app');
+        node(180,160,22,'#5c8fb8','primary');
+        node(330,80,18,'#3b6080','replica');
+        node(330,160,18,'#3b6080','replica');
+        node(330,240,18,'#3b6080','replica');
+        edge(72,160,158,160,'fast');
+        edge(198,144,312,88,'async');
+        edge(202,160,312,160,'async');
+        edge(198,176,312,232,'async');
+      },
+    },
+    mongo:{
+      title:'MongoDB &middot; replica set, sharded cluster',
+      blurb:'mongos routes by shard key to one of N shards (each its own replica set). Primary writes the oplog; secondaries tail it and apply. <code>w:majority</code> waits for a majority of the replica set.',
+      facts:[['Topology','mongos &rarr; config + shards (replica sets)'],['Replication','oplog tailing'],['Read scaling','from secondaries (read-prefs)'],['Failover','election within the replica set']],
+      fail:'<b>Failure mode:</b> primary loss triggers election (~10s default); secondaries with stale oplog need rebuild. Cross-shard transactions use a 2PC-like coordinator &mdash; expensive.',
+      draw(){
+        clear();
+        client(40,160,'app');
+        node(160,160,22,'#7fb573','mongos');
+        // shard 1 & 2
+        const sh=(x,y,p)=>{
+          node(x,y-50,16,'#4f7e47','primary');
+          node(x+50,y,14,'#3a5e35','sec');
+          node(x,y+50,14,'#3a5e35','sec');
+          edge(x,y-34,x+38,y-6,'async');
+          edge(x,y-34,x,y+34,'async');
+          if(p){edge(180,160,x-16,y-44,'fast'); edge(180,160,x-16,y+44,'fast')}
+        };
+        sh(330,90,true);
+        sh(330,250,true);
+      },
+    },
+    cassandra:{
+      title:'Cassandra &middot; masterless ring',
+      blurb:'Any node accepts a write; it forwards to RF replicas using consistent hashing on the partition key. Acks return when W replicas confirm. Gossip carries cluster state.',
+      facts:[['Topology','peer-to-peer ring (vnodes)'],['Replication','coordinator + RF replicas'],['Read scaling','any node coordinates'],['Failover','none needed; missing replicas hint at recovery']],
+      fail:'<b>Failure mode:</b> down replica missed writes? Coordinator may write a <i>hint</i> for it (TTL); on recovery it replays. Unrepaired tombstones &gt; gc_grace cause data resurrection &mdash; run repair.',
+      draw(){
+        clear();
+        client(40,160,'app');
+        const cx=270, cy=160, r=120;
+        const nodes=[];
+        for(let i=0;i<6;i++){
+          const a=(i/6)*Math.PI*2 - Math.PI/2;
+          nodes.push({x:cx+Math.cos(a)*r, y:cy+Math.sin(a)*r});
+        }
+        // gossip edges
+        for(let i=0;i<nodes.length;i++) for(let j=i+1;j<nodes.length;j++){
+          edge(nodes[i].x,nodes[i].y,nodes[j].x,nodes[j].y,'gossip');
+        }
+        // coordinator + RF=3 highlight
+        nodes.forEach((n,i)=>node(n.x,n.y,16, i===0?'#c98a51':'#6b4a2c', i===0?'coord':null));
+        node(nodes[1].x,nodes[1].y,16,'#c98a51','rep');
+        node(nodes[5].x,nodes[5].y,16,'#c98a51','rep');
+        edge(60,160,nodes[0].x-16,nodes[0].y,'fast');
+        edge(nodes[0].x,nodes[0].y,nodes[1].x,nodes[1].y,'async');
+        edge(nodes[0].x,nodes[0].y,nodes[5].x,nodes[5].y,'async');
+      },
+    },
+    redis:{
+      title:'Redis &middot; cluster, async replication',
+      blurb:'Hash slots map keys to one of N shards; each shard has 1 master + R replicas with async replication. Sentinel (or cluster gossip) handles failover.',
+      facts:[['Topology','16,384 hash slots / N shards'],['Replication','async (WAIT for sync)'],['Read scaling','from replicas (caveats)'],['Failover','sentinel quorum or cluster gossip']],
+      fail:'<b>Failure mode:</b> master fails before replication &rarr; recent writes are lost. <code>WAIT</code> approximates sync but isn&rsquo;t a guarantee. Hot key destroys a single master&rsquo;s event loop.',
+      draw(){
+        clear();
+        client(40,160,'app');
+        for(let i=0;i<3;i++){
+          const x=200+i*90, y=90;
+          node(x,y,16,'#e26d6d','m'+(i+1));
+          node(x,y+110,12,'#a04f4f','r'+(i+1));
+          edge(x,y+16,x,y+98,'async');
+          edge(60,160,x-16,y,'fast');
+        }
+      },
+    },
+    elastic:{
+      title:'Elasticsearch &middot; primary + replica shards',
+      blurb:'Coordinating nodes route writes to the primary shard for the doc; the primary forwards to replica shards in the replication group. Search fans out to all shards in parallel.',
+      facts:[['Topology','master + data + coord; index = N primary shards + R replicas'],['Replication','primary &rarr; replicas (sync within group)'],['Read scaling','any copy serves search'],['Failover','master re-election + shard reallocation']],
+      fail:'<b>Failure mode:</b> on a refresh-tight workload, segment merges spike I/O. Hot shard from skewed routing kills p99. Reshard = reindex.',
+      draw(){
+        clear();
+        client(40,160,'app');
+        node(170,160,18,'#d9b94e','coord');
+        // 3 primary shards (top), 2 replicas each (below)
+        for(let i=0;i<3;i++){
+          const x=280+i*70, y=90;
+          node(x,y,14,'#d9b94e','P'+(i+1));
+          node(x,y+70,11,'#a18a31','R');
+          node(x,y+135,11,'#a18a31','R');
+          edge(x,y+14,x,y+59,'sync');
+          edge(x,y+14,x,y+124,'sync');
+          edge(186,160,x-14,y,'fast');
+        }
+      },
+    },
+    dynamo:{
+      title:'DynamoDB &middot; managed, partitioned, multi-AZ',
+      blurb:'Items hash to a partition; the partition has 3 replicas across AZs reaching consensus internally. Global Tables add cross-region replication (LWW) for active-active.',
+      facts:[['Topology','partitioned by hash; 3-replica set per partition'],['Replication','intra-region quorum; cross-region LWW (Global Tables)'],['Read scaling','partitioned automatically'],['Failover','transparent']],
+      fail:'<b>Failure mode:</b> hot partition throttles even when the table has spare capacity (adaptive helps but not infinitely). Global Tables conflicts on the same item across regions resolve LWW &mdash; not safe for counters.',
+      draw(){
+        clear();
+        client(40,160,'app');
+        node(170,160,18,'#7aa2e6','request router');
+        // 3 partitions, each with 3 replicas
+        for(let i=0;i<3;i++){
+          const cx=320+i*60, base=90+i*10;
+          // replica trio
+          node(cx,base,11,'#7aa2e6','az-a');
+          node(cx,base+50,11,'#7aa2e6','az-b');
+          node(cx,base+100,11,'#7aa2e6','az-c');
+          edge(cx,base+11,cx,base+39,'sync');
+          edge(cx,base+61,cx,base+89,'sync');
+          edge(186,160,cx-11,base+50,'fast');
+        }
+      },
+    },
+  };
+
+  function pick(k){
+    const L=layouts[k]; if(!L) return;
+    title.innerHTML=L.title; blurb.innerHTML=L.blurb;
+    facts.innerHTML = L.facts.map(([k,v])=>`<tr><th>${k}</th><td>${v}</td></tr>`).join('');
+    fail.innerHTML = L.fail;
+    L.draw();
+  }
+  tabs.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{
+    tabs.querySelectorAll('button').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on'); pick(b.dataset.v);
+  }));
+  pick('pg');
+})();
+
+/* ============================================================
+   5. Latency vs consistency band
+   ============================================================ */
+(function(){
+  const cons=document.getElementById('bandCons'), lat=document.getElementById('bandLat');
+  const consV=document.getElementById('bandConsV'), latV=document.getElementById('bandLatV');
+  const list=document.getElementById('bandList'), note=document.getElementById('bandNote');
+  const consLabels=['eventual','monotonic reads','read-your-writes (causal)','linearizable','serializable'];
+
+  // Each engine reports "min p99 latency it can deliver at consistency level c (0..4)"
+  // and "can it deliver it at all" (Infinity if impossible).
+  // Numbers are illustrative for an educated rule-of-thumb.
+  const engines=[
+    {k:'pg', name:'Postgres',       color:'var(--pg)', map:[3,4,5,7,12], note:{
+      4:'Single-primary serializable on Postgres is full SSI &mdash; the gold standard.',
+    }},
+    {k:'mongo', name:'MongoDB',     color:'var(--mongo)', map:[5,7,9,40,60], note:{
+      3:'Linearizable reads must hit primary &mdash; latency jumps.',
+    }},
+    {k:'cassandra', name:'Cassandra', color:'var(--cassandra)', map:[3,5,9,Infinity,Infinity], note:{
+      3:'No native linearizable reads &mdash; LWT covers single-row CAS only, and is slow.',
+    }},
+    {k:'redis', name:'Redis',       color:'var(--redis)', map:[1,2,3,Infinity,Infinity], note:{
+      3:'Async replication breaks linearizability on failover; <code>WAIT</code> only approximates.',
+    }},
+    {k:'elastic', name:'Elasticsearch', color:'var(--elastic)', map:[6,8,12,Infinity,Infinity], note:{
+      0:'Refresh interval (1s default) is the floor for visibility.',
+      3:'Not a transactional store.',
+    }},
+    {k:'dynamo', name:'DynamoDB',   color:'var(--dynamo)', map:[7,7,9,15,Infinity], note:{
+      3:'Linearizable via strongly-consistent reads; cross-item only via TransactGetItems (limited).',
+      4:'No native serializable across the table.',
+    }},
+  ];
+
+  function update(){
+    const c=+cons.value, ms=+lat.value;
+    consV.textContent=consLabels[c]; latV.textContent=ms;
+    const fits=[], misses=[];
+    engines.forEach(e=>{
+      const need=e.map[c];
+      if(need===Infinity){ misses.push({...e, why:'cannot deliver this consistency'}); }
+      else if(need<=ms){ fits.push({...e, p99:need}); }
+      else { misses.push({...e, why:`needs ~${need}ms p99 to deliver`}); }
+    });
+    fits.sort((a,b)=>a.p99-b.p99);
+    list.innerHTML = fits.map(e=>`
+      <span class="rec-pill" title="approx p99 ${e.p99}ms"><span class="swatch" style="background:${e.color}"></span><b>${e.name}</b><span class="score">~${e.p99}ms</span></span>
+    `).join('') + misses.map(e=>`
+      <span class="rec-pill" style="opacity:.45" title="${e.why}"><span class="swatch" style="background:${e.color}"></span>${e.name}<span class="score">${e.why==='cannot deliver this consistency'?'n/a':'over budget'}</span></span>
+    `).join('');
+    // notes for the chosen consistency
+    const tips=[];
+    engines.forEach(e=>{ if(e.note[c]) tips.push(`<b>${e.name}:</b> ${e.note[c]}`); });
+    note.innerHTML = tips.length ? tips.join(' &nbsp; ') : 'Tighten the latency budget to see the band collapse onto fewer engines.';
+  }
+  [cons,lat].forEach(el=>el.addEventListener('input',update)); update();
+})();
+
+/* ============================================================
+   6. Decision picker
+   ============================================================ */
+(function(){
+  const root=document.getElementById('picker');
+  const out=document.getElementById('pickerOut');
+  const state={primaryKey:null, consistency:null, scale:null, region:null, ops:null};
+
+  // weights[engine][questionKey][answerValue] = score in [-3..3]
+  const W={
+    pg:{
+      primaryKey:{oltp:3, kv:1, search:0, docs:1, ts:1},
+      consistency:{strict:3, strong:3, rmw:2, eventual:1},
+      scale:{small:3, mid:2, big:0, huge:-2},
+      region:{single:3, multi:2, aa:-1},
+      ops:{self:2, hybrid:3, serverless:1},
+    },
+    mongo:{
+      primaryKey:{oltp:1, kv:2, search:1, docs:3, ts:1},
+      consistency:{strict:1, strong:2, rmw:3, eventual:2},
+      scale:{small:2, mid:3, big:2, huge:0},
+      region:{single:2, multi:2, aa:1},
+      ops:{self:1, hybrid:3, serverless:1},
+    },
+    cassandra:{
+      primaryKey:{oltp:-1, kv:2, search:-1, docs:0, ts:3},
+      consistency:{strict:0, strong:1, rmw:2, eventual:3},
+      scale:{small:0, mid:2, big:3, huge:3},
+      region:{single:1, multi:3, aa:3},
+      ops:{self:2, hybrid:1, serverless:0},
+    },
+    redis:{
+      primaryKey:{oltp:0, kv:3, search:0, docs:1, ts:1},
+      consistency:{strict:-1, strong:0, rmw:1, eventual:3},
+      scale:{small:3, mid:3, big:2, huge:1},
+      region:{single:3, multi:1, aa:0},
+      ops:{self:1, hybrid:3, serverless:2},
+    },
+    elastic:{
+      primaryKey:{oltp:-2, kv:0, search:3, docs:1, ts:2},
+      consistency:{strict:-2, strong:0, rmw:1, eventual:3},
+      scale:{small:1, mid:2, big:3, huge:2},
+      region:{single:3, multi:2, aa:1},
+      ops:{self:0, hybrid:3, serverless:1},
+    },
+    dynamo:{
+      primaryKey:{oltp:-1, kv:3, search:-1, docs:2, ts:2},
+      consistency:{strict:1, strong:2, rmw:2, eventual:3},
+      scale:{small:1, mid:2, big:3, huge:3},
+      region:{single:2, multi:2, aa:3},
+      ops:{self:-1, hybrid:1, serverless:3},
+    },
+  };
+  const ENG=[
+    {k:'pg', name:'Postgres', color:'var(--pg)'},
+    {k:'mongo', name:'MongoDB', color:'var(--mongo)'},
+    {k:'cassandra', name:'Cassandra', color:'var(--cassandra)'},
+    {k:'redis', name:'Redis', color:'var(--redis)'},
+    {k:'elastic', name:'Elasticsearch', color:'var(--elastic)'},
+    {k:'dynamo', name:'DynamoDB', color:'var(--dynamo)'},
+  ];
+
+  root.querySelectorAll('.q').forEach(q=>{
+    const k=q.dataset.q;
+    q.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{
+      q.querySelectorAll('button').forEach(x=>x.classList.remove('on'));
+      b.classList.add('on');
+      state[k]=b.dataset.v;
+      render();
+    }));
+  });
+
+  function render(){
+    const answered = Object.values(state).filter(Boolean).length;
+    if(answered<3){ out.innerHTML=`<div class="muted">Answer at least three questions to see scores. (${answered}/5)</div>`; return; }
+    const scores = ENG.map(e=>{
+      let s=0, max=0;
+      for(const q in state){
+        const v=state[q];
+        if(!v) continue;
+        s += W[e.k][q][v];
+        max += 3;
+      }
+      const pct = Math.max(0, Math.round((s/max)*100));
+      return {...e, s, pct};
+    }).sort((a,b)=>b.s-a.s);
+
+    out.innerHTML = scores.map(s=>`
+      <div class="score-row">
+        <div class="name"><span class="swatch" style="background:${s.color}"></span>${s.name}<div class="meter"><i style="width:${s.pct}%"></i></div></div>
+        <div class="pct">${s.pct}%</div>
+      </div>
+    `).join('') + `
+      <div class="callout" style="margin-top:.8rem">
+        <b>Top fit:</b> ${scores[0].name}. <b>Strong runner-up:</b> ${scores[1].name}.<br/>
+        <span class="muted">A staff-level answer always names the runner-up and explains the trade you&rsquo;d be accepting.</span>
+      </div>
+    `;
+  }
+})();
+</script>
+</body>
+</html>

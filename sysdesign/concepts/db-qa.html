@@ -1,0 +1,1632 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Data Systems Q&amp;A — interview drills for senior &amp; staff loops</title>
+<meta name="description" content="A deep, opinionated interview Q&A reference covering 9 data systems for senior, staff, and tech-lead candidates." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT,WONK@9..144,300..900,0..100,0..1&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+:root{
+  --ink-0:#0a0c11;
+  --ink-1:#10131b;
+  --ink-2:#161a24;
+  --ink-3:#1d2230;
+  --ink-4:#262c3d;
+  --line:#2b3144;
+  --line-soft:#222636;
+  --paper:#ece6d8;
+  --paper-2:#dcd4c1;
+  --text:#eae6dc;
+  --text-2:#b6b3a8;
+  --text-3:#7d8095;
+  --amber:#e8a45a;
+  --amber-2:#caa067;
+  --teal:#5fb5b1;
+  --rose:#e26d6d;
+  --leaf:#7fb573;
+  --plum:#b58cd9;
+  --pg:#5c8fb8;
+  --kafka:#cd6b4d;
+  --mongo:#7fb573;
+  --cassandra:#c98a51;
+  --dynamo:#7aa2e6;
+  --redis:#e26d6d;
+  --elastic:#d9b94e;
+  --zk:#9c8cff;
+  --rabbit:#ec8a3a;
+  --shadow: 0 1px 0 rgba(255,255,255,.04), 0 12px 36px -16px rgba(0,0,0,.7);
+  --r-1:6px; --r-2:10px; --r-3:16px;
+  --maxw:1180px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  background:
+    radial-gradient(1100px 700px at 100% -10%, rgba(232,164,90,0.07), transparent 60%),
+    radial-gradient(1000px 700px at -20% 30%, rgba(95,181,177,0.05), transparent 60%),
+    var(--ink-0);
+  color:var(--text);
+  font-family:"IBM Plex Sans","Helvetica Neue",sans-serif;
+  font-size:15.5px;
+  line-height:1.55;
+  -webkit-font-smoothing:antialiased;
+  font-feature-settings:"ss01","ss02","cv11";
+}
+a{color:var(--amber);text-decoration:none;border-bottom:1px solid rgba(232,164,90,.35)}
+a:hover{color:#fff;border-bottom-color:#fff}
+hr{border:0;border-top:1px solid var(--line-soft);margin:2.4rem 0}
+code,kbd,samp,.mono{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.92em}
+.mono{letter-spacing:.01em}
+.eyebrow{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--text-3)}
+h1,h2,h3,h4{font-family:"Fraunces",Georgia,serif;font-weight:600;color:#fff;letter-spacing:-.01em;margin:0 0 .5em}
+h1{font-size:clamp(2.4rem,4.4vw,3.6rem); font-variation-settings:"opsz" 144,"SOFT" 30,"WONK" 1; line-height:1.02; letter-spacing:-.025em}
+h2{font-size:clamp(1.6rem,2.4vw,2.1rem); font-variation-settings:"opsz" 96,"SOFT" 20; line-height:1.1; letter-spacing:-.018em}
+h3{font-size:1.2rem; font-variation-settings:"opsz" 36,"SOFT" 12; letter-spacing:-.01em}
+h4{font-size:1.02rem; font-family:"IBM Plex Sans"; text-transform:uppercase; letter-spacing:.12em; color:var(--text-2)}
+p{margin:0 0 .9em}
+.lede{font-family:"Fraunces",Georgia,serif; font-variation-settings:"opsz" 24,"SOFT" 30; font-size:1.18rem; line-height:1.45; color:var(--text-2); max-width:64ch}
+em{font-style:italic;color:#fff}
+strong{color:#fff;font-weight:600}
+section{padding:5.6rem 0; border-top:1px solid var(--line-soft); position:relative}
+section:first-of-type{border-top:0}
+.wrap{max-width:var(--maxw); margin:0 auto; padding:0 1.6rem}
+.label{font-family:"IBM Plex Mono",monospace; font-size:11px; color:var(--text-3); letter-spacing:.18em; text-transform:uppercase}
+.kicker{display:inline-block; font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.22em; text-transform:uppercase; color:var(--amber); padding:.32rem .6rem; border:1px solid rgba(232,164,90,.4); border-radius:99px}
+
+/* nav */
+.topbar{position:sticky; top:0; z-index:50; backdrop-filter:saturate(140%) blur(12px); background:rgba(10,12,17,.78); border-bottom:1px solid var(--line-soft)}
+.topbar .row{display:flex;align-items:center;gap:1rem; padding:.85rem 1.6rem; max-width:var(--maxw); margin:0 auto}
+.brand{font-family:"Fraunces",serif; font-variation-settings:"opsz" 96,"SOFT" 30,"WONK" 1; font-size:1.18rem; letter-spacing:-.01em}
+.brand .dot{display:inline-block; width:.55rem; height:.55rem; border-radius:50%; background:var(--amber); margin-right:.5rem; transform:translateY(-2px); box-shadow:0 0 0 4px rgba(232,164,90,.18)}
+nav.crumbs{margin-left:auto; display:flex; gap:.7rem; flex-wrap:wrap}
+nav.crumbs a{font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--text-2); border-bottom:0}
+nav.crumbs a:hover{color:#fff}
+
+/* cover */
+.cover{padding-top:6rem}
+.cover .grid{display:grid; grid-template-columns: 1.3fr 1fr; gap:3rem; align-items:end}
+@media (max-width:880px){ .cover .grid{grid-template-columns:1fr; gap:2rem} }
+.cover .meta{font-family:"IBM Plex Mono",monospace; color:var(--text-3); font-size:12px; letter-spacing:.16em; text-transform:uppercase}
+.cover .meta .pipe{margin:0 .55rem; opacity:.5}
+.cover h1 em{color:var(--amber); font-style:italic}
+.cover .lede{margin-top:1.6rem}
+.cover .specsheet{border:1px solid var(--line); border-radius:var(--r-2); padding:1.4rem 1.4rem 1rem; background:linear-gradient(180deg,rgba(255,255,255,.012),transparent)}
+.specsheet dl{display:grid; grid-template-columns:auto 1fr; gap:.45rem 1rem; margin:0; font-size:13.5px}
+.specsheet dt{color:var(--text-3); font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.18em; text-transform:uppercase; padding-top:.18rem}
+.specsheet dd{margin:0}
+.specsheet dd b{color:#fff}
+
+/* matrix */
+.matrix{overflow-x:auto; margin-top:1rem; border:1px solid var(--line); border-radius:var(--r-2); background:linear-gradient(180deg,rgba(255,255,255,.012),transparent)}
+.matrix table{width:100%; border-collapse:collapse; min-width:780px}
+.matrix th, .matrix td{padding:.72rem .9rem; text-align:left; border-bottom:1px solid var(--line-soft); vertical-align:top; font-size:13.5px}
+.matrix th{font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.18em; text-transform:uppercase; color:var(--text-3); background:rgba(255,255,255,.018)}
+.matrix th:first-child{position:sticky; left:0; background:rgba(20,24,33,.96)}
+.matrix td:first-child{position:sticky; left:0; background:rgba(20,24,33,.96); font-weight:600; color:#fff}
+.matrix td{color:var(--text-2)}
+.matrix tr:hover td{background:rgba(232,164,90,.04)}
+.dbpill{display:inline-flex; align-items:center; gap:.5rem; font-family:"IBM Plex Sans"; font-weight:600}
+.dbpill .swatch{width:8px; height:8px; border-radius:50%}
+
+/* engine section */
+.engine{
+  position:relative;
+  border:1px solid var(--line);
+  border-radius:var(--r-3);
+  background:linear-gradient(180deg, rgba(255,255,255,.018), rgba(255,255,255,.004));
+  padding:1.8rem 1.8rem 1.6rem;
+  scroll-margin-top:80px;
+  box-shadow:var(--shadow);
+  margin-bottom:2rem;
+}
+.engine::before{
+  content:""; position:absolute; left:0; top:0; bottom:0; width:4px;
+  border-radius:var(--r-3) 0 0 var(--r-3);
+  background:var(--accent, var(--amber));
+}
+.engine[data-db="pg"]{--accent:var(--pg)}
+.engine[data-db="kafka"]{--accent:var(--kafka)}
+.engine[data-db="mongo"]{--accent:var(--mongo)}
+.engine[data-db="cassandra"]{--accent:var(--cassandra)}
+.engine[data-db="dynamo"]{--accent:var(--dynamo)}
+.engine[data-db="redis"]{--accent:var(--redis)}
+.engine[data-db="elastic"]{--accent:var(--elastic)}
+.engine[data-db="zk"]{--accent:var(--zk)}
+.engine[data-db="rabbit"]{--accent:var(--rabbit)}
+.engine .ph{display:flex; align-items:flex-start; justify-content:space-between; gap:1.4rem; flex-wrap:wrap}
+.engine h2{margin-bottom:.05em}
+.engine .sub{color:var(--text-2); margin:.1rem 0 0; font-family:"Fraunces"; font-style:italic; font-variation-settings:"opsz" 36,"SOFT" 30}
+.engine .badges{display:flex; gap:.4rem; flex-wrap:wrap}
+.badge{font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:.16em; text-transform:uppercase; padding:.32rem .55rem; border:1px solid var(--line); border-radius:99px; color:var(--text-2); background:rgba(255,255,255,.014)}
+.badge.ok{color:#cfe9b8; border-color:rgba(127,181,115,.3); background:rgba(127,181,115,.06)}
+.badge.warn{color:#f0c995; border-color:rgba(232,164,90,.35); background:rgba(232,164,90,.06)}
+.badge.bad{color:#f1b3b3; border-color:rgba(226,109,109,.4); background:rgba(226,109,109,.07)}
+.badge.cool{color:#bee0de; border-color:rgba(95,181,177,.3); background:rgba(95,181,177,.06)}
+.engine .orient{margin-top:1.2rem; color:var(--text-2); max-width:72ch}
+.engine .orient p{margin:.4rem 0}
+.engine .orient b{color:#fff}
+.engine h4{margin:1.4rem 0 .4rem; color:var(--text-2); font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.2em; text-transform:uppercase}
+.gotcha{
+  border-left:2px solid var(--accent, var(--amber));
+  padding:.6rem 1rem; margin:1rem 0;
+  color:var(--text-2); background:rgba(255,255,255,.018); border-radius:0 var(--r-1) var(--r-1) 0;
+  font-size:13.8px;
+}
+.gotcha b{color:#fff}
+.gotcha ul{margin:.4rem 0 .2rem; padding-left:1.05rem}
+.gotcha li{margin:.25rem 0}
+
+/* Q&A */
+details.qa{border:1px solid var(--line); border-radius:var(--r-2); background:rgba(255,255,255,.012); padding:0; margin:.6rem 0; overflow:hidden}
+details.qa[open]{background:rgba(232,164,90,.04); border-color:rgba(232,164,90,.35)}
+details.qa summary{cursor:pointer; padding:.95rem 1.1rem; list-style:none; display:flex; gap:.7rem; align-items:flex-start; font-family:"Fraunces",serif; font-variation-settings:"opsz" 36; font-size:1.04rem; color:#fff}
+details.qa summary::-webkit-details-marker{display:none}
+details.qa summary::before{content:""; width:8px; height:8px; border-right:2px solid var(--amber); border-bottom:2px solid var(--amber); transform:rotate(-45deg); transition:transform .2s ease; flex-shrink:0; margin-left:.2rem; margin-top:.45rem}
+details.qa[open] summary::before{transform:rotate(45deg)}
+details.qa .ans{padding:0 1.1rem 1rem 2rem; color:var(--text-2); font-size:14px; line-height:1.6}
+details.qa .ans p{margin:.5rem 0}
+details.qa .ans b{color:#fff}
+details.qa .ans code{background:rgba(255,255,255,.05); padding:.05rem .35rem; border-radius:4px; color:#f0c995}
+details.qa .ans pre{background:rgba(0,0,0,.35); border:1px solid var(--line); border-radius:var(--r-1); padding:.7rem .9rem; overflow-x:auto; font-size:12.5px; margin:.5rem 0}
+details.qa .ans pre code{background:transparent; padding:0; color:var(--text)}
+details.qa .ans ul{margin:.4rem 0; padding-left:1.1rem}
+details.qa .ans li{margin:.2rem 0}
+
+/* search */
+.search-bar{display:flex; gap:.7rem; align-items:center; margin:1rem 0 .6rem; flex-wrap:wrap}
+.search-bar input{
+  background:var(--ink-2); color:var(--text); border:1px solid var(--line); border-radius:var(--r-1);
+  padding:.55rem .8rem; font-family:"IBM Plex Mono",monospace; font-size:13px; min-width:280px; flex:1; max-width:480px;
+}
+.search-bar .count{font-family:"IBM Plex Mono",monospace; font-size:11px; color:var(--text-3); letter-spacing:.16em; text-transform:uppercase}
+.search-bar button{
+  background:transparent; border:1px solid var(--line); color:var(--text-2);
+  padding:.45rem .8rem; border-radius:99px; cursor:pointer;
+  font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.14em; text-transform:uppercase;
+}
+.search-bar button:hover{color:#fff; border-color:var(--text-3)}
+
+/* anchor offset */
+:target{scroll-margin-top:80px}
+
+/* utility */
+.row{display:flex; gap:1rem; flex-wrap:wrap}
+.muted{color:var(--text-3)}
+.amber{color:var(--amber)}
+.divider{display:block; height:1px; background:linear-gradient(90deg,transparent,var(--line),transparent); margin:1.4rem 0}
+.callout{
+  border:1px dashed var(--line); border-radius:var(--r-2);
+  padding:1rem 1.2rem; background:rgba(232,164,90,.04);
+  font-size:14px; color:var(--text-2);
+}
+.callout b{color:#fff}
+
+/* footer */
+footer{padding:3rem 0 5rem; color:var(--text-3); font-size:13px}
+footer .wrap{display:flex; justify-content:space-between; gap:2rem; flex-wrap:wrap}
+.colophon{font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.16em; text-transform:uppercase}
+.print{margin-top:1rem; font-family:"Fraunces",serif; font-variation-settings:"opsz" 24,"SOFT" 30; font-style:italic; color:var(--text-2)}
+
+@media print{
+  body{background:#fff; color:#222}
+  .topbar, footer{display:none}
+  details.qa{border-color:#ccc; background:#fff}
+  details.qa[open]{background:#fff}
+  details.qa .ans{color:#333}
+  details.qa[open] > div{display:block}
+}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="row">
+    <div class="brand"><span class="dot"></span>Data Systems Q&amp;A</div>
+    <nav class="crumbs">
+      <a href="#index">Index</a>
+      <a href="#pg">PG</a>
+      <a href="#kafka">Kafka</a>
+      <a href="#mongo">Mongo</a>
+      <a href="#cassandra">Cass</a>
+      <a href="#dynamo">Dynamo</a>
+      <a href="#redis">Redis</a>
+      <a href="#elastic">ES</a>
+      <a href="#zk">ZK/etcd</a>
+      <a href="#rabbit">RabbitMQ</a>
+      <a href="#cross">Cross</a>
+    </nav>
+  </div>
+</header>
+
+<!-- COVER -->
+<section class="cover">
+  <div class="wrap">
+    <div class="grid">
+      <div>
+        <div class="meta">Vol. II <span class="pipe">·</span> Interview drills for senior &amp; staff loops <span class="pipe">·</span> 2026</div>
+        <h1 style="margin-top:1rem">Nine data systems &mdash;<br/>and the <em>questions</em> they hide.</h1>
+        <p class="lede">A staff-level interviewer doesn&rsquo;t test trivia; they probe whether you understand <i>why</i> a system makes its trade-offs. This is a drill book: 90+ real interview questions across nine engines, each answered with the underlying concept, the actual answer, and where the nuance lives.</p>
+        <p class="muted" style="margin-top:1rem; max-width:60ch">Skim the matrix. Open the engines you&rsquo;ll be defending. Read out the answers in your own words until the structure is muscle memory. The cross-cutting section at the end is where staff signal lives.</p>
+      </div>
+      <aside class="specsheet">
+        <div class="eyebrow" style="margin-bottom:.8rem">How to use this</div>
+        <dl>
+          <dt>Drill</dt><dd>Click a question. <b>Read aloud</b>. Then close it and re-explain.</dd>
+          <dt>Compare</dt><dd>The cross-cutting section forces engine-vs-engine reasoning.</dd>
+          <dt>Search</dt><dd>Top of each engine. Filters open Q&amp;A by keyword.</dd>
+          <dt>Print</dt><dd>Print stylesheet expands all answers.</dd>
+        </dl>
+        <div class="divider"></div>
+        <div class="eyebrow" style="margin-bottom:.4rem">Nine engines, nine colors</div>
+        <div style="display:flex;flex-wrap:wrap;gap:.4rem .9rem; font-size:12.5px">
+          <span class="dbpill"><span class="swatch" style="background:var(--pg)"></span>Postgres</span>
+          <span class="dbpill"><span class="swatch" style="background:var(--kafka)"></span>Kafka</span>
+          <span class="dbpill"><span class="swatch" style="background:var(--mongo)"></span>MongoDB</span>
+          <span class="dbpill"><span class="swatch" style="background:var(--cassandra)"></span>Cassandra</span>
+          <span class="dbpill"><span class="swatch" style="background:var(--dynamo)"></span>DynamoDB</span>
+          <span class="dbpill"><span class="swatch" style="background:var(--redis)"></span>Redis</span>
+          <span class="dbpill"><span class="swatch" style="background:var(--elastic)"></span>Elasticsearch</span>
+          <span class="dbpill"><span class="swatch" style="background:var(--zk)"></span>ZK / etcd</span>
+          <span class="dbpill"><span class="swatch" style="background:var(--rabbit)"></span>RabbitMQ</span>
+        </div>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<!-- INDEX MATRIX -->
+<section id="index">
+  <div class="wrap">
+    <span class="kicker">§ 00 &nbsp;Engine Index</span>
+    <h2 style="margin-top:.7rem">Nine engines, fifteen seconds.</h2>
+    <p class="lede" style="margin-bottom:1.4rem">Orientation before drilling. Click an engine to jump.</p>
+    <div class="matrix">
+      <table>
+        <thead><tr>
+          <th>Engine</th><th>Category</th><th>Personality</th><th>Use it for</th><th>Avoid for</th>
+        </tr></thead>
+        <tbody>
+          <tr>
+            <td><a href="#pg" style="border:0"><span class="dbpill"><span class="swatch" style="background:var(--pg)"></span>PostgreSQL</span></a></td>
+            <td>Relational, MVCC</td>
+            <td>The default that&rsquo;s correct more often than people admit.</td>
+            <td>OLTP, integrity-critical writes, JSONB-tinged hybrids, geospatial.</td>
+            <td>Petabyte write fan-out, multi-region active-active.</td>
+          </tr>
+          <tr>
+            <td><a href="#kafka" style="border:0"><span class="dbpill"><span class="swatch" style="background:var(--kafka)"></span>Apache Kafka</span></a></td>
+            <td>Distributed log</td>
+            <td>An immutable, partitioned, replayable log &mdash; not a queue.</td>
+            <td>Event sourcing, stream processing, CDC backbone, async decoupling.</td>
+            <td>Per-message routing, complex ack semantics, low-volume RPC.</td>
+          </tr>
+          <tr>
+            <td><a href="#mongo" style="border:0"><span class="dbpill"><span class="swatch" style="background:var(--mongo)"></span>MongoDB</span></a></td>
+            <td>Document (BSON)</td>
+            <td>Document-shaped data and a shard key you&rsquo;d better get right.</td>
+            <td>User profiles, content, catalogs, fast schema iteration.</td>
+            <td>Heavy joins, cross-shard transactions at scale.</td>
+          </tr>
+          <tr>
+            <td><a href="#cassandra" style="border:0"><span class="dbpill"><span class="swatch" style="background:var(--cassandra)"></span>Cassandra</span></a></td>
+            <td>Wide-column, LSM</td>
+            <td>Linear-scale writes, masterless ring, opinionated to the bone.</td>
+            <td>Time-series, IoT, audit logs, multi-region with regional locality.</td>
+            <td>Ad-hoc queries, joins, mutating transactions.</td>
+          </tr>
+          <tr>
+            <td><a href="#dynamo" style="border:0"><span class="dbpill"><span class="swatch" style="background:var(--dynamo)"></span>DynamoDB</span></a></td>
+            <td>Managed KV/document</td>
+            <td>No knobs, no servers, no second chances on key design.</td>
+            <td>Predictable key-based access at hyperscale, serverless AWS.</td>
+            <td>Discovery queries, evolving access patterns, large items.</td>
+          </tr>
+          <tr>
+            <td><a href="#redis" style="border:0"><span class="dbpill"><span class="swatch" style="background:var(--redis)"></span>Redis</span></a></td>
+            <td>In-memory data structures</td>
+            <td>A toolbox of data structures that happens to be a server.</td>
+            <td>Cache, sessions, leaderboards, rate limiting, locks (with caveats).</td>
+            <td>Source of truth without explicit durability design.</td>
+          </tr>
+          <tr>
+            <td><a href="#elastic" style="border:0"><span class="dbpill"><span class="swatch" style="background:var(--elastic)"></span>Elasticsearch</span></a></td>
+            <td>Search (Lucene)</td>
+            <td>A search engine that some teams pretend is a database.</td>
+            <td>Full-text search, log/metric observability, vector retrieval.</td>
+            <td>System of record, transactional writes, heavy mutations.</td>
+          </tr>
+          <tr>
+            <td><a href="#zk" style="border:0"><span class="dbpill"><span class="swatch" style="background:var(--zk)"></span>ZooKeeper / etcd</span></a></td>
+            <td>Coordination store</td>
+            <td>A small, strongly-consistent KV for the things that must be true.</td>
+            <td>Leader election, config, service discovery, distributed locks.</td>
+            <td>General-purpose storage, anything write-heavy or large-payload.</td>
+          </tr>
+          <tr>
+            <td><a href="#rabbit" style="border:0"><span class="dbpill"><span class="swatch" style="background:var(--rabbit)"></span>RabbitMQ</span></a></td>
+            <td>AMQP broker</td>
+            <td>A smart router with per-message acks &mdash; queue-shaped, not log-shaped.</td>
+            <td>Task queues, RPC, fan-out routing, complex ack flows.</td>
+            <td>Replay, very high throughput, long-retention event streams.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="muted" style="margin-top:.9rem; font-size:13px">Why these nine: they cover ~95% of system-design loops at top-tier companies. Choice notes: <b>RabbitMQ over NATS/SQS</b> because RabbitMQ comes up most often as the &ldquo;not Kafka&rdquo; broker comparison in interviews, and its routing model (exchanges, bindings, per-message acks) is the canonical contrast to Kafka&rsquo;s log model. <b>ZooKeeper grouped with etcd</b> because the question &ldquo;ZK or etcd?&rdquo; is the whole question &mdash; the consensus primitives are nearly identical.</p>
+  </div>
+</section>
+
+<!-- POSTGRESQL -->
+<section id="pg">
+  <div class="wrap">
+    <span class="kicker" style="border-color:var(--pg); color:var(--pg)">§ 01 &nbsp;PostgreSQL</span>
+    <article class="engine" data-db="pg">
+      <div class="ph">
+        <div>
+          <div class="eyebrow">Relational &middot; Single-primary &middot; MVCC</div>
+          <h2 style="margin-top:.3rem">PostgreSQL</h2>
+          <p class="sub">The default answer that&rsquo;s correct more often than people admit.</p>
+        </div>
+        <div class="badges">
+          <span class="badge ok">ACID</span>
+          <span class="badge ok">SERIALIZABLE</span>
+          <span class="badge cool">JSONB</span>
+          <span class="badge warn">Vertical-first</span>
+        </div>
+      </div>
+
+      <div class="orient">
+        <p>Postgres is an <b>ORDBMS</b> with a single primary, MVCC concurrency, full SQL, and an extension model so deep it has become its own ecosystem (PostGIS, pgvector, TimescaleDB, Citus). It&rsquo;s the system you reach for when you don&rsquo;t yet know your access patterns, because it can answer almost any query you write tomorrow.</p>
+        <p>It is <b>not</b> a horizontally-scaled OLTP system out of the box: writes go to one primary, period. You scale reads with replicas, partition large tables, route by tenant, or graduate to a Postgres-compatible distributed engine (Aurora, CockroachDB, Yugabyte) when you actually need it.</p>
+        <p>The 30-second pitch: <i>&ldquo;Postgres for the source of truth. Replicas for read scale. Partitions and BRIN for time-series. JSONB + GIN where the schema is genuinely sparse. Reach for distributed Postgres only when a single primary can&rsquo;t hold the write load.&rdquo;</i></p>
+      </div>
+
+      <h4>Q&amp;A drills</h4>
+
+      <details class="qa"><summary>Walk me through what happens when you run <code>SELECT * FROM users WHERE email = ?</code>.</summary><div class="ans">
+        <p><b>One sentence:</b> the parser produces an AST, the planner enumerates plans by cost, the executor pulls tuples through nodes, and visibility is filtered by MVCC.</p>
+        <p><b>Concept:</b> Postgres&rsquo; query lifecycle is <i>parse &rarr; rewrite &rarr; plan &rarr; execute</i>. The planner uses statistics from <code>pg_statistic</code> (collected by <code>ANALYZE</code>) and chooses among <b>Seq Scan</b> (read every page), <b>Index Scan</b> (random heap fetches via index), and <b>Bitmap Index Scan</b> (collect TIDs in memory, then sort and read pages sequentially &mdash; the win when an index returns many but not all rows).</p>
+        <p><b>Nuance:</b> the planner picks Bitmap when selectivity is in the awkward middle (~1&ndash;10% of rows). Seq Scan beats Index Scan when nearly all rows match because random I/O kills throughput. <code>EXPLAIN (ANALYZE, BUFFERS)</code> is the correct tool; <code>BUFFERS</code> tells you cache vs. disk.</p>
+        <pre><code>EXPLAIN (ANALYZE, BUFFERS, VERBOSE)
+SELECT * FROM users WHERE email = 'a@b.com';</code></pre>
+      </div></details>
+
+      <details class="qa"><summary>What is MVCC and why does VACUUM matter? When does autovacuum fall behind?</summary><div class="ans">
+        <p><b>One sentence:</b> MVCC keeps multiple versions of each row so readers never block writers, and VACUUM reclaims dead versions once no transaction can see them.</p>
+        <p><b>Concept:</b> every tuple has <code>xmin</code> (creating txn) and <code>xmax</code> (deleting txn). An UPDATE writes a new tuple version and marks the old one dead. Without VACUUM, dead tuples accumulate (<i>bloat</i>): tables grow, sequential scans slow down, and indexes get fat. Autovacuum runs in the background based on <code>autovacuum_vacuum_threshold</code> + a fraction of table size.</p>
+        <p><b>Nuance:</b> autovacuum falls behind when a long-running transaction (or replication slot) holds the <i>visibility horizon</i> back &mdash; vacuum can&rsquo;t reclaim tuples that <i>any</i> live snapshot might still see. Symptoms: monotonically growing tables, <code>n_dead_tup</code> climbing in <code>pg_stat_user_tables</code>. Fix: kill the long txn, set <code>idle_in_transaction_session_timeout</code>, monitor <code>pg_stat_activity</code> for old <code>xact_start</code>, drop unused replication slots.</p>
+        <p><b>Wraparound:</b> <code>xid</code> is 32-bit; if VACUUM never runs, you eventually hit transaction-id wraparound and Postgres shuts down to save you. Real outage cause; autovacuum mostly handles it now but the boogeyman is real.</p>
+      </div></details>
+
+      <details class="qa"><summary>Difference between Read Committed, Repeatable Read, and Serializable. Which is default?</summary><div class="ans">
+        <p><b>One sentence:</b> Read Committed (default) sees each statement&rsquo;s own snapshot; Repeatable Read sees one snapshot for the whole txn; Serializable adds true serialization via SSI.</p>
+        <p><b>Concept:</b> in <b>Read Committed</b>, two SELECTs in the same txn can see different data &mdash; non-repeatable reads happen. <b>Repeatable Read</b> in Postgres is implemented as <i>snapshot isolation</i>: stable view, but vulnerable to <i>write skew</i> (two txns each read data the other hasn&rsquo;t modified yet, then both write). <b>Serializable</b> = SSI (Serializable Snapshot Isolation), which detects rw-dependency cycles and aborts one txn with <code>40001 serialization_failure</code>.</p>
+        <p><b>Nuance:</b> SSI is one of the few production-grade serializable implementations. Cost: aborts under contention &mdash; you must retry the transaction. Saying &ldquo;Postgres is fully ACID&rdquo; without picking the level is a yellow flag at staff level. The right answer cites a use case: <i>&ldquo;Default is Read Committed; for a transfer between accounts I&rsquo;d use Serializable and a retry loop.&rdquo;</i></p>
+        <pre><code>BEGIN ISOLATION LEVEL SERIALIZABLE;
+-- ... reads, writes ...
+COMMIT;  -- may raise 40001; retry on the client</code></pre>
+      </div></details>
+
+      <details class="qa"><summary>Streaming replication vs logical replication &mdash; when each?</summary><div class="ans">
+        <p><b>One sentence:</b> streaming ships raw WAL byte-for-byte (physical, whole-cluster); logical decodes WAL into per-row change events and replicates per-table.</p>
+        <p><b>Concept:</b> streaming gives you a binary clone &mdash; same OS, same Postgres major version, no schema flexibility. Logical (built on <code>pgoutput</code> + replication slots since 10) lets you replicate selected tables, do zero-downtime major-version upgrades, run cross-version replicas, and feed CDC pipelines (Debezium).</p>
+        <p><b>Nuance:</b> logical has gotchas &mdash; replication slots can pin WAL on the primary forever if a subscriber falls behind, filling disk. DDL is not replicated. Sequences are not advanced on the subscriber until a write triggers them. Large transactions are buffered until commit (Postgres 14+ supports streaming-in-progress).</p>
+        <pre><code>-- on primary
+SELECT pg_create_logical_replication_slot('cdc', 'pgoutput');
+-- monitor lag and disk
+SELECT slot_name, pg_size_pretty(pg_wal_lsn_diff(pg_current_wal_lsn(), restart_lsn))
+FROM pg_replication_slots;</code></pre>
+      </div></details>
+
+      <details class="qa"><summary>Index types: when do you reach for B-tree, GIN, GiST, BRIN, hash?</summary><div class="ans">
+        <p><b>One sentence:</b> B-tree for ordered equality/range, GIN for sets/JSONB/FTS, GiST for geometric/fuzzy, BRIN for huge sequential tables, hash almost never.</p>
+        <p><b>Concept:</b> <b>B-tree</b> is the default &mdash; equality, range, ORDER BY. <b>GIN</b> (generalized inverted index) maps each element to the docs that contain it &mdash; perfect for <code>jsonb</code> containment (<code>?</code>, <code>@&gt;</code>), arrays, and <code>tsvector</code>. <b>GiST</b> is a generalized search tree for geometric (PostGIS), nearest-neighbor, and trigram similarity (<code>pg_trgm</code>). <b>BRIN</b> stores min/max per block range &mdash; tiny index, great for naturally-clustered time-series; useless if data is unordered.</p>
+        <p><b>Nuance:</b> hash indexes finally became WAL-logged in PG 10, but B-tree on the same column is almost always a better default. <b>Partial</b> indexes (<code>WHERE deleted_at IS NULL</code>) and <b>covering</b> indexes (<code>INCLUDE (col)</code>) are massive wins most candidates forget. <b>pgvector</b> adds <code>ivfflat</code> and <code>hnsw</code> for ANN search.</p>
+      </div></details>
+
+      <details class="qa"><summary>How do you scale Postgres horizontally? When does sharding actually become necessary?</summary><div class="ans">
+        <p><b>One sentence:</b> you don&rsquo;t scale Postgres horizontally for writes natively &mdash; you scale reads with replicas, partition by range/hash, route by tenant, and graduate to Citus or a distributed-Postgres engine when one primary genuinely can&rsquo;t hold the write rate.</p>
+        <p><b>Concept:</b> a modern primary on decent hardware does 50&ndash;100k+ TPS comfortably. Most &ldquo;we need to shard&rdquo; conversations are actually about: hot tables that need partitioning, missing indexes, connection storms (fix with <b>PgBouncer</b> in transaction-pooling mode), or vacuum bloat.</p>
+        <p><b>Nuance:</b> when you do need horizontal write scale, the choices are: <b>Citus</b> (multi-tenant, distributed tables by hash), <b>app-level sharding</b> (own the routing, accept the pain on cross-shard queries), or <b>distributed Postgres-compat</b> (Aurora Limitless, CockroachDB, Yugabyte, Spanner-style). The interview answer: <i>&ldquo;I&rsquo;d exhaust vertical + replicas + PgBouncer + partitioning before I shard. Most teams shard prematurely.&rdquo;</i></p>
+      </div></details>
+
+      <details class="qa"><summary>When does JSONB beat a normalized schema, and when does it bite?</summary><div class="ans">
+        <p><b>One sentence:</b> JSONB wins for sparse, polymorphic, or rapidly-evolving payloads; it bites when those fields become first-class query targets.</p>
+        <p><b>Concept:</b> JSONB is decoded, indexable (GIN), supports operators (<code>-&gt;</code>, <code>-&gt;&gt;</code>, <code>@&gt;</code>, <code>?</code>). Great for &ldquo;config blob&rdquo; or &ldquo;catalog with optional attributes.&rdquo; Bad when you start filtering, aggregating, joining on inner keys at scale &mdash; the planner has limited stats on JSONB internals, and you lose the type system.</p>
+        <p><b>Nuance:</b> the right pattern is <i>hybrid</i>: promote frequently-queried keys to columns (with constraints, indexes, FK), keep the rest in JSONB. <b>Generated columns</b> (<code>GENERATED ALWAYS AS (data-&gt;&gt;'k')</code>) materialize a JSON path into an indexable column. Don&rsquo;t treat Postgres-with-JSONB as &ldquo;Mongo with SQL&rdquo; &mdash; that loses both worlds.</p>
+        <pre><code>CREATE INDEX idx_doc_tags ON docs USING GIN ((data-&gt;'tags'));
+SELECT * FROM docs WHERE data @&gt; '{"tags":["sale"]}';</code></pre>
+      </div></details>
+
+      <details class="qa"><summary>Connection pooling: why does Postgres need it, and what&rsquo;s the difference between PgBouncer modes?</summary><div class="ans">
+        <p><b>One sentence:</b> Postgres uses a process per connection &mdash; ~10MB each &mdash; so 1000 app connections = 10GB of RAM and a context-switching nightmare; PgBouncer multiplexes thousands of clients onto a small pool of server connections.</p>
+        <p><b>Concept:</b> PgBouncer modes: <b>session</b> (client owns a server connection until disconnect &mdash; safe for everything but no benefit), <b>transaction</b> (server connection released at COMMIT &mdash; the workhorse), <b>statement</b> (released after each statement &mdash; restrictive).</p>
+        <p><b>Nuance:</b> transaction mode breaks anything that uses <i>session state</i> &mdash; <code>SET</code>, prepared statements, <code>LISTEN/NOTIFY</code>, advisory locks across statements, temp tables. Most ORMs work fine if you turn off named prepared statements. PG 14+ has built-in support for protocol-level prepared statements that survive transaction pooling. <b>pgcat</b> and the new <b>pg_bouncer</b> features narrow the gap further.</p>
+      </div></details>
+
+      <details class="qa"><summary>Design a high-write audit log table that needs to retain 2 years of data and answer time-range queries fast.</summary><div class="ans">
+        <p><b>One sentence:</b> declarative range partitioning by month, BRIN index on <code>created_at</code>, B-tree on <code>actor_id</code>, drop old partitions instead of deleting rows.</p>
+        <p><b>Concept:</b> a single 2-year table with B-tree on time would have a 50+GB index and slow vacuum. Range partitioning by month gives you ~24 child tables; old months can be detached and archived in O(1). BRIN on <code>created_at</code> is tiny because rows are naturally ordered.</p>
+        <p><b>Nuance:</b> use <code>pg_partman</code> to automate partition creation and retention. Watch out for partition pruning &mdash; queries must include the partition key in the WHERE for pruning to work; <code>EXPLAIN</code> tells you which partitions were scanned. For really high write rate, also batch inserts (COPY or multi-row INSERT) and consider <b>unlogged</b> tables for the staging step.</p>
+        <pre><code>CREATE TABLE audit (
+  id BIGSERIAL, actor_id BIGINT, action TEXT,
+  created_at TIMESTAMPTZ NOT NULL
+) PARTITION BY RANGE (created_at);
+
+CREATE INDEX ON audit USING BRIN (created_at);
+-- monthly partitions managed by pg_partman</code></pre>
+      </div></details>
+
+      <details class="qa"><summary>What does <code>SELECT ... FOR UPDATE</code> actually lock, and how does it differ from <code>FOR UPDATE SKIP LOCKED</code>?</summary><div class="ans">
+        <p><b>One sentence:</b> <code>FOR UPDATE</code> takes a row-level write lock on every selected row, blocking conflicting writers until commit; <code>SKIP LOCKED</code> silently skips already-locked rows &mdash; the building block for a job queue.</p>
+        <p><b>Concept:</b> Postgres locks tuples by writing a special hint into the row header (no in-memory lock table for row locks). Other transactions trying to update the row block. <code>NOWAIT</code> raises an error instead of waiting; <code>SKIP LOCKED</code> just doesn&rsquo;t return them.</p>
+        <p><b>Nuance:</b> <code>SKIP LOCKED</code> is the canonical Postgres job queue: <code>SELECT ... FOR UPDATE SKIP LOCKED LIMIT 1</code> hands each worker a different row. No need for Redis or RabbitMQ for low-volume work. The trade is you don&rsquo;t get pub/sub semantics &mdash; workers must poll. Pair with <code>LISTEN/NOTIFY</code> for low-latency wakeups.</p>
+        <pre><code>SELECT id FROM jobs WHERE status='pending'
+ORDER BY created_at FOR UPDATE SKIP LOCKED LIMIT 1;</code></pre>
+      </div></details>
+
+      <details class="qa"><summary>Logical decoding for CDC: how does Debezium stay correct across failures?</summary><div class="ans">
+        <p><b>One sentence:</b> Debezium reads from a logical replication slot that pins WAL on the primary, tracks LSN as the offset, and replays from the last committed LSN on restart.</p>
+        <p><b>Concept:</b> a replication slot guarantees the primary keeps WAL until the consumer has confirmed receipt &mdash; the &ldquo;backpressure&rdquo; that prevents data loss but also the disk-fill risk if the consumer dies. Each event carries an LSN; Debezium commits offsets to Kafka so it can resume.</p>
+        <p><b>Nuance:</b> at-least-once by default; consumers must dedupe on (table, PK, LSN). Snapshot-on-startup uses repeatable-read or pg_export_snapshot to be consistent with the slot start. Schema changes are tricky &mdash; DDL isn&rsquo;t in the logical stream; Debezium uses heartbeats and a schema history topic. Watch <code>pg_replication_slots.confirmed_flush_lsn</code> like a hawk.</p>
+      </div></details>
+
+      <details class="qa"><summary>Why do indexes degrade over time, and what does REINDEX CONCURRENTLY do?</summary><div class="ans">
+        <p><b>One sentence:</b> B-tree indexes accumulate empty pages from deletes and HOT-broken updates; <code>REINDEX CONCURRENTLY</code> rebuilds them online without taking a lock that blocks reads/writes.</p>
+        <p><b>Concept:</b> a B-tree page split leaves half-empty pages; deletes mark slots dead but don&rsquo;t reclaim. Over months, an index doubles in size while data hasn&rsquo;t. Symptoms: index scans slower than expected, <code>pg_relation_size</code> on the index inflated. <b>HOT</b> (heap-only-tuple) updates avoid index churn when no indexed column changes.</p>
+        <p><b>Nuance:</b> <code>REINDEX CONCURRENTLY</code> (PG 12+) builds a new index alongside, then swaps. It briefly takes a strong lock at the swap. <code>pg_repack</code> does the same for tables. Don&rsquo;t do this during peak; schedule it like a vacuum.</p>
+      </div></details>
+
+      <div class="gotcha">
+        <b>Famous footguns</b>
+        <ul>
+          <li><b>&ldquo;Postgres scales horizontally with replicas.&rdquo;</b> No &mdash; replicas scale <i>reads</i>. Writes go to the primary. Confusing the two is a yellow flag.</li>
+          <li><b>Default isolation is Read Committed</b>, not Serializable. Don&rsquo;t claim &ldquo;Postgres is fully ACID&rdquo; without naming the level.</li>
+          <li><b>Long-running transactions</b> silently break vacuum and replication. Set <code>idle_in_transaction_session_timeout</code>; alert on <code>pg_stat_activity</code>.</li>
+          <li><b>Replication slots fill the primary&rsquo;s disk</b> when a subscriber dies. Always monitor slot lag; consider <code>max_slot_wal_keep_size</code> in PG 13+.</li>
+        </ul>
+      </div>
+    </article>
+  </div>
+</section>
+
+<!-- KAFKA -->
+<section id="kafka">
+  <div class="wrap">
+    <span class="kicker" style="border-color:var(--kafka); color:var(--kafka)">§ 02 &nbsp;Apache Kafka</span>
+    <article class="engine" data-db="kafka">
+      <div class="ph">
+        <div>
+          <div class="eyebrow">Distributed log &middot; Partitioned &middot; Replayable</div>
+          <h2 style="margin-top:.3rem">Apache Kafka</h2>
+          <p class="sub">An immutable, partitioned log that the world treats like a database.</p>
+        </div>
+        <div class="badges">
+          <span class="badge ok">Log-based</span>
+          <span class="badge ok">Replayable</span>
+          <span class="badge cool">Exactly-once (with care)</span>
+          <span class="badge warn">Not a queue</span>
+        </div>
+      </div>
+
+      <div class="orient">
+        <p>Kafka is a <b>distributed, partitioned, replicated commit log</b>. Producers append records to a <b>topic</b>; the topic is split into ordered <b>partitions</b>; each partition is an append-only file with a leader and N followers. Consumers track their position via an <b>offset</b>. The log is retained by time or size, not by &ldquo;was it acked&rdquo; &mdash; which is why it&rsquo;s replayable.</p>
+        <p>It is <b>not</b> a message queue. There&rsquo;s no per-message ack to the broker, no priority, no per-message TTL, no fanout-by-routing-key. The trade is enormous throughput (millions of msgs/sec on commodity hardware) and the ability to replay history.</p>
+        <p>The 30-second pitch: <i>&ldquo;Kafka is a durable, partitioned event log. We use it as the integration spine: services publish events, downstream services subscribe and maintain their own materialized views. Order is per-partition; throughput scales with partitions; durability is configurable per topic.&rdquo;</i></p>
+      </div>
+
+      <h4>Q&amp;A drills</h4>
+
+      <details class="qa"><summary>Explain the difference between consumer groups, partitions, and offsets. Who commits the offset and where?</summary><div class="ans">
+        <p><b>One sentence:</b> a partition is the unit of parallelism, a consumer group is a set of consumers that cooperatively read a topic with each partition assigned to exactly one consumer in the group, and the offset is the consumer&rsquo;s bookmark stored in the <code>__consumer_offsets</code> topic.</p>
+        <p><b>Concept:</b> if a topic has 12 partitions and a consumer group has 4 members, each member owns 3 partitions. Add a 5th consumer &mdash; <i>rebalance</i> redistributes. Add 13 consumers &mdash; one sits idle. So <b>partition count = max parallelism for a single consumer group</b>.</p>
+        <p><b>Nuance:</b> the consumer commits its offset (default every 5s with auto-commit, or explicitly via <code>commitSync</code>/<code>commitAsync</code>). At-least-once means: process the record, <i>then</i> commit. If you commit first and crash, you lose work. Cooperative rebalancing (KIP-429) reduces the &ldquo;stop-the-world&rdquo; pause.</p>
+        <pre><code>props.put("enable.auto.commit", "false");
+// in poll loop:
+records.forEach(r -&gt; process(r));
+consumer.commitSync();</code></pre>
+      </div></details>
+
+      <details class="qa"><summary>What does &ldquo;exactly-once semantics&rdquo; actually require end-to-end?</summary><div class="ans">
+        <p><b>One sentence:</b> exactly-once is not a single feature &mdash; it requires an <b>idempotent producer</b>, <b>transactional writes</b> spanning produce + offset commit, and a <b>read_committed</b> consumer; and even then it&rsquo;s only end-to-end if the downstream sink is idempotent or transactional.</p>
+        <p><b>Concept:</b> the producer adds <code>enable.idempotence=true</code> + a producer ID + sequence numbers, so the broker dedups retries within a session. <b>Transactions</b> (<code>transactional.id</code>) let you atomically write to multiple partitions <i>and</i> commit consumer offsets &mdash; the &ldquo;read-process-write&rdquo; pattern Kafka Streams uses. Consumers must set <code>isolation.level=read_committed</code> to skip records from aborted txns.</p>
+        <p><b>Nuance:</b> &ldquo;exactly-once&rdquo; refers to <i>processing</i>, not <i>delivery</i>. If your sink is a database, you still need an idempotent upsert or a 2PC. Saying &ldquo;Kafka does exactly-once&rdquo; without explaining this is the staff-level red flag.</p>
+        <pre><code>producer.initTransactions();
+producer.beginTransaction();
+producer.send(new ProducerRecord&lt;&gt;("out", k, v));
+producer.sendOffsetsToTransaction(offsets, groupMetadata);
+producer.commitTransaction();</code></pre>
+      </div></details>
+
+      <details class="qa"><summary>How does Kafka achieve durability and what do <code>acks=all</code>, <code>min.insync.replicas</code>, and replication factor really mean?</summary><div class="ans">
+        <p><b>One sentence:</b> a record is durable when it&rsquo;s appended to the leader and replicated to <b>min.insync.replicas</b> in-sync followers; <code>acks=all</code> makes the producer wait for that.</p>
+        <p><b>Concept:</b> RF=3 means the partition has 3 replicas. <b>ISR</b> (in-sync replica set) is the subset that&rsquo;s caught up to the leader. <code>min.insync.replicas=2</code> + <code>acks=all</code> means the producer waits until 2 of 3 replicas have the record. If only 1 is in-sync, the producer gets <code>NotEnoughReplicasException</code> &mdash; correct behavior, because acking when ISR is too small risks data loss on leader failure.</p>
+        <p><b>Nuance:</b> <code>acks=1</code> trades durability for latency &mdash; the leader can crash before replication. <code>unclean.leader.election.enable=false</code> prevents an out-of-sync replica from becoming leader (which would lose data). For maximum durability: RF=3, <code>min.insync.replicas=2</code>, <code>acks=all</code>, <code>unclean.leader.election.enable=false</code>.</p>
+      </div></details>
+
+      <details class="qa"><summary>Walk through the write path. What&rsquo;s the page cache&rsquo;s role?</summary><div class="ans">
+        <p><b>One sentence:</b> producer batches records, sends to the partition leader, leader appends to its log segment file, the OS page cache absorbs the write, followers fetch and replicate, then fsync happens lazily based on configuration.</p>
+        <p><b>Concept:</b> Kafka leans on the Linux page cache &mdash; it doesn&rsquo;t maintain its own. Writes go to memory; the kernel flushes to disk in the background. <b>Zero-copy</b> reads (<code>sendfile</code> syscall) push pages straight from page cache to socket without copying through user space &mdash; the secret to Kafka&rsquo;s read throughput.</p>
+        <p><b>Nuance:</b> by default, Kafka does <i>not</i> fsync on every write &mdash; it relies on replication for durability (&ldquo;if 3 brokers crash simultaneously, you have bigger problems&rdquo;). You can force <code>flush.messages=1</code> for fsync-per-record, but throughput collapses. The right answer: <i>&ldquo;Durability comes from replication, not fsync. Page cache is the speed.&rdquo;</i></p>
+      </div></details>
+
+      <details class="qa"><summary>What did KRaft replace, and why does it matter?</summary><div class="ans">
+        <p><b>One sentence:</b> KRaft replaces ZooKeeper for Kafka&rsquo;s metadata (topic configs, ACLs, partition assignments) with a self-managed Raft quorum of controller nodes &mdash; one fewer system to operate.</p>
+        <p><b>Concept:</b> historically, Kafka stored metadata in ZK and elected a controller via ZK ephemeral nodes. ZK was a separate cluster with its own ops burden, sized for low write rates. KRaft (KIP-500) makes 3 or 5 Kafka brokers act as controllers using Raft directly, storing metadata in an internal Kafka topic (<code>__cluster_metadata</code>).</p>
+        <p><b>Nuance:</b> KRaft scales to millions of partitions (ZK choked around 200k). Cold-start is faster (controller failover is seconds, not minutes). Kafka 3.3+ marked KRaft production-ready; 4.0 removed ZK entirely. If asked &ldquo;why?&rdquo;, the cleanest answer is operational: <i>&ldquo;One system, one consensus protocol, faster recovery, more partitions.&rdquo;</i></p>
+      </div></details>
+
+      <details class="qa"><summary>Why is the partition the unit of ordering, and what happens when you need global ordering?</summary><div class="ans">
+        <p><b>One sentence:</b> Kafka guarantees order within a partition (because a partition is one append-only file with one leader); for global ordering you need a single partition, which caps throughput at one consumer&rsquo;s speed.</p>
+        <p><b>Concept:</b> producers route records to partitions by <code>hash(key) % numPartitions</code> by default. Same key &rarr; same partition &rarr; ordered. No key &rarr; round-robin (or sticky in newer clients). Multiple partitions = multiple parallel writers and readers.</p>
+        <p><b>Nuance:</b> &ldquo;I need global ordering&rdquo; is usually wrong. What people usually need is <i>per-entity</i> ordering &mdash; route by entity ID and order is preserved within that entity. If you genuinely need global order (e.g., a single financial ledger), accept the throughput ceiling and use partition 0 of a single-partition topic. <b>Repartitioning</b> by changing the partition count breaks ordering for existing keys (<code>hash(k) % N</code> changes); use a custom partitioner or pre-pick a generous partition count.</p>
+      </div></details>
+
+      <details class="qa"><summary>What is log compaction and when do you use it?</summary><div class="ans">
+        <p><b>One sentence:</b> log compaction retains <i>at least the latest record per key</i>, deleting older versions of the same key, turning the log into a database-like changelog.</p>
+        <p><b>Concept:</b> default retention is time/size based (e.g., 7 days). With <code>cleanup.policy=compact</code>, a background thread (<i>log cleaner</i>) periodically rewrites segments, keeping only the newest record per key. A null value is a <b>tombstone</b> &mdash; eventually removes the key entirely.</p>
+        <p><b>Nuance:</b> compacted topics power Kafka&rsquo;s own metadata, Kafka Streams state stores (changelog topics), and CDC patterns where you want &ldquo;current state per key&rdquo; recoverable from the topic. They&rsquo;re not free: compaction is I/O-intensive, and you must pick keys carefully (a compacted topic with no key is just &hellip; broken). Time-based + compact (<code>cleanup.policy=compact,delete</code>) is valid for &ldquo;last N days of latest-per-key.&rdquo;</p>
+      </div></details>
+
+      <details class="qa"><summary>Design exactly-once for a service that reads from Kafka, processes, and writes to Postgres.</summary><div class="ans">
+        <p><b>One sentence:</b> use the <b>transactional outbox</b> pattern &mdash; write your DB row and an outbox row in one Postgres transaction, then a CDC connector publishes the outbox to Kafka with idempotent producer; on the consume side, dedupe by record key in your Postgres upsert.</p>
+        <p><b>Concept:</b> Kafka transactions don&rsquo;t span Kafka + Postgres. The two-database problem is unsolved without 2PC, which Postgres-Kafka don&rsquo;t share. The outbox pattern brackets the boundary: Postgres txn is atomic, Debezium reads the outbox via logical replication, idempotent producer dedups retries.</p>
+        <p><b>Nuance:</b> on the consumer side, store <code>(topic, partition, offset)</code> alongside the application row, and use <code>INSERT ... ON CONFLICT DO NOTHING</code> or check the offset before applying. This gives <b>effectively-once</b> processing &mdash; the only thing that&rsquo;s actually achievable when crossing systems.</p>
+        <pre><code>-- producer side: transactional outbox
+BEGIN;
+INSERT INTO orders (...) VALUES (...);
+INSERT INTO outbox (event_type, payload) VALUES ('OrderPlaced', ...);
+COMMIT;
+-- Debezium ships outbox -&gt; Kafka with idempotent producer</code></pre>
+      </div></details>
+
+      <details class="qa"><summary>Consumer rebalancing keeps stalling our service. What&rsquo;s happening and how do you fix it?</summary><div class="ans">
+        <p><b>One sentence:</b> rebalancing happens whenever group membership changes &mdash; a consumer joins, leaves, or fails to heartbeat in time &mdash; and during a rebalance, all partition processing pauses (in eager mode) until assignments are recomputed.</p>
+        <p><b>Concept:</b> the consumer sends heartbeats every <code>heartbeat.interval.ms</code> (default 3s) and must call <code>poll()</code> within <code>max.poll.interval.ms</code> (default 5min). Long processing per record &mdash; a slow DB write, an external API call &mdash; makes <code>poll()</code> miss its deadline; the broker considers the consumer dead and rebalances.</p>
+        <p><b>Nuance:</b> fixes: (1) reduce <code>max.poll.records</code> so each poll loop is shorter; (2) move slow work out of the poll thread; (3) increase <code>max.poll.interval.ms</code>; (4) enable <b>cooperative rebalancing</b> (<code>partition.assignment.strategy=CooperativeStickyAssignor</code>) so only affected partitions pause; (5) use static membership (<code>group.instance.id</code>) to skip rebalances on transient pod restarts.</p>
+      </div></details>
+
+      <details class="qa"><summary>When should you NOT use Kafka?</summary><div class="ans">
+        <p><b>One sentence:</b> when you need per-message ack semantics, low-volume request/reply, complex routing rules, or message-level priority &mdash; reach for a queue (RabbitMQ, SQS) instead.</p>
+        <p><b>Concept:</b> Kafka&rsquo;s simplicity is its constraint. There&rsquo;s no per-message ack to the broker (the consumer just moves the offset); no &ldquo;dead letter&rdquo; built in (you build it as a separate topic); no priority queue; no fanout by routing key (you put it in a topic and consumers ignore what they don&rsquo;t care about). Latency floor is a few ms; tail is &ldquo;whatever the consumer&rsquo;s poll interval is.&rdquo;</p>
+        <p><b>Nuance:</b> the giveaway use cases for Kafka: high throughput, replay needed, multiple independent consumers of the same data, &ldquo;event log as integration spine.&rdquo; The giveaway use cases for RabbitMQ/SQS: task queues, request/reply with TTL, fanout routing, low volume but per-message reliability matters more than throughput.</p>
+      </div></details>
+
+      <details class="qa"><summary>Tiered storage and how it changes Kafka&rsquo;s economics.</summary><div class="ans">
+        <p><b>One sentence:</b> tiered storage (KIP-405, GA in 3.6) offloads cold log segments to object storage (S3) while keeping recent ones on local disk, decoupling retention from broker disk size.</p>
+        <p><b>Concept:</b> historically, retention was capped by broker disk &mdash; 7-day retention on TB/day = enormous local disk. Tiered storage lets brokers move closed segments to S3 transparently; consumers reading old offsets pay a small latency cost but get the data. Confluent Cloud, MSK, Aiven, Redpanda all expose this.</p>
+        <p><b>Nuance:</b> reading from object storage is <i>much</i> slower (hundreds of ms per fetch); replay-from-the-beginning patterns become I/O-expensive on cloud egress. The big economic win: long retention without overprovisioned brokers; the trade is occasional consumers paying for cold reads.</p>
+      </div></details>
+
+      <details class="qa"><summary>How do you size a Kafka cluster for 1 GB/s sustained ingestion?</summary><div class="ans">
+        <p><b>One sentence:</b> at 1 GB/s sustained with RF=3, you write 3 GB/s to disk + ~3 GB/s replication network; budget ~6&ndash;9 brokers with NVMe and 25 GbE NIC, plus retention-driven storage.</p>
+        <p><b>Concept:</b> per-broker throughput on commodity hardware is roughly 250&ndash;500 MB/s sustained write before tail latency degrades. RF=3 multiplies the disk + network requirement. Network is usually the first bottleneck on cloud (instances cap at 10&ndash;25 Gbps). For 1 GB/s with headroom, plan ~6&ndash;9 brokers, partition count in the low thousands across topics, and replication-throttle for rebuilds.</p>
+        <p><b>Nuance:</b> the answer interviewers want is structured: ingest rate &times; RF = disk write; ingest &times; (RF-1) = replication network; consumer fanout &times; ingest = read network; partition count &gt;= max parallelism per topic; pick instance type that keeps each broker under 70% CPU/network at peak. Numbers matter less than the structure.</p>
+      </div></details>
+
+      <div class="gotcha">
+        <b>Famous footguns</b>
+        <ul>
+          <li><b>&ldquo;Exactly-once means the broker dedups end-to-end.&rdquo;</b> No &mdash; it requires idempotent producer + transactions + read_committed consumer, and even then end-to-end demands an idempotent sink.</li>
+          <li><b>&ldquo;More partitions = always faster.&rdquo;</b> Partitions cost open file handles, controller memory, and replication bandwidth. Tens of thousands per cluster start to bite.</li>
+          <li><b>Auto-commit + slow processing = silent data loss.</b> Auto-commit advances the offset on a timer; if the consumer crashes mid-batch, you lose messages. Always commit after processing.</li>
+          <li><b>Repartitioning a topic breaks key ordering.</b> Old records are at <code>hash(k) % oldN</code>, new ones at <code>% newN</code>. Pick partition count generously up front; resharding is migration, not config.</li>
+        </ul>
+      </div>
+    </article>
+  </div>
+</section>
+
+<!-- MONGODB -->
+<section id="mongo">
+  <div class="wrap">
+    <span class="kicker" style="border-color:var(--mongo); color:var(--mongo)">§ 03 &nbsp;MongoDB</span>
+    <article class="engine" data-db="mongo">
+      <div class="ph">
+        <div>
+          <div class="eyebrow">Document &middot; Replica sets + sharding &middot; WiredTiger</div>
+          <h2 style="margin-top:.3rem">MongoDB</h2>
+          <p class="sub">Document-shaped data and a shard key you&rsquo;d better get right.</p>
+        </div>
+        <div class="badges">
+          <span class="badge ok">ACID (multi-doc)</span>
+          <span class="badge cool">Causal consistency</span>
+          <span class="badge warn">Shard-key-sensitive</span>
+          <span class="badge bad">16 MB doc cap</span>
+        </div>
+      </div>
+
+      <div class="orient">
+        <p>MongoDB stores <b>BSON documents</b> in collections. A <b>replica set</b> = one primary + N secondaries with an oplog; primaries handle writes, secondaries tail and replay. A <b>sharded cluster</b> adds <code>mongos</code> routers and config servers to spread documents across multiple replica sets by shard key.</p>
+        <p>It is <b>not</b> a schemaless free-for-all. The schema lives in the application, and Mongo enforces it via JSON Schema validators if you ask. It&rsquo;s also not a great fit for highly relational data with cross-document transactions at scale &mdash; multi-shard ACID exists since 4.2, but it&rsquo;s a tool, not a pattern.</p>
+        <p>The 30-second pitch: <i>&ldquo;Mongo for document-shaped data and fast schema iteration. Replica sets give HA out of the box. Sharding works once you&rsquo;ve modeled access patterns around the shard key. Default consistency is causal-on-primary; tighten it via write concern + read concern.&rdquo;</i></p>
+      </div>
+
+      <h4>Q&amp;A drills</h4>
+
+      <details class="qa"><summary>What changes when you go from a replica set to a sharded cluster?</summary><div class="ans">
+        <p><b>One sentence:</b> routing moves to <code>mongos</code>, queries need a shard key strategy or they broadcast, multi-doc transactions become 5&ndash;10&times; more expensive when they cross shards, and uniqueness across shards is only enforced on the shard-key prefix.</p>
+        <p><b>Concept:</b> <code>mongos</code> is a stateless router that consults <b>config servers</b> (a replica set storing chunk metadata) to direct queries. Queries with the shard key go to one shard (<i>targeted</i>); queries without it go to all shards (<i>scatter-gather</i>). Aggregations gain a coordinate-and-merge phase.</p>
+        <p><b>Nuance:</b> a common mistake is sharding without revisiting indexes. An index that worked on a replica set might not have the shard-key prefix, so every query becomes scatter-gather. The right answer: <i>&ldquo;Sharding is an architecture, not a config flag. The shard key is the design.&rdquo;</i></p>
+      </div></details>
+
+      <details class="qa"><summary>How do you choose a shard key?</summary><div class="ans">
+        <p><b>One sentence:</b> high cardinality, even write distribution, and a shape that lets your hottest queries target one shard.</p>
+        <p><b>Concept:</b> three properties at once: <b>cardinality</b> (enough distinct values), <b>uniformity</b> (writes spread evenly &mdash; no hot shard), <b>locality</b> (queries can be answered by hitting one or few shards). Hashed shard key spreads writes; ranged supports range queries but risks hot shards on monotonic keys (e.g., timestamps, ObjectIds).</p>
+        <p><b>Nuance:</b> compound shard keys are usually right. <code>{tenantId: "hashed", createdAt: 1}</code> spreads tenants and keeps each tenant&rsquo;s data range-queryable within its shard. <b>Zone sharding</b> pins ranges to nodes (e.g., region locality for GDPR). Resharding is online since 4.4 but expensive; pick well the first time.</p>
+        <pre><code>sh.shardCollection("app.events",
+  { tenantId: "hashed", createdAt: 1 });</code></pre>
+      </div></details>
+
+      <details class="qa"><summary>Explain write concern, read concern, and how causal sessions fit in.</summary><div class="ans">
+        <p><b>One sentence:</b> write concern controls <i>when</i> the primary acks (durability), read concern controls <i>which</i> data the read sees (consistency), and causal sessions chain operations so &ldquo;read-your-writes&rdquo; works across primary/secondary boundaries.</p>
+        <p><b>Concept:</b> <code>w:1</code> &mdash; primary only (fast, can lose on failover). <code>w:majority</code> &mdash; majority of replica set acked (durable). <code>j:true</code> waits for journal sync. Read concerns: <code>local</code> (whatever&rsquo;s here), <code>majority</code> (won&rsquo;t roll back), <code>linearizable</code> (primary only, slowest), <code>snapshot</code> (used inside transactions).</p>
+        <p><b>Nuance:</b> default for new drivers is <code>w:majority</code>. <b>Causal sessions</b> let you write to primary then read from a secondary and still see your write &mdash; the driver passes a cluster time, the secondary waits until it has caught up. The right answer: <i>&ldquo;Match the concern to the operation. Money operations are <code>w:majority, j:true</code> + linearizable read. Profile reads are <code>local</code> on a secondary.&rdquo;</i></p>
+      </div></details>
+
+      <details class="qa"><summary>Multi-document transactions: what&rsquo;s the cost, and when do you actually use them?</summary><div class="ans">
+        <p><b>One sentence:</b> multi-doc transactions are real ACID since 4.0 (replica sets) and 4.2 (sharded), but they hold locks longer, cost coordinator round trips on sharded clusters, and abort under contention &mdash; treat them as the escape hatch, not the default.</p>
+        <p><b>Concept:</b> Mongo encourages embedding related data in one document so you don&rsquo;t need transactions. When you do (e.g., transferring money between accounts in separate docs), wrap in a session with snapshot isolation. Sharded transactions use a 2PC-like coordinator; latency goes from ~ms to tens of ms.</p>
+        <p><b>Nuance:</b> the rule of thumb: if your transaction spans documents because <i>the schema is wrong</i>, fix the schema. If it spans documents because they&rsquo;re genuinely independent entities, use a transaction sparingly. Default txn timeout is 60s; long txns block oplog progression on secondaries.</p>
+      </div></details>
+
+      <details class="qa"><summary>How does the WiredTiger storage engine work, and why does it matter for capacity planning?</summary><div class="ans">
+        <p><b>One sentence:</b> WiredTiger is a B-tree storage engine with document-level locking, MVCC for snapshot reads, and snappy/zstd compression &mdash; document-level locking is why Mongo isn&rsquo;t bottlenecked on a global lock the way it was pre-3.0.</p>
+        <p><b>Concept:</b> WT keeps a write-ahead journal, periodic checkpoints (default 60s), and an in-memory cache (default 50% of RAM minus 1GB). Reads hit cache; misses go to disk; writes update in-memory then journal. MVCC makes reads non-blocking on writes.</p>
+        <p><b>Nuance:</b> <b>working set must fit in cache</b> for good performance &mdash; the working set is the indexes + hot documents, not the whole database. If <code>db.serverStatus().wiredTiger.cache</code> shows high eviction rates and pages read from disk, you&rsquo;re cache-starved. Compression typically gives 3&ndash;7&times; on text-heavy data; pick zstd on 4.2+ for better ratio at slightly higher CPU.</p>
+      </div></details>
+
+      <details class="qa"><summary>What&rsquo;s the oplog, and how does its window affect operations?</summary><div class="ans">
+        <p><b>One sentence:</b> the oplog is a capped collection on the primary that records every write; secondaries tail it and replay; the oplog window is how far back in time the oplog still has entries.</p>
+        <p><b>Concept:</b> default size is 5% of free disk. A secondary that falls behind the oplog window must do a full <i>initial sync</i> &mdash; copy every doc from a healthy node. Long-running secondary downtime = re-sync.</p>
+        <p><b>Nuance:</b> alert on oplog window dropping below your max-tolerable-secondary-downtime + safety margin. <code>db.getReplicationInfo()</code> shows the window. Resize with <code>replSetResizeOplog</code>. Watch for write-heavy bursts shrinking the window unpredictably.</p>
+      </div></details>
+
+      <details class="qa"><summary>Indexing in Mongo: when do you reach for compound, multikey, partial, wildcard, or text?</summary><div class="ans">
+        <p><b>One sentence:</b> compound indexes for multi-field queries (order matters &mdash; ESR rule), multikey when an indexed field is an array, partial to skip soft-deleted rows, wildcard for catch-all on dynamic schemas, text for basic full-text.</p>
+        <p><b>Concept:</b> the <b>ESR rule</b> for compound index field order: <i>Equality, Sort, Range</i>. Indexed range scans break sort-using-index, so range comes last. Multikey is automatic on array fields, but compound multikey is restricted (only one indexed field per doc can be an array per index).</p>
+        <p><b>Nuance:</b> partial indexes save huge space on &ldquo;active rows only&rdquo; tables (<code>partialFilterExpression: { deleted: false }</code>). Wildcard indexes (<code>{ "$**": 1 }</code>) are tempting but expensive at write time and not useful for most queries &mdash; reach for them only on truly dynamic catalog data. <b>Atlas Search</b> bridges to Lucene for real text/relevance.</p>
+      </div></details>
+
+      <details class="qa"><summary>How does primary election work, and what&rsquo;s the failover timeline?</summary><div class="ans">
+        <p><b>One sentence:</b> on primary failure, secondaries vote (Raft-like protocol since 3.4), the most up-to-date eligible node becomes primary, and clients with retryable writes silently retry &mdash; default failover budget is ~10&ndash;30s.</p>
+        <p><b>Concept:</b> <code>electionTimeoutMillis</code> (default 10s) is the heartbeat timeout before secondaries call an election. Priority and lag determine who can win. An odd number of voting members is critical to avoid split-brain; <i>arbiters</i> exist but harm durability and should be avoided when possible.</p>
+        <p><b>Nuance:</b> drivers retry idempotent operations once during failover. <b>Stepdown</b> can be triggered manually for maintenance. Watch for &ldquo;rollback&rdquo;: if a primary takes writes that aren&rsquo;t replicated and then loses election, those writes are rolled into a rollback file &mdash; lost in practice. Avoid by using <code>w:majority</code>.</p>
+      </div></details>
+
+      <details class="qa"><summary>Aggregation pipeline: how do you write performant pipelines on large collections?</summary><div class="ans">
+        <p><b>One sentence:</b> filter early with <code>$match</code> + index, project early to shrink documents, push <code>$sort</code> before <code>$group</code> when an index can serve it, and watch for <i>blocking</i> stages that buffer everything in memory.</p>
+        <p><b>Concept:</b> stages flow records through. <code>$match</code> + <code>$sort</code> can use indexes if they appear before any stage that transforms documents (<code>$group</code>, <code>$project</code> reshapes). Blocking stages (<code>$group</code>, <code>$sort</code> without index, <code>$lookup</code> without index) hit the 100MB memory limit by default; <code>allowDiskUse: true</code> spills, but slowly.</p>
+        <p><b>Nuance:</b> <code>$lookup</code> is &ldquo;left outer join&rdquo; but slow at scale &mdash; consider denormalization or computing on the client. Use <code>explain()</code> with <code>executionStats</code> to see which stages used indexes (<code>IXSCAN</code> vs <code>COLLSCAN</code>). On sharded clusters, push as much work as possible into the per-shard phase before merge.</p>
+      </div></details>
+
+      <details class="qa"><summary>You&rsquo;re storing user-generated comments. Embed or reference?</summary><div class="ans">
+        <p><b>One sentence:</b> embed when comments are bounded and read together with the parent; reference when they&rsquo;re unbounded, mutated independently, or queried separately.</p>
+        <p><b>Concept:</b> Mongo&rsquo;s document model rewards co-locating data that&rsquo;s read together. If a post has &lt;100 comments and you always show them with the post, embed. If a post can have 100k comments, embedding hits the 16 MB doc cap and forces every read to drag all comments.</p>
+        <p><b>Nuance:</b> the hybrid pattern: embed the latest N (say 10) comments in the post for fast first paint, store all comments in a separate collection, denormalize the count back to the post. The interview tell: a candidate who answers &ldquo;always embed&rdquo; or &ldquo;always reference&rdquo; hasn&rsquo;t modeled this in production.</p>
+      </div></details>
+
+      <details class="qa"><summary>Why isn&rsquo;t Mongo &ldquo;schemaless&rdquo;?</summary><div class="ans">
+        <p><b>One sentence:</b> the schema exists, it just lives in your application code &mdash; and that&rsquo;s often worse than a declared schema because no two services agree on it.</p>
+        <p><b>Concept:</b> Mongo accepts arbitrary BSON; your readers and writers must agree on field names, types, and shapes. Without enforcement, you get drift: one service writes <code>email</code> as a string, another as <code>{primary: ..., backup: ...}</code>, and queries silently miss documents.</p>
+        <p><b>Nuance:</b> use <b>JSON Schema validators</b> at the collection level (<code>validator: { $jsonSchema: ... }</code>) for hard guarantees, and a typed DTO layer in code (Mongoose, MongoEngine, BSON codecs). The right interview answer: <i>&ldquo;Document-shaped data, application-owned schema, validators where invariants matter.&rdquo;</i></p>
+      </div></details>
+
+      <div class="gotcha">
+        <b>Famous footguns</b>
+        <ul>
+          <li><b>Bad shard key = forever pain.</b> Resharding online is real but expensive; teams have spent quarters fixing a poor key. Pick once, model first.</li>
+          <li><b>16 MB document cap is hard.</b> Activity feeds, comment lists, time-series &mdash; embedding unbounded arrays will eventually break. Use bucketing or a separate collection.</li>
+          <li><b>Default isolation pre-4.0 wasn&rsquo;t ACID across docs.</b> If you reference an old article on Mongo&rsquo;s consistency, check the version.</li>
+          <li><b>Aggregation memory limit (100 MB) bites silently.</b> Without <code>allowDiskUse</code>, big <code>$group</code> just errors. With it, performance falls off a cliff.</li>
+        </ul>
+      </div>
+    </article>
+  </div>
+</section>
+
+<!-- CASSANDRA -->
+<section id="cassandra">
+  <div class="wrap">
+    <span class="kicker" style="border-color:var(--cassandra); color:var(--cassandra)">§ 04 &nbsp;Apache Cassandra</span>
+    <article class="engine" data-db="cassandra">
+      <div class="ph">
+        <div>
+          <div class="eyebrow">Wide-column &middot; Masterless &middot; LSM</div>
+          <h2 style="margin-top:.3rem">Apache Cassandra</h2>
+          <p class="sub">Linear-scale writes, gossip-coordinated, opinionated to the bone.</p>
+        </div>
+        <div class="badges">
+          <span class="badge ok">Linear write scale</span>
+          <span class="badge cool">Tunable per query</span>
+          <span class="badge warn">Query-first modeling</span>
+          <span class="badge bad">No joins</span>
+        </div>
+      </div>
+
+      <div class="orient">
+        <p>Cassandra is a <b>masterless, peer-to-peer ring</b> of identical nodes. Data is placed on the ring by consistent hashing of the partition key; the replication factor (RF) determines how many copies. Storage is an LSM tree: writes hit a commit log + memtable, flush to immutable SSTables, and merge through compaction.</p>
+        <p>It is <b>not</b> a relational database. No joins, no foreign keys, no aggregations beyond the partition, weak secondary indexes. Data is modeled <i>per query</i>, often with the same data duplicated across multiple tables.</p>
+        <p>The 30-second pitch: <i>&ldquo;Cassandra for write-heavy, time-series, multi-region workloads where I can model around partition keys. RF=3, LOCAL_QUORUM, query-first tables. The trade is no ad-hoc queries and write amplification through duplication.&rdquo;</i></p>
+      </div>
+
+      <h4>Q&amp;A drills</h4>
+
+      <details class="qa"><summary>What does R + W &gt; RF guarantee, and what does it not?</summary><div class="ans">
+        <p><b>One sentence:</b> R + W &gt; RF guarantees that any read overlaps with any write on at least one replica, so the read sees the latest write &mdash; <i>provided</i> writes are linearizable per replica, which they aren&rsquo;t under concurrent writes.</p>
+        <p><b>Concept:</b> with RF=3, R=W=QUORUM=2, R+W=4 &gt; 3, so reads always intersect the latest write. Cassandra uses <b>last-write-wins</b> by timestamp on conflicts &mdash; readers see the row with the highest timestamp.</p>
+        <p><b>Nuance:</b> what it doesn&rsquo;t guarantee: <b>linearizability across writes</b>. Two concurrent writes to the same cell with the same timestamp resolve by some tiebreaker; one is silently lost. For real CAS you need <b>LWT</b> (Lightweight Transactions) using Paxos &mdash; expensive (4 round trips) and partition-scoped only. The senior answer: <i>&ldquo;R+W&gt;RF gives strong reads under sequential writes; for concurrent writes to the same row, use LWT or accept LWW.&rdquo;</i></p>
+        <pre><code>SELECT * FROM users WHERE id = ? -- with CL=QUORUM
+INSERT INTO users (id, email) VALUES (?, ?) IF NOT EXISTS;
+-- the IF NOT EXISTS triggers Paxos (LWT)</code></pre>
+      </div></details>
+
+      <details class="qa"><summary>Walk through the write path. Why are Cassandra writes so fast?</summary><div class="ans">
+        <p><b>One sentence:</b> a write hits the commit log (sequential append, fsync on a schedule) and an in-memory memtable, then immediately acks &mdash; no in-place update, no random I/O on the hot path.</p>
+        <p><b>Concept:</b> the <b>memtable</b> is an in-memory sorted structure (per table). When it fills, it flushes to disk as an immutable <b>SSTable</b>. Reads merge candidates across SSTables + memtable. <b>Compaction</b> (size-tiered, leveled, or time-window) merges SSTables periodically, removing tombstones and obsoleted versions.</p>
+        <p><b>Nuance:</b> the LSM trade is read amplification (a read may consult multiple SSTables; <b>bloom filters</b> avoid most of them) and write amplification through compaction. Compaction strategy choice: <b>STCS</b> (default, write-favored), <b>LCS</b> (read-favored, more I/O), <b>TWCS</b> (time-windowed, ideal for time-series with TTL).</p>
+      </div></details>
+
+      <details class="qa"><summary>How does a partition key + clustering columns work, and why do they matter for performance?</summary><div class="ans">
+        <p><b>One sentence:</b> the partition key determines which node holds the row (via hash), and clustering columns determine the sort order <i>within</i> that partition &mdash; so range scans within a partition are cheap, but cross-partition queries are expensive or illegal.</p>
+        <p><b>Concept:</b> <code>PRIMARY KEY ((tenant_id, day), event_time, event_id)</code> means: partition key is <code>(tenant_id, day)</code>, clustering is <code>event_time, event_id</code>. All events for a tenant on a day live on the same set of replicas, sorted by time. <code>WHERE tenant_id=? AND day=? AND event_time &gt; ?</code> &mdash; one partition, one disk seek, lots of sequential reads.</p>
+        <p><b>Nuance:</b> querying without the full partition key is illegal (or requires <code>ALLOW FILTERING</code>, which is a slow scan-and-filter you should never use in production). The right modeling: <b>compound partition keys</b> to bound partition size and spread load.</p>
+      </div></details>
+
+      <details class="qa"><summary>What are tombstones, and why can they kill reads?</summary><div class="ans">
+        <p><b>One sentence:</b> a tombstone is a marker recording &ldquo;this cell or row was deleted&rdquo;; reads must scan tombstones along with live data, so partitions full of tombstones get linearly slower.</p>
+        <p><b>Concept:</b> Cassandra is append-only. A delete writes a tombstone with a timestamp; the actual data is removed only by compaction after <code>gc_grace_seconds</code> (default 10 days). The grace period exists to ensure all replicas converge before tombstones are dropped &mdash; otherwise a missed delete could resurrect data.</p>
+        <p><b>Nuance:</b> common cause: writing-then-deleting many cells in a wide partition (e.g., a queue table). Reading 10k tombstones to find 100 live rows is a real production failure. Symptoms: <code>tombstone_warn_threshold</code> warnings (default 1000) and <code>tombstone_failure_threshold</code> errors (default 100k). Fix: rethink the model, use TTLs with TWCS, never use Cassandra as a queue.</p>
+      </div></details>
+
+      <details class="qa"><summary>Repair: what is it, why is it mandatory, and what does it cost?</summary><div class="ans">
+        <p><b>One sentence:</b> repair is the anti-entropy process that compares Merkle trees of data across replicas and streams missing/divergent ranges to bring them into sync &mdash; mandatory because hinted handoff and read-repair only cover the easy cases.</p>
+        <p><b>Concept:</b> when a replica is down, the coordinator may store a <b>hint</b> (a deferred write); when the replica returns, hints replay. But hints have TTL and storage limits. <b>Read repair</b> fixes inconsistencies on the path of a read at QUORUM+. Neither catches every miss. Full <b>repair</b> (<code>nodetool repair</code>) is the backstop &mdash; must run within <code>gc_grace_seconds</code> or deleted data can resurrect.</p>
+        <p><b>Nuance:</b> repair is expensive &mdash; it streams data and competes with live traffic. <b>Reaper</b> (open source) schedules incremental repairs across the cluster. Skipping repair = data resurrection bugs. The interview tell: a candidate who can&rsquo;t describe repair has run small Cassandra clusters but not production ones.</p>
+      </div></details>
+
+      <details class="qa"><summary>Multi-DC: how does <code>NetworkTopologyStrategy</code> + <code>LOCAL_QUORUM</code> actually work?</summary><div class="ans">
+        <p><b>One sentence:</b> NTS places replicas across racks within each DC, gossip propagates between DCs, and <code>LOCAL_QUORUM</code> means &ldquo;quorum of replicas in the local DC only&rdquo; &mdash; cross-DC writes happen but don&rsquo;t block the ack.</p>
+        <p><b>Concept:</b> <code>{ 'us-east': 3, 'eu-west': 3 }</code> means RF=3 in each DC, total 6 replicas. A write at <code>LOCAL_QUORUM</code> needs 2 of 3 local replicas to ack; the cross-DC writes are async via the coordinator. Reads at <code>LOCAL_QUORUM</code> stay in the local DC entirely.</p>
+        <p><b>Nuance:</b> this is the right pattern for multi-region apps &mdash; reads/writes serve from local DC, replication is eventually-consistent across regions. <b>Conflict resolution is LWW</b>; for counters or strict ordering, this is wrong. <code>EACH_QUORUM</code> waits on quorum in <i>every</i> DC &mdash; correctness for cross-region invariants, latency cost is the WAN round trip.</p>
+      </div></details>
+
+      <details class="qa"><summary>Why are secondary indexes weak, and what do you do instead?</summary><div class="ans">
+        <p><b>One sentence:</b> secondary indexes are <i>local per node</i> &mdash; a query has to fan out to every node to find matching rows &mdash; so they only work well when the index lookup also includes the partition key.</p>
+        <p><b>Concept:</b> in a relational DB, an index points from value to row anywhere in the table. In Cassandra, an index lives on each node and only sees that node&rsquo;s data. A query like <code>WHERE email = ?</code> across a 100-node cluster requires touching all 100 nodes &mdash; latency = slowest node.</p>
+        <p><b>Nuance:</b> the right pattern is <b>denormalized lookup tables</b>: a separate table keyed on the alternate access pattern (<code>users_by_email</code> with <code>email</code> as partition key). You write to both tables; you read targeted. <b>SAI</b> (Storage-Attached Indexes, 5.0) materially improves on the old 2i, but the &ldquo;duplicate the table&rdquo; pattern is still preferred for hot paths.</p>
+      </div></details>
+
+      <details class="qa"><summary>Design a time-series table for IoT sensor readings at 1M writes/sec.</summary><div class="ans">
+        <p><b>One sentence:</b> partition by <code>(sensor_id, day_bucket)</code>, cluster by <code>reading_time DESC</code>, use TWCS compaction with TTL matching retention, and pre-warm partitions on the client side.</p>
+        <p><b>Concept:</b> partition key bounds the partition size &mdash; one sensor&rsquo;s daily readings (typically &lt;100 MB) is the right magnitude. <b>TWCS</b> (Time-Window Compaction) groups SSTables by time window so old data ages out cleanly when TTLs expire &mdash; no read amplification on cold data, no compaction storms.</p>
+        <p><b>Nuance:</b> 1M writes/sec needs 20+ nodes; spread by sensor_id (high cardinality &mdash; check). Day bucket prevents wide partitions for chatty sensors. TTL the data at the row level so old days self-evict. The senior answer also mentions <i>materialized rollups</i> (1-min, 1-hour aggregates) in separate tables for dashboard queries.</p>
+        <pre><code>CREATE TABLE readings (
+  sensor_id UUID, day DATE,
+  reading_time TIMESTAMP, value DOUBLE,
+  PRIMARY KEY ((sensor_id, day), reading_time)
+) WITH CLUSTERING ORDER BY (reading_time DESC)
+  AND default_time_to_live = 2592000
+  AND compaction = {'class':'TimeWindowCompactionStrategy',
+                    'compaction_window_unit':'DAYS',
+                    'compaction_window_size':1};</code></pre>
+      </div></details>
+
+      <details class="qa"><summary>What is gossip and how does the cluster discover topology?</summary><div class="ans">
+        <p><b>One sentence:</b> gossip is a periodic peer-to-peer protocol where each node exchanges state (heartbeat, schema version, load, status) with a few randomly-chosen peers per second; full cluster state converges in O(log N) rounds.</p>
+        <p><b>Concept:</b> there&rsquo;s no master to ask. Each node maintains its view of the cluster; gossip messages carry vector-clock-like versions so nodes can merge each other&rsquo;s views. Adding a node: it bootstraps from seeds, gossip propagates, ranges are streamed.</p>
+        <p><b>Nuance:</b> seed nodes are bootstrap helpers, not coordinators &mdash; they&rsquo;re only contacted on startup. Schema disagreements between nodes (<code>nodetool describecluster</code> shows different schema versions) are real outages waiting to happen, often caused by concurrent DDL during partitions.</p>
+      </div></details>
+
+      <details class="qa"><summary>What do vnodes solve, and what do they cost?</summary><div class="ans">
+        <p><b>One sentence:</b> vnodes (virtual nodes) let each physical node own many small token ranges instead of one large one, which makes rebalancing on node add/remove smooth instead of catastrophic.</p>
+        <p><b>Concept:</b> classic Cassandra (one token per node): adding a node forces one neighbor to stream half its data. With <b>num_tokens=16</b> (modern default; 256 was the old default), each node owns 16 random ranges; adding a new node steals slices from many nodes simultaneously, parallelizing the stream.</p>
+        <p><b>Nuance:</b> too many vnodes (256) hurt repair and bootstrap (more SSTables, more streaming sessions). Too few weaken the rebalance smoothness. Modern guidance: <b>num_tokens=16</b>, with allocation algorithm <code>token_allocation</code> set to balanced. For analytical workloads with heavy range scans, fewer vnodes can perform better.</p>
+      </div></details>
+
+      <details class="qa"><summary>When would you NOT use Cassandra?</summary><div class="ans">
+        <p><b>One sentence:</b> small datasets, ad-hoc analytics, multi-row transactions, anything that needs joins, and any workload where the team won&rsquo;t commit to query-first modeling.</p>
+        <p><b>Concept:</b> Cassandra punishes generality. Without joins or aggregations, every query needs a table designed for it. Without ACID across rows, you can&rsquo;t do &ldquo;transfer money between accounts&rdquo; safely. Without strong indexing, you can&rsquo;t add new query patterns without ETL.</p>
+        <p><b>Nuance:</b> the giveaway: if you&rsquo;d describe the workload as &ldquo;mostly reads, lots of joins, schema evolves frequently&rdquo; &mdash; that&rsquo;s Postgres. If you&rsquo;d describe it as &ldquo;massive write fan-out, time-series, multi-region with regional locality, well-known access patterns&rdquo; &mdash; that&rsquo;s Cassandra. The senior answer names the runner-up: <i>&ldquo;ScyllaDB if I want C* semantics with shard-per-core efficiency; DynamoDB if I want managed.&rdquo;</i></p>
+      </div></details>
+
+      <div class="gotcha">
+        <b>Famous footguns</b>
+        <ul>
+          <li><b>Using Cassandra as a queue.</b> Tombstones from deletes destroy read performance. Anti-pattern, full stop.</li>
+          <li><b>Wide partitions.</b> A single sensor with no time bucket = a 100 GB partition = OOM on read. Bound your partitions.</li>
+          <li><b>ALLOW FILTERING in production.</b> It&rsquo;s a confession that the data model is wrong.</li>
+          <li><b>Skipping repair.</b> Deleted data resurrects after gc_grace_seconds without repair. Schedule it; alert on it.</li>
+        </ul>
+      </div>
+    </article>
+  </div>
+</section>
+
+<!-- DYNAMODB -->
+<section id="dynamo">
+  <div class="wrap">
+    <span class="kicker" style="border-color:var(--dynamo); color:var(--dynamo)">§ 05 &nbsp;Amazon DynamoDB</span>
+    <article class="engine" data-db="dynamo">
+      <div class="ph">
+        <div>
+          <div class="eyebrow">Managed &middot; Auto-partitioned &middot; Serverless-friendly</div>
+          <h2 style="margin-top:.3rem">Amazon DynamoDB</h2>
+          <p class="sub">No knobs, no servers, no second chances on your key design.</p>
+        </div>
+        <div class="badges">
+          <span class="badge ok">Single-digit ms</span>
+          <span class="badge ok">Multi-region active-active</span>
+          <span class="badge warn">Hot partition risk</span>
+          <span class="badge bad">No ad-hoc queries</span>
+        </div>
+      </div>
+
+      <div class="orient">
+        <p>DynamoDB is AWS&rsquo;s fully-managed KV/document store. Items live on partitions hashed by the partition key; each partition is replicated 3&times; across AZs with internal consensus. The whole engine is opaque &mdash; you see only the API: <code>GetItem</code>, <code>PutItem</code>, <code>Query</code>, <code>Scan</code>, <code>TransactWriteItems</code>.</p>
+        <p>It is <b>not</b> a general-purpose database. There&rsquo;s no SQL, no joins, no <code>GROUP BY</code>, no full-text search, no schema migration. Every access pattern must be modeled into a primary key or a secondary index <i>before</i> data lands.</p>
+        <p>The 30-second pitch: <i>&ldquo;Dynamo for predictable single-digit-ms key access at any scale, especially in serverless AWS. Single-table design with composite keys covers most patterns. Global Tables for multi-region active-active &mdash; with LWW conflict resolution as the trade.&rdquo;</i></p>
+      </div>
+
+      <h4>Q&amp;A drills</h4>
+
+      <details class="qa"><summary>Walk through single-table design. When would you NOT use it?</summary><div class="ans">
+        <p><b>One sentence:</b> single-table design packs multiple entity types into one table behind generic <code>PK</code>/<code>SK</code> keys with typed prefixes, so common access patterns are answered by a single <code>Query</code> on a co-located item collection &mdash; you skip it when the team can&rsquo;t commit to upfront modeling or access patterns are still evolving.</p>
+        <p><b>Concept:</b> typical layout: <code>PK = USER#42</code>, <code>SK = PROFILE</code> for the user; <code>PK = USER#42</code>, <code>SK = ORDER#001</code> for one of their orders. <code>Query(PK = USER#42)</code> returns profile + all orders in one call. <b>GSI overloading</b> uses generic <code>GSI1PK</code>/<code>GSI1SK</code> to serve multiple alternate access patterns over the same table.</p>
+        <p><b>Nuance:</b> the win is <b>predictable, low-cost reads</b> &mdash; one network round trip serves a screen. The cost is mental load, evolution pain, and easy footguns (a missing index = a Scan, which is expensive). Don&rsquo;t do it for: small apps where simplicity matters, exploratory schemas, anything that will need ad-hoc analytics &mdash; pipe to S3/Athena instead.</p>
+        <pre><code>// PK            SK              data
+// USER#42       PROFILE         {name:"Ada"}
+// USER#42       ORDER#2024-001  {total:42}
+// USER#42       ORDER#2024-002  {total:99}
+Query: PK=USER#42 -&gt; profile + all orders, one RCU each</code></pre>
+      </div></details>
+
+      <details class="qa"><summary>What&rsquo;s the difference between LSI and GSI, and when does each make sense?</summary><div class="ans">
+        <p><b>One sentence:</b> LSI shares the partition key (alternate sort key, must be created at table create, eventually consistent for non-key projections); GSI has its own partition + sort key, eventually consistent, can be added/removed online &mdash; the workhorse for alternate access patterns.</p>
+        <p><b>Concept:</b> an LSI lets you sort items within a partition by a different attribute. A GSI is effectively a separate table that DynamoDB maintains in the background, with its own RCU/WCU. Up to 5 LSIs and 20 GSIs per table.</p>
+        <p><b>Nuance:</b> LSIs constrain partition size to 10 GB total (because they&rsquo;re collocated). GSIs don&rsquo;t share that limit but cost double the writes (every update also updates the GSI). <b>Sparse GSIs</b> (only items with the indexed attribute appear) are a powerful pattern: filter to &ldquo;rows that need processing&rdquo; without scanning the whole table.</p>
+      </div></details>
+
+      <details class="qa"><summary>Explain RCUs and WCUs. Why does on-demand cost so much more than provisioned?</summary><div class="ans">
+        <p><b>One sentence:</b> 1 RCU = 1 strongly-consistent read of an item up to 4 KB; 1 WCU = 1 write up to 1 KB; on-demand is auto-scaled but priced ~7&times; per unit, paying for elasticity.</p>
+        <p><b>Concept:</b> eventually-consistent reads cost half (0.5 RCU). Transactional reads cost 2&times;. Items larger than the unit consume proportionally more (a 12 KB item = 3 RCU strong, 1.5 RCU eventual). At provisioned, you pay for capacity reserved per second; auto-scaling adjusts based on utilization but lags spikes.</p>
+        <p><b>Nuance:</b> on-demand wins for spiky/unpredictable workloads, sandboxes, and development. Provisioned with auto-scaling wins above ~30% sustained utilization &mdash; the per-unit price is much lower. Mixing &mdash; on-demand for some tables, provisioned for the always-hot ones &mdash; is common.</p>
+      </div></details>
+
+      <details class="qa"><summary>What&rsquo;s a hot partition, and how does adaptive capacity actually help?</summary><div class="ans">
+        <p><b>One sentence:</b> a hot partition is a single partition receiving disproportionately more traffic than others; adaptive capacity redistributes <i>some</i> capacity to the hot partition, but a truly hot key still throttles.</p>
+        <p><b>Concept:</b> a single partition tops out around <b>3000 RCU / 1000 WCU / 10 GB</b>. If your workload concentrates on one PK, you&rsquo;re capped at that throughput regardless of total table capacity. <b>Adaptive capacity</b> rebalances unused capacity from cold partitions to hot ones (within limits); helpful for skewed-but-not-pathological access.</p>
+        <p><b>Nuance:</b> the fix for a genuine hot key is <b>write sharding</b>: append a random suffix (<code>USER#42#1</code> through <code>USER#42#16</code>) and read all 16. Or pre-split using calculated suffixes. Adaptive capacity buys you 30s of slack on a moderate spike, not a structural fix.</p>
+      </div></details>
+
+      <details class="qa"><summary>Strongly consistent reads vs eventually consistent &mdash; what&rsquo;s the trade?</summary><div class="ans">
+        <p><b>One sentence:</b> strongly consistent reads always reflect the latest committed write but cost 2&times; the RCU and add a few ms of latency by hitting the leader replica; eventually consistent reads can be served by any replica and are usually fresh within ~1s.</p>
+        <p><b>Concept:</b> Dynamo replicates each partition 3 ways across AZs with multi-Paxos. A strong read goes to the leader; an eventual read can hit any replica. <code>GetItem</code> defaults to eventual; pass <code>ConsistentRead=true</code> for strong.</p>
+        <p><b>Nuance:</b> <b>GSIs are always eventually consistent</b> &mdash; even a strong base-table read followed immediately by a GSI query may return stale results. For read-after-write across a GSI, you have to query by the base key. Streams + a Lambda can compensate for downstream materializations.</p>
+      </div></details>
+
+      <details class="qa"><summary>Transactions in Dynamo: <code>TransactWriteItems</code> vs conditional writes. When each?</summary><div class="ans">
+        <p><b>One sentence:</b> <code>TransactWriteItems</code> gives ACID across up to 100 items (4 MB total) at 2&times; cost; <code>ConditionExpression</code> on a single item is optimistic concurrency at no extra charge &mdash; use the latter wherever possible.</p>
+        <p><b>Concept:</b> conditional writes (<code>PutItem</code> + <code>ConditionExpression: "attribute_not_exists(id)"</code>) implement compare-and-set on a single item, atomically. Transactions are needed when you need atomicity across multiple items (e.g., transfer between two accounts).</p>
+        <p><b>Nuance:</b> transactions use a coordinator and 2PC under the hood; latency is higher (~10ms typical), and they&rsquo;re idempotent only if you pass a <b>client request token</b>. They abort on conflict; the client retries. Tens of thousands per second are fine; millions need careful design.</p>
+        <pre><code>UpdateItem PK=ACCT#A
+  UpdateExpression: "SET balance = balance - :amt"
+  ConditionExpression: "balance &gt;= :amt"
+// no transaction, just CAS</code></pre>
+      </div></details>
+
+      <details class="qa"><summary>How do Streams work, and what are they for?</summary><div class="ans">
+        <p><b>One sentence:</b> DynamoDB Streams emit a time-ordered, partition-keyed log of changes (insert/update/delete with old + new images), retained for 24h, consumable by Lambda, Kinesis, or KCL workers &mdash; the canonical CDC mechanism for Dynamo.</p>
+        <p><b>Concept:</b> enable on a table; pick what to capture (NEW_IMAGE, OLD_IMAGE, BOTH, KEYS_ONLY). The stream is sharded the same way as the table; downstream consumers process at-least-once with checkpoints.</p>
+        <p><b>Nuance:</b> Streams are how you implement materialized views, search index sync (push to ES/OpenSearch), notifications, audit logs, and aggregations Dynamo can&rsquo;t do natively. For Kinesis-style higher throughput / longer retention, use <b>Kinesis Data Streams for DynamoDB</b> instead.</p>
+      </div></details>
+
+      <details class="qa"><summary>Global Tables: how do conflicts resolve, and when is that wrong?</summary><div class="ans">
+        <p><b>One sentence:</b> Global Tables replicate writes across regions asynchronously and resolve concurrent writes to the same item with <b>last-writer-wins by timestamp</b> &mdash; correct for &ldquo;independent regional writes&rdquo;, wrong for counters, balances, or anything that should accumulate.</p>
+        <p><b>Concept:</b> each region accepts writes locally and ships them to peers via internal Streams. Reads in any region serve from local replica. Conflicts are detected by per-item version vectors; LWW picks the higher timestamp.</p>
+        <p><b>Nuance:</b> what breaks: <code>UpdateItem ... ADD count :1</code> in two regions on the same item &mdash; the later write replaces, doesn&rsquo;t accumulate. The fix is to scope writes to one region per item (e.g., partition key includes the region) or use a CRDT-style design (sum across per-region counters).</p>
+      </div></details>
+
+      <details class="qa"><summary>What&rsquo;s the 400 KB item limit really doing to your design?</summary><div class="ans">
+        <p><b>One sentence:</b> Dynamo&rsquo;s 400 KB cap forces you to split large entities &mdash; either across multiple items in an item collection, or by storing the blob in S3 with the key in Dynamo.</p>
+        <p><b>Concept:</b> 400 KB is generous for a typical &ldquo;user with embedded preferences&rdquo; but small for &ldquo;all comments on a popular post&rdquo;. The pattern: store the metadata + recent items in Dynamo, the full blob in S3, and the S3 key as an attribute.</p>
+        <p><b>Nuance:</b> S3 latency (tens of ms) is the trade. <b>DAX</b> caches Dynamo in front for read-heavy paths; doesn&rsquo;t help cross-region. Compressed JSON or binary attribute formats save room. Don&rsquo;t fight the cap &mdash; it exists to keep partitions healthy.</p>
+      </div></details>
+
+      <details class="qa"><summary>Design a multi-tenant SaaS with predictable per-tenant performance. Why Dynamo?</summary><div class="ans">
+        <p><b>One sentence:</b> tenant ID is the partition key prefix; access patterns are modeled into the table or GSIs; on-demand or auto-scaled provisioned with per-table limits caps blast radius from a noisy tenant.</p>
+        <p><b>Concept:</b> single-table design with <code>PK = TENANT#42#USER#7</code> spreads tenants across many partitions automatically. GSIs serve cross-tenant reporting. Streams + Lambda emit per-tenant events for usage metering.</p>
+        <p><b>Nuance:</b> two pitfalls. (1) A whale tenant can monopolize a partition &mdash; mitigate with write sharding on tenant ID. (2) Cross-tenant analytics is impossible in-place; pipe to S3/Athena via Streams. The senior framing: <i>&ldquo;Per-tenant performance is bounded by per-partition limits, not table limits. Whales need their own partition strategy.&rdquo;</i></p>
+      </div></details>
+
+      <details class="qa"><summary>What&rsquo;s the worst thing you can do in DynamoDB?</summary><div class="ans">
+        <p><b>One sentence:</b> use <code>Scan</code> in a hot path &mdash; it reads every item, costs proportional to table size, and ignores the entire reason you picked Dynamo.</p>
+        <p><b>Concept:</b> <code>Scan</code> is for ETL or one-off ops, never for user-facing reads. Every <code>Scan</code> consumes RCU for every item in the table (or scanned segment); on a multi-TB table, this is hundreds of dollars per call.</p>
+        <p><b>Nuance:</b> if you find yourself reaching for <code>Scan</code>, your access pattern wasn&rsquo;t modeled. The fix: add a GSI for the alternate access pattern, or reshape the table. Parallel Scan helps for ETL but doesn&rsquo;t help cost. The interview tell: a candidate who proposes <code>Scan</code> + filter has not internalized Dynamo&rsquo;s economics.</p>
+      </div></details>
+
+      <div class="gotcha">
+        <b>Famous footguns</b>
+        <ul>
+          <li><b>Hot partition + adaptive capacity = silent throttling.</b> Adaptive helps moderately; a true hot key still 4xx&rsquo;s. Shard writes proactively.</li>
+          <li><b>GSIs are eventually consistent.</b> Read-after-write through a GSI is not safe within ~1s. Read by base key for that.</li>
+          <li><b>Scan in production code.</b> Costs scale with table size, not result size. Always model around Query.</li>
+          <li><b>LWW on Global Tables for counters.</b> Two regions both increment, one increment is lost. Use per-region counters or scope writes to a single region per item.</li>
+        </ul>
+      </div>
+    </article>
+  </div>
+</section>
+
+<!-- REDIS -->
+<section id="redis">
+  <div class="wrap">
+    <span class="kicker" style="border-color:var(--redis); color:var(--redis)">§ 06 &nbsp;Redis</span>
+    <article class="engine" data-db="redis">
+      <div class="ph">
+        <div>
+          <div class="eyebrow">In-memory &middot; Single-thread per shard &middot; Cluster slots</div>
+          <h2 style="margin-top:.3rem">Redis</h2>
+          <p class="sub">A toolbox of data structures that happens to be a server.</p>
+        </div>
+        <div class="badges">
+          <span class="badge cool">Sub-ms latency</span>
+          <span class="badge ok">Atomic ops</span>
+          <span class="badge warn">Async repl by default</span>
+          <span class="badge warn">RAM-bounded</span>
+        </div>
+      </div>
+
+      <div class="orient">
+        <p>Redis is an <b>in-memory data structure server</b>. Everything happens in RAM through a single-threaded event loop per shard, which is why operations on data structures (sorted sets, hashes, streams) are atomic without locks. Persistence is optional via RDB snapshots and/or AOF (append-only file).</p>
+        <p>It is <b>not</b> a general-purpose database in the &ldquo;source of truth&rdquo; sense without explicit durability design. Async replication is the default; <code>WAIT</code> approximates sync but doesn&rsquo;t guarantee it.</p>
+        <p>The 30-second pitch: <i>&ldquo;Redis for cache, sessions, leaderboards, rate limiting, ephemeral counters, and as a queue (Streams). Cluster scales linearly across hash slots. Durability is opt-in &mdash; AOF for crash safety, RDB for fast restart.&rdquo;</i></p>
+      </div>
+
+      <h4>Q&amp;A drills</h4>
+
+      <details class="qa"><summary>Why is Redis single-threaded, and how can it still hit millions of ops/sec?</summary><div class="ans">
+        <p><b>One sentence:</b> a single-threaded event loop avoids locks and context switches, so each command runs to completion atomically; throughput comes from extremely fast in-memory operations and pipelining.</p>
+        <p><b>Concept:</b> Redis processes commands in order on a single thread per shard. No mutexes around data structures; every op is implicitly atomic. Pipelining batches commands over one connection, amortizing network latency. Multi-threaded I/O (since 6.0) parallelizes parsing and response writing, not command execution.</p>
+        <p><b>Nuance:</b> a slow command (<code>KEYS *</code>, large <code>SUNIONSTORE</code>, big <code>HGETALL</code>) blocks every other client. Use <code>SCAN</code> instead of <code>KEYS</code>; profile with <code>SLOWLOG</code>. To use more cores, run multiple shards (Redis Cluster) or multiple processes per host.</p>
+      </div></details>
+
+      <details class="qa"><summary>Explain Redis Cluster: hash slots, MOVED/ASK, and why multi-key ops have constraints.</summary><div class="ans">
+        <p><b>One sentence:</b> Cluster maps the keyspace to <b>16,384 hash slots</b> via <code>CRC16(key) mod 16384</code>; each slot lives on one master + N replicas; clients are slot-aware and follow <code>MOVED</code>/<code>ASK</code> redirects during resharding.</p>
+        <p><b>Concept:</b> <code>MOVED</code> means &ldquo;permanently, this slot lives there now &mdash; update your map.&rdquo; <code>ASK</code> means &ldquo;during migration, this specific key has moved temporarily.&rdquo; Multi-key commands (<code>MSET</code>, <code>SUNION</code>, transactions) require all keys in the same slot.</p>
+        <p><b>Nuance:</b> <b>hash tags</b> force colocation: <code>{user:42}:cart</code> and <code>{user:42}:wishlist</code> hash on <code>user:42</code> only, landing in the same slot. Lua scripts and transactions across multiple keys must use this. Resharding moves slots between nodes online; clients with stale maps follow redirects until they refresh.</p>
+        <pre><code>SET {user:42}:cart "..."
+SET {user:42}:wish "..."
+MULTI
+LPUSH {user:42}:cart "item"
+INCR {user:42}:counter
+EXEC</code></pre>
+      </div></details>
+
+      <details class="qa"><summary>RDB vs AOF: pick a persistence strategy and defend it.</summary><div class="ans">
+        <p><b>One sentence:</b> RDB is a periodic point-in-time snapshot (fast restart, minutes of data loss); AOF is an append-only command log (durable, slow restart, large file); most teams enable both.</p>
+        <p><b>Concept:</b> RDB forks the process and dumps memory; cheap CPU spike but disk-friendly. AOF appends every write command; <code>fsync</code> policy is <code>always</code> (every cmd), <code>everysec</code> (default, ~1s window), or <code>no</code> (kernel decides). AOF rewrites compress the log periodically to bound size.</p>
+        <p><b>Nuance:</b> <code>everysec</code> is the right default &mdash; you can lose up to 1s of writes on a hard crash. <code>always</code> drops throughput by 10&times;+. Restart from AOF replays every command (slow on TB-scale data); RDB loads as a memory image (much faster). Production: AOF for durability, RDB for fast restart, both kept.</p>
+      </div></details>
+
+      <details class="qa"><summary>How would you implement a distributed lock? Where does Redlock fail?</summary><div class="ans">
+        <p><b>One sentence:</b> single-node lock is <code>SET key value NX PX 30000</code> (atomic set-if-not-exists with TTL); release with a Lua script that checks the value before deleting; Redlock coordinates across N independent masters with a quorum and clock-skew bound, but Kleppmann&rsquo;s critique &mdash; GC pauses or clock jumps can violate mutual exclusion &mdash; is real.</p>
+        <p><b>Concept:</b> the value is a unique token so the holder is identifiable. Without it, lock A&rsquo;s release could delete lock B if A held until expiry. Redlock acquires a majority within a clock-bounded window; releases everywhere on done.</p>
+        <p><b>Nuance:</b> the staff-level answer: <i>&ldquo;For best-effort mutexes (cache stampede protection, rate-limited triggers), Redlock is fine. For correctness-critical locks (financial transfers, inventory deductions), use a fencing token from a strongly-consistent store like etcd or a SQL transaction &mdash; the lock is just for fairness.&rdquo;</i></p>
+        <pre><code>SET lock:job1 &lt;uuid&gt; NX PX 30000
+-- release atomically
+EVAL "if redis.call('get',KEYS[1])==ARGV[1] then return redis.call('del',KEYS[1]) end" 1 lock:job1 &lt;uuid&gt;</code></pre>
+      </div></details>
+
+      <details class="qa"><summary>Design a leaderboard with Redis. What data structure, what operations, what scale ceiling?</summary><div class="ans">
+        <p><b>One sentence:</b> a <b>sorted set</b> (<code>ZADD</code>/<code>ZINCRBY</code> for updates, <code>ZRANGE WITHSCORES</code> for top-N, <code>ZREVRANK</code> for &ldquo;your rank&rdquo;) on a single key &mdash; sub-ms reads, but ceiling is one master&rsquo;s memory and CPU.</p>
+        <p><b>Concept:</b> a sorted set is a skiplist + hashtable combo, giving O(log N) inserts and O(log N + M) range scans. <code>ZRANGEBYSCORE</code> gives bracketed slices (e.g., scores between 100 and 200). <code>ZREVRANGEBYSCORE</code> handles descending order.</p>
+        <p><b>Nuance:</b> for tens of millions of players on one leaderboard, one key works. For per-region or per-time-window boards, key per board (<code>lb:global</code>, <code>lb:eu:weekly</code>). When you outgrow one master, shard by region, then merge top-N at read time. <b>Don&rsquo;t cluster a single hot key</b> &mdash; the slot lives on one master.</p>
+        <pre><code>ZINCRBY lb:global 10 user:42
+ZRANGE lb:global 0 9 REV WITHSCORES  -- top 10
+ZREVRANK lb:global user:42           -- user's rank</code></pre>
+      </div></details>
+
+      <details class="qa"><summary>What are Streams, and how do they compare to Kafka?</summary><div class="ans">
+        <p><b>One sentence:</b> Redis Streams (5.0+) are an append-only log with consumer groups, pending-entry lists, and at-least-once delivery &mdash; like a tiny Kafka, scoped to one Redis cluster, with millisecond latency and gigabyte-scale retention.</p>
+        <p><b>Concept:</b> <code>XADD</code> appends; <code>XREAD</code>/<code>XREADGROUP</code> consumes; consumer groups track positions. <b>PEL</b> (pending entries list) tracks delivered-but-not-acked entries per consumer; <code>XCLAIM</code> reassigns ownership when a consumer dies.</p>
+        <p><b>Nuance:</b> Streams are great for low-latency task queues, sensor ingest, ephemeral event buffers. They&rsquo;re bounded by Redis&rsquo;s RAM (use <code>MAXLEN</code> to cap) and don&rsquo;t replay a year of history the way Kafka does. Pick Streams when you want Redis ergonomics and Kafka when you want long retention + distributed durability.</p>
+      </div></details>
+
+      <details class="qa"><summary>How do TTL and eviction policies actually work, and which do you pick for a cache?</summary><div class="ans">
+        <p><b>One sentence:</b> TTL on a key triggers passive expiration on access + active expiration in a sampled background job; when memory hits <code>maxmemory</code>, the eviction policy decides what to drop &mdash; <b>allkeys-lru</b> or <b>allkeys-lfu</b> are usually right for caches.</p>
+        <p><b>Concept:</b> Redis doesn&rsquo;t actively expire all keys on a timer (too expensive). It samples ~20 keys with TTL every cycle, expires those that are due, and repeats if more than 25% were expired. <b>LFU</b> tracks access frequency with logarithmic decay; <b>LRU</b> approximates recency by sampling.</p>
+        <p><b>Nuance:</b> use <b>volatile-lru</b> if some keys have TTL (cache) and some don&rsquo;t (config); <b>allkeys-lfu</b> if Redis is purely a cache and access patterns are skewed; <b>noeviction</b> if every key matters and you&rsquo;d rather get <code>OOM</code> errors than lose data. Set <code>maxmemory-policy</code> explicitly &mdash; the default <code>noeviction</code> is a footgun for caches.</p>
+      </div></details>
+
+      <details class="qa"><summary>What does <code>WAIT</code> guarantee, and what does it not?</summary><div class="ans">
+        <p><b>One sentence:</b> <code>WAIT N timeout</code> blocks until the write has been acknowledged by N replicas or the timeout passes; it gives <i>best-effort synchronous-like</i> replication, not a guarantee.</p>
+        <p><b>Concept:</b> Redis replication is async by default. <code>WAIT</code> gives the producer feedback on replication lag for a specific write. It doesn&rsquo;t change replication&rsquo;s underlying mechanics &mdash; if the master fails after the client&rsquo;s <code>WAIT</code> returned but before fsync, you can still lose the write.</p>
+        <p><b>Nuance:</b> the staff-level distinction: <code>WAIT</code> is a feedback mechanism, not a durability mechanism. Pair with AOF <code>fsync everysec</code> or <code>always</code> if you need durability. For real synchronous replication, use a different system (Postgres with synchronous standby).</p>
+      </div></details>
+
+      <details class="qa"><summary>How does Redis Sentinel differ from Cluster, and when do you pick which?</summary><div class="ans">
+        <p><b>One sentence:</b> Sentinel provides leader election + failover for a <i>single</i> master/replica setup (no sharding); Cluster shards across many nodes with built-in gossip-based failover &mdash; pick Sentinel when one master&rsquo;s capacity is enough, Cluster when you need horizontal scale.</p>
+        <p><b>Concept:</b> Sentinel runs alongside Redis as a separate process; a quorum of Sentinels detects master failure and promotes a replica. Clients query Sentinels for the current master. Cluster nodes gossip directly with each other; clients are slot-aware.</p>
+        <p><b>Nuance:</b> Sentinel preserves all Redis features (multi-key transactions, Lua across keys). Cluster restricts multi-key ops to same-slot keys (use hash tags). Most teams under 100GB stay on Sentinel; sharded workloads or &gt;100GB usually need Cluster.</p>
+      </div></details>
+
+      <details class="qa"><summary>Cache stampede / thundering herd: what is it, and how do you avoid it?</summary><div class="ans">
+        <p><b>One sentence:</b> when a popular cache key expires, many clients miss simultaneously and slam the source &mdash; mitigate with single-flight locks, probabilistic early refresh, or stale-while-revalidate.</p>
+        <p><b>Concept:</b> on miss, set a short-lived lock (<code>SET stampede:foo 1 NX PX 5000</code>); only the lock holder regenerates; everyone else waits + reads. Or use <b>probabilistic early expiration</b>: when remaining TTL is &lt; some threshold, a random fraction of requests refreshes early.</p>
+        <p><b>Nuance:</b> for catastrophic stampedes (cache flush, mass eviction), the mitigation must include rate-limiting traffic to the source DB, circuit breakers, and serving stale data with a label. The senior framing: <i>&ldquo;Cache stampede is a coordination problem at the edge; the fix is at the application, not Redis.&rdquo;</i></p>
+      </div></details>
+
+      <details class="qa"><summary>Design rate limiting in Redis. Sliding window, token bucket, or fixed window?</summary><div class="ans">
+        <p><b>One sentence:</b> sliding-window log with a sorted set is most accurate but storage-heavy; token bucket via Lua is the common production choice; fixed window with <code>INCR</code> + TTL is the simplest but has edge bursts.</p>
+        <p><b>Concept:</b> <b>Fixed window:</b> <code>INCR counter:userId; EXPIRE counter:userId 60</code>. Edge case: 100 requests at 0:59, 100 more at 1:00 = 200 in two seconds. <b>Sliding window log:</b> <code>ZADD log:userId &lt;ts&gt; &lt;ts&gt;; ZCOUNT log:userId &lt;now-60&gt; &lt;now&gt;</code>. Accurate; storage is one entry per request. <b>Token bucket:</b> Lua atomic update of (tokens, last_refill_ts).</p>
+        <p><b>Nuance:</b> for high-volume APIs, token bucket via Lua atomically wins on cost. For audit trails (&ldquo;who hit me when?&rdquo;), the log pattern doubles as audit. <b>redis-cell</b> module implements GCRA (a fancier token bucket) with one command.</p>
+        <pre><code>-- token bucket Lua snippet
+local tokens = tonumber(redis.call('hget', KEYS[1], 'tokens') or capacity)
+local last   = tonumber(redis.call('hget', KEYS[1], 'last') or now)
+local refill = math.min(capacity, tokens + (now - last) * rate)
+if refill &lt; 1 then return 0 end
+redis.call('hset', KEYS[1], 'tokens', refill - 1, 'last', now)
+return 1</code></pre>
+      </div></details>
+
+      <details class="qa"><summary>When would you NOT use Redis?</summary><div class="ans">
+        <p><b>One sentence:</b> as a primary store for data you can&rsquo;t afford to lose without a thorough durability + ops design, for datasets larger than your RAM budget by a wide margin, or for workloads dominated by random large objects.</p>
+        <p><b>Concept:</b> Redis is RAM-bounded. A 500GB working set means 500GB of RAM &times; replicas. Disk-backed alternatives (KeyDB, DragonflyDB, or just &ldquo;use Postgres for that&rdquo;) win on cost when access patterns aren&rsquo;t latency-critical.</p>
+        <p><b>Nuance:</b> the right answer cites use cases: <i>&ldquo;Redis for hot path; cold path on disk-backed store; reconcile via Streams or app-level invalidation. Don&rsquo;t put your only copy of irreplaceable data in Redis.&rdquo;</i></p>
+      </div></details>
+
+      <div class="gotcha">
+        <b>Famous footguns</b>
+        <ul>
+          <li><b><code>KEYS</code> on a production cluster.</b> Blocks the event loop; thousands of users wait. Use <code>SCAN</code>.</li>
+          <li><b>Hot key kills one master.</b> Redis Cluster doesn&rsquo;t help &mdash; the slot lives on one node. Shard the key, randomize, or precompute.</li>
+          <li><b><code>maxmemory-policy=noeviction</code> on a cache.</b> Default. Cache fills, you OOM. Pick <code>allkeys-lru</code> or <code>allkeys-lfu</code> explicitly.</li>
+          <li><b>Redlock for correctness-critical locks.</b> Best-effort only; pair with fencing tokens from a strongly-consistent store for money/inventory.</li>
+        </ul>
+      </div>
+    </article>
+  </div>
+</section>
+
+<!-- ELASTICSEARCH -->
+<section id="elastic">
+  <div class="wrap">
+    <span class="kicker" style="border-color:var(--elastic); color:var(--elastic)">§ 07 &nbsp;Elasticsearch</span>
+    <article class="engine" data-db="elastic">
+      <div class="ph">
+        <div>
+          <div class="eyebrow">Search &middot; Lucene &middot; Inverted index</div>
+          <h2 style="margin-top:.3rem">Elasticsearch</h2>
+          <p class="sub">A search engine that some teams pretend is a database.</p>
+        </div>
+        <div class="badges">
+          <span class="badge ok">Full-text + vector</span>
+          <span class="badge cool">Near-real-time</span>
+          <span class="badge warn">Reshard = reindex</span>
+          <span class="badge bad">Not a system of record</span>
+        </div>
+      </div>
+
+      <div class="orient">
+        <p>Elasticsearch wraps Lucene with a distributed, JSON-over-HTTP cluster model. An <b>index</b> is split into <b>primary shards</b> (fixed at creation) plus replicas; each shard is a Lucene index made of immutable <b>segments</b>. Writes go to a primary shard, then replicate; index changes become visible on <b>refresh</b> (default every 1s).</p>
+        <p>It is <b>not</b> a system of record. It&rsquo;s eventually consistent, can&rsquo;t do multi-document transactions, gets slow under heavy mutation, and reshards by reindexing. Use it as a derived index over your real source of truth.</p>
+        <p>The 30-second pitch: <i>&ldquo;Elasticsearch for full-text search, log/metric observability, and vector retrieval. Source of truth lives elsewhere; we sync via CDC. Shard count is a permanent commitment per index; we use aliases to evolve.&rdquo;</i></p>
+      </div>
+
+      <h4>Q&amp;A drills</h4>
+
+      <details class="qa"><summary>Why is the shard count fixed at index creation? How do you reshard?</summary><div class="ans">
+        <p><b>One sentence:</b> documents are routed to a shard by <code>hash(_routing) mod num_primary_shards</code>; changing the modulus would relocate every document, so Elasticsearch makes you create a new index and reindex.</p>
+        <p><b>Concept:</b> reindexing is the canonical operational pattern: create <code>idx_v2</code> with new shard count or mapping; run the <code>_reindex</code> API (or push from the source again); flip the <b>alias</b> from <code>idx</code>=v1 to <code>idx</code>=v2 atomically.</p>
+        <p><b>Nuance:</b> the <b>shrink</b> API can reduce shard count (must be a divisor) without full reindex by hard-linking segments; the <b>split</b> API multiplies. Both have constraints. Aliases are the contract apps use; <i>never</i> point apps at a raw index name in production.</p>
+        <pre><code>PUT idx_v2 { "settings": { "number_of_shards": 12 } }
+POST _reindex { "source":{"index":"idx_v1"}, "dest":{"index":"idx_v2"} }
+POST _aliases { "actions":[
+  {"remove":{"index":"idx_v1","alias":"idx"}},
+  {"add":{"index":"idx_v2","alias":"idx"}}]}</code></pre>
+      </div></details>
+
+      <details class="qa"><summary>How do query phase and fetch phase work, and why does deep paging break them?</summary><div class="ans">
+        <p><b>One sentence:</b> in query phase each shard returns its top-K matching doc IDs + scores; the coordinator merges into a global top-K; fetch phase pulls the actual documents &mdash; deep paging (<code>from=10000</code>) forces every shard to materialize 10000+K hits, and the coordinator sorts millions in memory.</p>
+        <p><b>Concept:</b> with N shards and <code>from=F, size=S</code>, each shard returns F+S hits. The coordinator picks the global top S. Cost is N&times;(F+S) memory + sort. At F=100k, this is brutal.</p>
+        <p><b>Nuance:</b> the fix is <b>search_after</b> (cursor-based, stateless) or <b>PIT</b> (point-in-time + search_after, consistent across paging). Both have O(K) cost per page regardless of depth. Deep paging is rejected by default beyond <code>max_result_window=10000</code> &mdash; raise the limit only as a temporary workaround.</p>
+      </div></details>
+
+      <details class="qa"><summary>Why are heavy updates an anti-pattern?</summary><div class="ans">
+        <p><b>One sentence:</b> Lucene segments are immutable, so an &ldquo;update&rdquo; writes a new doc version and tombstones the old one; segment merges reclaim the space, but heavy churn means continuous merges that compete with queries.</p>
+        <p><b>Concept:</b> every update = delete + insert. The deleted doc lives until merge. <code>_id</code> lookups still work because Lucene tracks them. But <b>indexing throughput drops</b> under heavy updates because you&rsquo;re always merging; <b>p99 search latency rises</b> because merges contend for CPU and disk.</p>
+        <p><b>Nuance:</b> the happy path is <b>append-only</b> (logs, events). For mutable entities, sync deltas from your source of truth on a schedule rather than per-write. <b>Time-based indices</b> (one per day/month) avoid mutation entirely &mdash; close old indices, never update them.</p>
+      </div></details>
+
+      <details class="qa"><summary>Explain mappings and why dynamic mapping at scale is dangerous.</summary><div class="ans">
+        <p><b>One sentence:</b> a mapping defines field types, analyzers, and indexing options &mdash; dynamic mapping infers from the first doc that contains a field, and a careless producer can explode the mapping with thousands of fields and crash the cluster.</p>
+        <p><b>Concept:</b> Lucene stores per-field state in memory. 10k fields = 10k bits of overhead per doc + per shard. <b>Mapping explosions</b> happen when a producer puts user-controlled keys into a JSON object (e.g., <code>"attributes": { "anything_user_typed": "..." }</code>).</p>
+        <p><b>Nuance:</b> mitigations: explicit mappings with <code>dynamic: strict</code> or <code>dynamic: false</code>; <b>flattened</b> field type for true catch-all (single inverted index, no per-key state); index-level <code>index.mapping.total_fields.limit</code> (default 1000). The senior answer: <i>&ldquo;Treat the mapping as a schema. Validate at ingest. Don&rsquo;t let users define fields.&rdquo;</i></p>
+      </div></details>
+
+      <details class="qa"><summary>What does the refresh interval actually do, and how does it affect &ldquo;near-real-time&rdquo;?</summary><div class="ans">
+        <p><b>One sentence:</b> refresh writes the in-memory buffer to a new searchable Lucene segment (default every 1s) &mdash; that&rsquo;s why a doc is searchable ~1s after indexing, not synchronously.</p>
+        <p><b>Concept:</b> writes go to a buffer + the <b>translog</b> (durability). Refresh creates a new searchable segment; flush (every 30 min or 512 MB translog by default) fsyncs and clears translog. Refresh = visibility; flush = durability.</p>
+        <p><b>Nuance:</b> for bulk ingest, set <code>refresh_interval=-1</code> (or 30s) to reduce segment churn; restore on completion. For &ldquo;immediate&rdquo; reads (test code), pass <code>?refresh=true</code> on the index call &mdash; expensive, never use in production hot path. The interview tell: a candidate who confuses refresh and flush hasn&rsquo;t debugged ES at scale.</p>
+      </div></details>
+
+      <details class="qa"><summary>Hot/warm/cold/frozen tiers: when do you use each?</summary><div class="ans">
+        <p><b>One sentence:</b> hot tier serves fresh, frequent-read indices on SSD with replicas; warm holds older read-only indices on cheaper storage; cold has searchable snapshots on object storage; frozen partially-mounts S3 directly &mdash; ILM (Index Lifecycle Management) automates the transitions.</p>
+        <p><b>Concept:</b> log/metric workloads have a natural age curve: hot data is queried 1000s of times/min, week-old data once a day, year-old data almost never. Tiering matches storage cost to access frequency. Frozen tier is partly-mounted S3 &mdash; queries are slow but data costs near-zero.</p>
+        <p><b>Nuance:</b> ILM policy: rollover at 50 GB or 7 days &rarr; warm at 30 days &rarr; cold at 90 days &rarr; delete at 365 days. Searches across tiers work but cold/frozen are 10&ndash;100&times; slower; design dashboards to bias hot.</p>
+      </div></details>
+
+      <details class="qa"><summary>How do you tune for log/metric ingest at 1 TB/day?</summary><div class="ans">
+        <p><b>One sentence:</b> append-only time-based indices, refresh interval bumped to 30s, sized shards 30&ndash;50 GB, ILM policy with hot/warm/cold tiers, and a queue (Kafka) buffering ingest so backpressure doesn&rsquo;t lose data.</p>
+        <p><b>Concept:</b> at 1 TB/day with 7-day retention, you have 7 TB live. With RF=1 replica = 14 TB primary shards. At 50 GB/shard = 280 shards primary. Plan ~10&ndash;15 hot data nodes with NVMe; replicas can live on warm tier later.</p>
+        <p><b>Nuance:</b> ingest pipelines (Logstash, Filebeat, OTel) batch and pre-process. Refresh interval matters: 1s default gives 1s search latency but high segment count; 30s gives more I/O efficiency. Use <b>ingest pipelines</b> in ES for transformations (parse, enrich) so producers don&rsquo;t need to.</p>
+      </div></details>
+
+      <details class="qa"><summary>Explain the inverted index, doc values, and BM25 scoring at a high level.</summary><div class="ans">
+        <p><b>One sentence:</b> the inverted index maps each term to the docs that contain it (term &rarr; postings list); doc values are a column-oriented per-field structure for sorts/aggregations; BM25 scores docs by term frequency &times; inverse document frequency, normalized for doc length.</p>
+        <p><b>Concept:</b> &ldquo;find docs containing &lsquo;cat&rsquo;&rdquo; consults the postings list for &lsquo;cat&rsquo;. Sorting/aggregating on a field means scanning many docs by ID, which the row-oriented inverted index is bad at &mdash; doc values store the same data column-wise so it&rsquo;s cheap. BM25 (default since 5.0) replaced TF-IDF; it caps the contribution of repeated terms and accounts for doc length.</p>
+        <p><b>Nuance:</b> if you don&rsquo;t need to sort/aggregate on a field, set <code>doc_values: false</code> to save disk. If you don&rsquo;t need full-text on a field (only exact match), use <code>keyword</code> instead of <code>text</code>. Misusing <code>text</code> for IDs is a common mistake &mdash; analyzers tokenize the ID, queries don&rsquo;t match.</p>
+      </div></details>
+
+      <details class="qa"><summary>Vector search: how does kNN actually run, and what are the trade-offs?</summary><div class="ans">
+        <p><b>One sentence:</b> ES uses <b>HNSW</b> (Hierarchical Navigable Small World graphs) per segment for approximate nearest neighbor; query latency is O(log N) per segment, but recall depends on graph parameters (<code>m</code>, <code>ef_construction</code>) and the number of segments.</p>
+        <p><b>Concept:</b> HNSW builds a layered graph where higher layers are sparser. Search starts at the top, navigates greedily, drops a layer, repeats. The <code>num_candidates</code> parameter controls breadth at query time. Each segment has its own graph, so segment count affects latency.</p>
+        <p><b>Nuance:</b> recall vs latency is the trade. Higher <code>m</code> &amp; <code>ef_construction</code> = better recall, larger index, longer build. Hybrid search (BM25 + kNN, combined via <b>RRF</b> or weighted sum) is typically what you want, not pure vector. <b>Quantization</b> (int8, BBQ) shrinks the vector index 4&ndash;32&times; with modest recall loss.</p>
+      </div></details>
+
+      <details class="qa"><summary>You hit a hot shard. How do you diagnose and fix it?</summary><div class="ans">
+        <p><b>One sentence:</b> check shard-level stats (<code>_cat/shards</code>, <code>_nodes/stats/indices</code>) for query rate / time skew, then trace to either skewed routing (custom <code>_routing</code> values), poor shard count vs node count, or an oversized shard.</p>
+        <p><b>Concept:</b> default routing distributes by <code>_id</code> hash. Custom routing (e.g., <code>?routing=tenant_id</code>) co-locates a tenant&rsquo;s data on one shard &mdash; brilliant for read concentration, lethal if one tenant is 10&times; bigger than others.</p>
+        <p><b>Nuance:</b> fixes: increase shard count via reindex; remove custom routing if it&rsquo;s skewed; use <b>routing partitions</b> (a tenant spans K shards) for whales; raise replicas to spread read load. <b>Search slowlog</b> + <b>indexing slowlog</b> + <b>node hot threads</b> are the diagnostic toolkit.</p>
+      </div></details>
+
+      <details class="qa"><summary>What does the cluster master do, and what changed in ES 7?</summary><div class="ans">
+        <p><b>One sentence:</b> the master node manages cluster state &mdash; mappings, shard assignments, node membership; ES 7 rewrote discovery + master election to use a Raft-like consensus protocol, eliminating the split-brain footgun of earlier versions.</p>
+        <p><b>Concept:</b> only one master is active; data nodes apply cluster state updates pushed by the master. Pre-7, you had to manually set <code>minimum_master_nodes</code> based on quorum math; getting it wrong caused split-brain (two masters). 7+ uses voting configurations and computes the quorum automatically.</p>
+        <p><b>Nuance:</b> master-eligible nodes should be 3 or 5, ideally <b>dedicated</b> (no data, no ingest); they should be small (16 GB heap) but stable. The cluster state grows with shard count; very large clusters (10k+ shards) need careful master sizing.</p>
+      </div></details>
+
+      <details class="qa"><summary>Design product search with filters, facets, and relevance ranking.</summary><div class="ans">
+        <p><b>One sentence:</b> a query is a <code>bool</code> with <code>must</code> for the user&rsquo;s search terms (BM25 scored), <code>filter</code> for category/price (no scoring, cacheable), and <b>aggregations</b> for facets; relevance is tuned with field boosts, function_score, and learning-to-rank.</p>
+        <p><b>Concept:</b> separate scoring (text query) from filtering (filter clauses). Filters live in a cache and are virtually free on repeat queries. Aggregations on <code>keyword</code> fields backed by doc values give counts per facet. <b>function_score</b> blends in business signals (popularity, freshness, margin).</p>
+        <p><b>Nuance:</b> for serious relevance, use <b>learning-to-rank</b> (LTR plugin) trained offline on click data &mdash; rerank top-N from BM25. Hybrid with vectors (semantic search via embeddings) for queries that don&rsquo;t match terms exactly. <b>Synonyms</b> and <b>analyzers</b> at indexing time are where most relevance wins live.</p>
+      </div></details>
+
+      <div class="gotcha">
+        <b>Famous footguns</b>
+        <ul>
+          <li><b>Treating ES as source of truth.</b> No multi-doc transactions, eventually consistent, reindex-prone. Real source elsewhere; ES is the derived index.</li>
+          <li><b>Heavy updates.</b> Each update is delete + insert + merge. Use append-only or sync deltas.</li>
+          <li><b>Mapping explosions.</b> User-controlled JSON keys + dynamic mapping = thousands of fields. Set <code>dynamic: strict</code> or use <code>flattened</code>.</li>
+          <li><b>Deep paging.</b> <code>from=100000</code> kills a coordinator. Use <code>search_after</code> or PIT.</li>
+        </ul>
+      </div>
+    </article>
+  </div>
+</section>
+
+<!-- ZK / ETCD -->
+<section id="zk">
+  <div class="wrap">
+    <span class="kicker" style="border-color:var(--zk); color:var(--zk)">§ 08 &nbsp;Coordination Stores: ZooKeeper / etcd</span>
+    <article class="engine" data-db="zk">
+      <div class="ph">
+        <div>
+          <div class="eyebrow">Consensus &middot; Strongly consistent KV &middot; Watch primitives</div>
+          <h2 style="margin-top:.3rem">ZooKeeper &amp; etcd</h2>
+          <p class="sub">A small, strongly-consistent KV for the things that must be true.</p>
+        </div>
+        <div class="badges">
+          <span class="badge ok">Linearizable</span>
+          <span class="badge cool">Watches + leases</span>
+          <span class="badge warn">Tiny payloads only</span>
+          <span class="badge bad">Not a database</span>
+        </div>
+      </div>
+
+      <div class="orient">
+        <p>Coordination stores are small, strongly-consistent key-value systems built on a consensus protocol &mdash; <b>Zab</b> (Atomic Broadcast) for ZooKeeper, <b>Raft</b> for etcd. They expose primitives that distributed systems need: leader election, distributed locks, configuration, service discovery, and watches/notifications on key changes.</p>
+        <p>They are <b>not</b> databases. Payloads are tiny (KB, not MB). Throughput is in the thousands of writes per second, not hundreds of thousands. They&rsquo;re sized for &ldquo;the truth about the cluster&rdquo;, not application data.</p>
+        <p>The 30-second pitch: <i>&ldquo;ZooKeeper or etcd for coordination &mdash; leader election, locks, config, service discovery. Tiny payloads, linearizable reads, ephemeral nodes / leases for liveness. Pick etcd for new systems (Raft, gRPC, Kubernetes&rsquo; choice); ZK if you&rsquo;re already in the JVM ecosystem.&rdquo;</i></p>
+      </div>
+
+      <h4>Q&amp;A drills</h4>
+
+      <details class="qa"><summary>What problem do these systems actually solve? When would you reach for one over a regular DB?</summary><div class="ans">
+        <p><b>One sentence:</b> they solve <i>distributed agreement</i> on small mutable state &mdash; &ldquo;who&rsquo;s the leader?&rdquo;, &ldquo;what&rsquo;s the current config?&rdquo;, &ldquo;is this lock held?&rdquo; &mdash; with linearizable reads and writes, which a regular DB can&rsquo;t guarantee across nodes without similar machinery.</p>
+        <p><b>Concept:</b> the consensus core (Raft, Zab, Paxos) elects a leader, replicates a log of state-machine commands across a quorum, and ensures every node applies the same commands in the same order. The cost is that every write needs majority ack &mdash; latency = WAN RTT in multi-DC, throughput is single-leader-bounded.</p>
+        <p><b>Nuance:</b> you reach for them when correctness across distributed processes matters. A regular DB serves the data plane; ZK/etcd serves the control plane. Examples: Kafka used ZK for controllers; Kubernetes uses etcd for cluster state; HDFS uses ZK for the active NameNode; Vault uses Consul/etcd for HA.</p>
+      </div></details>
+
+      <details class="qa"><summary>How does Raft actually work?</summary><div class="ans">
+        <p><b>One sentence:</b> Raft has three roles (leader, follower, candidate); the leader replicates an append-only log to followers; entries become committed once a majority has them; followers apply committed entries to a state machine in order.</p>
+        <p><b>Concept:</b> Each term has at most one leader. Followers vote in elections triggered by leader timeout. The leader sends <code>AppendEntries</code> RPCs (heartbeats + log entries). Safety property: a committed entry is in the log of all future leaders. Liveness: requires a majority of nodes alive.</p>
+        <p><b>Nuance:</b> Raft splits the consensus problem into leader election + log replication + safety, deliberately making it more teachable than Paxos. The most subtle parts: ensuring leaders only commit <i>their own term&rsquo;s</i> entries (the &ldquo;previous-term commit&rdquo; bug), and the log-completeness check during voting.</p>
+      </div></details>
+
+      <details class="qa"><summary>Zab vs Raft vs Paxos &mdash; what&rsquo;s the practical difference?</summary><div class="ans">
+        <p><b>One sentence:</b> all three solve consensus with majority quorums; <b>Paxos</b> is the foundational theory, <b>Raft</b> is a deliberately simpler reformulation, <b>Zab</b> is ZooKeeper&rsquo;s atomic-broadcast protocol that ensures FIFO order from the leader.</p>
+        <p><b>Concept:</b> Paxos (Lamport, 1998) is notoriously hard to understand; Multi-Paxos and variants (EPaxos, Mencius) extend it. Raft (Ongaro &amp; Ousterhout, 2014) was explicitly designed for understandability. Zab is an atomic broadcast that gives ZooKeeper its primary-order guarantee for state changes.</p>
+        <p><b>Nuance:</b> for engineering purposes the differences are minor &mdash; all give linearizable writes, majority quorums, leader-driven replication. Pick Raft for new systems (clearer literature, more implementations: hashicorp/raft, etcd/raft, openraft). Zab is just &ldquo;ZooKeeper&rsquo;s thing&rdquo;.</p>
+      </div></details>
+
+      <details class="qa"><summary>How do you implement leader election with these systems?</summary><div class="ans">
+        <p><b>One sentence:</b> in ZK, candidates create an <b>ephemeral sequential</b> znode under a leader path; the lowest sequence is leader; others watch the predecessor; on death, the ephemeral node disappears and the next candidate is notified.</p>
+        <p><b>Concept:</b> ephemeral znodes are tied to a session; when the session expires (heartbeat lost), they vanish. Sequential numbering gives a deterministic order. The watch-on-predecessor pattern avoids a stampede when the leader dies (only one candidate gets notified).</p>
+        <p><b>Nuance:</b> in etcd, the equivalent uses a <b>lease</b> (a TTL'd token) and the <code>elect</code> primitive (or roll your own with a key + lease + compare-and-swap). The pitfall in both systems: <b>session expiration during a long GC pause</b> &mdash; you think you&rsquo;re leader, but the cluster has elected someone else. Pair with <b>fencing tokens</b> downstream.</p>
+        <pre><code>// ZK leader election
+create /election/n_ EPHEMERAL|SEQUENTIAL "host:1234"
+list /election sorted -&gt; if I'm first, I'm leader
+else watch the predecessor</code></pre>
+      </div></details>
+
+      <details class="qa"><summary>What are watches in ZK / etcd, and where do they go wrong?</summary><div class="ans">
+        <p><b>One sentence:</b> watches are server-side notifications fired when a key/znode changes &mdash; in ZK they&rsquo;re <b>one-shot</b> (must re-register after firing), in etcd they&rsquo;re <b>streaming</b> (open a gRPC stream, get every change).</p>
+        <p><b>Concept:</b> watches let clients react to state changes without polling. ZK guarantees the watch fires before the corresponding read sees the new value, so &ldquo;notify-then-read&rdquo; is correct. etcd uses a global revision and streams events from a starting revision, so you can replay missed events on reconnect.</p>
+        <p><b>Nuance:</b> ZK&rsquo;s one-shot model is a footgun: you can miss the second event between firing and re-registering. The fix: read the current state right after the watch fires, and re-register. etcd&rsquo;s streaming model is much friendlier; just track the last-seen revision.</p>
+      </div></details>
+
+      <details class="qa"><summary>How do distributed locks work, and what are fencing tokens?</summary><div class="ans">
+        <p><b>One sentence:</b> a lock is a key/znode held by one client; on acquire you get a unique <b>fencing token</b> (a monotonically increasing number, typically the consensus log index); downstream resources accept writes only with a higher token than the last seen, so a stale lock holder can&rsquo;t cause damage.</p>
+        <p><b>Concept:</b> the canonical Kleppmann argument: any lock without fencing is unsafe under GC pauses or network delays. The lock holder pauses for a minute, the lock TTL expires, another client acquires, the original wakes up and acts &mdash; both think they hold the lock. Fencing prevents the late writer.</p>
+        <p><b>Nuance:</b> ZK&rsquo;s session model + ephemeral nodes give some safety, but fencing is still recommended for shared resources. etcd lease + CAS on the protected resource gives the same property. The senior answer: <i>&ldquo;Locks are advisory; fencing tokens are how you make them correct.&rdquo;</i></p>
+      </div></details>
+
+      <details class="qa"><summary>ZooKeeper vs etcd vs Consul: practical differences.</summary><div class="ans">
+        <p><b>One sentence:</b> ZK is mature, JVM-based, tree-shaped data model with sessions and watches; etcd is gRPC, Raft, key-value with leases &mdash; the Kubernetes choice; Consul adds service discovery and a multi-DC gossip layer on top of Raft.</p>
+        <p><b>Concept:</b> ZK&rsquo;s znode tree is a hierarchical name space; clients walk paths, watch children. etcd is flat key-value with key prefixes; revisions track every change. Consul exposes Raft-backed KV plus health checks, DNS interface, and multi-DC.</p>
+        <p><b>Nuance:</b> picking: <i>Kubernetes ecosystem &rarr; etcd</i> (it&rsquo;s already there). <i>Hadoop / Kafka old setups &rarr; ZK</i>. <i>Service mesh + multi-DC service discovery &rarr; Consul</i>. New green-field: etcd, almost always. ZK is being phased out (Kafka KRaft, recent HBase versions).</p>
+      </div></details>
+
+      <details class="qa"><summary>Why do these systems cap throughput and payload size so aggressively?</summary><div class="ans">
+        <p><b>One sentence:</b> consensus is leader-bounded &mdash; every write must be replicated to a majority and applied in order &mdash; and any single big payload bloats the log and slows replication for everyone, so the systems push back hard on misuse.</p>
+        <p><b>Concept:</b> typical throughput: ZK/etcd handle ~5&ndash;30k writes/sec on good hardware. Payloads default to 1 MB max in ZK (znode size), 1.5 MB max in etcd (request size). These limits aren&rsquo;t cosmetic &mdash; a 100 MB payload would block the leader for seconds.</p>
+        <p><b>Nuance:</b> if you find yourself wanting to store &ldquo;the config blob for service X&rdquo; and it&rsquo;s 50 MB, the answer is to put a <i>pointer</i> (S3 URL) in the coordination store, not the blob. Same with secrets &mdash; Vault references stored in etcd; secrets themselves elsewhere.</p>
+      </div></details>
+
+      <details class="qa"><summary>How do you size the cluster, and why is it always 3 or 5?</summary><div class="ans">
+        <p><b>One sentence:</b> consensus tolerates &lfloor;(N-1)/2&rfloor; failures &mdash; 3 nodes survive 1 failure, 5 survive 2, 7 survive 3 &mdash; and odd numbers maximize fault tolerance per node added; beyond 5 the latency cost outweighs the fault tolerance gain.</p>
+        <p><b>Concept:</b> 4 nodes tolerate 1 failure (same as 3) but require 3 acks instead of 2; even numbers strictly hurt. 5 is the sweet spot for production critical systems. 3 is fine for less critical clusters where 2 simultaneous failures are unlikely.</p>
+        <p><b>Nuance:</b> spread across 3 AZs (3 nodes = one per AZ; 5 nodes = 2/2/1). Avoid &ldquo;all 3 in one rack&rdquo; &mdash; that defeats the point. <b>Learner / non-voting members</b> in etcd let you add a node without it counting toward quorum during catch-up.</p>
+      </div></details>
+
+      <details class="qa"><summary>What goes wrong when you put too much in etcd?</summary><div class="ans">
+        <p><b>One sentence:</b> etcd&rsquo;s default DB size limit is 2 GB; beyond that, compaction lags, defrag is required, leader changes get slow, and the whole control plane stalls &mdash; Kubernetes operators see this when CRDs or events accumulate without cleanup.</p>
+        <p><b>Concept:</b> etcd MVCC keeps every revision until compacted. Without compaction, the DB grows unbounded. Compaction removes old revisions; defrag reclaims space (but locks the leader briefly). Both must run on a schedule.</p>
+        <p><b>Nuance:</b> Kubernetes runs auto-compact on a 5-min cadence. Symptoms of an over-stuffed etcd: rising apply latency, frequent leader changes, kube-apiserver 5xx&rsquo;s. Recovery: trim event TTLs, defrag, and bump the size limit only as a stopgap.</p>
+        <pre><code>etcdctl defrag --cluster
+etcdctl compaction $(etcdctl endpoint status --write-out=json | jq '.[].Status.header.revision')</code></pre>
+      </div></details>
+
+      <details class="qa"><summary>Design service discovery for a microservices platform. Why coordination, not DNS?</summary><div class="ans">
+        <p><b>One sentence:</b> use etcd or Consul as the source of truth for healthy instances + their addresses; clients (or a sidecar) watch for changes and update their connection pool; DNS is a fallback / interop layer.</p>
+        <p><b>Concept:</b> DNS works but TTLs are blunt &mdash; a 30s TTL means 30s of stale lookups on a deregister. A coordination store with watches gives sub-second propagation. Each service registers a key with a lease; if the lease expires (instance dies), the entry is auto-removed.</p>
+        <p><b>Nuance:</b> the modern stack: a service mesh (Istio, Linkerd) reads from xDS (often backed by etcd) and pushes routing rules to data-plane proxies. The mesh gives you health checks, circuit breakers, retries, mTLS &mdash; richer than just discovery. The senior answer mentions <b>blast radius</b>: a flaky etcd takes the whole platform down; treat it like the most critical system you have.</p>
+      </div></details>
+
+      <details class="qa"><summary>What&rsquo;s the most common operational mistake with these systems?</summary><div class="ans">
+        <p><b>One sentence:</b> running them on slow disks. Consensus replicates to disk before acking; <code>fsync</code> latency directly determines write latency, and a slow disk turns a 5ms cluster into a 500ms cluster.</p>
+        <p><b>Concept:</b> ZK and etcd both <code>fsync</code> the WAL on every committed transaction. Network-attached storage (EBS gp2, slower NFS) has fsync latencies in the tens of ms. NVMe local SSD is the right baseline; gp3 with provisioned IOPS works.</p>
+        <p><b>Nuance:</b> other classics: putting them on the same disk as the workload (I/O contention from kafka or DB), running them in containers without resource limits (GC pauses cause leader flapping), letting clock skew get out of hand (Raft tolerates skew but health checks don&rsquo;t).</p>
+      </div></details>
+
+      <div class="gotcha">
+        <b>Famous footguns</b>
+        <ul>
+          <li><b>Storing application data.</b> ZK/etcd are coordination stores. Tens of MB is too much. Use a pointer.</li>
+          <li><b>Locks without fencing tokens.</b> GC pauses violate mutual exclusion. Always fence the protected resource.</li>
+          <li><b>Slow disks.</b> Every committed write hits fsync. NVMe or fast cloud SSD; never network-attached without provisioned IOPS.</li>
+          <li><b>Even-numbered clusters.</b> 4 nodes don&rsquo;t survive more failures than 3 but cost more latency. Always odd: 3, 5, 7.</li>
+        </ul>
+      </div>
+    </article>
+  </div>
+</section>
+
+<!-- RABBITMQ -->
+<section id="rabbit">
+  <div class="wrap">
+    <span class="kicker" style="border-color:var(--rabbit); color:var(--rabbit)">§ 09 &nbsp;RabbitMQ</span>
+    <article class="engine" data-db="rabbit">
+      <div class="ph">
+        <div>
+          <div class="eyebrow">AMQP broker &middot; Smart routing &middot; Per-message ack</div>
+          <h2 style="margin-top:.3rem">RabbitMQ</h2>
+          <p class="sub">A smart router with per-message acks &mdash; queue-shaped, not log-shaped.</p>
+        </div>
+        <div class="badges">
+          <span class="badge ok">Per-message ack</span>
+          <span class="badge cool">Flexible routing</span>
+          <span class="badge warn">Throughput ceiling</span>
+          <span class="badge bad">No replay</span>
+        </div>
+      </div>
+
+      <div class="orient">
+        <p>RabbitMQ is an <b>AMQP-based message broker</b>. Producers publish to <b>exchanges</b>; exchanges route to <b>queues</b> by binding rules; consumers ack or nack each message individually. Messages persist on disk if marked durable, sit on a queue until consumed, and are deleted on ack.</p>
+        <p>It is <b>not</b> a log. There&rsquo;s no replay (without effort), no per-partition order across many consumers, no &ldquo;rewind to last week.&rdquo; The trade is per-message handling: priorities, TTLs, dead-lettering, fanout by routing key &mdash; expressive in ways Kafka isn&rsquo;t.</p>
+        <p>The 30-second pitch: <i>&ldquo;Rabbit for task queues, RPC, fanout by routing key, complex ack flows. Per-message reliability matters more than raw throughput. We use Quorum Queues for HA. For event logs and replay, we use Kafka instead.&rdquo;</i></p>
+        <p class="muted" style="font-size:13px"><b>Why RabbitMQ over NATS / SQS in this guide:</b> RabbitMQ is the most-asked &ldquo;non-Kafka broker&rdquo; in interviews because its concept model (exchanges, bindings, per-message acks) is the canonical contrast to Kafka&rsquo;s log model. NATS is excellent but appears less in design loops; SQS is essentially a managed queue that doesn&rsquo;t exercise the same protocol-level questions. If interviewers ask about &ldquo;a queue,&rdquo; they almost always mean RabbitMQ.</p>
+      </div>
+
+      <h4>Q&amp;A drills</h4>
+
+      <details class="qa"><summary>Explain exchanges, queues, and bindings. Walk through routing for a message.</summary><div class="ans">
+        <p><b>One sentence:</b> producers publish to exchanges (not queues directly); exchanges route to queues based on bindings (rules tied to routing keys or headers); a single message can land in zero, one, or many queues based on the routing logic.</p>
+        <p><b>Concept:</b> exchange types: <b>direct</b> (exact routing-key match), <b>topic</b> (wildcard match: <code>orders.*.eu</code>), <b>fanout</b> (every bound queue), <b>headers</b> (match on AMQP headers), <b>x-consistent-hash</b> (load-balance to one of several bound queues).</p>
+        <p><b>Nuance:</b> the indirection is the point. Producers don&rsquo;t know about queues; consumers subscribe by creating queues + bindings. New consumer types attach without producer changes. Compare to Kafka where the producer picks the topic and the consumer picks how to interpret &mdash; Rabbit is more expressive at the cost of more concepts.</p>
+        <pre><code>// publish
+basic_publish(exchange='orders', routing_key='orders.created.eu', body=...)
+// bindings
+queue_bind('shipping_eu', 'orders', 'orders.created.eu')
+queue_bind('analytics',   'orders', 'orders.*.*')</code></pre>
+      </div></details>
+
+      <details class="qa"><summary>Why does RabbitMQ struggle at very high throughput compared to Kafka?</summary><div class="ans">
+        <p><b>One sentence:</b> Rabbit&rsquo;s design optimizes for per-message reliability and routing flexibility &mdash; per-message acks, per-message TTLs, conditional dispatch &mdash; which adds CPU + I/O overhead per message; Kafka batches sequentially and pushes most coordination to consumers, so it scales an order of magnitude higher.</p>
+        <p><b>Concept:</b> a Rabbit message round-trip involves: persist to disk (if durable), index in queue structure, deliver to consumer, await ack, remove from queue. Each of these is a per-message cost. Kafka appends to a log file in a batch and lets consumers track their own offset.</p>
+        <p><b>Nuance:</b> Rabbit handles ~50k msg/s per node comfortably; tuned Quorum Queues hit ~100k. Kafka does millions per node. The senior framing: <i>&ldquo;Rabbit is queue-shaped: per-message reliability. Kafka is log-shaped: batched throughput. Pick by what your messages need, not just by load.&rdquo;</i></p>
+      </div></details>
+
+      <details class="qa"><summary>Classic Mirrored Queues vs Quorum Queues &mdash; what changed?</summary><div class="ans">
+        <p><b>One sentence:</b> classic mirrored queues used a leader/replica pattern with non-deterministic failure modes (synchronization bugs, lost messages on partition); Quorum Queues (3.8+) use Raft for replication with deterministic semantics &mdash; in 3.10+, mirrored queues are deprecated.</p>
+        <p><b>Concept:</b> Quorum Queues replicate via Raft to 3 or 5 members; writes commit on majority ack. Failover is fast and consistent. Trade: higher per-message overhead than non-replicated, slightly less throughput than classic.</p>
+        <p><b>Nuance:</b> for new clusters, default to Quorum Queues. Transient/non-critical work can use classic non-replicated queues for cheaper throughput. <b>Streams</b> (also 3.9+) add a Kafka-like log with replay &mdash; if you need both AMQP and replay, Streams + Quorum is the modern stack.</p>
+      </div></details>
+
+      <details class="qa"><summary>How do publisher confirms and consumer acks actually work?</summary><div class="ans">
+        <p><b>One sentence:</b> publisher confirms ack the producer that the broker has accepted (and persisted, for durable + persistent messages) the message; consumer acks tell the broker the consumer has finished processing &mdash; both are required for at-least-once delivery.</p>
+        <p><b>Concept:</b> on the producer, <code>confirm_select</code> opens confirm mode; the broker sends <code>basic.ack</code> per message (or per batch via multiple). On the consumer, <code>basic.consume</code> with <code>ack=manual</code> means messages stay on the queue until the consumer sends <code>basic.ack</code>.</p>
+        <p><b>Nuance:</b> auto-ack on the consumer is a footgun &mdash; messages are removed from the queue as soon as delivered, so a consumer crash mid-processing loses them. <b>Prefetch</b> (<code>basic.qos</code>) limits unacked messages per consumer; without it, a slow consumer hoards messages from the queue. The right pattern: prefetch 10&ndash;100, manual ack after processing, with idempotent handlers because retries can deliver duplicates.</p>
+      </div></details>
+
+      <details class="qa"><summary>What&rsquo;s a dead-letter exchange and when do you use it?</summary><div class="ans">
+        <p><b>One sentence:</b> a dead-letter exchange (DLX) is where messages go when they expire (TTL), are rejected (<code>basic.reject</code> with <code>requeue=false</code>), or exceed a queue&rsquo;s length limit &mdash; the canonical way to isolate poison messages and route them for inspection or retry.</p>
+        <p><b>Concept:</b> set <code>x-dead-letter-exchange</code> on the queue; rejected messages re-publish to that exchange, where you can route them to a &ldquo;poison&rdquo; queue for ops review or to a <i>retry queue</i> with TTL that eventually republishes.</p>
+        <p><b>Nuance:</b> the &ldquo;retry with backoff&rdquo; pattern: queues with increasing TTLs (5s, 30s, 5min) all DLX-back to the original work queue. Each failed message gets a header counter; after N retries it goes to permanent DLQ. This is how production-grade Rabbit pipelines handle transient failures without overwhelming downstream systems.</p>
+      </div></details>
+
+      <details class="qa"><summary>How do you do RPC over RabbitMQ, and is it a good idea?</summary><div class="ans">
+        <p><b>One sentence:</b> client publishes to a request exchange with <code>reply_to</code> set to its own callback queue and a unique <code>correlation_id</code>; the server processes and replies to <code>reply_to</code>; the client matches replies by correlation ID.</p>
+        <p><b>Concept:</b> the pattern works and is documented. Direct reply-to (<code>reply_to=amq.rabbitmq.reply-to</code>) avoids creating per-request queues. Tornado/Spring/etc. have helpers.</p>
+        <p><b>Nuance:</b> is it a good idea? Sometimes &mdash; for cross-language, fire-and-process workloads where the request takes seconds. For sub-second RPC, gRPC or HTTP is leaner: no broker hop, no fanout overhead. The real win for AMQP RPC: built-in retries, visibility into queue depth, and the natural decoupling of producer from consumer scaling.</p>
+      </div></details>
+
+      <details class="qa"><summary>Design a task queue for image processing: each job takes 10s, you need at-least-once, dead lettering, and per-tenant isolation.</summary><div class="ans">
+        <p><b>One sentence:</b> a per-tenant queue (or a sharded set) bound to a topic exchange, durable + persistent messages, manual ack with prefetch=1 per worker, DLX with retry queue (TTL backoff) and a permanent DLQ after N failures.</p>
+        <p><b>Concept:</b> per-tenant queues prevent one noisy tenant from starving others. Prefetch=1 on long jobs ensures even distribution across workers. Persistent + durable + publisher confirms = at-least-once durability. Workers are idempotent (deduplicate by job ID).</p>
+        <p><b>Nuance:</b> for huge tenant counts (10k+), per-tenant queues become a queue management problem &mdash; consider <b>consistent-hash exchange</b> to distribute work to a fixed pool of queues with hash-based affinity. Add metrics on queue depth + age of oldest message; alert before SLA bites.</p>
+      </div></details>
+
+      <details class="qa"><summary>What&rsquo;s the difference between a lazy queue and a regular queue?</summary><div class="ans">
+        <p><b>One sentence:</b> lazy queues store messages on disk by default, holding only metadata in memory &mdash; great for queues that occasionally back up huge (millions of messages); regular queues keep recent messages in memory for low-latency dispatch.</p>
+        <p><b>Concept:</b> regular queues page to disk under memory pressure but at high cost (sync flush). Lazy queues skip the cache and write directly &mdash; consistent throughput regardless of depth, at the cost of slightly higher per-message latency.</p>
+        <p><b>Nuance:</b> use lazy when queues might back up to millions (work queues with bursty producers, deferred jobs). Use regular when latency matters and queues stay small. Quorum queues are effectively lazy (everything is on disk + Raft log).</p>
+      </div></details>
+
+      <details class="qa"><summary>What happens during a network partition? How does &ldquo;pause-minority&rdquo; work?</summary><div class="ans">
+        <p><b>One sentence:</b> in classic clustering, a partition can split the cluster; the <code>cluster_partition_handling</code> mode decides what happens &mdash; <code>pause_minority</code> stops the smaller side until partition heals (preserves consistency, costs availability).</p>
+        <p><b>Concept:</b> options: <code>ignore</code> (let both sides accept writes; reconcile manually), <code>pause_minority</code> (CP-leaning), <code>autoheal</code> (the cluster picks a winning partition automatically). Quorum queues internally use Raft and don&rsquo;t need this knob &mdash; minority partitions just can&rsquo;t commit.</p>
+        <p><b>Nuance:</b> <code>pause_minority</code> + odd cluster size is the safe default. With Quorum Queues, partition handling is per-queue (Raft majority required for writes), which is much cleaner than the cluster-wide setting.</p>
+      </div></details>
+
+      <details class="qa"><summary>How do you handle backpressure when consumers can&rsquo;t keep up?</summary><div class="ans">
+        <p><b>One sentence:</b> Rabbit applies <b>flow control</b> automatically when memory or disk thresholds are exceeded &mdash; producers see slowed acks; combine with TTL, max-length, and lazy queues to bound damage.</p>
+        <p><b>Concept:</b> AMQP&rsquo;s <code>connection.blocked</code> notification tells producers the broker is throttling. Queue-level <code>x-max-length</code> + DLX bounds queue size and routes overflow elsewhere. <code>x-message-ttl</code> ages messages out automatically.</p>
+        <p><b>Nuance:</b> don&rsquo;t let queues grow unbounded &mdash; you&rsquo;ll OOM the broker. The right pattern: cap queue length, send overflow to DLQ for visibility, scale consumers by depth metrics. Senior framing: <i>&ldquo;Backpressure is a property of the system, not just the broker. The broker tells you where the bottleneck moved.&rdquo;</i></p>
+      </div></details>
+
+      <details class="qa"><summary>When does Kafka beat RabbitMQ, and vice versa?</summary><div class="ans">
+        <p><b>One sentence:</b> Kafka wins for high-throughput event streams, multi-consumer fanout with replay, and event-sourced architectures; Rabbit wins for task queues, complex routing, per-message TTL/priority, RPC, and lower-volume workloads where per-message control matters more than throughput.</p>
+        <p><b>Concept:</b> Kafka is a log: append, retain, replay, partitioned ordering. Rabbit is a queue: route, deliver, ack, delete. Different shapes; different problems.</p>
+        <p><b>Nuance:</b> the &ldquo;both&rdquo; pattern is common: Kafka for the event spine (CDC, audit, analytics streams) and Rabbit for task queues (image processing, email, cleanup). Don&rsquo;t pick one for both jobs unless one shape really doesn&rsquo;t apply &mdash; you&rsquo;ll bend it badly.</p>
+      </div></details>
+
+      <details class="qa"><summary>RabbitMQ Streams: what are they and why do they exist?</summary><div class="ans">
+        <p><b>One sentence:</b> Streams (3.9+) are a Kafka-like append-only log built into RabbitMQ &mdash; replay, multi-consumer fanout, high throughput &mdash; bridging the gap so teams already on Rabbit don&rsquo;t need a second system for log-shaped use cases.</p>
+        <p><b>Concept:</b> Streams use a custom binary protocol (faster than AMQP for this workload), support consumer offsets, and reach Kafka-class throughput on appropriate hardware. AMQP clients can still consume via a compatibility layer.</p>
+        <p><b>Nuance:</b> Streams are not a Kafka killer &mdash; Kafka&rsquo;s ecosystem (Connect, Streams API, Schema Registry, KRaft) is mature. But for organizations already running Rabbit who want replay-capable feeds, Streams avoids adding a whole new system. Worth knowing about if you&rsquo;re defending Rabbit against &ldquo;but Kafka...&rdquo;</p>
+      </div></details>
+
+      <div class="gotcha">
+        <b>Famous footguns</b>
+        <ul>
+          <li><b>Auto-ack on the consumer.</b> Crash mid-processing = lost message. Always manual ack with prefetch.</li>
+          <li><b>Unbounded queue depth.</b> Producers outpace consumers, broker OOMs. Set <code>x-max-length</code> + DLX.</li>
+          <li><b>Mirrored queues in 3.10+.</b> Deprecated. Migrate to Quorum Queues; the replication semantics are night-and-day better.</li>
+          <li><b>RabbitMQ as Kafka.</b> Trying to do replay, partitioned event log, cross-region streaming. Use Streams, or just use Kafka.</li>
+        </ul>
+      </div>
+    </article>
+  </div>
+</section>
+
+<!-- CROSS-CUTTING -->
+<section id="cross">
+  <div class="wrap">
+    <span class="kicker">§ 10 &nbsp;Cross-Cutting</span>
+    <h2 style="margin-top:.7rem">The questions that compare engines.</h2>
+    <p class="lede" style="margin-bottom:1.4rem">Anyone can recite a single engine&rsquo;s docs. Staff signal lives in the &ldquo;why this and not that&rdquo; calls. Drill these until the trade-off comes out unprompted.</p>
+
+    <details class="qa"><summary>When would you pick Cassandra over DynamoDB?</summary><div class="ans">
+      <p><b>One sentence:</b> Cassandra wins when you need on-prem or non-AWS deployment, predictable cost at huge sustained scale, and tunable per-query consistency; Dynamo wins when you want zero ops, deep AWS integration, and serverless billing.</p>
+      <p><b>Concept:</b> they have similar shapes &mdash; partition key + clustering, LWW conflict resolution, query-first modeling, no joins, no ACID across rows by default. The differences are operational. Cassandra: you run it, you tune it, you pay flat per node, you can deploy anywhere. Dynamo: AWS runs it, you pay per RCU/WCU, you can&rsquo;t leave AWS.</p>
+      <p><b>Nuance:</b> at huge sustained throughput (&gt;1M ops/s), Cassandra is often cheaper than Dynamo provisioned (and dramatically cheaper than on-demand). At small/medium scale, Dynamo wins on ops cost &mdash; you&rsquo;re not running a 12-person SRE team. <b>ScyllaDB</b> is the third option: Cassandra-compatible API, shard-per-core, 5&ndash;10&times; better hardware utilization. The senior answer names it.</p>
+    </div></details>
+
+    <details class="qa"><summary>Why isn&rsquo;t Redis a database?</summary><div class="ans">
+      <p><b>One sentence:</b> it can be one if you accept the constraints &mdash; AOF + replication + persistence policies make Redis as durable as anyone else &mdash; but the design center is &ldquo;in-memory data structures with optional persistence&rdquo;, not &ldquo;system of record with optional caching.&rdquo;</p>
+      <p><b>Concept:</b> Redis defaults are tuned for speed: async replication, no fsync per write, single-node failover via Sentinel. Run as a database means: <code>fsync everysec</code> AOF, RF replicas, sized RAM for full dataset, monitored failover, capacity planning around RAM cost.</p>
+      <p><b>Nuance:</b> teams that <i>do</i> use Redis as a primary store usually have niche access patterns (sub-ms latency required, dataset fits in RAM economically, ops team that knows AOF tuning). For most workloads, the right framing: <i>&ldquo;Redis as cache + ephemeral state, durable store on Postgres or Dynamo behind it.&rdquo;</i></p>
+    </div></details>
+
+    <details class="qa"><summary>When does Kafka beat RabbitMQ?</summary><div class="ans">
+      <p><b>One sentence:</b> Kafka beats Rabbit when you need replay, very high throughput, multi-consumer fanout over the same data, or an event log as integration backbone; Rabbit beats Kafka for task queues, RPC, complex routing rules, per-message TTL or priority.</p>
+      <p><b>Concept:</b> the shape distinction: Kafka is a partitioned log retaining all messages for a window; Rabbit is a queue that deletes messages on ack. Replay, audit, &ldquo;reprocess everything for a new consumer&rdquo; &mdash; only Kafka. Per-message ack with retry counter, dead-letter routing, priority queue &mdash; only Rabbit.</p>
+      <p><b>Nuance:</b> use both in many real systems: Kafka for the event spine, Rabbit for the task queue layer. Beware the &ldquo;we&rsquo;ll just use Kafka for queues&rdquo; design &mdash; you end up reimplementing acks, retries, and dead-lettering on top.</p>
+    </div></details>
+
+    <details class="qa"><summary>Is Postgres + logical replication a valid alternative to Kafka?</summary><div class="ans">
+      <p><b>One sentence:</b> for low-to-moderate event volumes (~tens of thousands/sec), an outbox table + Debezium + a downstream consumer is a perfectly fine Kafka replacement; at higher volumes, Postgres logical replication becomes the bottleneck before Kafka would.</p>
+      <p><b>Concept:</b> the outbox pattern: write your business row + an outbox row in one transaction; Debezium reads the WAL via logical replication slot; events go wherever (Kafka, Rabbit, HTTP). You get atomic publish-with-write without 2PC.</p>
+      <p><b>Nuance:</b> limits: the outbox table grows; you need a vacuum strategy. A single replication slot pins WAL on the primary, so a stuck consumer = full disk. At 100k+ events/sec, Postgres logical replication starts to lag and the slot disk usage becomes a real burden &mdash; that&rsquo;s when you graduate to Kafka. The senior answer: <i>&ldquo;Outbox + CDC for early-stage systems; Kafka for scale-out.&rdquo;</i></p>
+    </div></details>
+
+    <details class="qa"><summary>When would you pick MongoDB over Postgres + JSONB?</summary><div class="ans">
+      <p><b>One sentence:</b> Mongo wins when documents are the dominant data shape, you need horizontal sharding for write scale, and access patterns rarely cross documents; Postgres + JSONB wins when you need transactions, joins, strong typing on most fields and a few flexible ones.</p>
+      <p><b>Concept:</b> Postgres + JSONB gives you SQL + ACID + GIN indexes on JSON paths. It&rsquo;s shockingly capable. You can model 80% of &ldquo;document&rdquo; workloads with no compromise. The 20% Mongo wins: when you actually need horizontal write scale (Postgres won&rsquo;t shard natively); when document size routinely exceeds a few KB and you&rsquo;d rather not stress JSONB; when you want a managed cluster that already speaks documents (Atlas).</p>
+      <p><b>Nuance:</b> the failure mode of &ldquo;Mongo because flexible&rdquo;: schema drift, no transactions across documents, sharding pain. The failure mode of &ldquo;Postgres + JSONB everywhere&rdquo;: planner statistics on JSON are weak, deeply nested JSON aggregates are slow. The senior framing: <i>&ldquo;Default to Postgres. Move to Mongo when sharding becomes the bottleneck.&rdquo;</i></p>
+    </div></details>
+
+    <details class="qa"><summary>Elasticsearch vs Postgres FTS &mdash; when does ES actually pay off?</summary><div class="ans">
+      <p><b>One sentence:</b> Postgres FTS (<code>tsvector</code> + GIN) handles up to ~tens of millions of docs with simple ranking very well; ES wins when you need analyzers, multi-field weighting, faceted search with sub-second aggregations, vector search, or scale beyond a single Postgres node.</p>
+      <p><b>Concept:</b> Postgres FTS is &ldquo;real&rdquo; full-text &mdash; tokenization, stemming, ranking with <code>ts_rank</code>. It struggles when you want per-field analyzer configuration, complex relevance tuning, multi-language analyzers, autocomplete with custom analyzers. ES gives all of that, plus aggregations on doc values for facets, plus vector search.</p>
+      <p><b>Nuance:</b> the underrated tier between them is <b>Meilisearch / Typesense</b> &mdash; lighter than ES, more capable than PG FTS. The decision tree: small (&lt;10M docs, simple ranking)? PG FTS. Mid (need facets, complex relevance)? ES or a search-dedicated managed service. Big (logs, observability, multi-tenant search at scale)? ES with proper tiering.</p>
+    </div></details>
+
+    <details class="qa"><summary>ZooKeeper vs etcd vs Consul &mdash; practical differences?</summary><div class="ans">
+      <p><b>One sentence:</b> ZK is the legacy choice tied to JVM ecosystems (Hadoop, older Kafka, HBase); etcd is the Kubernetes-era default with cleaner APIs and Raft; Consul adds service discovery and multi-DC gossip on top of Raft.</p>
+      <p><b>Concept:</b> all three give linearizable reads, majority quorums, leader-driven replication, watches/notifications, and small-payload constraints. They&rsquo;re largely interchangeable for the consensus core; the differences are API, ecosystem, and added features.</p>
+      <p><b>Nuance:</b> for new green-field, etcd is almost always right &mdash; gRPC API, well-supported, Kubernetes brought it everywhere. ZK if you&rsquo;re in a JVM stack already running it. Consul when you specifically want service-mesh-adjacent features (health checks, DNS interface, multi-DC). Avoid &ldquo;all three&rdquo; in one stack &mdash; it&rsquo;s a coordination problem about coordination tools.</p>
+    </div></details>
+
+    <details class="qa"><summary>Why is exactly-once so hard to get right?</summary><div class="ans">
+      <p><b>One sentence:</b> &ldquo;exactly-once delivery&rdquo; across two systems is impossible without distributed atomic commit (which has its own problems); what&rsquo;s achievable is <b>effectively-once processing</b> via idempotent operations on the receiver.</p>
+      <p><b>Concept:</b> the canonical example: send a message to Kafka and write to a database. Kafka transactions don&rsquo;t span Kafka. 2PC has well-known liveness issues (TM crash leaves participants blocked). The pragmatic alternative: assign every message a unique ID; the receiver checks &ldquo;have I seen this ID?&rdquo; before processing.</p>
+      <p><b>Nuance:</b> &ldquo;exactly-once&rdquo; in Kafka Streams is real, but it&rsquo;s scoped to the Kafka-to-Kafka path (idempotent producer + transactions covering produce + offset commit). The moment you sink to a non-Kafka system, you&rsquo;re back to idempotent operations or the outbox pattern. The senior interview answer: <i>&ldquo;Exactly-once processing requires idempotent consumers. The broker can deduplicate within itself; the world won&rsquo;t.&rdquo;</i></p>
+    </div></details>
+
+    <details class="qa"><summary>What&rsquo;s the difference between log-based and statement-based replication?</summary><div class="ans">
+      <p><b>One sentence:</b> statement-based ships SQL statements to replicas (re-executes them); log-based ships the resulting row changes (applies them) &mdash; log-based is deterministic and faster, statement-based handles non-deterministic functions (like <code>NOW()</code>) badly.</p>
+      <p><b>Concept:</b> Postgres streaming replication is binary log-based (WAL byte-for-byte). MySQL has both modes; default is now row-based binlog. Mongo&rsquo;s oplog is a statement-like document operation log. Cassandra ships mutations row-wise. Replicas applying logs deterministically is the only way to get consistent replicas.</p>
+      <p><b>Nuance:</b> classic statement-based bug: <code>UPDATE x SET t = NOW()</code> &mdash; primary and replica disagree because <code>NOW()</code> evaluates differently. Row-based binlog records the actual values written. <b>Logical replication</b> (Postgres pgoutput, MySQL row-based) is the modern default and the foundation for CDC pipelines.</p>
+    </div></details>
+
+    <details class="qa"><summary>Why does sharding break things you didn&rsquo;t expect?</summary><div class="ans">
+      <p><b>One sentence:</b> sharding turns single-node guarantees (transactions, joins, unique constraints, secondary indexes, aggregates) into distributed problems &mdash; each requires either a coordinator (latency cost) or a redesign (denormalization, app-side joins).</p>
+      <p><b>Concept:</b> a unique constraint across shards needs a global index (Mongo enforces uniqueness only on the shard-key prefix). A join across shards becomes scatter-gather. A transaction across shards becomes 2PC. <code>SUM</code> across shards needs an aggregator. None of these are impossible, all are slower and more failure-prone.</p>
+      <p><b>Nuance:</b> the right design when sharding: pick a shard key that keeps every important query within one shard (tenant ID is usually right). Accept that a few queries become cross-shard and design for it. Don&rsquo;t pretend sharding is &ldquo;just config&rdquo; &mdash; it&rsquo;s an architecture.</p>
+    </div></details>
+
+    <details class="qa"><summary>How do you decide between strong, causal, and eventual consistency?</summary><div class="ans">
+      <p><b>One sentence:</b> pick the weakest model that satisfies the use case &mdash; strong for money/inventory/locks, causal for user-facing flows (read-your-writes, monotonic reads), eventual for caches, analytics, and feeds where slight staleness is invisible.</p>
+      <p><b>Concept:</b> linearizable = single global timeline (most expensive). Causal = if A happened before B, everyone sees A first; concurrent ops can reorder. Eventual = converges &ldquo;eventually&rdquo;, no timing guarantee. Most user-facing apps need causal, not linearizable; most engineers reach for linearizable by default and pay too much.</p>
+      <p><b>Nuance:</b> the trade-off compounds: stronger consistency = higher latency + lower availability under partition. The senior framing names it explicitly: <i>&ldquo;The cart total is causal &mdash; my reads see my writes. The inventory deduction is linearizable &mdash; we can&rsquo;t oversell. The product feed is eventual &mdash; it&rsquo;s fine if it&rsquo;s 30s stale.&rdquo;</i></p>
+    </div></details>
+
+    <details class="qa"><summary>If I told you we have one OLTP database, one cache, one queue, and one search index, which engines do you pick?</summary><div class="ans">
+      <p><b>One sentence:</b> Postgres for OLTP (default), Redis for cache (no real competitor at sub-ms), Kafka or RabbitMQ for queue depending on shape (log vs queue), Elasticsearch or Postgres FTS for search depending on scale.</p>
+      <p><b>Concept:</b> defending each: Postgres &mdash; ACID, mature, JSONB for flexibility. Redis &mdash; sub-ms ops, rich data structures, well-known operational profile. Kafka if events need replay, Rabbit if tasks need per-message reliability. ES if search needs analyzers + facets, PG FTS if simple.</p>
+      <p><b>Nuance:</b> the staff-level move is naming the tradeoff in each pick: <i>&ldquo;I&rsquo;d default to Postgres + Redis + Rabbit + PG FTS for a startup; swap PG FTS for ES once we hit relevance complexity, swap Rabbit for Kafka once we need replay, and shard Postgres or move to Aurora when single primary doesn&rsquo;t fit.&rdquo;</i> A picker that can articulate <i>when</i> to upgrade beats one that picks the most powerful engine for everything from day one.</p>
+    </div></details>
+
+    <details class="qa"><summary>What&rsquo;s the rubric for the &ldquo;30-second database defense&rdquo; in a system design interview?</summary><div class="ans">
+      <p><b>One sentence:</b> four-part structure: <b>workload</b> (access pattern, scale, consistency, geography) &rarr; <b>candidate engines</b> (the 2&ndash;3 with matching shape) &rarr; <b>trade-off you&rsquo;re accepting</b> &rarr; <b>failure mode</b> (what breaks, what we monitor, what the runbook does).</p>
+      <p><b>Concept:</b> interviewers want to hear that you&rsquo;ve thought about the failure case before the happy case. &ldquo;The database is Dynamo because the access pattern is key-based, single-digit-ms, multi-region. We accept LWW on Global Tables; we don&rsquo;t use it for counters. Failure mode is hot partition; we shard high-traffic keys with a write-suffix; we alert on throttle metrics.&rdquo;</p>
+      <p><b>Nuance:</b> not naming the runner-up is a yellow flag. Saying &ldquo;Postgres&rdquo; without explaining when you&rsquo;d move off it is the same. The structure is: <i>here&rsquo;s what I picked, here&rsquo;s the second choice, here&rsquo;s when I&rsquo;d switch.</i> That&rsquo;s the answer that signals staff.</p>
+    </div></details>
+
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div>
+      <div class="colophon">Data Systems Q&amp;A &middot; Vol. II &middot; 2026</div>
+      <div class="print">Set in <i>Fraunces</i>, IBM Plex Sans, IBM Plex Mono. Built as a single self-contained file. Open in any modern browser.</div>
+    </div>
+    <div class="muted" style="font-size:12px; max-width:36ch; text-align:right">
+      Numbers are rule-of-thumb. Real production sizing is a function of percentile latency, item-size distribution, and operational maturity. The point is the shape of the trade-off, not the third decimal place.
+    </div>
+  </div>
+</footer>
+
+<script>
+/* Expand all / Collapse all + lightweight per-section search.
+   Each engine section gets a search bar injected if not already present.
+   Pressing Enter or typing filters details.qa within the same section by summary text. */
+(function(){
+  function debounce(fn, ms){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), ms); }; }
+
+  // Build search bars at the top of each engine section
+  document.querySelectorAll('section[id] .engine').forEach(article => {
+    const h4 = article.querySelector('h4');
+    if(!h4) return;
+    const bar = document.createElement('div');
+    bar.className = 'search-bar';
+    bar.innerHTML = `
+      <input type="search" placeholder="filter questions in this engine..." aria-label="filter">
+      <button data-act="expand">expand all</button>
+      <button data-act="collapse">collapse all</button>
+      <span class="count"></span>
+    `;
+    h4.parentNode.insertBefore(bar, h4);
+
+    const input = bar.querySelector('input');
+    const count = bar.querySelector('.count');
+    const items = Array.from(article.querySelectorAll('details.qa'));
+    function refresh(){
+      const q = (input.value||'').trim().toLowerCase();
+      let visible = 0;
+      items.forEach(d => {
+        const sum = d.querySelector('summary');
+        const txt = (sum.textContent||'').toLowerCase() + ' ' + (d.textContent||'').toLowerCase();
+        const show = !q || txt.indexOf(q) !== -1;
+        d.style.display = show ? '' : 'none';
+        if(show) visible++;
+      });
+      count.textContent = `${visible} / ${items.length}`;
+    }
+    input.addEventListener('input', debounce(refresh, 80));
+    bar.querySelector('[data-act="expand"]').addEventListener('click', () => {
+      items.forEach(d => { if(d.style.display !== 'none') d.open = true; });
+    });
+    bar.querySelector('[data-act="collapse"]').addEventListener('click', () => {
+      items.forEach(d => d.open = false);
+    });
+    refresh();
+  });
+
+  // Cross-cutting: add a global expand/collapse button row above #cross details
+  const cross = document.getElementById('cross');
+  if(cross){
+    const lede = cross.querySelector('.lede');
+    if(lede){
+      const bar = document.createElement('div');
+      bar.className = 'search-bar';
+      bar.innerHTML = `
+        <input type="search" placeholder="filter cross-cutting questions..." aria-label="filter">
+        <button data-act="expand">expand all</button>
+        <button data-act="collapse">collapse all</button>
+        <span class="count"></span>
+      `;
+      lede.parentNode.insertBefore(bar, lede.nextSibling);
+      const input = bar.querySelector('input');
+      const count = bar.querySelector('.count');
+      const items = Array.from(cross.querySelectorAll('details.qa'));
+      function refresh(){
+        const q = (input.value||'').trim().toLowerCase();
+        let v = 0;
+        items.forEach(d=>{
+          const txt = (d.textContent||'').toLowerCase();
+          const show = !q || txt.indexOf(q)!==-1;
+          d.style.display = show ? '' : 'none';
+          if(show) v++;
+        });
+        count.textContent = `${v} / ${items.length}`;
+      }
+      input.addEventListener('input', debounce(refresh, 80));
+      bar.querySelector('[data-act="expand"]').addEventListener('click', ()=>items.forEach(d=>{ if(d.style.display!=='none') d.open=true; }));
+      bar.querySelector('[data-act="collapse"]').addEventListener('click', ()=>items.forEach(d=>d.open=false));
+      refresh();
+    }
+  }
+})();
+</script>
+</body>
+</html>

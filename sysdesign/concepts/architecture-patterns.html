@@ -1,0 +1,1624 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Architecture Patterns — service design, communication, and the trade-offs interviewers probe</title>
+<meta name="description" content="A staff/tech-lead reference on application architecture and communication patterns: DDD, microservices, EDA, reactive, serverless, multi-tenancy, APIs, service mesh." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT,WONK@9..144,300..900,0..100,0..1&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+:root{
+  --ink-0:#0a0c11;
+  --ink-1:#10131b;
+  --ink-2:#161a24;
+  --ink-3:#1d2230;
+  --ink-4:#262c3d;
+  --line:#2b3144;
+  --line-soft:#222636;
+  --paper:#ece6d8;
+  --paper-2:#dcd4c1;
+  --text:#eae6dc;
+  --text-2:#b6b3a8;
+  --text-3:#7d8095;
+  --amber:#e8a45a;
+  --amber-2:#caa067;
+  --teal:#5fb5b1;
+  --rose:#e26d6d;
+  --leaf:#7fb573;
+  --plum:#b58cd9;
+  --shadow: 0 1px 0 rgba(255,255,255,.04), 0 12px 36px -16px rgba(0,0,0,.7);
+  --r-1:6px; --r-2:10px; --r-3:16px;
+  --maxw:1180px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  background:
+    radial-gradient(1100px 700px at 100% -10%, rgba(232,164,90,0.07), transparent 60%),
+    radial-gradient(1000px 700px at -20% 30%, rgba(95,181,177,0.05), transparent 60%),
+    var(--ink-0);
+  color:var(--text);
+  font-family:"IBM Plex Sans","Helvetica Neue",sans-serif;
+  font-size:15.5px;
+  line-height:1.55;
+  -webkit-font-smoothing:antialiased;
+  font-feature-settings:"ss01","ss02","cv11";
+}
+a{color:var(--amber);text-decoration:none;border-bottom:1px solid rgba(232,164,90,.35)}
+a:hover{color:#fff;border-bottom-color:#fff}
+hr{border:0;border-top:1px solid var(--line-soft);margin:2.4rem 0}
+code,kbd,samp,.mono{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.92em}
+.mono{letter-spacing:.01em}
+.eyebrow{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--text-3)}
+h1,h2,h3,h4{font-family:"Fraunces",Georgia,serif;font-weight:600;color:#fff;letter-spacing:-.01em;margin:0 0 .5em}
+h1{font-size:clamp(2.4rem,4.4vw,3.6rem); font-variation-settings:"opsz" 144,"SOFT" 30,"WONK" 1; line-height:1.02; letter-spacing:-.025em}
+h2{font-size:clamp(1.6rem,2.4vw,2.1rem); font-variation-settings:"opsz" 96,"SOFT" 20; line-height:1.1; letter-spacing:-.018em}
+h3{font-size:1.2rem; font-variation-settings:"opsz" 36,"SOFT" 12; letter-spacing:-.01em}
+h4{font-size:1.02rem; font-family:"IBM Plex Sans"; text-transform:uppercase; letter-spacing:.12em; color:var(--text-2)}
+p{margin:0 0 .9em}
+.lede{font-family:"Fraunces",Georgia,serif; font-variation-settings:"opsz" 24,"SOFT" 30; font-size:1.18rem; line-height:1.45; color:var(--text-2); max-width:64ch}
+em{font-style:italic;color:#fff}
+strong{color:#fff;font-weight:600}
+section{padding:5.6rem 0; border-top:1px solid var(--line-soft); position:relative}
+section:first-of-type{border-top:0}
+.wrap{max-width:var(--maxw); margin:0 auto; padding:0 1.6rem}
+.label{font-family:"IBM Plex Mono",monospace; font-size:11px; color:var(--text-3); letter-spacing:.18em; text-transform:uppercase}
+.kicker{display:inline-block; font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.22em; text-transform:uppercase; color:var(--amber); padding:.32rem .6rem; border:1px solid rgba(232,164,90,.4); border-radius:99px}
+
+/* per-section accent stripe */
+section[data-accent]::before{
+  content:""; position:absolute; left:0; top:-1px; height:3px; width:96px;
+  background:var(--accent, var(--amber));
+}
+section[data-accent="ddd"]{--accent:var(--plum)}
+section[data-accent="services"]{--accent:var(--amber)}
+section[data-accent="eda"]{--accent:var(--teal)}
+section[data-accent="reactive"]{--accent:var(--leaf)}
+section[data-accent="serverless"]{--accent:var(--rose)}
+section[data-accent="tenancy"]{--accent:var(--amber-2)}
+section[data-accent="api"]{--accent:var(--teal)}
+section[data-accent="mesh"]{--accent:var(--plum)}
+
+/* nav */
+.topbar{position:sticky; top:0; z-index:50; backdrop-filter:saturate(140%) blur(12px); background:rgba(10,12,17,.78); border-bottom:1px solid var(--line-soft)}
+.topbar .row{display:flex;align-items:center;gap:1rem; padding:.85rem 1.6rem; max-width:var(--maxw); margin:0 auto}
+.brand{font-family:"Fraunces",serif; font-variation-settings:"opsz" 96,"SOFT" 30,"WONK" 1; font-size:1.18rem; letter-spacing:-.01em}
+.brand .dot{display:inline-block; width:.55rem; height:.55rem; border-radius:50%; background:var(--amber); margin-right:.5rem; transform:translateY(-2px); box-shadow:0 0 0 4px rgba(232,164,90,.18)}
+nav.crumbs{margin-left:auto; display:flex; gap:1rem; flex-wrap:wrap}
+nav.crumbs a{font-family:"IBM Plex Mono",monospace; font-size:11.5px; letter-spacing:.16em; text-transform:uppercase; color:var(--text-2); border-bottom:0}
+nav.crumbs a:hover{color:#fff}
+
+/* cover */
+.cover{padding-top:6rem}
+.cover .grid{display:grid; grid-template-columns: 1.3fr 1fr; gap:3rem; align-items:end}
+@media (max-width:880px){ .cover .grid{grid-template-columns:1fr; gap:2rem} }
+.cover .meta{font-family:"IBM Plex Mono",monospace; color:var(--text-3); font-size:12px; letter-spacing:.16em; text-transform:uppercase}
+.cover .meta .pipe{margin:0 .55rem; opacity:.5}
+.cover h1 em{color:var(--amber); font-style:italic}
+.cover .lede{margin-top:1.6rem}
+.cover .specsheet{border:1px solid var(--line); border-radius:var(--r-2); padding:1.4rem 1.4rem 1rem; background:linear-gradient(180deg,rgba(255,255,255,.012),transparent)}
+.specsheet dl{display:grid; grid-template-columns:auto 1fr; gap:.45rem 1rem; margin:0; font-size:13.5px}
+.specsheet dt{color:var(--text-3); font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.18em; text-transform:uppercase; padding-top:.18rem}
+.specsheet dd{margin:0}
+.specsheet dd b{color:#fff}
+
+/* topic index */
+.tindex{display:grid; grid-template-columns:repeat(4,1fr); gap:.6rem; margin-top:1.4rem}
+@media(max-width:880px){.tindex{grid-template-columns:repeat(2,1fr)}}
+.tindex a{
+  border:1px solid var(--line); border-radius:var(--r-2);
+  padding:.7rem .85rem; background:rgba(255,255,255,.014);
+  color:var(--text-2); display:flex; align-items:center; gap:.55rem;
+  font-size:13px;
+}
+.tindex a:hover{border-color:rgba(232,164,90,.4); color:#fff; background:rgba(232,164,90,.04)}
+.tindex a .num{font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:.14em; color:var(--amber)}
+
+/* matrix table */
+.matrix{overflow-x:auto; margin-top:1rem; border:1px solid var(--line); border-radius:var(--r-2); background:linear-gradient(180deg,rgba(255,255,255,.012),transparent)}
+.matrix table{width:100%; border-collapse:collapse; min-width:780px}
+.matrix th, .matrix td{padding:.72rem .9rem; text-align:left; border-bottom:1px solid var(--line-soft); vertical-align:top; font-size:13.5px}
+.matrix th{font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.18em; text-transform:uppercase; color:var(--text-3); background:rgba(255,255,255,.018)}
+.matrix th:first-child{position:sticky; left:0; background:rgba(20,24,33,.96)}
+.matrix td:first-child{position:sticky; left:0; background:rgba(20,24,33,.96); font-weight:600; color:#fff}
+.matrix td{color:var(--text-2)}
+.matrix tr:hover td{background:rgba(232,164,90,.04)}
+
+/* badges */
+.badge{font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:.16em; text-transform:uppercase; padding:.32rem .55rem; border:1px solid var(--line); border-radius:99px; color:var(--text-2); background:rgba(255,255,255,.014)}
+.badge.ok{color:#cfe9b8; border-color:rgba(127,181,115,.3); background:rgba(127,181,115,.06)}
+.badge.warn{color:#f0c995; border-color:rgba(232,164,90,.35); background:rgba(232,164,90,.06)}
+.badge.bad{color:#f1b3b3; border-color:rgba(226,109,109,.4); background:rgba(226,109,109,.07)}
+.badge.cool{color:#bee0de; border-color:rgba(95,181,177,.3); background:rgba(95,181,177,.06)}
+
+/* gotcha + callout + probing */
+.gotcha{
+  border-left:2px solid var(--amber);
+  padding:.5rem 1rem; margin:.7rem 0;
+  color:var(--text-2); background:rgba(255,255,255,.018); border-radius:0 var(--r-1) var(--r-1) 0;
+  font-size:13.8px;
+}
+.gotcha b{color:#fff}
+.probing{
+  border-left:2px solid var(--teal);
+  padding:.5rem 1rem; margin:.7rem 0;
+  color:var(--text-2); background:rgba(95,181,177,.05); border-radius:0 var(--r-1) var(--r-1) 0;
+  font-size:13.5px;
+}
+.probing b{color:#fff}
+.callout{
+  border:1px dashed var(--line); border-radius:var(--r-2);
+  padding:1.1rem 1.3rem; background:rgba(232,164,90,.04);
+  font-size:14.5px; color:var(--text-2); margin:1rem 0 1.6rem;
+}
+.callout b{color:#fff}
+.callout .heading{font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.18em; text-transform:uppercase; color:var(--amber); display:block; margin-bottom:.4rem}
+
+/* tab-row pills (for taxonomy chips) */
+.tab-row{display:flex; gap:.4rem; flex-wrap:wrap; margin-bottom:.8rem}
+.tab-row span, .tab-row button{
+  background:transparent; border:1px solid var(--line); color:var(--text-2);
+  padding:.4rem .8rem; border-radius:99px;
+  font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.14em; text-transform:uppercase;
+}
+.tab-row span.on, .tab-row button.on{background:var(--amber); color:#1a140a; border-color:var(--amber); font-weight:600}
+.tab-row span .swatch, .tab-row button .swatch{display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:.4rem; vertical-align:middle}
+
+/* Q&A */
+details.qa{border:1px solid var(--line); border-radius:var(--r-2); background:rgba(255,255,255,.012); padding:0; margin:.6rem 0; overflow:hidden}
+details.qa[open]{background:rgba(232,164,90,.04); border-color:rgba(232,164,90,.35)}
+details.qa summary{cursor:pointer; padding:.95rem 1.1rem; list-style:none; display:flex; gap:.7rem; align-items:center; font-family:"Fraunces",serif; font-variation-settings:"opsz" 36; font-size:1.04rem; color:#fff}
+details.qa summary::-webkit-details-marker{display:none}
+details.qa summary::before{content:""; width:8px; height:8px; border-right:2px solid var(--amber); border-bottom:2px solid var(--amber); transform:rotate(-45deg); transition:transform .2s ease; flex-shrink:0; margin-left:.2rem}
+details.qa[open] summary::before{transform:rotate(45deg)}
+details.qa .ans{padding:0 1.1rem 1.1rem 2rem; color:var(--text-2); font-size:14px; line-height:1.6}
+details.qa .ans p{margin:.4rem 0}
+details.qa .ans b{color:#fff}
+details.qa .ans ul{margin:.4rem 0; padding-left:1.1rem}
+details.qa .ans li{margin:.2rem 0}
+
+/* code blocks with hand-applied highlighting */
+pre{
+  background:var(--ink-1); border:1px solid var(--line); border-radius:var(--r-2);
+  padding:1rem 1.1rem; overflow-x:auto; margin:.7rem 0; font-size:12.8px; line-height:1.55;
+  position:relative;
+}
+pre code{font-family:"IBM Plex Mono",monospace; color:var(--text); display:block; white-space:pre}
+pre .lbl{position:absolute; top:.4rem; right:.7rem; font-family:"IBM Plex Mono",monospace; font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:var(--text-3)}
+pre.bad{border-left:3px solid var(--rose)}
+pre.good{border-left:3px solid var(--leaf)}
+.k{color:var(--amber)}
+.t{color:var(--teal)}
+.s{color:var(--leaf)}
+.c{color:var(--text-3); font-style:italic}
+.n{color:var(--plum)}
+.fn{color:#f3eedf}
+.an{color:var(--amber-2)}
+
+/* anchor offset for sticky */
+:target{scroll-margin-top:80px}
+section{scroll-margin-top:80px}
+
+/* rapid fire table */
+.rapid{border:1px solid var(--line); border-radius:var(--r-2); background:linear-gradient(180deg,rgba(255,255,255,.012),transparent); overflow:hidden}
+.rapid table{width:100%; border-collapse:collapse}
+.rapid th,.rapid td{padding:.65rem .9rem; text-align:left; border-bottom:1px solid var(--line-soft); vertical-align:top; font-size:13.5px}
+.rapid th{font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.18em; text-transform:uppercase; color:var(--text-3); background:rgba(255,255,255,.018)}
+.rapid td:first-child{color:#fff; font-weight:500; width:42%}
+.rapid td:last-child{color:var(--text-2)}
+.rapid tr:hover td{background:rgba(232,164,90,.03)}
+
+/* split */
+.split2{display:grid; grid-template-columns:1fr 1fr; gap:1rem 1.4rem}
+@media (max-width:720px){ .split2{grid-template-columns:1fr} }
+
+/* footer */
+footer{padding:3rem 0 5rem; color:var(--text-3); font-size:13px}
+footer .wrap{display:flex; justify-content:space-between; gap:2rem; flex-wrap:wrap}
+.colophon{font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.16em; text-transform:uppercase}
+.print{margin-top:1rem; font-family:"Fraunces",serif; font-variation-settings:"opsz" 24,"SOFT" 30; font-style:italic; color:var(--text-2)}
+
+/* utility */
+.row{display:flex; gap:1rem; flex-wrap:wrap}
+.muted{color:var(--text-3)}
+.amber{color:var(--amber)}
+.divider{display:block; height:1px; background:linear-gradient(90deg,transparent,var(--line),transparent); margin:1.4rem 0}
+.tip{font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.14em; color:var(--text-3); text-transform:uppercase}
+
+/* copy button */
+.copy-btn{
+  position:absolute; top:.4rem; right:.7rem; background:rgba(255,255,255,.04);
+  border:1px solid var(--line); color:var(--text-3);
+  font-family:"IBM Plex Mono",monospace; font-size:10px; letter-spacing:.14em; text-transform:uppercase;
+  padding:.25rem .5rem; border-radius:99px; cursor:pointer;
+}
+.copy-btn:hover{color:#fff; border-color:var(--amber); background:rgba(232,164,90,.08)}
+.copy-btn.copied{color:var(--leaf); border-color:rgba(127,181,115,.4)}
+
+@media print{
+  body{background:#fff; color:#222}
+  .topbar, footer{display:none}
+}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="row">
+    <div class="brand"><span class="dot"></span>Architecture Patterns</div>
+    <nav class="crumbs">
+      <a href="#ddd">DDD</a>
+      <a href="#services">Services</a>
+      <a href="#eda">EDA</a>
+      <a href="#reactive">Reactive</a>
+      <a href="#serverless">Serverless</a>
+      <a href="#tenancy">Multi-tenant</a>
+      <a href="#api">APIs</a>
+      <a href="#mesh">Mesh</a>
+      <a href="#rapid">Rapid-fire</a>
+    </nav>
+  </div>
+</header>
+
+<!-- COVER -->
+<section class="cover">
+  <div class="wrap">
+    <div class="grid">
+      <div>
+        <div class="meta">Vol. III <span class="pipe">·</span> Service design &amp; communication patterns <span class="pipe">·</span> Staff &amp; tech-lead drills <span class="pipe">·</span> 2026</div>
+        <h1 style="margin-top:1rem">Architecture patterns &mdash;<br/>not a tutorial, a <em>sparring partner</em>.</h1>
+        <p class="lede">A staff loop tests whether you can defend a service boundary, an event flow, or an API choice when an interviewer pokes at it from three sides at once. This is the reference for the moments where the question shifts from &ldquo;do you know the name?&rdquo; to &ldquo;why is this the right answer for <i>this</i> system?&rdquo;</p>
+        <p class="muted" style="margin-top:1rem; max-width:60ch">Skips intro material. Assumes you&rsquo;ve shipped microservices, debugged distributed transactions, and watched a serverless bill go sideways. Opinionated where the field has moved on (event sourcing for everything is over-engineering; most reactive code post-Loom is, too; service mesh on a 5-service fleet is a hobby).</p>
+      </div>
+      <aside class="specsheet">
+        <div class="eyebrow" style="margin-bottom:.8rem">How to use this</div>
+        <dl>
+          <dt>Read</dt><dd>Each section opens with a <b>concept card</b>. Read it before drilling.</dd>
+          <dt>Drill</dt><dd>Q&amp;A collapsibles. Click, answer aloud, then check.</dd>
+          <dt>Probe</dt><dd>Teal callouts decode <b>what the interviewer is testing for</b>.</dd>
+          <dt>Close</dt><dd>Rapid-fire round at the bottom &mdash; staff phone-screen catnip.</dd>
+        </dl>
+        <div class="divider"></div>
+        <div class="eyebrow" style="margin-bottom:.4rem">Companion volumes</div>
+        <p style="font-size:13px; color:var(--text-2); margin:0">For worked system designs, see <code>system-design-lab.html</code>. For database trade-offs, see <code>db-atlas.html</code>. For resilience patterns (circuit breakers, outbox, retries, bulkheads), see the resilience companion. This file is about <i>shape</i> &mdash; service boundaries, communication, tenancy.</p>
+      </aside>
+    </div>
+
+    <div class="tindex">
+      <a href="#ddd"><span class="num">&sect; 01</span> Domain-Driven Design</a>
+      <a href="#services"><span class="num">&sect; 02</span> Architectural styles</a>
+      <a href="#eda"><span class="num">&sect; 03</span> EDA, CQRS, Sagas</a>
+      <a href="#reactive"><span class="num">&sect; 04</span> Reactive architecture</a>
+      <a href="#serverless"><span class="num">&sect; 05</span> Serverless</a>
+      <a href="#tenancy"><span class="num">&sect; 06</span> Multi-tenancy</a>
+      <a href="#api"><span class="num">&sect; 07</span> API architecture</a>
+      <a href="#mesh"><span class="num">&sect; 08</span> Service meshes</a>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION 1: DDD -->
+<section id="ddd" data-accent="ddd">
+  <div class="wrap">
+    <span class="kicker">&sect; 01 &nbsp;Domain-Driven Design</span>
+    <h2 style="margin-top:.7rem">A modeling discipline, not a tactic library.</h2>
+    <p class="lede" style="margin-bottom:1.4rem">DDD&rsquo;s reputation got smeared by people who skipped Part III of the blue book and treated it as &ldquo;rules for picking aggregate roots.&rdquo; The real value is <i>strategic</i>: ubiquitous language, bounded contexts, and the political map of who-talks-to-whom. The tactical patterns are tools that only pay off when the strategic shape is right.</p>
+
+    <div class="callout">
+      <span class="heading">Concept &middot; Strategic before tactical</span>
+      A <b>bounded context</b> is a linguistic boundary: inside it, every term has one meaning. <i>Customer</i> in Sales is a prospect with a pipeline stage; <i>Customer</i> in Billing is an invoice target with a payment method. Same word, different object. The boundary protects each model&rsquo;s coherence.
+      <br/><br/>
+      Inside a context, <b>aggregates</b> are the consistency unit (a single transaction can only mutate one aggregate). Between contexts, integration uses an explicit <b>context map</b> &mdash; shared kernel, customer-supplier, conformist, anti-corruption layer (ACL), open-host service (OHS), published language. Get the map right and the rest follows. Get it wrong and you have a distributed mud-ball.
+    </div>
+
+    <details class="qa"><summary>What does &ldquo;ubiquitous language&rdquo; actually mean in practice?</summary><div class="ans">
+      <p>The same words used in code, in standups, in documentation, and in conversations with the domain expert. <b>If your code says <code>Order</code> but your business calls it &ldquo;Quote&rdquo; until checkout, that gap is technical debt.</b> Refactor the code to match the language, or refactor the language to match a deliberate model.</p>
+      <p>Concretely: class names, method names, REST resource names, event types, log messages, ticket titles. The cost of the gap shows up at every onboarding, every cross-team meeting, every incident.</p>
+      <div class="probing"><b>What the interviewer is probing:</b> have you done the modeling work where you sit down with a product owner and argue about a noun for an hour? &ldquo;Ubiquitous language is when the words match&rdquo; is the textbook answer. The senior signal is &ldquo;here&rsquo;s the time we renamed Account to Subscriber and what it cost.&rdquo;</div>
+    </div></details>
+
+    <details class="qa"><summary>Aggregate, entity, value object &mdash; what&rsquo;s the difference and why does it matter?</summary><div class="ans">
+      <p><b>Entity:</b> identity-based equality (two <code>Order</code>s with the same fields are different orders if they have different IDs). Has a lifecycle.</p>
+      <p><b>Value object:</b> equality by structure (two <code>Money(100, USD)</code> are equal). Immutable. No identity. Replaced wholesale, never mutated. <code>Money</code>, <code>Address</code>, <code>DateRange</code> are the canonical examples.</p>
+      <p><b>Aggregate:</b> a graph of entities + value objects with <b>one root entity</b> as the only entry point. The root enforces invariants across the graph. <b>The aggregate is the transactional consistency boundary</b> &mdash; one DB transaction touches one aggregate. Cross-aggregate consistency is eventual, via domain events.</p>
+      <pre><code><span class="c">// Aggregate root enforces invariant: no overbooking</span>
+<span class="k">public class</span> <span class="t">Reservation</span> {
+    <span class="k">private final</span> <span class="t">ReservationId</span> id;       <span class="c">// entity identity</span>
+    <span class="k">private final</span> <span class="t">DateRange</span> period;        <span class="c">// value object</span>
+    <span class="k">private</span> <span class="t">Status</span> status;
+    <span class="k">private final</span> <span class="t">List</span>&lt;<span class="t">Guest</span>&gt; guests;       <span class="c">// part of aggregate</span>
+
+    <span class="k">public void</span> <span class="fn">addGuest</span>(<span class="t">Guest</span> g){
+        <span class="k">if</span>(guests.size() &gt;= room.capacity())
+            <span class="k">throw new</span> <span class="t">CapacityExceeded</span>();
+        guests.add(g);
+    }
+}</code></pre>
+      <div class="probing"><b>Probing:</b> &ldquo;why an aggregate, not just an entity?&rdquo; The aggregate is what you lock, what you load, what you replicate, what you publish events from. Get its size right (small enough for performant transactions, big enough that you don&rsquo;t need cross-aggregate sagas for everyday operations).</div>
+    </div></details>
+
+    <details class="qa"><summary>What&rsquo;s the rule for aggregate size? When have you split one?</summary><div class="ans">
+      <p><b>Eric Evans&rsquo; rule of thumb:</b> the aggregate should be small. The mistake everyone makes early is bundling too much (e.g. <code>Customer</code> with all <code>Orders</code>, all <code>Addresses</code>, all <code>PaymentMethods</code> in one root). Then every order placement contends on the same aggregate.</p>
+      <p><b>Concrete signs you have it wrong:</b> high contention in transactions; aggregates loaded for one field; cross-team writes hitting the same root; events that fire because A changed but listeners only care about B inside the same aggregate.</p>
+      <p><b>Vaughn Vernon&rsquo;s heuristics:</b> design small aggregates (one root + a few value objects); reference other aggregates by ID, not by object reference; use eventual consistency (domain events) between aggregates; only enforce true invariants inside the aggregate boundary.</p>
+      <div class="gotcha"><b>Gotcha:</b> &ldquo;<code>Customer</code> has many <code>Orders</code>&rdquo; in your domain doesn&rsquo;t mean they&rsquo;re one aggregate. The relationship is real; the aggregate is a transactional decision, not a graph-walk.</div>
+    </div></details>
+
+    <details class="qa"><summary>What is a domain event and how is it different from an integration event?</summary><div class="ans">
+      <p><b>Domain event:</b> something that happened <i>in the model</i>. Past tense. Emitted by an aggregate after a state transition completes. Naming uses ubiquitous language: <code>OrderPlaced</code>, <code>InventoryReserved</code>, <code>PaymentDeclined</code>. Internal to the bounded context.</p>
+      <p><b>Integration event:</b> the version of a domain event that crosses bounded contexts &mdash; usually published on a message bus, schema-versioned, and explicitly <i>part of the contract</i> with consumers. Often a translation of the domain event, with downstream consumers&rsquo; needs in mind, not the producer&rsquo;s internals.</p>
+      <p>Don&rsquo;t expose internal domain events as integration events directly &mdash; coupling consumers to your private model is how you end up unable to refactor. Translate at the boundary.</p>
+    </div></details>
+
+    <details class="qa"><summary>Explain the context-map relationship types.</summary><div class="ans">
+      <ul>
+        <li><b>Shared Kernel:</b> two contexts share a small piece of the model (a library, schema). Cheap when teams are aligned, dangerous otherwise &mdash; any change requires coordination.</li>
+        <li><b>Customer/Supplier:</b> upstream-downstream with downstream having a voice in the upstream&rsquo;s priorities. Roadmap negotiation.</li>
+        <li><b>Conformist:</b> downstream just accepts whatever upstream gives. Cheap to start, painful long-term &mdash; you inherit their model warts.</li>
+        <li><b>Anti-Corruption Layer (ACL):</b> downstream wraps the upstream&rsquo;s model in a translator, presenting an internal-friendly shape. Use it when integrating with legacy or with a model you can&rsquo;t change.</li>
+        <li><b>Open-Host Service (OHS) + Published Language:</b> upstream offers a stable, documented protocol intended for many consumers. The public API of a platform.</li>
+        <li><b>Separate Ways:</b> the contexts don&rsquo;t integrate at all. A valid choice when integration cost &gt; integration value.</li>
+        <li><b>Big Ball of Mud:</b> the honest label for a context with no clear model. Wrapping it in an ACL is the way out.</li>
+      </ul>
+      <div class="probing"><b>Probing:</b> can you draw the context map of a system you&rsquo;ve worked on? The interviewer is testing whether you&rsquo;ve consciously thought about <i>integration relationships as design</i>, not just &ldquo;service A calls service B.&rdquo;</div>
+    </div></details>
+
+    <details class="qa"><summary>What is an Anti-Corruption Layer, concretely?</summary><div class="ans">
+      <p>A translation layer between your bounded context and an external (or legacy) system whose model you don&rsquo;t want leaking in. It exposes <i>your</i> language to your code and translates to/from the external model behind the boundary.</p>
+      <p>Concrete shape: an outbound port in your hexagonal architecture (<code>InventoryGateway</code>) implemented by an adapter (<code>SapInventoryAdapter</code>) that calls SAP, translates fields, maps error codes, and presents a <code>StockLevel</code> value object that fits your domain.</p>
+      <p><b>When to invest:</b> integrating with a legacy ERP, third-party SaaS, or a service owned by another team with very different language; strangler-fig migrations where you&rsquo;re cutting over from a monolith.</p>
+      <pre><code><span class="c">// Domain port &mdash; in your language</span>
+<span class="k">public interface</span> <span class="t">PaymentGateway</span> {
+    <span class="t">PaymentResult</span> <span class="fn">charge</span>(<span class="t">Money</span> amount, <span class="t">CardToken</span> card);
+}
+
+<span class="c">// ACL adapter &mdash; isolates Stripe&rsquo;s vocabulary</span>
+<span class="k">class</span> <span class="t">StripeAdapter</span> <span class="k">implements</span> <span class="t">PaymentGateway</span> {
+    <span class="k">public</span> <span class="t">PaymentResult</span> <span class="fn">charge</span>(<span class="t">Money</span> amount, <span class="t">CardToken</span> token){
+        var req = <span class="t">ChargeRequest</span>.builder()
+            .amount(amount.minorUnits()).currency(amount.currency().code())
+            .source(token.value()).build();
+        <span class="k">var</span> resp = stripe.charges().create(req);
+        <span class="k">return</span> translate(resp);   <span class="c">// Stripe codes &rarr; PaymentResult</span>
+    }
+}</code></pre>
+    </div></details>
+
+    <details class="qa"><summary>What is event storming and why is it useful?</summary><div class="ans">
+      <p>A workshop technique (Alberto Brandolini): you fill a wall with orange stickies of <b>domain events</b> in past tense, in time order. Then you add commands (blue), aggregates (yellow), policies/reactions (purple), external systems (pink), and read models (green). The wall becomes the model.</p>
+      <p>It works because it gets developers, product, ops, and domain experts collaborating on the <i>flow of events</i>, which is hard to disagree about. Aggregate boundaries and bounded contexts emerge as natural clusters &mdash; the model is discovered, not designed.</p>
+      <p><b>Three levels:</b> <i>big-picture</i> storming (org-level flows, find the contexts), <i>process modeling</i> (one context, find aggregates &amp; commands), <i>software design</i> (last mile, fine-grained events). Most teams stop at level 1 and waste the technique.</p>
+    </div></details>
+
+    <details class="qa"><summary>What&rsquo;s an anemic domain model and why is it considered an anti-pattern?</summary><div class="ans">
+      <p>An anemic model is one where domain objects are bags of getters/setters with no behavior; all the logic lives in &ldquo;service&rdquo; classes that mutate them externally. Martin Fowler called it out in 2003 and it&rsquo;s only gotten worse with annotation-driven frameworks that nudge people toward JPA entities + service layers.</p>
+      <p><b>Why it&rsquo;s bad:</b> invariants aren&rsquo;t enforced (anyone with a setter can put the object in any state); business rules scatter across services; refactoring is global because the rules don&rsquo;t live with the data.</p>
+      <p><b>The fix:</b> push behavior into aggregates. <code>order.cancel(reason)</code> instead of <code>orderService.cancel(order, reason)</code>. The aggregate validates state transitions, emits events, owns the rules.</p>
+      <p>Caveat: in a CQRS read model, anemic <i>is</i> right &mdash; it&rsquo;s just a projection. The anti-pattern is on the write side.</p>
+      <div class="probing"><b>Probing:</b> &ldquo;but my framework wants entities with no logic&rdquo; &mdash; this is the cargo-cult answer. Senior take: the framework is a persistence concern; your domain model can be richer than what JPA happens to map.</div>
+    </div></details>
+
+    <details class="qa"><summary>Why does &ldquo;getter-driven design&rdquo; produce broken systems?</summary><div class="ans">
+      <p>If a caller has to <code>order.getStatus()</code>, check it, then call <code>order.setStatus(...)</code>, the rule about <i>which transitions are valid</i> lives at the call site &mdash; in every call site. Multiply across a codebase and you have ten places enforcing partial views of the same rule, drifting with each commit.</p>
+      <p><b>Tell, don&rsquo;t ask:</b> <code>order.cancel()</code> &mdash; the aggregate decides if it can cancel based on its current state, throws if not, emits the event. The rule lives once. Callers can&rsquo;t bypass it.</p>
+      <p>The trade-off: rich aggregates are harder for ad-hoc analytics. Solution: separate read models. Don&rsquo;t cripple the write side to make the read side easier.</p>
+    </div></details>
+
+    <details class="qa"><summary>How do you decide where to put a piece of business logic?</summary><div class="ans">
+      <p>Three-layer rule of thumb:</p>
+      <ul>
+        <li><b>Aggregate (domain layer):</b> invariants, state-transition rules, anything that can be expressed using only the aggregate&rsquo;s own state. <code>order.canCancel()</code>, <code>cart.addLine()</code>.</li>
+        <li><b>Domain service:</b> logic that involves multiple aggregates or doesn&rsquo;t naturally belong to one. <code>FundsTransfer</code> spans two <code>Account</code>s. Stateless, named in domain language.</li>
+        <li><b>Application service:</b> orchestration &mdash; load aggregates, call domain logic, persist, publish events. No business rules. The transaction script. <code>PlaceOrderHandler.handle(cmd)</code>.</li>
+      </ul>
+      <p><b>Test:</b> if you delete the framework annotations and HTTP layer, your domain code should still compile and pass tests. Application services should be thin shells.</p>
+    </div></details>
+
+    <details class="qa"><summary>What&rsquo;s the difference between a repository and a DAO?</summary><div class="ans">
+      <p><b>Repository</b> is a domain concept &mdash; it presents a <i>collection</i> of aggregates. The interface is in domain terms (<code>OrderRepository.findActiveByCustomer(...)</code>) and lives in the domain layer. The implementation is infra.</p>
+      <p><b>DAO</b> is a persistence concept &mdash; it presents row-level access to a table. CRUD in the database&rsquo;s vocabulary.</p>
+      <p>In modern stacks the line blurs (Spring Data&rsquo;s <code>JpaRepository</code> is technically both). The DDD test: does my repository return aggregates &amp; speak in domain terms? Then it&rsquo;s a repository, regardless of what the framework calls it.</p>
+      <div class="gotcha"><b>Gotcha:</b> a repository should return <i>whole aggregates</i> or carefully-curated projections, not partial graphs that violate invariants. Lazy-loaded JPA collections that NPE on access are the classic anti-pattern.</div>
+    </div></details>
+
+    <details class="qa"><summary>How do bounded contexts relate to microservices?</summary><div class="ans">
+      <p><b>A bounded context is a modeling boundary; a microservice is a deployment boundary.</b> They often align (one service per context is a reasonable default), but they&rsquo;re not the same thing.</p>
+      <p>You can have one service that hosts multiple contexts (a modular monolith with internal context boundaries). You can have one context implemented as multiple services for scale or team reasons (the API service + the worker service for the same bounded context, sharing a model and a database).</p>
+      <p><b>The mistake</b> is the reverse direction: drawing service boundaries first, then declaring they&rsquo;re &ldquo;contexts.&rdquo; Without modeling the language, the &ldquo;contexts&rdquo; are arbitrary deployment splits and you get distributed mud.</p>
+      <div class="probing"><b>Probing:</b> &ldquo;is it always one context = one service?&rdquo; The answer that signals seniority: <i>contexts come first, services are a deployment choice afterward, often aligned but not necessarily 1:1.</i></div>
+    </div></details>
+
+  </div>
+</section>
+
+<!-- SECTION 2: ARCHITECTURAL STYLES -->
+<section id="services" data-accent="services">
+  <div class="wrap">
+    <span class="kicker">&sect; 02 &nbsp;Architectural styles &amp; service decomposition</span>
+    <h2 style="margin-top:.7rem">Microservices is not free, and a monolith is not a slur.</h2>
+    <p class="lede" style="margin-bottom:1.4rem">The 2015&ndash;2019 microservices hype cycle pushed teams of six into 40-service constellations. The reckoning followed: a wave of consolidation, &ldquo;modular monolith&rdquo; rebrands, and re-platformings back to Postgres + a single deploy. The interview question is whether you&rsquo;ve learned the actual rule.</p>
+
+    <div class="callout">
+      <span class="heading">Concept &middot; The microservices premium</span>
+      Sam Newman&rsquo;s framing: microservices come with a fixed <b>operational tax</b> &mdash; service discovery, distributed tracing, schema evolution, multi-service deploys, network failure modes, distributed debugging. You pay this tax whether your system is large or small.
+      <br/><br/>
+      The premium pays off when your system is big enough that the <i>monolith&rsquo;s</i> coordination cost (deploys colliding, teams blocking each other, scaling the whole thing for a hot endpoint) exceeds the <i>microservice tax</i>. Below that crossover, a modular monolith is not just acceptable &mdash; it&rsquo;s the right answer. The crossover is roughly &ldquo;more than one team can&rsquo;t deploy independently&rdquo;, not &ldquo;more than 100k DAU.&rdquo;
+    </div>
+
+    <details class="qa"><summary>When is a modular monolith the right call?</summary><div class="ans">
+      <p>Default until you have a concrete reason against it. The right reasons to split: <b>independent deploy cadence</b> (different teams blocked on each other&rsquo;s release trains), <b>independent scaling</b> (one component is throughput-bound, the rest are latency-bound), <b>fault isolation</b> (one component takes the rest down), <b>language/runtime divergence</b> (ML in Python, transactional in Java), <b>regulatory boundaries</b> (data must live in different compliance zones).</p>
+      <p>None of these on day one of a startup. Most of these never on a 4-engineer team. <b>Shopify ran on a single Rails monolith for years</b>; Stack Overflow runs on a small set of services. The premium isn&rsquo;t worth paying until the crossover.</p>
+      <p>A modular monolith is a monolith with disciplined module boundaries: package-private discipline, in-process events, separate schemas (or at least separate tables) per module, no cross-module DB access. You can extract a module to a service later when the cost-benefit flips.</p>
+      <div class="probing"><b>Probing:</b> the interviewer is testing whether you can resist a fashionable answer. &ldquo;We&rsquo;d start with a modular monolith&rdquo; for a 5-engineer SaaS is the senior signal; &ldquo;We&rsquo;d build 12 microservices&rdquo; for the same is junior overengineering.</div>
+    </div></details>
+
+    <details class="qa"><summary>What does &ldquo;module boundary discipline&rdquo; look like in a monolith?</summary><div class="ans">
+      <p>The two failure modes are <b>data leakage</b> and <b>coupling at the call site</b>. Discipline:</p>
+      <ul>
+        <li><b>Package-private:</b> module internals are <code>package private</code>; only an explicit API/facade is public. Java modules (JPMS) or Spring Modulith make this enforceable.</li>
+        <li><b>Schema-per-module:</b> a module owns its tables. Other modules don&rsquo;t SELECT from them &mdash; they go through the module&rsquo;s API.</li>
+        <li><b>In-process events for cross-module reactions:</b> module A publishes <code>OrderPlaced</code> on an in-process bus; module B subscribes. Same shape as a future cross-service event &mdash; if you extract module B to a service, you swap the bus, not the contract.</li>
+        <li><b>Architecture tests</b> (ArchUnit, jMolecules) that fail the build if someone reaches across boundaries.</li>
+      </ul>
+      <p>If you can&rsquo;t enforce these, the monolith degrades into a ball of mud and the &ldquo;just refactor to microservices&rdquo; punch line becomes &ldquo;split a tangled graph along arbitrary lines.&rdquo;</p>
+    </div></details>
+
+    <details class="qa"><summary>What are the actual benefits of microservices, vs the marketed ones?</summary><div class="ans">
+      <p><b>Real:</b></p>
+      <ul>
+        <li><b>Independent deploy cadence</b> &mdash; team A can ship without coordinating a release with team B.</li>
+        <li><b>Independent scaling</b> &mdash; the search service scales to 50 nodes; the admin UI runs on 2.</li>
+        <li><b>Fault isolation</b> &mdash; recommendation service melts; checkout still works.</li>
+        <li><b>Polyglot</b> &mdash; ML in Python, real-time bidding in Go, transactional core in Java.</li>
+        <li><b>Conway&rsquo;s alignment</b> &mdash; a service-per-team architecture matches the org so you stop fighting it.</li>
+      </ul>
+      <p><b>Marketed but mostly false:</b></p>
+      <ul>
+        <li>&ldquo;Easier to understand&rdquo; &mdash; no, you split a hard model into 12 places where it&rsquo;s easier to skim each piece but harder to see the whole.</li>
+        <li>&ldquo;Easier to refactor&rdquo; &mdash; refactoring across service boundaries is <i>much</i> harder than across function calls.</li>
+        <li>&ldquo;Reusable services&rdquo; &mdash; rare in practice; most services are tightly coupled to one product.</li>
+      </ul>
+      <div class="probing"><b>Probing:</b> &ldquo;why microservices?&rdquo; followed by &ldquo;and what&rsquo;s the cost?&rdquo; The senior answer maps benefit to cost concretely; the junior answer recites both lists without mapping.</div>
+    </div></details>
+
+    <details class="qa"><summary>What does a distributed monolith look like and how do you avoid one?</summary><div class="ans">
+      <p>A distributed monolith is a system that paid the microservice tax (multiple deploys, network calls, separate DBs) but didn&rsquo;t earn the benefits because the services are tightly coupled. Symptoms:</p>
+      <ul>
+        <li><b>Synchronous chains</b> &mdash; user request fans out through 6 services in a blocking call graph.</li>
+        <li><b>Shared database</b> &mdash; multiple services read/write the same tables.</li>
+        <li><b>Lockstep deploys</b> &mdash; you can&rsquo;t deploy service A without also deploying B and C; release trains.</li>
+        <li><b>Schema changes need cross-team coordination</b> &mdash; adding a column requires three PRs.</li>
+        <li><b>Data is duplicated everywhere by sync API calls</b>, not by replication / events.</li>
+      </ul>
+      <p><b>Avoidance:</b> service-per-DB, event-driven where reasonable, async over sync where you can, contract testing (Pact) to verify cross-service compatibility, &ldquo;independent deployability&rdquo; as a release-engineering invariant. If your services can&rsquo;t deploy independently, they&rsquo;re modules, not services.</p>
+    </div></details>
+
+    <details class="qa"><summary>What&rsquo;s the right way to decompose a system?</summary><div class="ans">
+      <p>Three lenses, in order:</p>
+      <ul>
+        <li><b>Business capability:</b> what business function does this serve? Catalog, Checkout, Fulfillment, Returns. Gives you stable, business-aligned boundaries.</li>
+        <li><b>Subdomain (DDD-aligned):</b> bounded context first, then service. The context map tells you where ACLs and OHSes go.</li>
+        <li><b>Data ownership:</b> each service owns its data. If two services share a write source, you have one service pretending to be two.</li>
+      </ul>
+      <p><b>Anti-patterns:</b> decomposing by technical layer (UI service, API service, DB service &mdash; the three-tier monolith with extra steps); decomposing by &ldquo;entity&rdquo; (a Customer service, an Order service, an Address service &mdash; CRUD-as-service, no behavior, every operation is a fanout); decomposing by team without modeling (you get the org chart wired up as a system, with no cohesion).</p>
+      <p><b>Service-per-team rule (two-pizza):</b> a service should fit one small team&rsquo;s mental model. If two teams own one service, they&rsquo;ll fight over it. If one team owns 15 services, they&rsquo;re thinly stretched.</p>
+    </div></details>
+
+    <details class="qa"><summary>Walk through the strangler fig pattern.</summary><div class="ans">
+      <p>Named after the Australian fig that grows around a host tree, eventually replacing it. Applied to a legacy monolith: route a slice of traffic from the monolith to a new service handling the same capability; over time grow the service until it owns the capability entirely; then remove the monolith&rsquo;s implementation.</p>
+      <p><b>Mechanism:</b> a routing layer (API gateway, reverse proxy, even an in-app facade) sits in front and dispatches by URL/feature flag/tenant.</p>
+      <p><b>Why it works:</b> reversible at every step (revert to monolith if the new service breaks); incremental (one capability at a time); doesn&rsquo;t require a big-bang rewrite. Martin Fowler popularized it in 2004; still the safest pattern for breaking up a legacy system.</p>
+      <p>Pair with <b>branch by abstraction</b> (introduce an interface in the monolith, swap implementations) and <b>parallel run</b> (run both, compare outputs, alert on divergence) for risk-sensitive cuts like financial calculations.</p>
+      <pre><code><span class="c">// Routing facade in front of legacy + new service</span>
+<span class="k">if</span>(featureFlag.isEnabled(<span class="s">"new-pricing"</span>, tenantId)){
+    <span class="k">return</span> newPricingService.price(req);
+} <span class="k">else</span> {
+    <span class="k">return</span> legacyMonolith.price(req);
+}</code></pre>
+      <div class="probing"><b>Probing:</b> &ldquo;how would you migrate this monolith to microservices?&rdquo; Answering &ldquo;I&rsquo;d rewrite it&rdquo; is the dispreferred answer; strangler fig + parallel run is the senior answer.</div>
+    </div></details>
+
+    <details class="qa"><summary>What is branch-by-abstraction and when do you reach for it?</summary><div class="ans">
+      <p>Inside a single codebase: introduce an abstraction (interface) over the existing implementation; have callers go through the abstraction; introduce a new implementation behind the abstraction; switch callers gradually; remove the old implementation.</p>
+      <p>It avoids long-lived feature branches and merge hell during a refactor. <b>Use when:</b> rewriting a piece of a monolith without splitting it out; replacing a third-party library; switching from one persistence mechanism to another while keeping the system online.</p>
+      <p>Versus strangler fig: BBA is in-process, SF is at the network/process boundary. They compose: BBA inside the monolith to make a piece swappable, SF to swap it out for a new service.</p>
+    </div></details>
+
+    <details class="qa"><summary>What is a parallel run and why is it powerful for risk-sensitive cuts?</summary><div class="ans">
+      <p>Run the old and new implementations side by side on the same input; compare outputs; alert on divergence. The new implementation doesn&rsquo;t serve user traffic until it&rsquo;s passed the comparison threshold over real production data.</p>
+      <p>Used famously by GitHub for the <b>Scientist</b> library when refactoring permissions code. Github actually shipped a Ruby gem (<code>scientist</code>) for this pattern.</p>
+      <p><b>Use when:</b> the cost of a wrong answer is high &mdash; pricing, taxes, fraud scores, ML feature stores. Don&rsquo;t use for everything &mdash; running both halves doubles the load and the cost; reserve for the critical paths.</p>
+    </div></details>
+
+    <details class="qa"><summary>How do you split a service when the data is shared?</summary><div class="ans">
+      <p>The hard case. The order is:</p>
+      <ol>
+        <li><b>Logical separation in the same DB:</b> separate schemas/tablespaces. Each module reads/writes only its tables.</li>
+        <li><b>Forbid cross-module SQL:</b> module A only goes through module B&rsquo;s API. ArchUnit / linter rules to enforce.</li>
+        <li><b>Physical separation:</b> move module B&rsquo;s tables to a new DB instance. Module B becomes the only writer.</li>
+        <li><b>Extract module B to its own service.</b> Module A now talks over the network or via events.</li>
+      </ol>
+      <p>The dual-write problem appears at step 4 if writes need to span the boundary &mdash; that&rsquo;s when sagas + outbox pattern enter the design (see &sect; 03).</p>
+      <p>If you skip steps 1-3 and go straight from monolith to two services with shared DB, you have a distributed monolith.</p>
+    </div></details>
+
+    <details class="qa"><summary>What&rsquo;s the right size for a microservice?</summary><div class="ans">
+      <p>The most-cited heuristics, in roughly increasing usefulness:</p>
+      <ul>
+        <li><b>&ldquo;Two-pizza team&rdquo;</b> &mdash; one team owns the service, fits in their head.</li>
+        <li><b>&ldquo;Rewritable in two weeks&rdquo;</b> &mdash; an ergonomic gut check.</li>
+        <li><b>&ldquo;One bounded context&rdquo;</b> &mdash; the modeling answer.</li>
+        <li><b>&ldquo;One reason to change&rdquo;</b> &mdash; SRP at the service level. If two unrelated business rules drive changes, it&rsquo;s probably two services.</li>
+      </ul>
+      <p><b>Wrong heuristics:</b> &ldquo;LOC count,&rdquo; &ldquo;one entity per service,&rdquo; &ldquo;one Docker image must be tiny.&rdquo; Tiny services don&rsquo;t buy you anything if cohesion is wrong.</p>
+      <div class="gotcha"><b>Gotcha:</b> &ldquo;nano-services&rdquo; (one endpoint per service) lose all cohesion. The fanout from any business operation becomes catastrophic. Granularity has a cost; tighter is not better.</div>
+    </div></details>
+
+    <details class="qa"><summary>How do you handle shared cross-cutting code across services?</summary><div class="ans">
+      <p>Three options, ordered by coupling cost:</p>
+      <ul>
+        <li><b>Shared library</b> &mdash; cheap, but every change forces every consumer to upgrade. Versioning hell at scale. Use only for stable utility code (logging conventions, ID generators).</li>
+        <li><b>Shared platform service</b> &mdash; auth, feature flags, observability, secrets. Run as platform infra, owned by a platform team. The consumers integrate against an API, not against shared source.</li>
+        <li><b>Sidecars / service mesh</b> &mdash; cross-cutting concerns delivered at the network layer (mTLS, retries, tracing). See &sect; 08.</li>
+      </ul>
+      <p>The general rule: <i>shared runtime is fine; shared deploy artifact is dangerous.</i> A shared lib that&rsquo;s used by 30 services and changes weekly is a coordination tax.</p>
+    </div></details>
+
+    <details class="qa"><summary>When does a microservices system need an API gateway vs direct exposure?</summary><div class="ans">
+      <p>API gateway responsibilities: TLS termination, auth, rate limiting, request shaping, response aggregation, versioning at the edge, fanout. <b>Use one</b> when you have multiple internal services and need a unified external API surface.</p>
+      <p><b>Skip it</b> for purely internal east-west traffic &mdash; a mesh sidecar handles those concerns. Adding a gateway between services that already trust each other is unnecessary hops + latency.</p>
+      <p>The <b>Backend-for-Frontend (BFF)</b> pattern is a gateway specialized per client (mobile vs web vs partner API). Each BFF tailors aggregation and shape to one consumer&rsquo;s needs &mdash; better than a single gateway trying to be all things.</p>
+      <p>Common stacks: AWS API Gateway, Kong, Envoy as a gateway, Nginx, Apigee. For BFFs, often just a small Node/Go service.</p>
+    </div></details>
+
+  </div>
+</section>
+
+<!-- SECTION 3: EDA / CQRS / SAGAS -->
+<section id="eda" data-accent="eda">
+  <div class="wrap">
+    <span class="kicker">&sect; 03 &nbsp;Event-Driven Architecture, CQRS, Sagas</span>
+    <h2 style="margin-top:.7rem">Async is a tool, not a religion.</h2>
+    <p class="lede" style="margin-bottom:1.4rem">Events are the right answer for some problems and wildly the wrong answer for others. CQRS is overhyped on the read side and under-applied on the write side. Sagas are unavoidable once you split a bounded context across services; choreography vs orchestration is one of the most-asked staff questions in the system-design loop.</p>
+
+    <div class="callout">
+      <span class="heading">Concept &middot; Event vs command vs query</span>
+      <b>Command</b> = &ldquo;please do X&rdquo; (imperative, addressed, expects a side effect, may fail). <b>Query</b> = &ldquo;tell me X&rdquo; (no side effect). <b>Event</b> = &ldquo;X happened&rdquo; (past tense, broadcast, may have many consumers, must not be redirected back to a single owner).
+      <br/><br/>
+      Two flavors of events: <b>notification events</b> (&ldquo;OrderPlaced; details in service X&rdquo; &mdash; lightweight, consumers must call back to fetch details) and <b>event-carried state transfer</b> (&ldquo;OrderPlaced with full payload&rdquo; &mdash; consumers can react autonomously). Each has trade-offs: notification keeps the producer authoritative; ECST eliminates the callback but couples consumers to the producer&rsquo;s schema and creates eventual consistency on every consumer&rsquo;s replicated state.
+    </div>
+
+    <details class="qa"><summary>What&rsquo;s the difference between an event and a message?</summary><div class="ans">
+      <p>A <b>message</b> is the transport unit (anything on a queue/topic). An <b>event</b> is a semantic kind of message: &ldquo;something happened&rdquo;, past tense, no specific recipient. A <b>command message</b> is also &ldquo;a message&rdquo; but addresses a single recipient and expects them to act.</p>
+      <p>The mistake: calling everything &ldquo;an event&rdquo; even when it&rsquo;s actually a directed command (&ldquo;ProcessPaymentEvent&rdquo;). When a producer publishes &ldquo;an event&rdquo; expecting exactly one consumer to do exactly one thing, that&rsquo;s a command in disguise &mdash; usually a sign of a distributed monolith.</p>
+      <p><b>Test:</b> if you added a second consumer of the event, would the system still be correct? If yes, it&rsquo;s genuinely an event. If no (it&rsquo;d duplicate work or break invariants), it&rsquo;s a command.</p>
+      <div class="probing"><b>Probing:</b> &ldquo;why is this called an event?&rdquo; A precise answer here separates people who&rsquo;ve internalized EDA from people who&rsquo;ve just used Kafka.</div>
+    </div></details>
+
+    <details class="qa"><summary>When does CQRS pay off and when is it overengineering?</summary><div class="ans">
+      <p>CQRS = different models for read and write. Pays off when:</p>
+      <ul>
+        <li><b>Read and write requirements diverge sharply</b> &mdash; e.g. write side is rich aggregates with strict invariants; read side needs flat, denormalized projections for dashboards.</li>
+        <li><b>Throughput skews wildly</b> &mdash; 100x reads vs writes; you want to scale them separately, even via different storage (writes to Postgres, reads to Elasticsearch / Redis).</li>
+        <li><b>Multiple read shapes</b> &mdash; one analytics view, one operations view, one customer-facing view. Each can have its own projection.</li>
+      </ul>
+      <p><b>Overkill when:</b> CRUD app with simple reads. The cost &mdash; eventual consistency between write and read, projection-builder complexity, dual-write coordination &mdash; isn&rsquo;t justified.</p>
+      <p><b>Common confusion:</b> CQRS does not require event sourcing. You can implement CQRS over a relational write side with read-side projections built by triggers, change-data-capture, or background jobs. Greg Young (who coined CQRS) consistently emphasizes this.</p>
+    </div></details>
+
+    <details class="qa"><summary>What&rsquo;s event sourcing and why is it not the default?</summary><div class="ans">
+      <p>Event sourcing = persist state as an append-only log of <i>events</i>; current state is a fold over the log. Replay the log, get the state. Combine with CQRS: writes append events; reads are projections built from replaying.</p>
+      <p><b>Why it&rsquo;s seductive:</b> perfect audit trail; time travel (state-as-of-yesterday); easy to add new projections (replay).</p>
+      <p><b>Why it&rsquo;s not default:</b></p>
+      <ul>
+        <li><b>Schema evolution is brutal</b> &mdash; old events are immutable; every change requires upcasters, versions, or careful additive design.</li>
+        <li><b>Projection drift</b> &mdash; rebuilding a projection on a 10TB event store takes hours; getting the order right and idempotent is a project.</li>
+        <li><b>Snapshots</b> become necessary at scale, adding another moving part.</li>
+        <li><b>Querying by ad-hoc criteria is impossible</b> on the event store; you must project.</li>
+        <li><b>Compliance:</b> &ldquo;forget this user&rsquo;s data&rdquo; (GDPR) is hard when events are immutable.</li>
+      </ul>
+      <p><b>Use it when:</b> the audit trail <i>is</i> the product (banking, ticket systems, anything regulator-facing); state machines with complex history; collaborative editing with operational transforms.</p>
+      <p><b>Don&rsquo;t use it for:</b> normal CRUD. The cost-benefit tilts the other way for ~90% of business apps.</p>
+      <div class="probing"><b>Probing:</b> &ldquo;event sourcing for everything&rdquo; is the cargo-cult answer that staff candidates need to push back on. The senior take: event sourcing is a powerful tool with serious cost; pick it for specific reasons.</div>
+    </div></details>
+
+    <details class="qa"><summary>Choreography vs orchestration sagas &mdash; when each?</summary><div class="ans">
+      <p><b>Choreography:</b> services emit events; other services react and emit their own. No central coordinator. Each step knows its piece of the workflow, not the whole.</p>
+      <p><b>Orchestration:</b> a central coordinator (Temporal, Camunda, AWS Step Functions, Conductor) holds the workflow definition. It tells each service what to do next, handles retries and compensations explicitly.</p>
+      <div class="tab-row" style="margin-top:.7rem"><span>Choreography</span><span class="on">vs</span><span>Orchestration</span></div>
+      <ul>
+        <li><b>Use choreography when:</b> 2-4 step flows, well-understood, services are owned by independent teams who don&rsquo;t want to depend on a coordinator. Low coupling, but the workflow itself is implicit (lives in many places).</li>
+        <li><b>Use orchestration when:</b> long-running workflows (hours/days), complex branching, audit/observability requirements, tight SLAs on completion. The workflow is explicit and inspectable.</li>
+      </ul>
+      <p><b>Hybrid:</b> orchestrated at the top level (an overall &ldquo;OrderFulfillment&rdquo; saga), choreographed inside each step (the inventory-check substep emits events). Most real systems end up here.</p>
+      <pre><code><span class="c">// Orchestrated saga (Temporal-style)</span>
+<span class="k">@WorkflowMethod</span>
+<span class="t">OrderResult</span> <span class="fn">placeOrder</span>(<span class="t">PlaceOrderCmd</span> cmd){
+    <span class="k">var</span> reservation = inventory.reserve(cmd.items());
+    <span class="k">try</span> {
+        <span class="k">var</span> charge = payment.charge(cmd.cardToken(), cmd.amount());
+        <span class="k">try</span> {
+            shipping.schedule(cmd.address(), reservation);
+        } <span class="k">catch</span> (<span class="t">Exception</span> e){
+            payment.refund(charge);   <span class="c">// compensate</span>
+            <span class="k">throw</span> e;
+        }
+    } <span class="k">catch</span> (<span class="t">Exception</span> e){
+        inventory.release(reservation);   <span class="c">// compensate</span>
+        <span class="k">throw</span> e;
+    }
+    <span class="k">return new</span> <span class="t">OrderResult</span>(<span class="s">"ok"</span>);
+}</code></pre>
+      <div class="probing"><b>Probing:</b> the staff signal is recognizing that &ldquo;saga&rdquo; isn&rsquo;t one pattern but two with very different operational shapes. Bonus: name a concrete tool you&rsquo;d use (Temporal vs Camunda vs Step Functions) and why.</div>
+    </div></details>
+
+    <details class="qa"><summary>Why not just use 2PC?</summary><div class="ans">
+      <p>Two-phase commit (XA) gives you synchronous, atomic, cross-resource transactions. The <b>cost</b>:</p>
+      <ul>
+        <li><b>Coordinator is a SPOF</b> &mdash; if it crashes mid-protocol, participants are blocked holding locks.</li>
+        <li><b>Locks held across network round-trips</b> &mdash; throughput collapses, latency tail explodes.</li>
+        <li><b>Partial failures are ambiguous</b> &mdash; &ldquo;commit&rdquo; can be lost; participants need timeouts and human intervention.</li>
+        <li><b>Many modern systems don&rsquo;t support it</b> &mdash; most NoSQL stores, most message brokers don&rsquo;t join XA.</li>
+      </ul>
+      <p>Pat Helland&rsquo;s 2007 essay <i>Life Beyond Distributed Transactions</i> is the standard reference: at scale, you give up XA in favor of <i>idempotent, retriable, eventually-consistent</i> protocols. Sagas with compensating actions are how you replace XA.</p>
+      <p><b>Note:</b> 2PC is fine within one DB cluster (Spanner, CockroachDB, Postgres prepared transactions). The pain is cross-resource 2PC across services + heterogeneous stores.</p>
+    </div></details>
+
+    <details class="qa"><summary>How do compensating actions actually work?</summary><div class="ans">
+      <p>Each step of a saga has an inverse: reserve inventory &rarr; release inventory; charge card &rarr; refund; book ticket &rarr; cancel ticket. If a later step fails, the saga walks back, calling the inverse of every completed step.</p>
+      <p><b>Hard parts:</b></p>
+      <ul>
+        <li><b>True inverse may not exist.</b> &ldquo;Email customer&rdquo; cannot be uncalled. Solution: design forward-only with idempotent rollback notifications, not literal reversal.</li>
+        <li><b>Compensations themselves can fail.</b> Compensations must be idempotent and retriable, with alerting when they hit a dead-letter.</li>
+        <li><b>Visibility windows.</b> Between &ldquo;commit&rdquo; and &ldquo;compensate&rdquo;, the customer may see a partially-committed state. UX must handle &ldquo;pending&rdquo;/&ldquo;under review&rdquo; states.</li>
+      </ul>
+      <p><b>Idempotency keys</b> on every step are non-negotiable: a saga might call &ldquo;charge&rdquo; multiple times due to retries; the second call must be a no-op, not a double charge.</p>
+    </div></details>
+
+    <details class="qa"><summary>What is the outbox pattern and what problem does it solve?</summary><div class="ans">
+      <p>Problem: you need to commit a DB change AND publish a message. If you do them in two operations, you have the dual-write problem &mdash; either fails independently and you have inconsistency.</p>
+      <p>Outbox: in the same DB transaction that updates state, insert a row into an <code>outbox</code> table containing the message to send. A separate process polls the outbox, publishes to the broker, marks rows as sent. Atomic-with-state, eventually-consistent-with-broker.</p>
+      <pre><code><span class="k">BEGIN</span>;
+<span class="k">UPDATE</span> orders <span class="k">SET</span> status=<span class="s">'placed'</span> <span class="k">WHERE</span> id=<span class="n">42</span>;
+<span class="k">INSERT INTO</span> outbox(event_type, payload)
+   <span class="k">VALUES</span>(<span class="s">'OrderPlaced'</span>, <span class="s">'{"orderId":42,...}'</span>);
+<span class="k">COMMIT</span>;
+<span class="c">-- separate poller publishes to Kafka, marks row sent</span></code></pre>
+      <p>Modern variants: <b>change-data-capture (Debezium)</b> reads the WAL/binlog, publishes change events &mdash; same effect, no app code needed. Either way, the lesson is the same: <i>never publish from app code outside the DB transaction</i>.</p>
+      <p>This file just brushes the outbox; the resilience companion treats it in depth (poller throughput, deduplication, ordering guarantees).</p>
+    </div></details>
+
+    <details class="qa"><summary>How do you version events without breaking consumers?</summary><div class="ans">
+      <p>Several layered tactics:</p>
+      <ul>
+        <li><b>Additive evolution:</b> never remove or rename fields. Add new fields with defaults. Consumers tolerant of unknown fields. This works for ~80% of changes.</li>
+        <li><b>Versioned event types:</b> <code>OrderPlaced.v1</code> and <code>OrderPlaced.v2</code> as distinct types. Producer publishes both during a migration window; consumers migrate one at a time.</li>
+        <li><b>Schema registry</b> (Confluent, Apicurio) with backward/forward compatibility checks at publish time. Avro / Protobuf / JSON Schema. The schema registry rejects breaking changes.</li>
+        <li><b>Upcasters</b> in event-sourced systems: read old event, transform on the way out to current shape.</li>
+      </ul>
+      <p><b>Anti-pattern:</b> &ldquo;we&rsquo;ll just synchronize a deploy of producers and consumers.&rdquo; You&rsquo;ve recreated lockstep deploy &mdash; one of the things microservices were supposed to escape.</p>
+      <div class="probing"><b>Probing:</b> &ldquo;event versioning hell&rdquo; is a real cost of EDA, and acknowledging it (with concrete tactics) is staff-level. Hand-waving &ldquo;we&rsquo;d add a version field&rdquo; is junior.</div>
+    </div></details>
+
+    <details class="qa"><summary>What&rsquo;s the &ldquo;events as RPC&rdquo; anti-pattern?</summary><div class="ans">
+      <p>Producer publishes <code>ChargeCardEvent</code>, exactly one consumer (PaymentService) handles it, replies with <code>ChargeCardCompletedEvent</code>. The producer waits for the reply.</p>
+      <p>That&rsquo;s a synchronous request-response with extra steps. You get all the latency of async (broker hops) and none of the benefits (no decoupling, can&rsquo;t add a second consumer without breaking semantics, debugging is now a tracing nightmare).</p>
+      <p><b>The fix:</b> if it&rsquo;s a request-response interaction, use HTTP/gRPC. If you genuinely have multiple potential consumers and the producer doesn&rsquo;t need a response, use events. If the producer needs to <i>act on the result</i>, use an orchestrator (Temporal) instead of pretending events are RPC.</p>
+    </div></details>
+
+    <details class="qa"><summary>Idempotency &mdash; how do you actually achieve it?</summary><div class="ans">
+      <p>Three building blocks, used together:</p>
+      <ul>
+        <li><b>Idempotency key</b> on every command/event &mdash; a UUID or content hash that uniquely identifies the operation.</li>
+        <li><b>Receiver-side dedup</b> &mdash; persist the idempotency key (Redis SET, Postgres unique constraint, or DynamoDB conditional write) and check on entry.</li>
+        <li><b>Idempotent operations by design</b> &mdash; SET (not INCR), upsert (not insert), conditional update (not unconditional write).</li>
+      </ul>
+      <pre><code><span class="c">// Postgres-style: unique index on idempotency_key</span>
+<span class="k">INSERT INTO</span> processed_commands(key, result)
+<span class="k">VALUES</span>(<span class="s">'cmd-uuid-...'</span>, <span class="s">'{"ok":true}'</span>)
+<span class="k">ON CONFLICT</span>(key) <span class="k">DO NOTHING</span>;
+<span class="c">-- if not inserted, the cmd already ran &mdash; return cached result</span></code></pre>
+      <p><b>Time-bounded uniqueness:</b> a 24h TTL on the dedup key is usually enough; replays beyond that are operationally rare and can be tolerated as &ldquo;happens once a year, on-call investigates.&rdquo;</p>
+      <div class="gotcha"><b>Gotcha:</b> calling an external API (e.g. Stripe) needs <i>their</i> idempotency key, not yours. Stripe accepts an <code>Idempotency-Key</code> header; passing the same value gives you the same result. Use it.</div>
+    </div></details>
+
+    <details class="qa"><summary>What does &ldquo;event-driven distributed monolith&rdquo; look like?</summary><div class="ans">
+      <p>Same as a regular distributed monolith but with Kafka in the middle. Symptoms:</p>
+      <ul>
+        <li><b>Events are commands in disguise</b> &mdash; one producer, one consumer, used for directed requests.</li>
+        <li><b>Consumers care about the producer&rsquo;s internal state changes</b>, not domain events &mdash; e.g. <code>OrderRowUpdated</code>.</li>
+        <li><b>Schema lockstep</b> &mdash; can&rsquo;t change a schema without coordinating with N teams.</li>
+        <li><b>Synchronous expectations</b> &mdash; producer waits for downstream to react before responding to the user (using events for sync flows).</li>
+        <li><b>The full graph of who-talks-to-whom is opaque</b> &mdash; nobody can draw it; impact analysis takes a week.</li>
+      </ul>
+      <p>The cure isn&rsquo;t &ldquo;more events.&rdquo; It&rsquo;s &ldquo;fewer, more meaningful events emitted at proper domain boundaries, with consumers explicitly thinking about idempotency, ordering, and failure.&rdquo;</p>
+    </div></details>
+
+    <details class="qa"><summary>How do you handle ordering guarantees in events?</summary><div class="ans">
+      <p>Most brokers guarantee per-partition ordering (Kafka) or per-queue ordering (SQS FIFO). Cross-partition ordering is not guaranteed.</p>
+      <p><b>Strategy:</b> partition by the entity whose ordering matters &mdash; e.g. <code>orderId</code>, <code>customerId</code>, <code>tenantId</code>. All events for one order go to the same partition; one consumer thread processes that partition; ordering is preserved.</p>
+      <p><b>Hot partition risk:</b> a single tenant generating 80% of traffic skews load. Mitigations: split by composite key (<code>tenantId#hashOfOrderId</code> within a smaller-grain space), monitor partition lag per partition, rebalance when needed.</p>
+      <p><b>Out-of-order tolerance is cheaper than enforcing order.</b> If consumers can handle &ldquo;<code>OrderShipped</code> before <code>OrderPlaced</code>&rdquo; via state machines and idempotency, you avoid the partitioning constraint entirely. Often worth it.</p>
+    </div></details>
+
+  </div>
+</section>
+
+<!-- SECTION 4: REACTIVE -->
+<section id="reactive" data-accent="reactive">
+  <div class="wrap">
+    <span class="kicker">&sect; 04 &nbsp;Reactive architecture</span>
+    <h2 style="margin-top:.7rem">Streaming and back-pressure, not just &ldquo;async.&rdquo;</h2>
+    <p class="lede" style="margin-bottom:1.4rem">Pre-Loom, reactive was a coping mechanism for thread-per-request limits in JVM stacks. Post-Loom (JDK 21+), most of what people called &ldquo;reactive&rdquo; is just non-blocking IO with awkward operators. The genuinely valuable parts &mdash; back-pressure, demand-driven streaming, message-driven systems &mdash; remain.</p>
+
+    <div class="callout">
+      <span class="heading">Concept &middot; The Reactive Manifesto</span>
+      Four properties: <b>responsive</b> (timely under load), <b>resilient</b> (stays up under failure), <b>elastic</b> (scales with demand), <b>message-driven</b> (decoupled async communication). The first three are outcomes; message-driven is the means. Reactive systems achieve the first three by being message-driven.
+      <br/><br/>
+      <b>Reactive systems &ne; reactive programming.</b> Reactive programming = a coding model (Rx, Reactor, RxJava) for declarative async dataflow. Reactive systems = an architectural style. You can build reactive systems without reactive programming (Erlang, Akka actors, Go channels). And you can write reactive code in a system that isn&rsquo;t reactive at the architecture level. Don&rsquo;t conflate.
+    </div>
+
+    <details class="qa"><summary>What is back-pressure and why does it matter?</summary><div class="ans">
+      <p>Back-pressure = the consumer signals to the producer how much it can handle, and the producer slows down (or buffers, or drops) accordingly. Without back-pressure, a fast producer overwhelms a slow consumer &mdash; you get unbounded queues, OOM, or dropped data.</p>
+      <p>The naive answer is &ldquo;bigger buffer&rdquo;, which only delays the failure. The right answer is <i>demand-driven</i>: consumer says &ldquo;give me 32 items&rdquo;, producer supplies up to 32, consumer asks for more when ready. Pull-based, not push-based.</p>
+      <p><b>Reactive Streams spec</b> codifies this with <code>Subscription.request(n)</code>. Implementations: Project Reactor, RxJava 2+, Akka Streams, Java&rsquo;s built-in <code>java.util.concurrent.Flow</code> (since 9, identical interfaces).</p>
+      <pre><code><span class="c">// Reactive Streams shape</span>
+<span class="k">interface</span> <span class="t">Subscriber</span>&lt;T&gt; {
+    <span class="t">void</span> <span class="fn">onSubscribe</span>(<span class="t">Subscription</span> s);
+    <span class="t">void</span> <span class="fn">onNext</span>(T item);
+    <span class="t">void</span> <span class="fn">onError</span>(<span class="t">Throwable</span> t);
+    <span class="t">void</span> <span class="fn">onComplete</span>();
+}
+<span class="k">interface</span> <span class="t">Subscription</span> {
+    <span class="t">void</span> <span class="fn">request</span>(<span class="t">long</span> n);   <span class="c">// demand signaling &mdash; the back-pressure</span>
+    <span class="t">void</span> <span class="fn">cancel</span>();
+}</code></pre>
+      <div class="probing"><b>Probing:</b> can you contrast back-pressure with rate limiting? Rate limiting is producer-side (cap upstream demand); back-pressure is consumer-driven (signal capacity upstream). Both are about preventing overload; they&rsquo;re complementary.</div>
+    </div></details>
+
+    <details class="qa"><summary>Where does reactive genuinely win?</summary><div class="ans">
+      <p>Three concrete patterns:</p>
+      <ul>
+        <li><b>High-fan-out IO aggregation:</b> a single request needs to call 10 downstream services, combine results. Reactive operators (<code>flatMap</code>, <code>zip</code>) express this concurrently with one thread; thread-per-request would need 10 threads or async-await ceremony.</li>
+        <li><b>Streaming pipelines:</b> processing a Kafka topic, an HTTP SSE feed, a file line-by-line, with operators (<code>filter</code>, <code>map</code>, <code>window</code>, <code>buffer</code>). Back-pressure handles producer/consumer rate mismatch naturally.</li>
+        <li><b>Server-side push:</b> SSE / WebSocket fan-out, where you have N connected clients and a stream of events. Reactor/Akka manage the demand from each subscriber.</li>
+      </ul>
+      <p><b>Where reactive does NOT genuinely win post-Loom:</b> &ldquo;handle 100k concurrent connections&rdquo;. With virtual threads, plain blocking <code>HttpClient</code> + <code>ExecutorService</code> handles that just fine, with imperative code that&rsquo;s easier to debug. The thread-cost argument was the main reason teams adopted reactive; Loom largely dissolved it.</p>
+    </div></details>
+
+    <details class="qa"><summary>What did virtual threads (Loom) change for reactive?</summary><div class="ans">
+      <p>Virtual threads (JDK 21, JEP 444) are JVM-managed lightweight threads &mdash; you can have millions, mounted on a small pool of carrier OS threads. Blocking IO on a virtual thread parks the virtual thread (not the carrier), so the cost of &ldquo;thread per request&rdquo; collapses to near-zero.</p>
+      <p><b>Consequences for reactive:</b></p>
+      <ul>
+        <li>The &ldquo;reactive for concurrency&rdquo; argument is largely gone &mdash; plain blocking code on virtual threads is now cheaper to write and easier to debug than reactor chains.</li>
+        <li>The &ldquo;reactive for streaming and back-pressure&rdquo; argument is intact &mdash; demand signaling and operator pipelines are still the right tool for streaming dataflow.</li>
+        <li>The &ldquo;reactive for resilience and message-driven systems&rdquo; argument is intact at the system level; this is about architecture, not threading.</li>
+      </ul>
+      <p>Spring 6+, Quarkus, Micronaut all have virtual-thread modes. New code with high IO concurrency should default to virtual threads + imperative; reach for reactive only for streaming + back-pressure scenarios.</p>
+      <div class="probing"><b>Probing:</b> &ldquo;is reactive dead?&rdquo; The senior answer: no, but its addressable problem space shrunk dramatically. Most reactive code in 2026 is over-engineered relative to virtual threads.</div>
+    </div></details>
+
+    <details class="qa"><summary>Hot vs cold sources &mdash; what&rsquo;s the distinction?</summary><div class="ans">
+      <p><b>Cold:</b> the source produces data on subscription, per-subscriber. Each subscriber gets the full sequence, independently. <code>Flux.range(1, 100)</code>, <code>Flux.fromIterable(...)</code>, an HTTP-fetch-flux. Replaying / resubscribing re-runs the work.</p>
+      <p><b>Hot:</b> the source produces data regardless of subscribers; subscribers see only what comes after their subscription. A Kafka topic, a click stream, a sensor feed. Late subscribers miss earlier values.</p>
+      <p><b>Operators that bridge:</b> <code>publish().refCount()</code>, <code>share()</code>, <code>cache()</code> &mdash; turn a cold source hot, with various replay semantics.</p>
+      <p>Misuse: subscribing to a cold flux multiple times to share work &mdash; you re-run it N times. Or expecting a hot flux to replay history without buffering &mdash; you lose the early data.</p>
+    </div></details>
+
+    <details class="qa"><summary>What&rsquo;s the difference between Reactor and RxJava?</summary><div class="ans">
+      <p>Both implement Reactive Streams; APIs are nearly identical. Differences:</p>
+      <ul>
+        <li><b>Reactor:</b> Pivotal/Spring-native, default in Spring WebFlux. Two main types: <code>Mono</code> (0..1) and <code>Flux</code> (0..N). Built for the Java 8+ functional style.</li>
+        <li><b>RxJava:</b> ReactiveX family (Rx is multi-language). <code>Single</code>, <code>Maybe</code>, <code>Observable</code>, <code>Flowable</code> &mdash; the last is the back-pressure-aware type. Wider ecosystem; older.</li>
+      </ul>
+      <p>For new Java work, Reactor unless you have a specific reason. For Android, RxJava (RxAndroid) is more entrenched. The mental model is identical; learn one, the other is mostly renaming.</p>
+    </div></details>
+
+    <details class="qa"><summary>What is a Processor and when would you write one?</summary><div class="ans">
+      <p>A <code>Processor</code> is both a <code>Subscriber</code> and a <code>Publisher</code> &mdash; an in-line transformation. Most users never write one directly; you compose <code>map</code>/<code>flatMap</code>/etc instead.</p>
+      <p>You write a <code>Processor</code> when you need a <b>buffering or fan-out</b> primitive: <code>Sinks.Many</code> (Reactor 3.4+) is the modern approach &mdash; multicast, replay, latest-only flavors. Use cases: bridging callback APIs into reactive (e.g. JMS or WebSocket callbacks pushed into a Flux).</p>
+      <p>Reactive Streams designers explicitly say <code>Processor</code> is mostly for library implementers; app code should use higher-level operators.</p>
+    </div></details>
+
+    <details class="qa"><summary>What does &ldquo;message-driven&rdquo; mean in the manifesto sense?</summary><div class="ans">
+      <p>Components communicate via async, non-blocking messages &mdash; not method calls, not synchronous RPC. This is the <i>architectural</i> meaning, not the &ldquo;use a message broker&rdquo; meaning (though brokers are common implementations).</p>
+      <p>Why: async messaging gives you location transparency (component can move), backpressure (consumer signals capacity), failure isolation (sender survives receiver crash), and elasticity (more consumers can be added).</p>
+      <p>The actor model (Erlang, Akka) is the canonical message-driven implementation: each actor is a single-threaded mailbox; messages are processed one at a time. No shared state, no locks, supervised restart on failure.</p>
+      <p>Modern alternatives: event-driven systems with brokers (Kafka), reactive streams (Reactor), Go channels &mdash; all flavors of message-driven.</p>
+    </div></details>
+
+    <details class="qa"><summary>How does an actor system handle failure?</summary><div class="ans">
+      <p>Erlang/Akka pattern: <b>let it crash</b>. Actors fail; supervisors decide. The supervisor strategy can <i>restart</i> the failed actor (clear state, fresh start), <i>resume</i> it (keep state, retry the message), <i>stop</i> it (terminate), or <i>escalate</i> (fail to its own supervisor).</p>
+      <p>Actor hierarchies create &ldquo;supervision trees&rdquo;. A failure isolates to the smallest subtree containing the offending actor; the rest of the system stays up.</p>
+      <p>This is the antithesis of defensive programming. You don&rsquo;t try to catch every exception in business logic; you let things fail loudly and rely on the supervisor to recover. Combined with location-transparent message-passing, you get genuine fault tolerance.</p>
+      <div class="probing"><b>Probing:</b> &ldquo;why does Erlang/WhatsApp scale?&rdquo; The answer is supervision trees + message-driven + cheap processes, not &ldquo;Erlang the language is fast.&rdquo;</div>
+    </div></details>
+
+    <details class="qa"><summary>What are common reactive code smells?</summary><div class="ans">
+      <ul>
+        <li><b>Calling <code>.block()</code> in production.</b> Usually means &ldquo;I gave up and went sync&rdquo; in the middle of a reactor chain &mdash; you&rsquo;ve lost the benefits and added the complexity.</li>
+        <li><b>Mutable state captured in closures.</b> Operators run on different threads; the state escapes and races.</li>
+        <li><b>Subscribing in the middle of the chain.</b> You only subscribe at the top (the framework or your handler does it). In-the-middle subscriptions create orphaned reactive streams.</li>
+        <li><b>Long synchronous transforms inside <code>map</code>.</b> Reactor schedules <code>map</code> on the upstream thread; CPU-bound work hijacks the IO thread. Use <code>publishOn(Schedulers.parallel())</code> or rethink.</li>
+        <li><b>Mixing reactive and blocking IO.</b> Calling JDBC inside a Mono blocks the event-loop thread. Use R2DBC, or wrap with <code>subscribeOn(boundedElastic)</code>, or just use virtual threads.</li>
+      </ul>
+    </div></details>
+
+    <details class="qa"><summary>Why is debugging reactive code so hard?</summary><div class="ans">
+      <p>Three reasons:</p>
+      <ul>
+        <li><b>Stack traces don&rsquo;t reflect dataflow.</b> You see the operator&rsquo;s internal stack, not the chain that built it.</li>
+        <li><b>Errors propagate out-of-band.</b> An error in step 3 surfaces at the subscriber, possibly seconds later, with no clear context.</li>
+        <li><b>Operator scheduling is implicit.</b> You don&rsquo;t see which thread runs which step without inspection.</li>
+      </ul>
+      <p><b>Tools:</b> Reactor&rsquo;s <code>checkpoint()</code> operator adds named breadcrumbs to error stacks; <code>Hooks.onOperatorDebug()</code> captures assembly-time stacks (high cost, dev-only). For tracing: Micrometer&rsquo;s context propagation (Reactor 3.5+) finally makes Sleuth/OpenTelemetry work properly across reactive boundaries.</p>
+    </div></details>
+
+    <details class="qa"><summary>Where do you put back-pressure in a streaming pipeline that crosses systems?</summary><div class="ans">
+      <p>Back-pressure works inside one process, where the consumer can signal demand directly. Across systems (Kafka producer &rarr; Kafka &rarr; consumer), the broker absorbs the rate mismatch &mdash; back-pressure becomes <i>broker capacity</i> + <i>consumer lag</i>.</p>
+      <p>Tactics:</p>
+      <ul>
+        <li><b>Consumer lag monitoring</b> &mdash; alert when the consumer falls behind a threshold; that&rsquo;s back-pressure observable.</li>
+        <li><b>Producer-side rate limiting</b> &mdash; if the broker isn&rsquo;t the bottleneck and consumers can&rsquo;t keep up, throttle the producer.</li>
+        <li><b>Drop / sample / sketch</b> &mdash; for telemetry pipelines, dropping data is acceptable; pick a sampling strategy.</li>
+        <li><b>Bounded queues + reject</b> &mdash; producer hits broker pushback (rejected sends), surfaces it back to the upstream caller as 429.</li>
+      </ul>
+      <p>Reactive Streams&rsquo; fine-grained back-pressure is intra-process. Cross-process flow control is a different game with a different toolkit.</p>
+    </div></details>
+
+  </div>
+</section>
+
+<!-- SECTION 5: SERVERLESS -->
+<section id="serverless" data-accent="serverless">
+  <div class="wrap">
+    <span class="kicker">&sect; 05 &nbsp;Serverless</span>
+    <h2 style="margin-top:.7rem">Pay-per-call is wonderful until the call is steady.</h2>
+    <p class="lede" style="margin-bottom:1.4rem">Serverless is excellent for spiky, IO-bound, well-defined functions and offensively expensive for sustained workloads. Knowing where the crossover sits, knowing the cold-start and concurrency math, and knowing when Step Functions saves you from yourself is what the interviewer wants.</p>
+
+    <div class="callout">
+      <span class="heading">Concept &middot; FaaS execution model</span>
+      A function invocation runs in a container. The first invocation triggers a <b>cold start</b>: container provision (~50&ndash;200ms), runtime init, language init, app code init &mdash; total can be 100ms (Node) to several seconds (Java without optimization). Subsequent invocations on the same container are <b>warm</b> (~1&ndash;10ms overhead).
+      <br/><br/>
+      Each container handles <b>one invocation at a time</b> (Lambda&rsquo;s default; some platforms allow per-container concurrency). The platform scales by spinning more containers. Account-level concurrency limits cap the fleet (Lambda default: 1000 concurrent executions per region, raisable). State must be externalized &mdash; the container can vanish between invocations.
+    </div>
+
+    <details class="qa"><summary>What does a cold start cost in different runtimes?</summary><div class="ans">
+      <p>Order of magnitude (Lambda, default config, 2026):</p>
+      <ul>
+        <li><b>Node.js:</b> ~50&ndash;150 ms.</li>
+        <li><b>Python:</b> ~80&ndash;200 ms.</li>
+        <li><b>Go:</b> ~50&ndash;150 ms (small binary).</li>
+        <li><b>Java (Corretto):</b> ~250&ndash;1500 ms (JVM startup + classloading + Spring etc.).</li>
+        <li><b>Java + SnapStart:</b> ~150&ndash;400 ms (snapshot/restore).</li>
+        <li><b>Java + GraalVM Native Image:</b> ~50&ndash;100 ms.</li>
+        <li><b>.NET:</b> ~250&ndash;700 ms.</li>
+      </ul>
+      <p>VPC-attached functions add ~100ms-1s on first invocation while the ENI attaches (much improved post-2019&rsquo;s Hyperplane changes; can still spike).</p>
+      <p><b>Mitigations:</b> <i>provisioned concurrency</i> (pre-warmed containers, billed even when idle); <i>SnapStart</i> for Java (Lambda restores from a checkpointed image); <i>lighter runtimes</i> (Node/Go for cold-start-sensitive paths); <i>function packaging</i> (smaller deploy bundle = faster init); <i>lazy init</i> (don&rsquo;t connect to RDS at cold start; do it on first use).</p>
+      <div class="probing"><b>Probing:</b> &ldquo;why is your Lambda slow?&rdquo; The senior answer maps to the cold-start vs warm-path distinction with concrete numbers and named mitigations. &ldquo;It&rsquo;s slow because it&rsquo;s Java&rdquo; with no follow-up is junior.</div>
+    </div></details>
+
+    <details class="qa"><summary>When does serverless beat containers, and when does it lose?</summary><div class="ans">
+      <p><b>Serverless wins:</b></p>
+      <ul>
+        <li>Spiky / bursty traffic &mdash; you pay nothing at idle.</li>
+        <li>Event-driven processing (S3 upload triggers a function, EventBridge fanout, SQS consumer).</li>
+        <li>Glue code, ETL, scheduled jobs.</li>
+        <li>Small ops team &mdash; no patches, no scaling, no fleet management.</li>
+        <li>Edge compute (CloudFront Functions / Lambda@Edge).</li>
+      </ul>
+      <p><b>Serverless loses:</b></p>
+      <ul>
+        <li><b>Steady high throughput.</b> A Lambda costing $0.20 per 1M invocations + duration starts losing badly to a Fargate or EC2 fleet at sustained &gt;~50% utilization. Concrete crossover: ~30&ndash;50 RPS sustained, depending on duration.</li>
+        <li><b>Long-running workloads.</b> 15-minute Lambda hard cap; everything beyond is Step Functions or ECS.</li>
+        <li><b>Latency-critical hot paths.</b> Cold-start tail latency surfaces under traffic shape changes; not friendly to strict SLOs.</li>
+        <li><b>Stateful protocols.</b> WebSockets-on-Lambda exists (API Gateway WebSocket) but is fiddly; long-lived connections are a poor fit.</li>
+        <li><b>Heavy CPU.</b> ML inference, transcoding &mdash; Lambda&rsquo;s memory-bound CPU pricing makes them expensive.</li>
+      </ul>
+    </div></details>
+
+    <details class="qa"><summary>Why is state externalized? What are the typical stores?</summary><div class="ans">
+      <p>Containers can vanish between invocations &mdash; the platform may kill an idle container after minutes; concurrency scaling spawns new ones with cold state. Local disk and in-memory state are not durable.</p>
+      <p>Standard pairings:</p>
+      <ul>
+        <li><b>DynamoDB</b> &mdash; key-value with single-digit-ms reads, scales seamlessly with Lambda. The default for transactional state.</li>
+        <li><b>S3</b> &mdash; blob storage, event triggers (object created, deleted).</li>
+        <li><b>SQS / EventBridge</b> &mdash; async work queues; Lambda is the consumer.</li>
+        <li><b>RDS / Aurora</b> &mdash; relational; needs <b>RDS Proxy</b> to handle Lambda&rsquo;s connection-explosion problem (each Lambda container opens its own connection).</li>
+        <li><b>ElastiCache (Redis)</b> &mdash; ephemeral cache; same connection-pool concerns as RDS.</li>
+      </ul>
+      <p><b>RDS Proxy</b> is non-optional for Lambda + Postgres at any scale &mdash; without it, scaling Lambdas drowns the DB in connections (PgBouncer&rsquo;s problem at one remove).</p>
+    </div></details>
+
+    <details class="qa"><summary>Walk through a typical serverless API at the edge.</summary><div class="ans">
+      <p>Pattern: API Gateway (HTTP API or REST API) &rarr; Lambda &rarr; DynamoDB.</p>
+      <ul>
+        <li><b>API Gateway</b> handles TLS, request validation, throttling, auth (Cognito or Lambda authorizer), request mapping.</li>
+        <li><b>Lambda</b> is the handler. Stateless, short-lived, scales horizontally with concurrency.</li>
+        <li><b>DynamoDB</b> stores state. Single-table design with composite keys to avoid scans.</li>
+        <li><b>EventBridge</b> for cross-service async events; <b>SQS</b> for buffered workloads; <b>Step Functions</b> for long-running orchestration.</li>
+      </ul>
+      <p>Auth tactics: Cognito for B2C user pools; Lambda authorizer for custom JWT verification or third-party IdP integration; mTLS at the gateway for B2B.</p>
+      <p><b>Typical bills:</b> a low-traffic SaaS prototype runs $5-50/mo. The math goes inverted at sustained loads &mdash; ECS Fargate with always-on containers gets cheaper around tens of RPS sustained.</p>
+    </div></details>
+
+    <details class="qa"><summary>What is Step Functions and when do you reach for it?</summary><div class="ans">
+      <p>AWS Step Functions = orchestrator for serverless workflows. State machines defined in JSON (Amazon States Language); each state can invoke a Lambda, ECS task, SNS publish, etc. Built-in retry, parallel, choice (branch), wait, fail, succeed.</p>
+      <p><b>Use it when:</b></p>
+      <ul>
+        <li>Workflow runs longer than 15 minutes (Lambda hard cap; Step Functions Standard runs up to a year).</li>
+        <li>You need <b>visible orchestration</b> with audit / replay / human inspection.</li>
+        <li>Saga pattern in serverless &mdash; explicit compensation paths.</li>
+        <li>Coordinating multiple services with branching / parallel / wait.</li>
+      </ul>
+      <p><b>Standard vs Express:</b> Standard = durable, audit-grade, billed per state transition (expensive at scale). Express = high-throughput, async, cheaper, no replay/audit (logs only). Pick by need: regulatory workflow &rarr; Standard; high-volume event processing &rarr; Express.</p>
+      <p>Equivalent on other clouds: Azure Durable Functions, GCP Workflows. For non-cloud: Temporal, Camunda, Conductor.</p>
+    </div></details>
+
+    <details class="qa"><summary>Provisioned concurrency vs on-demand &mdash; when each?</summary><div class="ans">
+      <p><b>On-demand:</b> default. Scale from 0 to N with cold starts on each new container. Pay only for invocation duration.</p>
+      <p><b>Provisioned concurrency:</b> pre-warmed pool of N containers. No cold starts on the first N concurrent invocations. You pay an hourly rate for each provisioned slot, whether used or not.</p>
+      <p><b>Use provisioned when:</b></p>
+      <ul>
+        <li>Latency-sensitive paths with predictable baseline traffic.</li>
+        <li>Sudden spike from 0 (e.g. a flash sale endpoint at noon) where on-demand cold starts would smear p99.</li>
+        <li>Java workloads where cold starts dominate response time.</li>
+      </ul>
+      <p><b>Cost math:</b> provisioned at $X/hour vs on-demand at $Y/invocation. Crossover varies; rough rule: if you&rsquo;re running a Lambda &gt;10 RPS sustained, provisioned for the baseline + on-demand for spillover is cheaper than pure on-demand.</p>
+      <p><b>SnapStart for Java</b> (free, no provisioning needed) is often a better first step than provisioned concurrency.</p>
+    </div></details>
+
+    <details class="qa"><summary>What&rsquo;s the connection-pool problem with Lambda?</summary><div class="ans">
+      <p>Each Lambda container opens its own DB connection. Concurrency scales: 1000 concurrent Lambdas = 1000 DB connections. Postgres&rsquo;s default <code>max_connections</code> is 100; Aurora goes higher but still bounded. The DB falls over before the Lambdas saturate.</p>
+      <p><b>Fixes:</b></p>
+      <ul>
+        <li><b>RDS Proxy:</b> AWS-managed connection pooler (PgBouncer-style) that fronts your DB. Lambdas connect to the proxy; proxy multiplexes onto a small pool.</li>
+        <li><b>Reuse connections in the container.</b> Open the connection in module scope (not per-invocation). The container reuses across warm invocations.</li>
+        <li><b>Move to DynamoDB.</b> No connection limit; HTTP API. The cleanest serverless pairing.</li>
+        <li><b>Aurora Serverless v2 Data API:</b> HTTP-based, connection-less. Slower per call but no pool to drown.</li>
+      </ul>
+      <div class="gotcha"><b>Gotcha:</b> &ldquo;Lambda + RDS&rdquo; in production without RDS Proxy is a foot-gun. The first traffic spike kills the DB and takes the system with it.</div>
+    </div></details>
+
+    <details class="qa"><summary>What about vendor lock-in?</summary><div class="ans">
+      <p>Real and significant. Lambda + API Gateway + DynamoDB + EventBridge + Step Functions is deeply tied to AWS&rsquo;s primitives, IAM model, and pricing. Lifting to GCP/Azure/Cloudflare is a rewrite, not a port.</p>
+      <p><b>Mitigations (with cost):</b></p>
+      <ul>
+        <li><b>Hexagonal architecture in handlers</b> &mdash; keep business logic away from Lambda-specific types. Test logic outside Lambda. Useful regardless.</li>
+        <li><b>OpenAPI for the API surface</b> &mdash; gateway implementation can change.</li>
+        <li><b>Knative / OpenFaaS / Cloud Run</b> as containerized FaaS &mdash; less lock-in but you give up much of the platform integration that makes serverless valuable.</li>
+        <li><b>Accept the lock-in deliberately.</b> Most teams that try to be cloud-agnostic end up with the lowest common denominator and pay platform-engineering overhead. If you&rsquo;re committed to AWS, embrace it; if your contracts demand portability, design around it.</li>
+      </ul>
+      <p><b>Honest framing:</b> serverless lock-in is the price of the velocity. Whether it&rsquo;s worth paying is a business call.</p>
+    </div></details>
+
+    <details class="qa"><summary>How do you do local dev and testing for serverless?</summary><div class="ans">
+      <p>Three tiers:</p>
+      <ul>
+        <li><b>Unit tests:</b> business logic in pure functions, no Lambda runtime. Mock the gateway event in.</li>
+        <li><b>Local emulators:</b> SAM Local, LocalStack, Serverless Framework offline mode. Run your function locally with simulated events. Decent for handler logic; less perfect for IAM, EventBridge ordering, exact timeouts.</li>
+        <li><b>Deployed dev environment:</b> the only real fidelity. Per-developer or per-PR stack via CDK / Terraform. Fast feedback because deploys are seconds.</li>
+      </ul>
+      <p>Production-equivalence requires actually deploying. Don&rsquo;t over-invest in emulators &mdash; ephemeral cloud envs are usually cheaper than fighting LocalStack edge cases.</p>
+    </div></details>
+
+    <details class="qa"><summary>What does EventBridge buy you over SNS/SQS?</summary><div class="ans">
+      <p>EventBridge is AWS&rsquo;s event bus &mdash; pub/sub with content-based routing rules, schema registry, and partner integrations (Stripe, Datadog, etc.) baked in. Events are JSON; rules pattern-match on shape and dispatch to targets (Lambda, SQS, Step Functions, EventBridge cross-account, ...).</p>
+      <ul>
+        <li><b>SNS:</b> simpler pub/sub. Topic-based; consumers subscribe; no content filtering at the topic level (except simple message attribute filters). Higher throughput, lower latency.</li>
+        <li><b>SQS:</b> point-to-point queue. Buffer + work distribution; not pub/sub.</li>
+        <li><b>EventBridge:</b> richer routing (JSONPath patterns), schema registry, archive + replay, integrations. Slightly higher latency, much more flexible.</li>
+      </ul>
+      <p><b>Default pick:</b> EventBridge for new event-driven systems. SNS+SQS still better for high-throughput / low-latency simple fanout.</p>
+    </div></details>
+
+    <details class="qa"><summary>What makes a Lambda &ldquo;well-architected&rdquo; per the framework?</summary><div class="ans">
+      <ul>
+        <li><b>Single responsibility</b> &mdash; one function, one purpose. Composing functions via EventBridge / Step Functions, not via giant handlers.</li>
+        <li><b>Stateless by design</b> &mdash; state in DynamoDB / S3, not in /tmp (which is per-container, ephemeral).</li>
+        <li><b>Idempotent handlers</b> &mdash; SQS at-least-once delivery means you will see the same message twice; design for it.</li>
+        <li><b>Bounded concurrency</b> &mdash; reserved concurrency to protect downstreams; per-function limits to avoid one runaway eating the account.</li>
+        <li><b>Observability</b> &mdash; structured logs, X-Ray / Datadog tracing, custom CloudWatch metrics. Lambda&rsquo;s default logging alone won&rsquo;t debug a distributed flow.</li>
+        <li><b>Least-privilege IAM</b> &mdash; per-function roles; no wildcard <code>*</code> on resources.</li>
+      </ul>
+    </div></details>
+
+  </div>
+</section>
+
+<!-- SECTION 6: MULTI-TENANCY -->
+<section id="tenancy" data-accent="tenancy">
+  <div class="wrap">
+    <span class="kicker">&sect; 06 &nbsp;Multi-tenancy</span>
+    <h2 style="margin-top:.7rem">Tenant isolation is a spectrum, not a switch.</h2>
+    <p class="lede" style="margin-bottom:1.4rem">Multi-tenancy interview questions sit at the intersection of architecture, security, and unit economics. The wrong answer is &ldquo;each customer gets their own database&rdquo; or &ldquo;we add a <code>tenant_id</code> column.&rdquo; The right answer maps the isolation level to the customer tier, the regulatory needs, and the cost model.</p>
+
+    <div class="callout">
+      <span class="heading">Concept &middot; Silo, pool, and bridge</span>
+      Three reference models (AWS SaaS Lens vocabulary):
+      <ul>
+        <li><b>Silo:</b> per-tenant infrastructure &mdash; own DB, own compute, own networking. Highest isolation, highest cost. Often required by enterprise / regulated tiers.</li>
+        <li><b>Pool:</b> shared everything; tenant-id column or partition key separates data logically. Lowest cost, hardest to isolate noisy neighbors and most prone to data-leak bugs.</li>
+        <li><b>Bridge / hybrid:</b> mix &mdash; e.g. shared compute, per-tenant DB; or shared DB with row-level security, per-tier compute pools.</li>
+      </ul>
+      In practice almost every successful SaaS converges on the hybrid: pool the small/free tier, silo (or stripe) the enterprise tier, with a migration path between as customers grow. Don&rsquo;t treat the choice as global; it&rsquo;s per-tier and often per-component.
+    </div>
+
+    <details class="qa"><summary>Compare silo vs pool concretely.</summary><div class="ans">
+      <div class="rapid" style="margin:.6rem 0"><table><thead><tr><th>Dimension</th><th>Silo</th><th>Pool</th></tr></thead><tbody>
+        <tr><td>Cost per tenant</td><td>High (fixed overhead)</td><td>Low (shared everything)</td></tr>
+        <tr><td>Data leakage risk</td><td>Near zero</td><td>Real (every query needs a tenant filter)</td></tr>
+        <tr><td>Noisy neighbor</td><td>Impossible</td><td>Live concern</td></tr>
+        <tr><td>Backup / restore per tenant</td><td>Native</td><td>Custom &mdash; per-tenant export logic</td></tr>
+        <tr><td>Per-tenant data residency</td><td>Easy</td><td>Hard / expensive</td></tr>
+        <tr><td>Onboarding</td><td>Provision flow (slow)</td><td>Just write a row</td></tr>
+        <tr><td>Operational scale</td><td>1000 DBs to patch</td><td>1 DB to patch</td></tr>
+      </tbody></table></div>
+      <p>Bridge models give you knobs on each row of this table independently. The cost model usually drives the answer: free-tier customers can&rsquo;t justify silo overhead; enterprise customers don&rsquo;t accept pool-level isolation.</p>
+    </div></details>
+
+    <details class="qa"><summary>What are the per-DB isolation models and their trade-offs?</summary><div class="ans">
+      <ul>
+        <li><b>Row-level (single DB, single schema, <code>tenant_id</code> column):</b> cheapest. Every query joins/filters on tenant. Indexes must lead with <code>tenant_id</code>. Postgres RLS (Row Level Security) automates the filter. Risk: a missing filter leaks data. Mitigations: enforce via RLS or query interceptor; never trust application code alone.</li>
+        <li><b>Schema-per-tenant (single DB, N schemas):</b> tables duplicated per tenant. Logical isolation; can be physically backed up/restored per tenant. Postgres handles thousands of schemas; tens of thousands gets painful (catalog bloat, autovacuum, connection pool issues).</li>
+        <li><b>DB-per-tenant (single instance, many DBs):</b> stronger isolation, per-DB authentication. Same instance limits apply; backups become per-DB. Common for medium-trust tiers.</li>
+        <li><b>Instance-per-tenant (full silo):</b> ultimate isolation. Per-tenant patching, scaling, backup. Operationally expensive at scale.</li>
+      </ul>
+      <p><b>Postgres RLS</b> is criminally underused for row-level multi-tenancy. The DB enforces &ldquo;<code>tenant_id = current_setting('app.tenant_id')</code>&rdquo;; missing application filters become impossible.</p>
+      <pre><code><span class="k">CREATE POLICY</span> tenant_isolation <span class="k">ON</span> orders
+  <span class="k">USING</span> (tenant_id = current_setting(<span class="s">'app.tenant_id'</span>)::uuid);
+<span class="k">ALTER TABLE</span> orders <span class="k">ENABLE ROW LEVEL SECURITY</span>;
+<span class="c">-- App sets SET LOCAL app.tenant_id='...' at session start</span></code></pre>
+      <div class="probing"><b>Probing:</b> the staff signal is being able to compare these four models and pick by tier, not by &ldquo;it depends.&rdquo; Bonus points for naming RLS or Citus by-tenant sharding.</div>
+    </div></details>
+
+    <details class="qa"><summary>How do you keep noisy neighbors from ruining the experience?</summary><div class="ans">
+      <p>Several layers; you stack them:</p>
+      <ul>
+        <li><b>Per-tenant rate limiting</b> at the gateway / API tier. Token bucket or leaky bucket keyed by tenant.</li>
+        <li><b>Per-tenant connection limits</b> at the DB pool layer (PgBouncer pool per tenant or per tier).</li>
+        <li><b>Fair scheduling</b> in batch / async work &mdash; weighted round-robin across tenants in the queue, not FIFO.</li>
+        <li><b>Compute partitioning</b> &mdash; high-tier tenants on dedicated worker pools; spillover to shared.</li>
+        <li><b>Resource quotas</b> &mdash; CPU/memory/disk caps per tenant where the platform allows (Kubernetes namespaces with ResourceQuotas; cgroups; per-DB tablespaces with quotas).</li>
+        <li><b>Alarms on per-tenant percentiles</b> &mdash; not just global p99. A single tenant&rsquo;s p99 spiking lets you respond before it affects others.</li>
+      </ul>
+      <p><b>Bin packing:</b> tenants are not uniform. The 80/20 rule is more like 95/5. A tier of dedicated worker pools for the top 5% protects the long tail without the cost of full silo for everyone.</p>
+    </div></details>
+
+    <details class="qa"><summary>How do you handle data residency / per-tenant compliance?</summary><div class="ans">
+      <p>Common scenarios: EU customer data must stay in EU; healthcare data must be HIPAA-eligible region; some Asian regulators require in-country.</p>
+      <p><b>Tactics:</b></p>
+      <ul>
+        <li><b>Region-aware tenant routing.</b> Tenant record stores a home region; load balancer / API gateway routes to that region&rsquo;s stack.</li>
+        <li><b>Per-region full stacks (cell architecture).</b> Each region is a self-contained system; replication explicitly limited or absent. AWS re:Invent talks call these &ldquo;cells&rdquo;.</li>
+        <li><b>Encrypted-at-rest with per-tenant KMS keys</b> &mdash; even if data crosses, it&rsquo;s unreadable without the key. Doesn&rsquo;t satisfy strict in-region requirements but adds defense.</li>
+        <li><b>Backup residency.</b> Cross-region backups need to be off if your contract says &ldquo;data does not leave region.&rdquo; Easy to overlook.</li>
+        <li><b>Logs and observability data are also &ldquo;data&rdquo;.</b> Routing telemetry to your central monitoring may violate residency.</li>
+      </ul>
+      <p><b>Hard truth:</b> per-tenant residency mostly forces you toward silo per region. The cost is a real factor in pricing for those tiers.</p>
+    </div></details>
+
+    <details class="qa"><summary>How does tenant onboarding actually work?</summary><div class="ans">
+      <p>Pool-model: cheap. Insert a row, send a welcome email, done. Sub-second.</p>
+      <p>Silo-model: heavy. Provision DB, run migrations, set up auth, configure DNS subdomain, populate seed data, attach to monitoring. Minutes to hours, depends on infrastructure.</p>
+      <p><b>Patterns:</b></p>
+      <ul>
+        <li><b>Onboarding pipeline</b> &mdash; explicit state machine (Step Functions, Temporal). States: provisioning, migrating, seeding, active. Visible to support; resumable on failure.</li>
+        <li><b>Idle / pre-warm pool</b> &mdash; keep N pre-provisioned slots ready; assign on signup, replenish in background. Trades cost for latency.</li>
+        <li><b>Lazy provisioning</b> &mdash; don&rsquo;t silo until tier upgrade. Start every customer in pool; migrate to silo when they pay enterprise price. Reduces overhead massively.</li>
+      </ul>
+      <p><b>Offboarding</b> is the symmetric problem. GDPR right-to-erase + retention policies + outstanding refunds + data export &mdash; it&rsquo;s a workflow, not a delete query. Plan it explicitly.</p>
+    </div></details>
+
+    <details class="qa"><summary>What about per-tenant cost allocation?</summary><div class="ans">
+      <p>Two motivations: <i>chargeback</i> (you bill the customer for actual usage) and <i>profitability analysis</i> (does this tenant cost more than they pay?).</p>
+      <p><b>Tactics:</b></p>
+      <ul>
+        <li><b>Cloud resource tagging.</b> Tag DBs / clusters / queues with <code>tenant_id</code>; feed into AWS Cost Explorer / GCP billing tables. Works for siloed resources.</li>
+        <li><b>Application-level metering.</b> Pool resources need usage events: API calls per tenant, storage GB per tenant, compute-seconds per tenant. Aggregated to a metering store (DynamoDB, Timescale).</li>
+        <li><b>Ratio-based attribution.</b> For shared resources where direct metering is impossible, pro-rate by some proxy (request count, data volume).</li>
+        <li><b>Profitability dashboards.</b> Per-tenant revenue minus per-tenant cost. The 95/5 distribution often means a few tenants are subsidizing thousands of free-tier ones &mdash; useful to know.</li>
+      </ul>
+      <p>Cost-allocation is the single most useful exercise to align engineering with business: when you know a tenant costs $40/mo to serve and pays $5, conversations get easier.</p>
+    </div></details>
+
+    <details class="qa"><summary>Should you give every tenant a subdomain?</summary><div class="ans">
+      <p>Common pattern: <code>acme.app.com</code>, <code>beta.app.com</code>. Used to feel customer-bespoke; now table stakes for B2B SaaS.</p>
+      <p><b>Pros:</b></p>
+      <ul>
+        <li>Branding and customer experience.</li>
+        <li>Clean cookie isolation per tenant (helps with auth scope).</li>
+        <li>Easier per-tenant rate limiting at the edge (Cloudflare, AWS WAF) since tenant is in the host.</li>
+        <li>Useful for tenant-aware CDN cache keys.</li>
+      </ul>
+      <p><b>Costs:</b></p>
+      <ul>
+        <li>TLS certs &mdash; Let&rsquo;s Encrypt + ACME automation, or wildcard cert + careful subdomain handling, or per-tenant cert.</li>
+        <li>DNS automation &mdash; Route53 / Cloudflare programmatic provisioning.</li>
+        <li>Cross-subdomain auth flows (cookies vs JWT vs SSO) need explicit design.</li>
+      </ul>
+      <p><b>Modern variant:</b> <code>app.com/t/acme</code> path-based tenants. No DNS plumbing. Less &ldquo;feel&rdquo; but operationally simpler. Pick by your enterprise customers&rsquo; expectations.</p>
+    </div></details>
+
+    <details class="qa"><summary>Where do tenant-isolation bugs come from?</summary><div class="ans">
+      <p>The list is depressingly long:</p>
+      <ul>
+        <li><b>Missing <code>WHERE tenant_id = ?</code>.</b> Most common. Mitigated by RLS, ORM scopes, query interceptors.</li>
+        <li><b>Cache key collisions.</b> Caching by <code>userId</code> instead of <code>(tenantId, userId)</code> &mdash; same userId across tenants returns wrong data.</li>
+        <li><b>Background jobs without context.</b> A scheduled job iterating &ldquo;all users&rdquo; without scoping by tenant; cross-tenant emails sent.</li>
+        <li><b>Search index leakage.</b> Elasticsearch / Algolia indices not scoped per tenant; queries return cross-tenant hits.</li>
+        <li><b>Logs and metrics.</b> A debug endpoint exposes <code>SELECT *</code> output to admins; tenant data leaks via observability.</li>
+        <li><b>Object storage.</b> S3 paths with predictable IDs (<code>/uploads/123.png</code>) accessed cross-tenant. Use opaque IDs and signed URLs.</li>
+        <li><b>Webhook fanout.</b> Webhook handler triggers a lookup; the lookup tenant-scope is wrong; webhook fires across tenants.</li>
+      </ul>
+      <p><b>Defense in depth:</b> RLS at the DB; tenant-scoped repository layer; explicit tenant context in middleware; periodic data-leak audits; chaos tests injecting cross-tenant requests and asserting they fail.</p>
+      <div class="probing"><b>Probing:</b> &ldquo;tell me about a multi-tenancy bug you&rsquo;ve seen.&rdquo; If you can&rsquo;t name a real one, you probably haven&rsquo;t shipped real multi-tenancy. The interviewer is checking authenticity.</div>
+    </div></details>
+
+    <details class="qa"><summary>How do you think about per-tenant SLA and SLO?</summary><div class="ans">
+      <p>Tier-based. Free tier gets best-effort; standard tier gets a published SLO (e.g. 99.9% availability monthly); enterprise gets a contractual SLA with credits.</p>
+      <p>To deliver a per-tenant SLA, you need <b>per-tenant SLI</b>: availability, latency, error rate observed for that specific tenant. Aggregate metrics aren&rsquo;t enough &mdash; one tenant can be down at p99 while the global p99 looks healthy.</p>
+      <p><b>Tactics:</b> tag every request span/log with <code>tenant_id</code>; build per-tenant dashboards (top N by traffic); alert when a single tenant&rsquo;s SLI breaches; have a ticket-style customer-success workflow for SLA-affected tenants.</p>
+      <p>Counterintuitively, <i>contractual</i> SLAs are mostly an account-management exercise (credit accounting, communication). The technical work is per-tenant observability, which you should build regardless.</p>
+    </div></details>
+
+    <details class="qa"><summary>How do tenant-aware feature flags work?</summary><div class="ans">
+      <p>Standard pattern: a flag store (LaunchDarkly, Unleash, Statsig, internal) keyed by tenant attributes (id, plan, region, beta flag).</p>
+      <p>Three uses:</p>
+      <ul>
+        <li><b>Phased rollouts.</b> Enable a feature for 1%, then 10%, then 100% of tenants. By tenant, not by user, so a tenant&rsquo;s users see consistent UI.</li>
+        <li><b>Tier-gated features.</b> &ldquo;SSO is enterprise-tier only&rdquo; expressed as a flag check.</li>
+        <li><b>Tenant-specific overrides.</b> &ldquo;Tenant Acme has the beta API&rdquo; as a one-off enablement.</li>
+      </ul>
+      <p>Critical: flags are <b>tenant-scoped</b>, not global. A bug-fix flag global to all users is fine; a feature-rollout flag must be tenant-scoped or you get inconsistent UX inside one customer&rsquo;s account.</p>
+    </div></details>
+
+    <details class="qa"><summary>What does tenant migration between tiers actually look like?</summary><div class="ans">
+      <p>Customer moves from pool tier to silo tier. The mechanics:</p>
+      <ul>
+        <li><b>Pre-migration:</b> provision the silo infra (DB, compute, etc.).</li>
+        <li><b>Cut-over:</b> bulk-export the tenant&rsquo;s data from pool DB to silo DB. Either with downtime (&ldquo;migration window&rdquo;) or via dual-write + replay (more complex but zero downtime).</li>
+        <li><b>Routing flip:</b> tenant routing config now sends requests to silo. Pool side is read-only briefly to avoid drift.</li>
+        <li><b>Verification:</b> dual-read / parallel-run for a window, comparing results, alerting on divergence.</li>
+        <li><b>Cleanup:</b> delete tenant data from pool. Don&rsquo;t skip; pool data of a paying customer is a liability.</li>
+      </ul>
+      <p>Reverse migration (silo to pool) is rarer but happens (consolidation after a tier downgrade). Automate it; manual migrations always go wrong.</p>
+    </div></details>
+
+    <details class="qa"><summary>What&rsquo;s the right consistency model for cross-tenant aggregates (admin dashboards, billing)?</summary><div class="ans">
+      <p>Cross-tenant aggregates &mdash; &ldquo;total MRR&rdquo;, &ldquo;all tenants&rsquo; usage&rdquo;, &ldquo;system-wide errors&rdquo; &mdash; should not query each tenant&rsquo;s store directly. That&rsquo;s O(N) operations and locks them all.</p>
+      <p><b>Pattern:</b> per-tenant stores feed an analytics pipeline (CDC, event stream) into a shared analytics store (Snowflake, BigQuery, ClickHouse, S3+Athena). Cross-tenant queries hit the analytics store, never the operational stores.</p>
+      <p>Consistency: eventual, lag of seconds-to-minutes. Fine for billing (run monthly), dashboards (refresh on schedule), monitoring (lag-aware). Real-time operations stay within their tenant boundary.</p>
+    </div></details>
+
+  </div>
+</section>
+
+<!-- SECTION 7: API ARCHITECTURE -->
+<section id="api" data-accent="api">
+  <div class="wrap">
+    <span class="kicker">&sect; 07 &nbsp;API architecture &amp; communication</span>
+    <h2 style="margin-top:.7rem">REST is not the only answer; it&rsquo;s often not even the right one.</h2>
+    <p class="lede" style="margin-bottom:1.4rem">Every API question is really three questions: who&rsquo;s the client, what&rsquo;s the contract, and how do we evolve it without breaking them. The interviewer wants you to map the choice (REST / GraphQL / gRPC / async) to a concrete reason, and to know the failure modes of each.</p>
+
+    <div class="callout">
+      <span class="heading">Concept &middot; The API style matrix</span>
+      <ul>
+        <li><b>REST/HTTP+JSON:</b> universally consumable, cacheable, debuggable. Verbose for high-traffic internal use.</li>
+        <li><b>gRPC:</b> binary (Protobuf), HTTP/2, schema-first, streaming-capable. Great for internal east-west; awkward at the edge (browser support via grpc-web is limited).</li>
+        <li><b>GraphQL:</b> client-driven query shape; one request, many fields. Good for diverse client needs (mobile/web/partner) on the same backend; bad for caching (POST), rate limiting (per-query cost), and N+1 (DataLoader required).</li>
+        <li><b>Async (events, webhooks, SSE, WebSocket):</b> fire-and-forget, push notification, server-driven streams. Different reliability semantics from request-response.</li>
+      </ul>
+      None of these is universally right. Expect a system to use multiple: REST/GraphQL at the edge, gRPC east-west, events for fanout, webhooks for partner integration, SSE/WebSocket for live UI.
+    </div>
+
+    <details class="qa"><summary>What is the Richardson Maturity Model and where do real APIs sit?</summary><div class="ans">
+      <p>Four levels:</p>
+      <ul>
+        <li><b>Level 0:</b> single endpoint, RPC over HTTP. (POX-style, 2002&ndash;era.)</li>
+        <li><b>Level 1:</b> resources. Multiple URIs identifying things.</li>
+        <li><b>Level 2:</b> HTTP verbs &amp; status codes used semantically (GET / POST / PUT / DELETE / 404 / 409 / 422).</li>
+        <li><b>Level 3:</b> hypermedia controls (HATEOAS) &mdash; responses include links the client follows; clients don&rsquo;t hardcode URIs.</li>
+      </ul>
+      <p><b>Reality:</b> ~95% of &ldquo;REST APIs&rdquo; are Level 2. Level 3 / HATEOAS sounds good in theory but very few APIs (or clients) actually implement it &mdash; the typed-client SDK pattern (OpenAPI &rarr; codegen) gives you most of the benefits without the runtime hypermedia ceremony.</p>
+      <p>Roy Fielding, who defined REST, has been clear that Level 2 is not REST; he calls it &ldquo;HTTP-based RPC.&rdquo; In interviews, calling Level 2 &ldquo;REST&rdquo; is the pragmatic answer; calling out Fielding&rsquo;s objection if asked is the senior signal.</p>
+      <div class="probing"><b>Probing:</b> &ldquo;is your API RESTful?&rdquo; The accurate answer is &ldquo;Level 2 with OpenAPI specs; we don&rsquo;t do HATEOAS because no clients use it.&rdquo; The dogmatic answer doesn&rsquo;t match production reality.</div>
+    </div></details>
+
+    <details class="qa"><summary>When does GraphQL shine and when does it bite?</summary><div class="ans">
+      <p><b>Shines:</b></p>
+      <ul>
+        <li><b>Multi-client backend.</b> Mobile wants 5 fields, web wants 20, partner API wants 8. GraphQL lets each ask for what they need without 12 REST endpoints or over-fetching.</li>
+        <li><b>Aggregating across services.</b> Apollo Federation / Relay let one schema span multiple subgraphs.</li>
+        <li><b>Schema-driven tooling.</b> Generated TypeScript types, autocompletion in IDEs, schema introspection for tooling.</li>
+      </ul>
+      <p><b>Bites:</b></p>
+      <ul>
+        <li><b>Caching.</b> POST request, opaque body &mdash; HTTP caches don&rsquo;t help. APQ (Apollo Persisted Queries) and HTTP GET-with-hash recover some of it.</li>
+        <li><b>N+1.</b> A query for &ldquo;100 users with their posts&rdquo; naively hits the DB 101 times. <b>DataLoader</b> (per-request batching + caching) is non-optional.</li>
+        <li><b>Rate limiting.</b> &ldquo;100 req/min&rdquo; is meaningless when one query can fan out to a million resolver calls. Need <b>query cost analysis</b> &mdash; estimate complexity, deny expensive queries.</li>
+        <li><b>Federation overhead.</b> Apollo Gateway adds a hop, complicates tracing, and the query planner is non-trivial.</li>
+        <li><b>Schema as a contract is harder to evolve.</b> Removing a field can break clients you don&rsquo;t know about; tooling helps but the graph is global.</li>
+      </ul>
+      <p><b>Heuristic:</b> if you have &ge;3 distinct clients with diverging needs &mdash; GraphQL is worth it. Two clients &mdash; just write two REST endpoints.</p>
+    </div></details>
+
+    <details class="qa"><summary>What does gRPC give you that REST doesn&rsquo;t, and what doesn&rsquo;t it?</summary><div class="ans">
+      <p><b>gRPC strengths:</b></p>
+      <ul>
+        <li><b>Binary efficiency.</b> Protobuf is 5&ndash;10x smaller and faster to serialize than JSON. Matters for high-RPC east-west traffic.</li>
+        <li><b>HTTP/2 multiplexing.</b> Multiple concurrent streams over one connection; head-of-line blocking absent.</li>
+        <li><b>Streaming, four flavors:</b> unary, server-streaming, client-streaming, bidi-streaming. Real two-way conversation possible.</li>
+        <li><b>Schema-first.</b> <code>.proto</code> is the contract; codegen produces client/server stubs in 10+ languages.</li>
+        <li><b>Built-in deadlines, cancellation, metadata.</b></li>
+      </ul>
+      <p><b>gRPC weaknesses:</b></p>
+      <ul>
+        <li><b>Browsers don&rsquo;t natively speak gRPC.</b> grpc-web exists but adds a proxy hop and limits some features. Not a great edge protocol.</li>
+        <li><b>Debuggability.</b> Binary on the wire; need <code>grpcurl</code> instead of <code>curl</code>; logging/inspection more complex.</li>
+        <li><b>Schema evolution discipline.</b> Protobuf rules (don&rsquo;t reuse field numbers, use reserved, etc.) need to be followed; tooling helps, but a wrong move breaks consumers.</li>
+        <li><b>Operational maturity ecosystem (rate limiting, gateways) is REST-leaning;</b> gRPC equivalents exist but are thinner.</li>
+      </ul>
+      <p><b>Heuristic:</b> internal RPC between services where you control both sides &mdash; gRPC. Public API &mdash; REST or GraphQL. Mixed: gRPC east-west + REST/GraphQL gateway at the edge.</p>
+    </div></details>
+
+    <details class="qa"><summary>What are the strategies for API versioning, and which is best?</summary><div class="ans">
+      <p>Three main approaches:</p>
+      <ul>
+        <li><b>URI versioning:</b> <code>/v1/orders</code>, <code>/v2/orders</code>. Most visible, most common, easiest to debug. Encourages whole-API version bumps when only one resource changed.</li>
+        <li><b>Header versioning:</b> <code>API-Version: 2</code> or <code>Accept: application/vnd.acme.v2+json</code>. URI is stable; clients negotiate. Cleaner conceptually, harder to discover.</li>
+        <li><b>Content negotiation / media type versioning:</b> versioning at the resource representation level. Most &ldquo;RESTful&rdquo; per Fielding; rarely seen in practice.</li>
+      </ul>
+      <p><b>The orthogonal answer: don&rsquo;t version, evolve.</b> Stripe is the canonical example: tiny additive changes (new fields with defaults), date-based versions on the rare breaking change, multi-year deprecation cadence. Most APIs would benefit from this discipline.</p>
+      <p><b>Practical rules:</b></p>
+      <ul>
+        <li>Additive changes don&rsquo;t need a version bump &mdash; clients ignore unknown fields.</li>
+        <li>Removal / breaking changes get a new version + a deprecation window (12&ndash;24 months for serious APIs).</li>
+        <li>Sunset headers (<code>Sunset: Wed, 11 Nov 2026 23:59:59 GMT</code>) signal upcoming removal.</li>
+      </ul>
+      <p><b>Anti-pattern:</b> bumping the URI on every release. <code>/v17/orders</code> is operational trauma for everyone.</p>
+    </div></details>
+
+    <details class="qa"><summary>What is BFF (Backend-for-Frontend) and when do you build one?</summary><div class="ans">
+      <p>Per-client backend layer. The mobile app talks to <code>mobile-bff</code>; the web app talks to <code>web-bff</code>; partners talk to <code>partner-bff</code>. Each BFF aggregates and tailors the underlying services to its client&rsquo;s exact needs.</p>
+      <p><b>Why:</b></p>
+      <ul>
+        <li>Mobile wants slim payloads, fewer round-trips (cellular latency).</li>
+        <li>Web can do many parallel fetches.</li>
+        <li>Partners need a stable contract you don&rsquo;t change without notice.</li>
+        <li>Different auth flows, different rate limits, different error shapes.</li>
+      </ul>
+      <p><b>Owned by the client team.</b> The mobile team owns mobile-bff. Avoids the &ldquo;backend team prioritizes mobile vs web&rdquo; political loop.</p>
+      <p><b>When to skip:</b> single client, simple aggregation needs &mdash; one general API is fine. BFFs add a hop and operational surface; only justified by real client divergence.</p>
+      <p><b>Composability:</b> BFF is often thin GraphQL (Apollo) or hand-written aggregator. The pattern is the structure, not the technology.</p>
+    </div></details>
+
+    <details class="qa"><summary>When do you reach for SSE vs WebSockets vs webhooks?</summary><div class="ans">
+      <ul>
+        <li><b>SSE (Server-Sent Events):</b> server-to-client one-way stream over HTTP. Simple to implement (Content-Type: text/event-stream); browsers support natively (<code>EventSource</code>); works through proxies and CDNs better than WebSocket. <b>Use when:</b> server pushes events to a connected client, no client-to-server other than the initial GET. Live tickers, notifications, log tails.</li>
+        <li><b>WebSocket:</b> full-duplex over a single TCP connection. Use when both directions need low-latency push: chat, collaborative editing, multiplayer games, trading UIs. Pay attention to scaling &mdash; long-lived connections pin to a server, complicating load balancing.</li>
+        <li><b>Webhook:</b> server-to-server async push. Service A POSTs to Service B&rsquo;s URL when an event happens. Use for partner integration, async notifications across orgs. Reliability requires explicit retry + dead-lettering + signature verification.</li>
+        <li><b>Long polling:</b> HTTP GET that hangs until a result is ready or timeout. Pre-WebSocket workaround; rarely the right choice today, occasional use behind restrictive networks.</li>
+      </ul>
+      <p><b>Default rule of thumb:</b> SSE if you only push server-to-client; WebSocket if you need both ways; webhooks for service-to-service async.</p>
+    </div></details>
+
+    <details class="qa"><summary>What is AsyncAPI and what does it solve?</summary><div class="ans">
+      <p>OpenAPI describes synchronous REST contracts. AsyncAPI describes <b>asynchronous, event-driven contracts</b> &mdash; the equivalent for Kafka topics, MQTT, AMQP, WebSocket. Same shape: machine-readable spec, schema definitions, codegen, doc generation.</p>
+      <p>The use case: you have an event-driven system; producers and consumers need to know what events look like, what topics carry what types, what the headers are. Without AsyncAPI it&rsquo;s tribal knowledge. With it, you have a versioned contract, codegenable types, generated docs, and CI checks.</p>
+      <p><b>Adoption is patchy</b> compared to OpenAPI &mdash; it&rsquo;s newer (2017), and the event-driven world has more vendors-per-protocol. Worth it for serious EDA shops; overkill for a couple of Kafka topics.</p>
+    </div></details>
+
+    <details class="qa"><summary>What does mTLS buy you for service-to-service?</summary><div class="ans">
+      <p>Mutual TLS &mdash; both sides present certificates. The server validates the client&rsquo;s cert as well as vice versa. You get:</p>
+      <ul>
+        <li><b>Authentication</b> &mdash; the server knows which service is calling, by certificate identity, not just &ldquo;who has the API key.&rdquo;</li>
+        <li><b>Encryption</b> &mdash; everything end-to-end, even on internal networks.</li>
+        <li><b>Cryptographic identity</b> &mdash; the cert is the identity; rotation and revocation are key operations.</li>
+      </ul>
+      <p><b>The hard part:</b> certificate management. Issuance, rotation, revocation, distribution. Service mesh sidecars (Istio, Linkerd) handle this transparently &mdash; the sidecar terminates mTLS and the app speaks plain HTTP locally. SPIFFE / SPIRE provide a workload identity model that&rsquo;s mesh-agnostic.</p>
+      <p>Standalone mTLS without a mesh works but is operationally tedious. If you&rsquo;re going to do mTLS broadly, do it via a mesh.</p>
+    </div></details>
+
+    <details class="qa"><summary>How should you design idempotency keys for client-supplied requests?</summary><div class="ans">
+      <p>Header convention: <code>Idempotency-Key: &lt;UUID-or-hash&gt;</code> on POST/PUT/PATCH requests. Server stores: <code>(idempotency_key, request_hash, response, ts)</code>. On retry:</p>
+      <ul>
+        <li>Same key + same body &rarr; return stored response.</li>
+        <li>Same key + different body &rarr; <code>409 Conflict</code> &mdash; client is misusing the key.</li>
+        <li>New key &rarr; process normally.</li>
+      </ul>
+      <p>Stripe&rsquo;s implementation is the reference. They store responses for 24h. Their docs explicitly cover the &ldquo;what if the client retried with a different body&rdquo; case.</p>
+      <pre><code><span class="t">POST</span> /charges
+<span class="t">Idempotency-Key</span>: <span class="s">"550e8400-e29b-41d4-a716-446655440000"</span>
+<span class="t">Content-Type</span>: application/json
+
+{<span class="s">"amount"</span>: <span class="n">2000</span>, <span class="s">"currency"</span>: <span class="s">"usd"</span>, ...}</code></pre>
+      <p><b>Server-side storage tactics:</b> Redis with TTL for hot path, Postgres unique constraint as backstop. Hash the request body to detect mismatched retries.</p>
+      <div class="probing"><b>Probing:</b> &ldquo;how do you handle network retries to your payment endpoint?&rdquo; The senior answer mentions Idempotency-Key + body hash + retention window. Junior: &ldquo;the client should know not to retry.&rdquo;</div>
+    </div></details>
+
+    <details class="qa"><summary>What are JSON-RPC and OpenRPC for, and why are they less common?</summary><div class="ans">
+      <p>JSON-RPC: a tiny RPC-over-HTTP spec &mdash; method name + params + id; response carries result or error. Think gRPC&rsquo;s ergonomics with JSON instead of protobuf. Used in Ethereum nodes, some internal RPC stacks.</p>
+      <p>OpenRPC: schema description for JSON-RPC &mdash; the OpenAPI equivalent.</p>
+      <p><b>Why uncommon:</b> they sit in an awkward middle. REST gives you HTTP semantics (caching, status codes). gRPC gives you binary efficiency. JSON-RPC gives you neither &mdash; it&rsquo;s &ldquo;RPC over HTTP&rdquo; with HTTP&rsquo;s envelope mostly ignored.</p>
+      <p><b>Where it makes sense:</b> simple internal RPC where you don&rsquo;t want gRPC&rsquo;s tooling overhead; legacy systems that already use it.</p>
+    </div></details>
+
+    <details class="qa"><summary>How does API rate limiting actually work for diverse clients?</summary><div class="ans">
+      <p>Multiple dimensions, often layered:</p>
+      <ul>
+        <li><b>Per-API-key / per-tenant:</b> token bucket with capacity and refill rate. Different tiers &rarr; different rates.</li>
+        <li><b>Per-IP:</b> defense against unauthenticated traffic, bots.</li>
+        <li><b>Per-endpoint:</b> expensive endpoints (search, export) get tighter limits.</li>
+        <li><b>Concurrency limits:</b> in-flight cap, not just rate. Useful for long-running endpoints.</li>
+        <li><b>Cost-based limits:</b> for GraphQL or APIs with variable per-request work, cost-per-query estimation.</li>
+      </ul>
+      <p><b>Headers:</b> standard practice is <code>X-RateLimit-Limit</code>, <code>X-RateLimit-Remaining</code>, <code>X-RateLimit-Reset</code>. <code>Retry-After</code> on <code>429</code>. Stripe and GitHub set good examples.</p>
+      <p><b>Implementation:</b> Redis-backed token buckets; sliding window; or platform features (Cloudflare, AWS WAF). Distributed token-bucket has subtleties (across-pod consistency); single-Redis with Lua is the simple correct approach.</p>
+      <p>(Detailed depth on rate-limiting algorithms lives in the resilience companion.)</p>
+    </div></details>
+
+    <details class="qa"><summary>What is HATEOAS, and does anyone actually use it?</summary><div class="ans">
+      <p>Hypermedia As The Engine Of Application State: API responses include links the client follows; clients don&rsquo;t hardcode URIs or know workflow.</p>
+      <pre><code>{
+  <span class="s">"orderId"</span>: <span class="s">"123"</span>, <span class="s">"status"</span>: <span class="s">"pending"</span>,
+  <span class="s">"_links"</span>: {
+    <span class="s">"self"</span>:    {<span class="s">"href"</span>: <span class="s">"/orders/123"</span>},
+    <span class="s">"cancel"</span>:  {<span class="s">"href"</span>: <span class="s">"/orders/123/cancel"</span>, <span class="s">"method"</span>: <span class="s">"POST"</span>},
+    <span class="s">"pay"</span>:     {<span class="s">"href"</span>: <span class="s">"/orders/123/payments"</span>, <span class="s">"method"</span>: <span class="s">"POST"</span>}
+  }
+}</code></pre>
+      <p><b>The promise:</b> clients are thin and discover capabilities at runtime; servers can rearrange URIs without breaking clients.</p>
+      <p><b>The reality:</b> almost no one does this. Mobile clients want predictable URIs for offline queueing; SDKs are typed and codegen&rsquo;d from OpenAPI; the dynamic discovery rarely outweighs the cost.</p>
+      <p>Where it kind of survives: HAL+JSON / Spring HATEOAS for internal APIs; Stripe and others include <code>next_url</code> for pagination, which is a minimal HATEOAS application that&rsquo;s genuinely useful.</p>
+      <div class="probing"><b>Probing:</b> &ldquo;is your API HATEOAS?&rdquo; If you say yes, the interviewer will ask which clients consume the links dynamically. The answer is usually &ldquo;none,&rdquo; which is the right pragmatic answer &mdash; HATEOAS in production is rare.</div>
+    </div></details>
+
+  </div>
+</section>
+
+<!-- SECTION 8: SERVICE MESH -->
+<section id="mesh" data-accent="mesh">
+  <div class="wrap">
+    <span class="kicker">&sect; 08 &nbsp;Service meshes</span>
+    <h2 style="margin-top:.7rem">A platform feature pretending to be infra.</h2>
+    <p class="lede" style="margin-bottom:1.4rem">Service meshes solve real problems &mdash; mTLS, retries, traffic shifting, observability &mdash; at the network layer instead of inside every service. They also bring a control plane, sidecars on every pod, and a non-trivial operational surface. The interviewer wants you to know when the mesh tax is justified, when it&rsquo;s yak-shaving, and the eBPF wave that&rsquo;s eating sidecars.</p>
+
+    <div class="callout">
+      <span class="heading">Concept &middot; Sidecars and the data/control plane</span>
+      Classic mesh: each service pod runs a <b>sidecar proxy</b> (Envoy in Istio, a Rust proxy in Linkerd2). All in/out traffic goes through the sidecar. The sidecar handles mTLS, retries, timeouts, circuit breakers, observability &mdash; uniformly across all services regardless of language.
+      <br/><br/>
+      The <b>control plane</b> (istiod, Linkerd&rsquo;s control plane) configures the data plane: distributing certs, pushing traffic policies, collecting metrics. It&rsquo;s the thing that makes the sidecars coordinated. The mesh tax = sidecar overhead per pod (CPU, memory, latency) + control plane operational complexity (upgrades, debugging, certificate rotation).
+    </div>
+
+    <details class="qa"><summary>What problems does a service mesh actually solve?</summary><div class="ans">
+      <p>Five concrete capabilities, delivered uniformly across services regardless of language or framework:</p>
+      <ul>
+        <li><b>mTLS everywhere</b> &mdash; encryption + identity for east-west traffic, automatic cert rotation.</li>
+        <li><b>Traffic management</b> &mdash; canary deploys (1% &rarr; 10% &rarr; 100%), blue/green, traffic mirroring (shadow traffic for testing), header-based routing.</li>
+        <li><b>Resilience policies</b> &mdash; per-route timeouts, retries with budgets, circuit breakers, outlier detection.</li>
+        <li><b>Observability</b> &mdash; uniform metrics (RED: rate, errors, duration), distributed tracing, access logs without app instrumentation.</li>
+        <li><b>Authorization policies</b> &mdash; &ldquo;service A can call /v1/orders on service B but not /admin&rdquo; expressed as policy, enforced at the proxy.</li>
+      </ul>
+      <p>Without a mesh, you implement these in shared libraries (Hystrix, Resilience4j, Finagle&rsquo;s Stack) per language. With a mesh, the platform handles it once.</p>
+    </div></details>
+
+    <details class="qa"><summary>Istio vs Linkerd2 vs Consul Connect &mdash; how do they differ?</summary><div class="ans">
+      <ul>
+        <li><b>Istio:</b> Envoy data plane. Most feature-rich (rich traffic policies, multiple ingress modes, multi-cluster, VM workloads). Highest operational complexity. The &ldquo;enterprise&rdquo; mesh.</li>
+        <li><b>Linkerd2:</b> Rust micro-proxy data plane (custom, not Envoy). Smaller resource footprint, simpler architecture, opinionated defaults. Loved for its operational simplicity. Fewer extension points than Istio.</li>
+        <li><b>Consul Connect:</b> mesh layer on top of HashiCorp Consul service discovery. Strong fit if you&rsquo;re already a Consul shop or running across non-Kubernetes infra. Less Kubernetes-native than Istio/Linkerd.</li>
+        <li><b>Cilium Service Mesh (eBPF):</b> the new wave &mdash; sidecar-less, kernel-level. See below.</li>
+      </ul>
+      <p><b>Pick by complexity tolerance:</b> Linkerd2 if you want a mesh that mostly self-operates; Istio if you need its richer feature set and have a team to operate it; Cilium if you&rsquo;re willing to bet on eBPF and your team is comfortable in kernel land.</p>
+    </div></details>
+
+    <details class="qa"><summary>What is the &ldquo;do you actually need a mesh&rdquo; question?</summary><div class="ans">
+      <p>The honest cost-benefit:</p>
+      <ul>
+        <li><b>5 services, single team, single language:</b> mesh is overkill. A library (Resilience4j + OpenTelemetry agent + jib mTLS plumbing) is simpler.</li>
+        <li><b>20-50 services, multiple teams, polyglot:</b> mesh starts paying off. You can&rsquo;t maintain N language libraries; the mesh standardizes.</li>
+        <li><b>100+ services, many teams, regulated environment:</b> mesh is essentially mandatory. mTLS-everywhere as a compliance baseline; uniform policy enforcement.</li>
+      </ul>
+      <p>The crossover is somewhere around &ldquo;you cannot ship a consistent retry policy across all services in a single sprint.&rdquo; Below that, libraries beat the mesh tax. Above it, mesh wins.</p>
+      <p><b>Common mistake:</b> a 4-service team installing Istio because &ldquo;microservices.&rdquo; Two months later, they&rsquo;ve had three incidents caused by sidecar config and zero from the things sidecars are supposed to prevent.</p>
+      <div class="probing"><b>Probing:</b> &ldquo;would you install Istio for our 6-service stack?&rdquo; Senior answer: probably not yet; here&rsquo;s the threshold I&rsquo;d wait for. Junior: &ldquo;yes, mTLS!&rdquo;</div>
+    </div></details>
+
+    <details class="qa"><summary>What does the eBPF mesh wave (Cilium) change?</summary><div class="ans">
+      <p>eBPF lets you run safe, sandboxed programs in the Linux kernel. Cilium uses eBPF to <b>replace sidecars entirely</b> for many features: kernel-level packet steering, mTLS termination at the host (not per-pod), L7 policy enforcement &mdash; all without an in-pod proxy.</p>
+      <p><b>Wins:</b></p>
+      <ul>
+        <li><b>No sidecar overhead</b> per pod &mdash; lower memory, less CPU, lower latency.</li>
+        <li><b>One node-level proxy</b> instead of one-per-pod, simpler operationally.</li>
+        <li><b>Kernel-level visibility</b> &mdash; observability without packet tax of userspace proxy.</li>
+      </ul>
+      <p><b>Costs:</b></p>
+      <ul>
+        <li>eBPF programs are kernel-version-sensitive; older kernels (still common in enterprise) lack features.</li>
+        <li>Less flexibility than Envoy for L7 features &mdash; advanced HTTP filtering still wants a userspace proxy.</li>
+        <li>Debugging eBPF programs is harder than reading Envoy logs.</li>
+      </ul>
+      <p><b>Direction of the field:</b> Cilium is increasingly the default CNI for new clusters; sidecar meshes are likely to keep losing share to eBPF or hybrid (eBPF for L4, ambient/sidecar for L7) approaches over the next few years.</p>
+    </div></details>
+
+    <details class="qa"><summary>What is Istio &ldquo;ambient mode&rdquo;?</summary><div class="ans">
+      <p>Istio&rsquo;s response to the eBPF challenge. Two-layer architecture:</p>
+      <ul>
+        <li><b>ztunnel (zero-trust tunnel):</b> a node-level shared proxy (per-node, not per-pod) that handles L4 mTLS for all pods on the node. Replaces the sidecar for the basic encryption case.</li>
+        <li><b>Waypoint proxy:</b> per-namespace (or per-service-account) Envoy instance, optional, opt-in for L7 features (advanced routing, authorization on HTTP semantics).</li>
+      </ul>
+      <p>Result: sidecar-less by default; optional Envoy where you actually need L7. Lower resource footprint than classic Istio; less radical than full eBPF; same control plane as Istio sidecar mode (you can mix).</p>
+      <p>Reached &ldquo;beta&rdquo; in late 2023, GA in 2024. Still maturing operationally; adoption uneven.</p>
+    </div></details>
+
+    <details class="qa"><summary>What are the operational failure modes of a service mesh?</summary><div class="ans">
+      <ul>
+        <li><b>Control plane outage.</b> If istiod is down, sidecars run on cached config &mdash; existing traffic works, but new pods can&rsquo;t join, new policies don&rsquo;t propagate. Recovery procedure must be rehearsed.</li>
+        <li><b>Cert rotation gone wrong.</b> A misconfigured CA renewal can lock everyone out at once. Stagger rotations; test in non-prod; have a manual cert-injection path.</li>
+        <li><b>Sidecar startup race.</b> The app starts before the sidecar is ready; first requests bypass the mesh or fail. Solved by init containers and proper ordering, but easy to break.</li>
+        <li><b>Sidecar resource pressure.</b> Envoy&rsquo;s CPU/memory ceiling becomes the pod&rsquo;s ceiling under load; under-provisioning the sidecar throttles the app.</li>
+        <li><b>Upgrade churn.</b> Istio versions deprecate features and require re-test; major upgrades have caused outages at large shops.</li>
+        <li><b>Debugging across the mesh.</b> Is the failure in the app, the sidecar, the policy, or the network? Adds investigation steps.</li>
+      </ul>
+      <p>The cost is real. It&rsquo;s justified at scale; it&rsquo;s an own-goal at small scale.</p>
+    </div></details>
+
+    <details class="qa"><summary>How does a mesh do canary releases?</summary><div class="ans">
+      <p>Define a <b>VirtualService</b> (Istio) or equivalent split rule: 95% of traffic goes to the stable subset, 5% to the canary subset. Subsets are usually pods labeled by version.</p>
+      <pre><code><span class="k">apiVersion</span>: networking.istio.io/v1beta1
+<span class="k">kind</span>: <span class="t">VirtualService</span>
+<span class="k">spec</span>:
+  <span class="k">hosts</span>: [<span class="s">checkout</span>]
+  <span class="k">http</span>:
+    - <span class="k">route</span>:
+        - <span class="k">destination</span>: { <span class="k">host</span>: checkout, <span class="k">subset</span>: stable }
+          <span class="k">weight</span>: <span class="n">95</span>
+        - <span class="k">destination</span>: { <span class="k">host</span>: checkout, <span class="k">subset</span>: canary }
+          <span class="k">weight</span>: <span class="n">5</span></code></pre>
+      <p>Pair with an automation: progressive delivery tools (Argo Rollouts, Flagger) watch SLI metrics (error rate, latency) and step the weight up if healthy, roll back if not. The mesh provides the routing primitive; the controller provides the policy.</p>
+      <p><b>Header-based routing:</b> &ldquo;send my user&rsquo;s requests to canary, everyone else to stable&rdquo; &mdash; useful for opt-in dogfooding by employees or specific test accounts.</p>
+    </div></details>
+
+    <details class="qa"><summary>How does mTLS rotation actually work in practice?</summary><div class="ans">
+      <p>Standard mesh approach (Istio):</p>
+      <ul>
+        <li>Control plane runs an internal CA (Citadel/istiod). Workload certs are short-lived (default ~24h).</li>
+        <li>Sidecar fetches a new cert before the old one expires, transparently.</li>
+        <li>Workload identity is the SPIFFE ID baked into the cert &mdash; e.g. <code>spiffe://cluster.local/ns/foo/sa/bar</code>.</li>
+        <li>Root CA cert rotation is rarer (months/years) and the dangerous one &mdash; mishandled, it locks everyone out. Cross-signing for graceful root rotation.</li>
+      </ul>
+      <p><b>Operational reality:</b> 95% of cert rotations &ldquo;just work&rdquo; in a mature mesh; the remaining 5% are the painful ones. Test the rotation drill in a non-prod cluster before you trust it in prod.</p>
+    </div></details>
+
+    <details class="qa"><summary>What does a mesh NOT solve that people expect it to?</summary><div class="ans">
+      <ul>
+        <li><b>Application-layer business logic.</b> The mesh sees HTTP; it doesn&rsquo;t understand your domain. Saga compensation, idempotency, business retries &mdash; still your code.</li>
+        <li><b>Schema evolution.</b> The mesh ferries your bytes; it doesn&rsquo;t care if the schema changed.</li>
+        <li><b>Authentication for end users.</b> Mesh mTLS authenticates services to each other; user auth (OAuth, OIDC, JWT) is still at the app or gateway.</li>
+        <li><b>Asynchronous messaging.</b> Sidecars cover HTTP / gRPC; Kafka traffic is often outside the mesh (some meshes have broker integrations; usually limited).</li>
+        <li><b>Database connections.</b> Postgres traffic is TCP, often unencrypted-from-app even with a mesh; need explicit DB TLS / certs.</li>
+        <li><b>Cross-cluster traffic without explicit setup.</b> Multi-cluster meshes exist (Istio multi-primary, Linkerd multi-cluster) but require explicit configuration; not zero-touch.</li>
+      </ul>
+      <p>The mesh is one layer of defense; not a panacea. Pair with app-level resilience patterns (see resilience companion) and gateway-level concerns (auth, rate limiting).</p>
+    </div></details>
+
+    <details class="qa"><summary>What&rsquo;s the relationship between mesh and API gateway?</summary><div class="ans">
+      <p>Different layers:</p>
+      <ul>
+        <li><b>API gateway:</b> north-south &mdash; external-to-internal. TLS, auth, rate limiting, request shaping for end users / partners.</li>
+        <li><b>Service mesh:</b> east-west &mdash; internal-to-internal. mTLS, retries, traffic shifting between services.</li>
+      </ul>
+      <p>They&rsquo;re complementary. The gateway terminates external TLS, validates user JWTs, rate-limits per consumer; the mesh handles cert-based service identity, internal retries, traffic policies.</p>
+      <p>Some products try to do both (Istio Ingress Gateway, Envoy Gateway, Kong&rsquo;s Mesh). The unified story is appealing; in practice teams often run a dedicated edge gateway (Cloudflare, AWS API Gateway, Kong) plus a mesh for east-west, because the use cases are different and the failure domains don&rsquo;t want to be coupled.</p>
+    </div></details>
+
+    <details class="qa"><summary>How do you observe a mesh without drowning in metrics?</summary><div class="ans">
+      <p>The mesh emits per-route metrics for every service-to-service hop. With 50 services, you get N&times;N route cardinality &mdash; thousands of timeseries. Storage cost balloons; dashboards become unreadable.</p>
+      <p><b>Discipline:</b></p>
+      <ul>
+        <li><b>Recording rules / aggregation:</b> roll up per-service metrics, keep per-route only for high-importance routes.</li>
+        <li><b>RED at the service level (rate / errors / duration), USE at the resource level</b> &mdash; not every-route everywhere.</li>
+        <li><b>Sampling for traces:</b> head-based 1% + tail-based for errors / slow traces. 100% trace sampling on a busy mesh is unaffordable.</li>
+        <li><b>SLO-driven alerts</b>: alert on burn rate of error budget, not raw error rate.</li>
+      </ul>
+      <p>The mesh gives you data; making it useful requires curation. Treat it as a discipline, not an emergent property.</p>
+    </div></details>
+
+    <details class="qa"><summary>Do you put databases behind the mesh?</summary><div class="ans">
+      <p>Usually no. Reasons:</p>
+      <ul>
+        <li>DBs use TCP, not HTTP &mdash; mesh L7 features don&rsquo;t apply.</li>
+        <li>DB clients use their own TLS (Postgres SSL, MySQL TLS) &mdash; double-encrypted is wasteful.</li>
+        <li>DBs run outside Kubernetes (RDS, Cloud SQL, Aurora) &mdash; the mesh control plane doesn&rsquo;t reach them.</li>
+        <li>Connection pooling at the app level interacts oddly with sidecar lifecycle.</li>
+      </ul>
+      <p>Standard practice: app-to-DB uses direct TLS with DB-native auth (cert auth, IAM auth, password). Mesh handles app-to-app; the database is its own auth domain.</p>
+      <p>For redis/memcached: same logic. TCP, native TLS where supported (Redis 6+ TLS), no sidecar.</p>
+    </div></details>
+
+  </div>
+</section>
+
+<!-- RAPID FIRE -->
+<section id="rapid">
+  <div class="wrap">
+    <span class="kicker">&sect; 09 &nbsp;Rapid-fire round</span>
+    <h2 style="margin-top:.7rem">One sentence each. Staff phone-screen catnip.</h2>
+    <p class="lede" style="margin-bottom:1.6rem">The terms a recruiter or first-pass interviewer fires at you in five minutes. Have a one-line answer for each.</p>
+
+    <div class="rapid">
+      <table>
+        <thead><tr><th>Question</th><th>Answer</th></tr></thead>
+        <tbody>
+          <tr><td>Idempotent vs nullipotent?</td><td>Idempotent: same effect on repeated calls (PUT). Nullipotent: <i>no</i> effect on subsequent calls (GET).</td></tr>
+          <tr><td>What does a sidecar buy you?</td><td>Cross-cutting platform features (mTLS, retries, observability) without baking them into every service.</td></tr>
+          <tr><td>Saga vs 2PC?</td><td>Saga: long-running, async, with compensating actions. 2PC: synchronous, locks, coordinator SPOF.</td></tr>
+          <tr><td>JWT vs opaque token?</td><td>JWT: self-contained, stateless verification. Opaque: opaque blob, requires lookup against the issuer.</td></tr>
+          <tr><td>What is BFF?</td><td>Backend-for-Frontend &mdash; per-client API tailored to one consumer&rsquo;s needs (mobile, web, partner).</td></tr>
+          <tr><td>What is an aggregate root?</td><td>The single entry point of an aggregate, enforcing invariants across the cluster of objects it owns.</td></tr>
+          <tr><td>Choreography vs orchestration?</td><td>Choreography: services react to events with no central coordinator. Orchestration: a central process calls each step.</td></tr>
+          <tr><td>What does CQRS stand for?</td><td>Command-Query Responsibility Segregation &mdash; separate models for write and read.</td></tr>
+          <tr><td>Hot vs cold flux?</td><td>Cold: produces data per-subscriber. Hot: produces regardless; subscribers see what arrives after subscribing.</td></tr>
+          <tr><td>What is event sourcing?</td><td>Persist state as an append-only log of events; current state is a fold over the log.</td></tr>
+          <tr><td>What is the strangler fig pattern?</td><td>Incremental migration: route slices of traffic from the legacy to a new service, growing coverage until the legacy is dead.</td></tr>
+          <tr><td>What is back-pressure?</td><td>Demand-driven flow control: consumer signals the producer how much it can handle.</td></tr>
+          <tr><td>What is a bounded context?</td><td>A linguistic boundary inside which terms have one meaning; integration across contexts uses an explicit map.</td></tr>
+          <tr><td>What does HATEOAS stand for?</td><td>Hypermedia As The Engine Of Application State &mdash; clients follow links rather than hardcode URIs.</td></tr>
+          <tr><td>Cold start?</td><td>First invocation in a new serverless container; pays init cost (50ms&ndash;1.5s depending on runtime).</td></tr>
+          <tr><td>What is an outbox?</td><td>Pattern: write the message into an outbox table in the same transaction as state; a separate poller publishes it.</td></tr>
+          <tr><td>What is a dead-letter queue?</td><td>Sink for messages that exceeded retry attempts; preserves them for manual triage instead of dropping.</td></tr>
+          <tr><td>Pool vs silo tenancy?</td><td>Pool: shared infra, tenant_id columns. Silo: dedicated infra per tenant.</td></tr>
+          <tr><td>SSE vs WebSocket?</td><td>SSE: one-way server-to-client over HTTP. WebSocket: full-duplex over a single TCP connection.</td></tr>
+          <tr><td>What is mTLS?</td><td>Mutual TLS &mdash; both endpoints authenticate via certificate; common for service-to-service identity.</td></tr>
+          <tr><td>What is a published language?</td><td>The DDD term for a stable, documented protocol that an Open Host Service exposes to many consumers.</td></tr>
+          <tr><td>What does Conway&rsquo;s Law say?</td><td>Systems mirror the communication structure of the org that builds them &mdash; team boundaries become architectural ones.</td></tr>
+          <tr><td>What is an anemic domain model?</td><td>Domain objects with no behavior &mdash; just data bags &mdash; while logic lives in service classes that mutate them.</td></tr>
+          <tr><td>What are reactive programming&rsquo;s four properties?</td><td>Responsive, resilient, elastic, message-driven (the Reactive Manifesto).</td></tr>
+          <tr><td>Why is Lambda + RDS without proxy bad?</td><td>Each container opens its own connection; concurrency bursts drown the DB&rsquo;s max_connections.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div>
+      <div class="colophon">Architecture Patterns &middot; Vol. III &middot; 2026 &middot; Staff &amp; tech-lead drills</div>
+      <div class="print">Set in <i>Fraunces</i>, IBM Plex Sans, IBM Plex Mono. Single self-contained file. Open in any modern browser. Click any code snippet to copy.</div>
+    </div>
+    <div class="muted" style="font-size:12px; max-width:36ch; text-align:right">
+      Treat the answers here as opinionated defaults, not absolutes. Every system is a tradeoff; the goal is to know which trade-off you&rsquo;re making, why it&rsquo;s defensible, and where it breaks. Companion volumes: <code>db-atlas.html</code>, <code>java-fundamentals.html</code>, <code>system-design-lab.html</code>.
+    </div>
+  </div>
+</footer>
+
+<script>
+/* tiny: copy-to-clipboard for code blocks */
+(function(){
+  document.querySelectorAll('pre').forEach(function(pre){
+    var btn = document.createElement('button');
+    btn.className = 'copy-btn';
+    btn.textContent = 'copy';
+    btn.addEventListener('click', function(e){
+      e.stopPropagation();
+      var code = pre.querySelector('code');
+      var text = code ? code.textContent : pre.textContent;
+      if(navigator.clipboard){
+        navigator.clipboard.writeText(text).then(function(){
+          btn.textContent='copied'; btn.classList.add('copied');
+          setTimeout(function(){ btn.textContent='copy'; btn.classList.remove('copied'); }, 1400);
+        });
+      }
+    });
+    pre.appendChild(btn);
+  });
+})();
+</script>
+</body>
+</html>

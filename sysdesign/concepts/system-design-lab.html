@@ -1,0 +1,1635 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>System Design Lab — Top problems, reference solutions, deep dives</title>
+<meta name="description" content="An interactive system-design lab for senior, staff, and tech-lead candidates: 13 canonical problems with reference architectures, deep dives, and interview gotchas." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT,WONK@9..144,300..900,0..100,0..1&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+:root{
+  --ink-0:#0a0c11;
+  --ink-1:#10131b;
+  --ink-2:#161a24;
+  --ink-3:#1d2230;
+  --ink-4:#262c3d;
+  --line:#2b3144;
+  --line-soft:#222636;
+  --paper:#ece6d8;
+  --paper-2:#dcd4c1;
+  --text:#eae6dc;
+  --text-2:#b6b3a8;
+  --text-3:#7d8095;
+  --amber:#e8a45a;
+  --amber-2:#caa067;
+  --teal:#5fb5b1;
+  --rose:#e26d6d;
+  --leaf:#7fb573;
+  --plum:#b58cd9;
+  --shadow: 0 1px 0 rgba(255,255,255,.04), 0 12px 36px -16px rgba(0,0,0,.7);
+  --r-1:6px; --r-2:10px; --r-3:16px;
+  --maxw:1180px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  background:
+    radial-gradient(1100px 700px at 100% -10%, rgba(232,164,90,0.07), transparent 60%),
+    radial-gradient(1000px 700px at -20% 30%, rgba(95,181,177,0.05), transparent 60%),
+    var(--ink-0);
+  color:var(--text);
+  font-family:"IBM Plex Sans","Helvetica Neue",sans-serif;
+  font-size:15.5px;
+  line-height:1.55;
+  -webkit-font-smoothing:antialiased;
+  font-feature-settings:"ss01","ss02","cv11";
+}
+a{color:var(--amber);text-decoration:none;border-bottom:1px solid rgba(232,164,90,.35)}
+a:hover{color:#fff;border-bottom-color:#fff}
+hr{border:0;border-top:1px solid var(--line-soft);margin:2.4rem 0}
+code,kbd,samp,.mono{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.92em}
+.mono{letter-spacing:.01em}
+.eyebrow{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--text-3)}
+h1,h2,h3,h4{font-family:"Fraunces",Georgia,serif;font-weight:600;color:#fff;letter-spacing:-.01em;margin:0 0 .5em}
+h1{font-size:clamp(2.4rem,4.4vw,3.6rem); font-variation-settings:"opsz" 144,"SOFT" 30,"WONK" 1; line-height:1.02; letter-spacing:-.025em}
+h2{font-size:clamp(1.6rem,2.4vw,2.1rem); font-variation-settings:"opsz" 96,"SOFT" 20; line-height:1.1; letter-spacing:-.018em}
+h3{font-size:1.2rem; font-variation-settings:"opsz" 36,"SOFT" 12; letter-spacing:-.01em}
+h4{font-size:1.02rem; font-family:"IBM Plex Sans"; text-transform:uppercase; letter-spacing:.12em; color:var(--text-2)}
+p{margin:0 0 .9em}
+.lede{font-family:"Fraunces",Georgia,serif; font-variation-settings:"opsz" 24,"SOFT" 30; font-size:1.18rem; line-height:1.45; color:var(--text-2); max-width:64ch}
+em{font-style:italic;color:#fff}
+strong{color:#fff;font-weight:600}
+section{padding:4.4rem 0; border-top:1px solid var(--line-soft); position:relative}
+section:first-of-type{border-top:0}
+.wrap{max-width:var(--maxw); margin:0 auto; padding:0 1.6rem}
+.label{font-family:"IBM Plex Mono",monospace; font-size:11px; color:var(--text-3); letter-spacing:.18em; text-transform:uppercase}
+.kicker{display:inline-block; font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.22em; text-transform:uppercase; color:var(--amber); padding:.32rem .6rem; border:1px solid rgba(232,164,90,.4); border-radius:99px}
+
+/* nav */
+.topbar{position:sticky; top:0; z-index:50; backdrop-filter:saturate(140%) blur(12px); background:rgba(10,12,17,.82); border-bottom:1px solid var(--line-soft)}
+.topbar .row{display:flex;align-items:center;gap:1rem; padding:.85rem 1.6rem; max-width:var(--maxw); margin:0 auto}
+.brand{font-family:"Fraunces",serif; font-variation-settings:"opsz" 96,"SOFT" 30,"WONK" 1; font-size:1.18rem; letter-spacing:-.01em}
+.brand .dot{display:inline-block; width:.55rem; height:.55rem; border-radius:50%; background:var(--amber); margin-right:.5rem; transform:translateY(-2px); box-shadow:0 0 0 4px rgba(232,164,90,.18)}
+nav.crumbs{margin-left:auto; display:flex; gap:1rem; flex-wrap:wrap}
+nav.crumbs a{font-family:"IBM Plex Mono",monospace; font-size:11.5px; letter-spacing:.16em; text-transform:uppercase; color:var(--text-2); border-bottom:0}
+nav.crumbs a:hover{color:#fff}
+
+/* cover */
+.cover{padding-top:6rem}
+.cover .grid{display:grid; grid-template-columns: 1.3fr 1fr; gap:3rem; align-items:end}
+@media (max-width:880px){ .cover .grid{grid-template-columns:1fr; gap:2rem} }
+.cover .meta{font-family:"IBM Plex Mono",monospace; color:var(--text-3); font-size:12px; letter-spacing:.16em; text-transform:uppercase}
+.cover .meta .pipe{margin:0 .55rem; opacity:.5}
+.cover h1 em{color:var(--amber); font-style:italic}
+.cover .lede{margin-top:1.6rem}
+.cover .specsheet{border:1px solid var(--line); border-radius:var(--r-2); padding:1.4rem 1.4rem 1rem; background:linear-gradient(180deg,rgba(255,255,255,.012),transparent)}
+.specsheet dl{display:grid; grid-template-columns:auto 1fr; gap:.45rem 1rem; margin:0; font-size:13.5px}
+.specsheet dt{color:var(--text-3); font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.18em; text-transform:uppercase; padding-top:.18rem}
+.specsheet dd{margin:0}
+.specsheet dd b{color:#fff}
+
+/* problem index grid */
+.idxgrid{display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:.6rem; margin-top:1.2rem}
+.idxcard{display:block; border:1px solid var(--line); border-radius:var(--r-2); padding:.8rem .9rem; background:rgba(255,255,255,.012); cursor:pointer; transition:all .18s ease; text-align:left; font-family:inherit; color:inherit}
+.idxcard:hover{border-color:rgba(232,164,90,.55); background:rgba(232,164,90,.05); transform:translateY(-1px)}
+.idxcard .num{font-family:"IBM Plex Mono",monospace; font-size:10.5px; color:var(--text-3); letter-spacing:.18em}
+.idxcard .nm{font-family:"Fraunces",serif; font-variation-settings:"opsz" 36,"SOFT" 20; font-size:1.06rem; color:#fff; margin-top:.15rem; line-height:1.2}
+.idxcard .sub{font-family:"IBM Plex Mono",monospace; font-size:10.5px; color:var(--text-3); letter-spacing:.06em; margin-top:.2rem; text-transform:uppercase}
+
+/* tab strip */
+.tabstrip{position:sticky; top:53px; z-index:40; background:rgba(10,12,17,.94); backdrop-filter:saturate(140%) blur(10px); border-bottom:1px solid var(--line-soft); padding:.6rem 0}
+.tabstrip .row{max-width:var(--maxw); margin:0 auto; padding:0 1.6rem; display:flex; gap:.35rem; overflow-x:auto; scrollbar-width:thin}
+.tabstrip .row::-webkit-scrollbar{height:6px}
+.tabstrip .row::-webkit-scrollbar-thumb{background:var(--ink-3); border-radius:3px}
+.tab{
+  flex:0 0 auto; background:transparent; border:1px solid var(--line); color:var(--text-2);
+  padding:.4rem .8rem; border-radius:99px; cursor:pointer; white-space:nowrap;
+  font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.12em; text-transform:uppercase;
+  transition:all .15s ease;
+}
+.tab:hover{color:#fff; border-color:var(--text-3)}
+.tab.on{background:var(--amber); color:#1a140a; border-color:var(--amber); font-weight:600}
+.tab .n{opacity:.55; margin-right:.5rem}
+.tab.on .n{opacity:.7}
+
+/* problem panel */
+.panel{display:none; padding:2.6rem 0 1.4rem}
+.panel.on{display:block; animation:fade .25s ease}
+@keyframes fade{from{opacity:0; transform:translateY(4px)} to{opacity:1; transform:none}}
+.panel .ph{display:flex; align-items:flex-start; justify-content:space-between; gap:1.4rem; flex-wrap:wrap; margin-bottom:1.2rem}
+.panel .ph .meta{font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.18em; text-transform:uppercase; color:var(--text-3)}
+.panel h2{margin-top:.35rem; margin-bottom:.2rem}
+.panel .sub{color:var(--text-2); font-family:"Fraunces"; font-style:italic; font-variation-settings:"opsz" 36,"SOFT" 30; margin:0}
+.panel .badges{display:flex; gap:.4rem; flex-wrap:wrap}
+.badge{font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:.16em; text-transform:uppercase; padding:.32rem .55rem; border:1px solid var(--line); border-radius:99px; color:var(--text-2); background:rgba(255,255,255,.014)}
+.badge.ok{color:#cfe9b8; border-color:rgba(127,181,115,.3); background:rgba(127,181,115,.06)}
+.badge.warn{color:#f0c995; border-color:rgba(232,164,90,.35); background:rgba(232,164,90,.06)}
+.badge.bad{color:#f1b3b3; border-color:rgba(226,109,109,.4); background:rgba(226,109,109,.07)}
+.badge.cool{color:#bee0de; border-color:rgba(95,181,177,.3); background:rgba(95,181,177,.06)}
+
+/* problem section blocks */
+.block{border:1px solid var(--line); border-radius:var(--r-3); padding:1.4rem 1.5rem 1.3rem; background:linear-gradient(180deg,rgba(255,255,255,.018),rgba(255,255,255,.004)); margin-bottom:1.2rem; box-shadow:var(--shadow)}
+.block h4{margin:0 0 .5rem}
+.block h3{margin:0 0 .5rem}
+.block .seg-h{display:flex; gap:1rem; align-items:baseline; flex-wrap:wrap; margin-bottom:.4rem}
+.block .seg-h .meta{font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.18em; text-transform:uppercase; color:var(--text-3)}
+.two{display:grid; grid-template-columns: 1.05fr 1fr; gap:1.4rem 2rem}
+@media (max-width:860px){ .two{grid-template-columns:1fr} }
+.framing{display:grid; grid-template-columns: 1.3fr .9fr; gap:1.4rem 2rem; align-items:start}
+@media (max-width:860px){ .framing{grid-template-columns:1fr} }
+.specs dl{display:grid; grid-template-columns:auto 1fr; gap:.4rem 1rem; font-size:13.5px; margin:0}
+.specs dt{color:var(--text-3); font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:.16em; text-transform:uppercase; padding-top:.18rem}
+.specs dd{margin:0; color:var(--text)}
+.specs dd b{color:#fff}
+
+/* diagram */
+.diagram{border:1px solid var(--line); border-radius:var(--r-2); background:rgba(255,255,255,.014); padding:.9rem; margin-top:.6rem}
+.diagram svg{width:100%; height:auto; display:block; max-width:720px; margin:0 auto}
+.legend{display:flex; gap:1rem; flex-wrap:wrap; margin-top:.6rem; font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.06em; color:var(--text-3)}
+.legend span{display:inline-flex; align-items:center; gap:.4rem}
+.legend i{display:inline-block; width:22px; height:0; border-top:2px solid; vertical-align:middle}
+.legend .sync i{border-color:var(--leaf)}
+.legend .async i{border-top-style:dashed; border-color:var(--amber)}
+.legend .data i{border-color:var(--text-3)}
+.diag-node{cursor:pointer}
+.diag-node rect, .diag-node ellipse, .diag-node circle{transition:fill .18s ease, stroke .18s ease, filter .18s ease}
+.diag-node:hover rect, .diag-node:hover ellipse, .diag-node:hover circle{stroke:var(--amber); filter:drop-shadow(0 0 6px rgba(232,164,90,.45))}
+.diag-node.active rect, .diag-node.active ellipse, .diag-node.active circle{stroke:var(--amber); filter:drop-shadow(0 0 6px rgba(232,164,90,.55))}
+.diag-tip{
+  margin-top:.7rem; min-height:1.4rem; padding:.55rem .8rem;
+  border:1px dashed var(--line); border-radius:var(--r-1);
+  background:rgba(232,164,90,.04); font-size:13.5px; color:var(--text-2);
+  transition:opacity .15s ease;
+}
+.diag-tip b{color:#fff}
+.diag-tip.idle{color:var(--text-3); border-style:dashed; background:rgba(255,255,255,.012)}
+
+/* decisions list */
+.decisions{display:grid; gap:.7rem; margin:0; padding:0; list-style:none}
+.decisions li{
+  border:1px solid var(--line); border-radius:var(--r-2);
+  padding:.75rem .95rem; background:rgba(255,255,255,.014);
+}
+.decisions li b.title{color:#fff; font-weight:600}
+.decisions li .why{display:block; margin-top:.25rem; font-size:13.5px; color:var(--text-2)}
+.decisions li .why b{color:#fff}
+.decisions li .why::before{content:"Why · "; font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:.18em; color:var(--amber); text-transform:uppercase; margin-right:.4rem}
+
+/* deep dive boxes */
+.deep{border-left:3px solid var(--amber); padding:.4rem 1rem; margin:.7rem 0; background:rgba(232,164,90,.03); border-radius:0 var(--r-1) var(--r-1) 0}
+.deep h5{font-family:"Fraunces",serif; font-variation-settings:"opsz" 36; font-size:1.08rem; color:#fff; margin:0 0 .35rem}
+.deep p{margin:.3rem 0; font-size:14.2px; color:var(--text-2)}
+.deep p b{color:#fff}
+.deep code{color:var(--paper-2)}
+
+/* callout (learning notes) */
+.callout{
+  border:1px dashed var(--line); border-radius:var(--r-2);
+  padding:.85rem 1.05rem; background:rgba(95,181,177,.04);
+  font-size:14px; color:var(--text-2); margin:.6rem 0;
+}
+.callout b{color:#fff}
+.callout .tag{font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:.18em; color:var(--teal); text-transform:uppercase; margin-right:.5rem}
+
+/* gotcha */
+.gotcha{
+  border-left:2px solid var(--amber);
+  padding:.55rem 1rem; margin:.6rem 0;
+  color:var(--text-2); background:rgba(255,255,255,.018); border-radius:0 var(--r-1) var(--r-1) 0;
+  font-size:13.8px;
+}
+.gotcha b{color:#fff}
+.gotcha .tag{font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:.18em; color:var(--amber); text-transform:uppercase; margin-right:.5rem}
+
+/* Q&A */
+details.qa{border:1px solid var(--line); border-radius:var(--r-2); background:rgba(255,255,255,.012); padding:0; margin:.5rem 0; overflow:hidden}
+details.qa[open]{background:rgba(232,164,90,.04); border-color:rgba(232,164,90,.35)}
+details.qa summary{cursor:pointer; padding:.85rem 1rem; list-style:none; display:flex; gap:.7rem; align-items:center; font-family:"Fraunces",serif; font-variation-settings:"opsz" 36; font-size:1rem; color:#fff}
+details.qa summary::-webkit-details-marker{display:none}
+details.qa summary::before{content:""; width:8px; height:8px; border-right:2px solid var(--amber); border-bottom:2px solid var(--amber); transform:rotate(-45deg); transition:transform .2s ease; flex-shrink:0; margin-left:.2rem}
+details.qa[open] summary::before{transform:rotate(45deg)}
+details.qa .ans{padding:0 1rem 1rem 2rem; color:var(--text-2); font-size:13.8px; line-height:1.55}
+details.qa .ans p{margin:.35rem 0}
+details.qa .ans b{color:#fff}
+
+/* matrix-ish stuff */
+.numgrid{display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:.5rem; margin-top:.5rem}
+.numcell{border:1px solid var(--line); border-radius:var(--r-1); padding:.55rem .7rem; background:rgba(255,255,255,.014)}
+.numcell .k{font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:.16em; text-transform:uppercase; color:var(--text-3)}
+.numcell .v{font-family:"Fraunces",serif; font-size:1.18rem; color:#fff; line-height:1.1; margin-top:.15rem}
+
+/* footer */
+footer{padding:3rem 0 5rem; color:var(--text-3); font-size:13px}
+footer .wrap{display:flex; justify-content:space-between; gap:2rem; flex-wrap:wrap}
+.colophon{font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.16em; text-transform:uppercase}
+.print{margin-top:1rem; font-family:"Fraunces",serif; font-variation-settings:"opsz" 24,"SOFT" 30; font-style:italic; color:var(--text-2)}
+
+/* anchor offset */
+:target{scroll-margin-top:120px}
+
+/* utility */
+.row{display:flex; gap:1rem; flex-wrap:wrap}
+.muted{color:var(--text-3)}
+.amber{color:var(--amber)}
+.divider{display:block; height:1px; background:linear-gradient(90deg,transparent,var(--line),transparent); margin:1.4rem 0}
+.formula{font-family:"IBM Plex Mono",monospace; font-size:13px; color:var(--paper-2); background:rgba(255,255,255,.025); border:1px solid var(--line); border-radius:var(--r-1); padding:.45rem .65rem; display:inline-block; margin:.3rem 0}
+
+/* SVG diagram styles */
+.dg-rect{fill:rgba(255,255,255,.04); stroke:var(--text-3); stroke-width:1.2}
+.dg-svc{fill:rgba(95,181,177,.10); stroke:var(--teal); stroke-width:1.4}
+.dg-store{fill:rgba(127,181,115,.09); stroke:var(--leaf); stroke-width:1.4}
+.dg-queue{fill:rgba(232,164,90,.10); stroke:var(--amber); stroke-width:1.4}
+.dg-cache{fill:rgba(226,109,109,.10); stroke:var(--rose); stroke-width:1.4}
+.dg-edge{fill:rgba(181,140,217,.10); stroke:var(--plum); stroke-width:1.4}
+.dg-text{fill:#fff; font-family:"IBM Plex Sans",sans-serif; font-size:11.5px; font-weight:600; pointer-events:none}
+.dg-tag{fill:var(--text-3); font-family:"IBM Plex Mono",monospace; font-size:9.5px; letter-spacing:.10em; text-transform:uppercase; pointer-events:none}
+.dg-edge-sync{stroke:var(--leaf); stroke-width:1.6; fill:none}
+.dg-edge-async{stroke:var(--amber); stroke-width:1.6; stroke-dasharray:5,4; fill:none}
+.dg-edge-data{stroke:var(--text-3); stroke-width:1.2; fill:none}
+.dg-arrow{fill:var(--text-3)}
+.dg-arrow.sync{fill:var(--leaf)}
+.dg-arrow.async{fill:var(--amber)}
+.dg-elabel{fill:var(--text-2); font-family:"IBM Plex Mono",monospace; font-size:9.5px; letter-spacing:.06em; pointer-events:none}
+
+@media print{
+  body{background:#fff; color:#222}
+  .topbar, .tabstrip, footer{display:none}
+  .panel{display:block !important; page-break-after:always}
+}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="row">
+    <div class="brand"><span class="dot"></span>System Design Lab</div>
+    <nav class="crumbs">
+      <a href="#groundrules">Ground Rules</a>
+      <a href="#index">Problems</a>
+      <a href="#frameworks">Frameworks</a>
+    </nav>
+  </div>
+</header>
+
+<!-- COVER -->
+<section class="cover">
+  <div class="wrap">
+    <div class="grid">
+      <div>
+        <div class="meta">Vol. II <span class="pipe">·</span> Field manual for staff &amp; tech-lead loops <span class="pipe">·</span> 2026</div>
+        <h1 style="margin-top:1rem">Thirteen system-design problems, <em>defended</em>.</h1>
+        <p class="lede">A staff-loop interview turns on the parts most decks skip: where the queue lives, what the partition key is, why one path is eventually consistent and the other isn&rsquo;t. This lab walks the canonical problem set the way a senior interviewer hears them &mdash; numbers, trade-offs, and the gotcha you&rsquo;ll be tested on.</p>
+        <p class="muted" style="margin-top:1rem; max-width:60ch">One tab per problem. Each is a 5-10 minute self-contained study unit: framing &rarr; architecture &rarr; decisions &rarr; deep dive &rarr; gotcha &rarr; follow-ups. Skim them in order or jump straight to the one your interviewer just opened with.</p>
+      </div>
+      <aside class="specsheet">
+        <div class="eyebrow" style="margin-bottom:.8rem">How to use this</div>
+        <dl>
+          <dt>Skim</dt><dd>Click a tile in the <b>problem index</b> below; read the problem &rsquo;s tab top-to-bottom.</dd>
+          <dt>Drill</dt><dd>The <b>deep dives</b> are the bit that earns the staff signal. Practice saying them out loud.</dd>
+          <dt>Defend</dt><dd>The <b>gotcha</b> on each tab is the trap interviewers actually set. Memorise it.</dd>
+          <dt>Frame</dt><dd>The <b>frameworks</b> section at the bottom is the 45-minute interview spine.</dd>
+        </dl>
+        <div class="divider"></div>
+        <div class="eyebrow" style="margin-bottom:.4rem">Conventions in the diagrams</div>
+        <div class="legend" style="margin-top:.3rem">
+          <span class="sync"><i></i>sync call</span>
+          <span class="async"><i></i>async / queue</span>
+          <span class="data"><i></i>data flow</span>
+        </div>
+        <div class="muted" style="font-size:12px; margin-top:.6rem">Hover or click a node to see why it&rsquo;s there.</div>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<!-- GROUND RULES -->
+<section id="groundrules">
+  <div class="wrap">
+    <span class="kicker">§ 00 &nbsp;Ground rules</span>
+    <h2 style="margin-top:.7rem">How a 45-minute design conversation actually goes.</h2>
+    <p class="lede" style="margin-bottom:1rem">Most candidates lose the room in the first five minutes by jumping into boxes. The interviewer wants to see you bound the problem before you draw it.</p>
+    <div class="numgrid">
+      <div class="numcell"><div class="k">5 min</div><div class="v">Clarify</div><div class="muted" style="font-size:12px;margin-top:.2rem">Functional + non-functional reqs. Write them on the board.</div></div>
+      <div class="numcell"><div class="k">10 min</div><div class="v">Estimate</div><div class="muted" style="font-size:12px;margin-top:.2rem">DAU &rarr; QPS &rarr; storage. Pick credible numbers and own them.</div></div>
+      <div class="numcell"><div class="k">15 min</div><div class="v">High-level</div><div class="muted" style="font-size:12px;margin-top:.2rem">Boxes, arrows, where async lives, where the cache lives.</div></div>
+      <div class="numcell"><div class="k">15 min</div><div class="v">Deep dive</div><div class="muted" style="font-size:12px;margin-top:.2rem">Pick 1-2 components and show staff-level depth.</div></div>
+    </div>
+    <div class="callout" style="margin-top:1rem">
+      <span class="tag">rule of thumb</span>
+      Storage = <span class="formula">items &times; avg_size &times; replication &times; retention_days</span>. QPS = <span class="formula">DAU &times; actions_per_user &divide; 86400 &times; peak_factor (~3&times;)</span>. Read:write ratio is usually 10:1 unless someone tells you otherwise; Twitter-shape feeds are 100:1+.
+    </div>
+  </div>
+</section>
+
+<!-- PROBLEM INDEX -->
+<section id="index">
+  <div class="wrap">
+    <span class="kicker">§ 01 &nbsp;Problem index</span>
+    <h2 style="margin-top:.7rem">Pick a problem. The tab strip stays with you.</h2>
+    <p class="lede" style="margin-bottom:1rem">These thirteen cover ~95% of the system-design questions asked in staff loops at SaaS, cloud, and high-load consumer companies. Order is roughly easy &rarr; hard.</p>
+    <div class="idxgrid" id="idxgrid"></div>
+  </div>
+</section>
+
+<!-- TAB STRIP -->
+<div class="tabstrip" id="tabstrip">
+  <div class="row" id="tabrow"></div>
+</div>
+
+<!-- PROBLEM PANELS CONTAINER -->
+<section id="problems" style="padding-top:.4rem; border-top:0">
+  <div class="wrap" id="panels"></div>
+</section>
+
+<!-- FRAMEWORKS -->
+<section id="frameworks">
+  <div class="wrap">
+    <span class="kicker">§ 99 &nbsp;Interview frameworks</span>
+    <h2 style="margin-top:.7rem">The reusable spine.</h2>
+    <p class="lede" style="margin-bottom:1.2rem">Every problem on this page maps onto the same four-step structure. Memorise the structure; the problem-specific content fills itself in.</p>
+    <div class="two">
+      <div class="block">
+        <h4>The four steps</h4>
+        <ol style="padding-left:1.1rem; color:var(--text-2)">
+          <li style="margin:.3rem 0"><b>Clarify</b> &mdash; functional + non-functional. Latency targets, consistency level, scale, geography. <i>Write them down.</i></li>
+          <li style="margin:.3rem 0"><b>Estimate</b> &mdash; DAU, QPS (peak = 3&times; average), storage per year, bandwidth. Five lines of math, on the board.</li>
+          <li style="margin:.3rem 0"><b>Design</b> &mdash; API contract first, then data model, then boxes-and-arrows. Mark which paths are async; pick the partition key out loud.</li>
+          <li style="margin:.3rem 0"><b>Deep dive</b> &mdash; let the interviewer pick the component (or pick the gnarliest one yourself). Discuss failure modes, dedup, retries, tail latency.</li>
+        </ol>
+      </div>
+      <div class="block">
+        <h4>Back-of-envelope formulas</h4>
+        <p><b>QPS</b> = <span class="formula">DAU &times; actions/user &divide; 86400</span></p>
+        <p><b>Peak QPS</b> = <span class="formula">avg_QPS &times; 3</span> (or 5&times; for retail)</p>
+        <p><b>Storage</b> = <span class="formula">items &times; size &times; RF &times; retention</span></p>
+        <p><b>Bandwidth</b> = <span class="formula">QPS &times; payload_size</span></p>
+        <p><b>Read amp</b> = fan-out factor (followers, members)</p>
+        <p><b>Cache hit ratio</b> &mdash; design for &gt; 90%; otherwise it&rsquo;s not really a cache.</p>
+      </div>
+    </div>
+    <div class="block">
+      <h4>The &ldquo;at 10x&rdquo; question</h4>
+      <p>Almost every staff loop ends with: <i>&ldquo;What would you do differently if traffic 10x&rsquo;d?&rdquo;</i> The interviewer wants to know whether you understand which parts of your design are the bottleneck. Have an answer ready: <b>(a)</b> identify the partition that would melt first, <b>(b)</b> name the cheap mitigation (caching, sharding by a finer key), <b>(c)</b> name the structural change you&rsquo;d make if cheap mitigations ran out (split service, change consistency model, push to a different storage engine).</p>
+      <p class="muted" style="font-size:13px">If you can&rsquo;t name what melts first at 10x, you don&rsquo;t understand your own design well enough to claim it&rsquo;s production-ready.</p>
+    </div>
+    <div class="block">
+      <h4>Universal patterns worth memorising</h4>
+      <ul style="margin:0; padding-left:1rem; color:var(--text-2)">
+        <li><b>Idempotency keys</b> &mdash; client-supplied, dedup at the edge, write-once at the store.</li>
+        <li><b>Outbox pattern</b> &mdash; durable async dispatch; write event to the same DB transaction, drain to the queue.</li>
+        <li><b>Saga</b> &mdash; long-running multi-service transaction with compensating actions; replaces 2PC where 2PC won&rsquo;t scale.</li>
+        <li><b>CQRS</b> &mdash; separate write model (normalised) from read model (denormalised, often pre-joined). Eventual consistency between them.</li>
+        <li><b>Backpressure</b> &mdash; bounded queues, reject early, let upstream slow down. Unbounded queues are bombs.</li>
+        <li><b>Hedged requests</b> &mdash; fire 2 reads, take the first; cuts tail latency. Costs ~5-10% extra traffic.</li>
+        <li><b>Bulkheads + circuit breakers</b> &mdash; isolate failure domains, fail fast, recover in seconds not minutes.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div>
+      <div class="colophon">System Design Lab &middot; Vol. II &middot; 2026</div>
+      <div class="print">Set in <i>Fraunces</i>, IBM Plex Sans, IBM Plex Mono. Single self-contained file. Designed to be skimmed standing up, in a meeting room, twenty minutes before your loop.</div>
+    </div>
+    <div class="muted" style="font-size:12px; max-width:36ch; text-align:right">
+      Numbers and capacities are illustrative. The point is the shape of the trade-off, the location of the queue, and the answer to &ldquo;why this and not that.&rdquo;
+    </div>
+  </div>
+</footer>
+
+<script>
+/* ============================================================
+   Problem definitions
+   ============================================================ */
+const PROBLEMS = [];
+
+/* ---------- 1. URL SHORTENER ---------- */
+PROBLEMS.push({
+  id:'url-shortener',
+  num:'01',
+  name:'URL Shortener',
+  sub:'TinyURL / bit.ly &mdash; predictable scale, deep on key generation.',
+  tag:'KV-shaped',
+  badges:[['Read-heavy 100:1','cool'],['Eventually consistent OK','ok'],['Custom alias = uniqueness','warn']],
+  framing:'Shorten a long URL to a 7-char code; redirect with a 301/302 in &lt; 50 ms p99 globally. <b>500M new shorts/month</b> (~190 writes/s avg, ~600/s peak), <b>read:write ~100:1</b> &rArr; ~60k req/s peak reads. Storage: 5 yrs &times; 500M/mo &times; ~500 B = <b>~15 TB</b> with replicas. Custom aliases must be unique; expirations optional; analytics (clicks, geo) is a nice-to-have, not on the hot path.',
+  specs:[
+    ['DAU','100M'],['Writes/s','190 avg / 600 peak'],['Reads/s','19k avg / 60k peak'],
+    ['Latency p99','&lt; 50 ms (redirect)'],['Storage 5y','~15 TB'],['Read:write','100:1']
+  ],
+  diagram:{
+    viewBox:'0 0 720 320',
+    nodes:[
+      {id:'client',x:30,y:140,w:80,h:40,kind:'rect',label:'Client',tag:'browser',tip:'Issues GET /abc123 &mdash; redirect must hit a CDN/edge in &lt;20ms before reaching origin.'},
+      {id:'cdn',x:140,y:140,w:90,h:40,kind:'edge',label:'CDN / Edge',tag:'cache',tip:'Caches 301 responses by short code. Hit ratio &gt; 95% for hot links; origin only sees the long tail.'},
+      {id:'lb',x:260,y:140,w:80,h:40,kind:'svc',label:'API GW',tag:'tls + lb',tip:'Terminates TLS, routes /create vs /:code. Rate-limits per-IP for the write API.'},
+      {id:'redir',x:370,y:60,w:120,h:42,kind:'svc',label:'Redirect Service',tag:'stateless',tip:'Pure read path. Cache-aside on Redis; falls through to KV store. Returns 301 (permanent) or 302 (analytics-friendly).'},
+      {id:'create',x:370,y:220,w:120,h:42,kind:'svc',label:'Create Service',tag:'stateless',tip:'Pulls a pre-allocated key from the KGS, writes long&rarr;short to KV. Validates custom aliases via conditional write.'},
+      {id:'cache',x:530,y:60,w:90,h:40,kind:'cache',label:'Redis',tag:'hot codes',tip:'TTL ~24h; LRU evicts cold codes. Pre-warmed on deploy from top-N analytics.'},
+      {id:'kv',x:530,y:140,w:90,h:50,kind:'store',label:'KV Store',tag:'dynamodb / cassandra',tip:'Partitioned by short code. Item: {code, long_url, owner, created_at, expires_at}. ~15 TB at 5 yrs &times; RF=3.'},
+      {id:'kgs',x:530,y:230,w:90,h:42,kind:'svc',label:'KGS',tag:'key gen service',tip:'Pre-generates batches of unused base62 codes; hands them out to Create. Decouples key minting from the write path.'},
+      {id:'analytics',x:660,y:230,w:50,h:42,kind:'queue',label:'Kafka',tag:'clicks',tip:'Async fire-and-forget click events. Aggregated downstream into per-code counters; never on the redirect hot path.'}
+    ],
+    edges:[
+      {from:'client',to:'cdn',kind:'sync'},
+      {from:'cdn',to:'lb',kind:'sync',label:'miss'},
+      {from:'lb',to:'redir',kind:'sync'},
+      {from:'lb',to:'create',kind:'sync'},
+      {from:'redir',to:'cache',kind:'sync'},
+      {from:'cache',to:'kv',kind:'sync',label:'miss'},
+      {from:'redir',to:'kv',kind:'sync'},
+      {from:'create',to:'kv',kind:'sync',label:'put if absent'},
+      {from:'create',to:'kgs',kind:'sync',label:'next code'},
+      {from:'redir',to:'analytics',kind:'async',label:'click'}
+    ]
+  },
+  decisions:[
+    ['Base62 over base10','7 chars of base62 = 62^7 = ~3.5 trillion codes &mdash; enough for centuries; URL-safe; case-sensitive doubles density vs hex.'],
+    ['Key Generation Service (KGS), not hash-then-collide','KGS pre-allocates code ranges to writers; writes are now O(1) inserts with no collision retry. Hash-and-check has worst-case retry storms at high collision density.'],
+    ['Partition KV by short code (hash)','Reads dominate and arrive uniformly across the keyspace. Range-partitioning would create hot tails from monotonic minting.'],
+    ['Cache redirect, not create','Redirect is the read-heavy 100:1 side; pin it in Redis with TTL + LRU. Creates are slow-path; no cache benefit.'],
+    ['301 vs 302','301 lets the browser/CDN cache the redirect &mdash; better latency, worse analytics. 302 keeps every click hitting your origin &mdash; better counts, worse cost. Most teams pick 302 + sampled analytics.'],
+    ['Async click analytics via Kafka','Hot-path latency must not depend on writing a counter. Fire-and-forget the click; aggregate downstream (Flink/Spark) into per-code rollups.'],
+    ['Custom aliases = conditional write','<code>PutItem if attribute_not_exists(code)</code>. Don&rsquo;t check-then-write &mdash; race condition on duplicate aliases.']
+  ],
+  deepdives:[
+    {title:'Key Generation Service vs hash-and-check',body:'<p><b>Hash-and-check:</b> compute MD5(long_url + salt), take 7 chars of base62, attempt insert; on collision, re-salt and retry. Simple but: at scale collisions cluster (birthday paradox &mdash; 50% probability at ~770k existing codes for 7-char base62) and retry storms wreck the write tail.</p><p><b>KGS:</b> a separate service pre-generates the full 7-char keyspace into a "available codes" pool. Writers <code>POP</code> a batch (say 1000 codes) and use them locally; on insert use <code>PutIfAbsent</code> against the KV. Two replicas of KGS so failure doesn&rsquo;t halt writes; assigned ranges are non-overlapping. Now writes are collision-free and the write path is one round-trip.</p><p>Senior tell: name <b>Snowflake-style 64-bit IDs</b> as a third option &mdash; timestamp + machine_id + sequence &mdash; then explain why you chose KGS instead (shorter codes, custom-alias support).</p>'}
+  ],
+  callouts:[
+    {tag:'Concept',body:'<b>Base62 math.</b> 7 chars of <code>[A-Za-z0-9]</code> = 62^7 &asymp; 3.5T unique values. 6 chars only gets you 56B &mdash; fine for one company, risky for a billion users. Always size the keyspace from <i>5x lifetime writes</i> not "looks long enough."'},
+    {tag:'Concept',body:'<b>Cache-aside vs write-through.</b> For shorteners, <i>cache-aside</i> wins: writes are rare, reads dominate, and stale entries don&rsquo;t exist (codes are immutable). Write-through would just slow down the rare write path.'}
+  ],
+  gotcha:'Saying &ldquo;we&rsquo;ll use a UUID&rdquo; is the candidate-killer. UUIDs are 22 base62 chars &mdash; you defeated the purpose of a shortener. The interviewer wants to hear <i>base62 math, KGS, conditional writes for custom aliases, and a 100:1 read-heavy cache strategy.</i> Also: don&rsquo;t propose a relational DB unless you can defend why &mdash; a KV store is the textbook fit and saying &ldquo;Postgres&rdquo; reads as default-mode thinking.',
+  followups:[
+    ['How do you prevent malicious URLs?','Async classifier (Kafka &rarr; ML scorer) sets a <code>blocked</code> flag; redirect service checks the flag and returns a warning page.'],
+    ['What if a code expires?','TTL field on the row; redirect treats expired = 404. Cache TTL &le; row TTL so eviction follows expiry.'],
+    ['How to handle 10x traffic?','CDN absorbs 95%+ of reads. Origin reads scale by adding shards; KGS scales independently. Writes never become the bottleneck; the cache + CDN do.'],
+    ['Multi-region active-active?','Per-region KGS with non-overlapping code ranges; KV is regionally partitioned with async cross-region replication. Custom aliases need a global lock or pre-reservation.']
+  ]
+});
+
+/* ---------- 2. RATE LIMITER ---------- */
+PROBLEMS.push({
+  id:'rate-limiter',
+  num:'02',
+  name:'Rate Limiter',
+  sub:'Distributed token bucket &mdash; correctness, latency, and the cost of perfection.',
+  tag:'Stateful at edge',
+  badges:[['&lt;1ms decision','cool'],['Strong-ish','warn'],['Memory-bound','warn']],
+  framing:'Decide whether to allow each API request based on per-key (user / IP / API key) rate limits. <b>Cluster sees 1M req/s peak</b>, ~50M unique keys/day. Decisions must be made in &lt;1 ms with &lt;1% error and survive any single node failure. Limit policies are tier-based (e.g., 1k req/min free, 10k/min pro). Distributed correctness matters: if you under-limit, you DDOS yourself; if you over-limit, paying customers churn.',
+  specs:[
+    ['Decisions/s','1M peak'],['Unique keys/day','50M'],['Decision p99','&lt; 1 ms'],
+    ['Window','1 min / 1 hr typical'],['Allowed slop','~1%'],['Memory','~5 GB / 50M keys']
+  ],
+  diagram:{
+    viewBox:'0 0 720 320',
+    nodes:[
+      {id:'client',x:30,y:140,w:70,h:40,kind:'rect',label:'Client',tag:'app',tip:'Carries an API key in the Authorization header.'},
+      {id:'gw',x:130,y:140,w:90,h:42,kind:'svc',label:'API Gateway',tag:'edge',tip:'Per-pod limiter check on every request. Local in-process counter for fast path; falls back to Redis on cache miss / sync.'},
+      {id:'local',x:250,y:60,w:100,h:40,kind:'cache',label:'Local Bucket',tag:'in-process',tip:'Per-pod token bucket cache, ~10ms TTL. Eats 99% of decisions without touching Redis.'},
+      {id:'redis',x:380,y:140,w:100,h:50,kind:'cache',label:'Redis Cluster',tag:'sharded',tip:'Authoritative counters. Sharded by key_hash. Lua script for atomic check-and-decrement; INCR with EXPIRE for window counters.'},
+      {id:'origin',x:530,y:140,w:90,h:42,kind:'svc',label:'Backend',tag:'origin',tip:'Only receives requests that passed the limiter. The point of all this.'},
+      {id:'config',x:380,y:240,w:100,h:40,kind:'store',label:'Config DB',tag:'tier policies',tip:'Per-tier limits (free / pro / enterprise). Pushed to gateway pods on change &mdash; not read on the hot path.'},
+      {id:'metrics',x:660,y:60,w:50,h:40,kind:'queue',label:'Metrics',tag:'async',tip:'Limiter outcomes (allow / deny / throttle reason) shipped async to logs &amp; alerts. Never blocks the decision.'}
+    ],
+    edges:[
+      {from:'client',to:'gw',kind:'sync'},
+      {from:'gw',to:'local',kind:'sync',label:'fast path'},
+      {from:'local',to:'redis',kind:'sync',label:'sync'},
+      {from:'gw',to:'redis',kind:'sync',label:'authoritative'},
+      {from:'gw',to:'origin',kind:'sync',label:'allowed'},
+      {from:'gw',to:'config',kind:'data',label:'pull'},
+      {from:'gw',to:'metrics',kind:'async'}
+    ]
+  },
+  decisions:[
+    ['Token bucket as the algorithm','Allows bursting up to bucket size, smooths over time. Sliding window log is more accurate but O(N) memory per key; sliding window counter is the cheap approximation.'],
+    ['Centralized state (Redis) + local cache','Pure local = drift; pure central = +1ms RTT on every request. Local with periodic sync (~10ms) is the staff answer: <i>eventually consistent within tolerance</i>.'],
+    ['Lua script for atomic check-and-decrement','<code>EVAL</code> runs server-side in Redis &mdash; no race between GET and DECR. The whole token-bucket update is one round trip.'],
+    ['Shard Redis by key (consistent hash)','Each rate-limit key maps to one shard; no cross-shard ops. Hot key (a single abusive user) hits one shard hard &mdash; mitigate with local burst absorption.'],
+    ['Fail-open vs fail-closed','If Redis is unreachable: <i>fail-open</i> (allow) for non-critical APIs to avoid total outage; <i>fail-closed</i> for paid tiers where over-allowance is a refund event. Be explicit.'],
+    ['Async metrics, never sync','Decision latency budget is 1ms. Even a single sync metric write blows it. Shipped via local UDP / shared-memory ring to a sidecar.']
+  ],
+  deepdives:[
+    {title:'Token bucket vs sliding window log vs sliding window counter',body:'<p><b>Token bucket:</b> bucket holds N tokens, refills at rate R. Each request consumes one. Memory O(1) per key. Burst-tolerant by design. Centralised redis impl: store {tokens, last_refill_ts}; on each request, refill = (now - last_refill) * R, clamped to N; deny if &lt; 1.</p><p><b>Sliding window log:</b> store every request timestamp in a sorted set; on each request, drop entries older than (now - window), count remaining. Exact, but O(QPS &times; window) memory. At 1M req/s with a 1-min window that&rsquo;s 60M entries.</p><p><b>Sliding window counter:</b> two fixed-window counters (current minute, previous minute), weighted by elapsed fraction of the current window. O(1) memory, &lt;1% error, no burst-tolerance. The pragmatic default.</p><p>Pick token bucket for user-facing APIs (predictable, burst-friendly). Pick sliding window counter for backend protection (cheap, smooth). Pick sliding window log only when audit-grade accuracy matters &mdash; usually it doesn&rsquo;t.</p>'},
+    {title:'Why local + periodic sync, not pure central',body:'<p>At 1M req/s with a Redis RTT of even 0.3ms, every request would burn 30% of a CPU core just on RPC. Worse: a Redis blip would fail the whole service.</p><p><b>Pattern:</b> each gateway pod keeps a local token bucket per active key, replenished from the central Redis every ~10-100ms. Decisions are local (sub-microsecond) but bounded-stale. Drift = N_pods &times; refill_window &mdash; with 100 pods and 50ms window you&rsquo;re in the ballpark of "1% slop" the SLO allows.</p><p>The interview tell: name "<b>local burst absorption</b>" as the lever for hot keys &mdash; one user hammering one pod can&rsquo;t exceed its local bucket size, so they don&rsquo;t exceed the global limit by more than a constant.</p>'}
+  ],
+  callouts:[
+    {tag:'Concept',body:'<b>Why not just count?</b> Fixed-window counters allow 2&times; burst at the boundary &mdash; 1k requests in the last 100ms of minute N + 1k in the first 100ms of minute N+1. Sliding window or token bucket smooths it.'},
+    {tag:'Concept',body:'<b>Lua scripts in Redis</b> are atomic against a single shard. Multi-key scripts must keep keys in the same hash slot &mdash; use hash tags like <code>{user:42}:rl</code> to force colocation.'}
+  ],
+  gotcha:'Proposing &ldquo;just use Redis <code>INCR</code>&rdquo; without picking an algorithm and discussing the boundary effect is a yellow flag. The interviewer wants <i>algorithm choice + memory cost + central-vs-local strategy + fail-open behaviour</i>. Saying &ldquo;eventual consistency is fine&rdquo; without bounding the drift is the second yellow flag &mdash; senior answer is &ldquo;1% slop with 50ms drift; we trade exactness for &lt;1ms decisions.&rdquo;',
+  followups:[
+    ['Hot key (one user storms one shard)?','Local burst absorption + per-key sub-bucket sharding (split user&rsquo;s budget across N keys with hash tag).'],
+    ['Per-endpoint vs per-user?','Compose: deny if any limit fails. Endpoint limits protect backends, user limits protect SLAs.'],
+    ['What if Redis cluster fails entirely?','Local fallback policy: degrade to per-pod bucket sized at (global_limit / pod_count) &times; safety_factor. Alert loudly.'],
+    ['How to support distributed quotas (e.g., 1M/day across regions)?','Hierarchical: regional buckets refill from a global central counter; cross-region sync via Kafka or a CRDT counter.']
+  ]
+});
+
+/* ---------- 3. DISTRIBUTED CACHE ---------- */
+PROBLEMS.push({
+  id:'distributed-cache',
+  num:'03',
+  name:'Distributed Cache',
+  sub:'Redis-cluster shape &mdash; consistent hashing, eviction, the stampede.',
+  tag:'In-memory KV',
+  badges:[['Sub-ms p99','cool'],['RAM-bounded','warn'],['Async repl by default','warn']],
+  framing:'In-memory KV cache fronting a slower system of record. <b>500k get/s, 50k put/s</b> peak; <b>10:1 hit ratio target &gt; 95%</b>; values average 2 KB, p99 50 KB. Need horizontal scale across &gt;100 GB working set, online resharding when nodes are added, and survival of single-node failures. Strong consistency is <i>not</i> required &mdash; cache miss is always recoverable from origin &mdash; but stampede protection and stale-data bounds matter.',
+  specs:[
+    ['Get/s','500k peak'],['Put/s','50k peak'],['Hit ratio','&gt; 95%'],
+    ['Working set','100+ GB'],['p99','&lt; 2 ms'],['Eviction','LRU / LFU']
+  ],
+  diagram:{
+    viewBox:'0 0 720 340',
+    nodes:[
+      {id:'app',x:30,y:160,w:80,h:42,kind:'rect',label:'App',tag:'client lib',tip:'Cluster-aware client. Computes CRC16(key) mod 16384 to find the slot &rarr; shard. Handles MOVED/ASK redirects on resharding.'},
+      {id:'shard1',x:200,y:60,w:120,h:48,kind:'cache',label:'Shard 1 (master)',tag:'slots 0-5460',tip:'Serves all reads &amp; writes for its slot range. Single-threaded event loop: one slow op blocks others.'},
+      {id:'shard2',x:200,y:160,w:120,h:48,kind:'cache',label:'Shard 2 (master)',tag:'slots 5461-10922',tip:'Each master has 1-2 async replicas for failover. Cluster gossip detects master failure (~2s) and promotes a replica.'},
+      {id:'shard3',x:200,y:260,w:120,h:48,kind:'cache',label:'Shard 3 (master)',tag:'slots 10923-16383',tip:'Resharding moves slots between masters online; clients receive MOVED and re-route. ~10MB/s per slot move.'},
+      {id:'rep1',x:360,y:60,w:90,h:38,kind:'cache',label:'Replica 1',tag:'async',tip:'Async replication; takes over on master failure. Recent unreplicated writes are lost &mdash; budget for it.'},
+      {id:'rep2',x:360,y:160,w:90,h:38,kind:'cache',label:'Replica 2',tag:'async',tip:''},
+      {id:'rep3',x:360,y:260,w:90,h:38,kind:'cache',label:'Replica 3',tag:'async',tip:''},
+      {id:'origin',x:530,y:160,w:100,h:50,kind:'store',label:'Origin DB',tag:'system of record',tip:'Postgres / Mongo / DynamoDB. Cache miss falls through here; with 95% hit ratio, origin sees ~25k QPS &mdash; very tractable.'},
+      {id:'sentinel',x:660,y:160,w:50,h:50,kind:'svc',label:'Cluster',tag:'gossip',tip:'Cluster bus on port +10000; gossip detects failures, coordinates failover, propagates slot map.'}
+    ],
+    edges:[
+      {from:'app',to:'shard1',kind:'sync',label:'CRC16'},
+      {from:'app',to:'shard2',kind:'sync'},
+      {from:'app',to:'shard3',kind:'sync'},
+      {from:'shard1',to:'rep1',kind:'async'},
+      {from:'shard2',to:'rep2',kind:'async'},
+      {from:'shard3',to:'rep3',kind:'async'},
+      {from:'app',to:'origin',kind:'sync',label:'on miss'},
+      {from:'shard1',to:'sentinel',kind:'data',label:'gossip'},
+      {from:'shard2',to:'sentinel',kind:'data'},
+      {from:'shard3',to:'sentinel',kind:'data'}
+    ]
+  },
+  decisions:[
+    ['Consistent hashing (slot ring)','Adding/removing a shard remaps only K/N keys, not all N keys. Redis Cluster bakes this in as 16,384 slots; client computes CRC16(key) mod 16384.'],
+    ['Async replication, not sync','<code>WAIT n ms</code> approximates sync but the default trades a few unreplicated writes for sub-ms write latency. For a cache, this is correct &mdash; lost writes just mean a future cache miss.'],
+    ['Cache-aside reads, write-through OR invalidate-on-write','Cache-aside: app checks cache, falls through to DB on miss, populates cache. Simple and the default. Write-through doubles write latency; pick only when the cache is also the source of truth.'],
+    ['LRU vs LFU eviction','LRU is cheap and obvious; LFU resists scan workloads (one big query evicts your hot set under LRU). Redis 4+ has <code>allkeys-lfu</code> &mdash; use it when working set has a long-tail of one-shot keys.'],
+    ['Hot-key mitigation: shard the key, not the cluster','Hot key crushes one master&rsquo;s single thread. Mitigations: client-side replication (read from N replicas), key splitting (<code>user:42:counter:0..9</code>), or local in-process cache for ultra-hot reads.'],
+    ['Stampede control: probabilistic early refresh','Don&rsquo;t expire-then-recompute. With probability p &prop; (TTL_remaining)^-1, refresh proactively before expiry. One worker rebuilds; the rest serve the stale value.']
+  ],
+  deepdives:[
+    {title:'Consistent hashing &amp; the slot ring',body:'<p>Naive sharding: <code>node = hash(key) % N</code>. Add a node and N&minus;1 of N keys move &mdash; cache cold-start, origin meltdown.</p><p><b>Consistent hashing:</b> place nodes on a ring at random positions; key goes to the next node clockwise. Adding a node moves only the keys between it and the previous node &mdash; ~K/N. Virtual nodes (each physical node placed at K positions) smooth uneven distribution.</p><p>Redis Cluster discretises this into <b>16,384 slots</b> &mdash; client computes <code>CRC16(key) % 16384</code>, slot maps to one master. Slots can move between masters online: master sends <code>{IMPORTING,MIGRATING}</code> markers, clients get <code>ASK</code>/<code>MOVED</code> redirects until the slot map propagates via gossip. Net effect: 100ms of redirection during reshards, no cold restart.</p>'},
+    {title:'Cache stampede &amp; thundering herd',body:'<p>Hot key TTLs out at minute 0:00:00. 10k concurrent requests miss simultaneously, all hit origin, origin melts. Standard stampede.</p><p><b>Mitigations, in order of complexity:</b> (1) <i>per-key mutex</i> &mdash; first miss takes a lock, others wait or serve stale; (2) <i>probabilistic early refresh (XFetch)</i> &mdash; before the TTL expires, with rising probability one client refreshes, others use stale value; (3) <i>request coalescing in the app layer</i> &mdash; in-process: 10k concurrent calls for the same key coalesce into one origin call.</p><p>Senior tell: name <b>"PEWFA"</b> (Probabilistic Early WiFi Fetch Algorithm, from a 2015 paper) and explain you&rsquo;d use it for keys whose origin recompute &gt; 1s. Otherwise mutex+stale is fine.</p>'}
+  ],
+  callouts:[
+    {tag:'Concept',body:'<b>Hash tags.</b> Redis multi-key ops require all keys on one slot. <code>{user:42}:cart</code> hashes only <code>user:42</code> &mdash; co-locating <code>{user:42}:wishlist</code> on the same shard. Use hash tags any time you need a transaction or pipeline across related keys.'},
+    {tag:'Concept',body:'<b>Why single-threaded.</b> One slow command (a 100k-element <code>SMEMBERS</code>) blocks every other client on that shard. The fix is operational: avoid O(N) commands on big collections, use <code>SCAN</code>, prefer many small keys over one giant key.'}
+  ],
+  gotcha:'&ldquo;Just put Redis in front&rdquo; without naming the eviction policy, the consistency model on failover, and the stampede strategy is the staff-loop trap. Also: <b>Redlock</b> for distributed locks on top of Redis is contested (Kleppmann/Antirez). For correctness-critical locks, use a fencing token from a strongly-consistent store; for best-effort mutexes (e.g., stampede control), Redlock or single-node SET NX EX is fine.',
+  followups:[
+    ['How do you do online resharding?','Slots migrate one at a time; clients see MOVED/ASK during the move. Pace the migration so it doesn&rsquo;t saturate the cluster bus.'],
+    ['What about persistence?','RDB snapshots for restart speed; AOF for durability between snapshots. For a pure cache, AOF=no is acceptable since origin is the source of truth.'],
+    ['Memcached vs Redis?','Memcached is dumber and often faster for plain KV with multi-thread scans. Redis wins when you want data structures (sorted sets, streams, scripts).'],
+    ['Multi-region cache?','Per-region cluster, async cross-region replication. Reads from local region. For globally-shared hot data, accept seconds of staleness or use a CRDT-aware design.']
+  ]
+});
+
+/* ---------- 4. NEWS FEED ---------- */
+PROBLEMS.push({
+  id:'news-feed',
+  num:'04',
+  name:'News Feed',
+  sub:'Twitter / Facebook &mdash; fan-out on write vs fan-out on read.',
+  tag:'Read-heavy + fan-out',
+  badges:[['200M DAU','cool'],['100:1 read:write','warn'],['Celebrity hot key','bad']],
+  framing:'Build a personalised feed: user opens app, sees ranked posts from people/topics they follow. <b>200M DAU, 500M followers ave 200 each, 100M posts/day</b> = ~1.2k post writes/s avg, 4k peak. Reads are the heavy side: ~15M timeline opens/min = <b>250k reads/s</b> peak. Each timeline is ~50 posts; ranking is ML-driven (recency + engagement signals). Feed is eventually consistent (a 5-second delay is fine); ordering by score, not strict time.',
+  specs:[
+    ['DAU','200M'],['Posts/day','100M (~1.2k/s avg)'],['Timeline reads/s','250k peak'],
+    ['Followers (avg)','200'],['Followers (max)','100M+ (celeb)'],['Feed cache TTL','few min']
+  ],
+  diagram:{
+    viewBox:'0 0 720 360',
+    nodes:[
+      {id:'client',x:30,y:170,w:70,h:40,kind:'rect',label:'App',tag:'mobile',tip:'GET /timeline returns top-50 posts. POST /post writes a new post.'},
+      {id:'gw',x:120,y:170,w:80,h:40,kind:'svc',label:'API GW',tag:'edge',tip:'Routes timeline reads to feed service; post writes to post service.'},
+      {id:'post',x:240,y:60,w:100,h:42,kind:'svc',label:'Post Service',tag:'write',tip:'Persists post; emits a "post created" event to Kafka. Returns 200 immediately &mdash; fan-out happens async.'},
+      {id:'feed',x:240,y:280,w:100,h:42,kind:'svc',label:'Feed Service',tag:'read',tip:'Reads pre-computed timeline from Redis; if miss, falls back to building from post-store + follow graph (slow path).'},
+      {id:'postdb',x:380,y:60,w:90,h:46,kind:'store',label:'Post Store',tag:'cassandra',tip:'Append-only write-heavy. Partitioned by user_id, sorted by timestamp.'},
+      {id:'kafka',x:380,y:160,w:90,h:42,kind:'queue',label:'Kafka',tag:'fan-out events',tip:'post_created events. Consumed by fan-out workers.'},
+      {id:'fanout',x:520,y:160,w:100,h:42,kind:'svc',label:'Fan-out Worker',tag:'consumer',tip:'For non-celeb posts: pushes post_id into each follower&rsquo;s timeline cache. For celebrity posts: skips fan-out; their posts are merged at read time.'},
+      {id:'graph',x:380,y:240,w:90,h:46,kind:'store',label:'Follow Graph',tag:'redis / scylla',tip:'follower_id &rarr; followed_ids. Read on fan-out and on celebrity-merge at read time.'},
+      {id:'tlcache',x:520,y:280,w:100,h:46,kind:'cache',label:'Timeline Cache',tag:'redis sorted set',tip:'Per-user sorted set of post_ids by score. Capped at ~1000 entries; evicted on inactivity.'},
+      {id:'rank',x:660,y:280,w:50,h:46,kind:'svc',label:'Ranker',tag:'ml',tip:'Re-scores feed candidates with engagement signals; runs on read or on materialisation.'}
+    ],
+    edges:[
+      {from:'client',to:'gw',kind:'sync'},
+      {from:'gw',to:'post',kind:'sync'},
+      {from:'gw',to:'feed',kind:'sync'},
+      {from:'post',to:'postdb',kind:'sync'},
+      {from:'post',to:'kafka',kind:'async'},
+      {from:'kafka',to:'fanout',kind:'async'},
+      {from:'fanout',to:'graph',kind:'sync'},
+      {from:'fanout',to:'tlcache',kind:'async',label:'push'},
+      {from:'feed',to:'tlcache',kind:'sync'},
+      {from:'feed',to:'graph',kind:'sync',label:'celeb merge'},
+      {from:'feed',to:'postdb',kind:'sync',label:'celeb posts'},
+      {from:'feed',to:'rank',kind:'sync'}
+    ]
+  },
+  decisions:[
+    ['Fan-out on write (push) for the average user','Pre-compute each follower&rsquo;s timeline at post time; reads become O(1) Redis lookups. Storage cost = posts &times; avg_followers, which is acceptable.'],
+    ['Fan-out on read (pull) for celebrities','100M followers &times; pushing every tweet = 100M writes per tweet. At 1k celeb tweets/s, that&rsquo;s 100B writes/s. Skip fan-out for celebs; merge their posts at read time from a small cache of "people I follow who are celebs".'],
+    ['Hybrid is the senior answer','Push for normal users, pull for celebs, threshold around &asymp;10k followers. Read-time merge is one extra Redis call &mdash; tractable.'],
+    ['Cassandra for post store','Append-only, write-heavy, partitioned by user_id, clustered by timestamp. Range scans within a user&rsquo;s feed are cheap.'],
+    ['Async fan-out via Kafka','Decouples write latency from fan-out cost. Workers can lag; eventual consistency is the contract.'],
+    ['Timeline cache is the source of truth for reads','Always serve from Redis; cold-start only on cache eviction (rare for active users). Build slow-path materialiser for evicted timelines.'],
+    ['Bound the cache','Cap at last ~1000 posts per timeline; users rarely scroll past that. Old posts re-materialise on demand.']
+  ],
+  deepdives:[
+    {title:'Fan-out on write vs on read &mdash; the celebrity problem',body:'<p><b>Fan-out on write (push):</b> when user posts, immediately push the post_id into each follower&rsquo;s timeline. Reads are O(1). Cost: writes &times; avg_followers. For 100M posts/day &times; 200 followers = 20B writes/day &asymp; 230k writes/s &mdash; cassandra eats that.</p><p><b>Fan-out on read (pull):</b> on read, look up who you follow, fetch their recent posts, merge. Reads are O(N_followed). Writes are cheap. But: opening the timeline is now 200 lookups, p99 hostile.</p><p><b>Celebrity blowup:</b> Lady Gaga has 100M followers. Pushing every tweet = 100M writes per tweet, milliseconds of cluster time per post, hot writes on the post fan-out worker. <i>Don&rsquo;t do it.</i></p><p><b>Hybrid:</b> threshold N (typically 10k-1M followers). Below, push; above, pull. On read: pre-built timeline from Redis + on-the-fly merge of "celebs I follow"&rsquo;s recent posts. One extra hop, sub-ms.</p>'},
+    {title:'Ranking, freshness, and the seen-store',body:'<p>Twitter doesn&rsquo;t show you posts in time order &mdash; it ranks by predicted engagement. Two pipelines: <b>candidate generation</b> (the timeline cache: ~1000 candidate posts), then <b>ranking</b> (an ML model scores each, top 50 returned).</p><p>Ranking signals: recency, your past engagement with author, content type, freshness, explicit signals (mute, follow). Done online with a small model; heavy models pre-compute embeddings offline.</p><p><b>Seen-store:</b> a per-user Bloom filter of post_ids the user has already seen, so the next refresh doesn&rsquo;t show duplicates. Bloom because false-positives (very rarely hide a post) are acceptable; false-negatives (show duplicate) feel like a broken product.</p>'}
+  ],
+  callouts:[
+    {tag:'Concept',body:'<b>Why a sorted set?</b> Redis sorted sets (skiplist) give O(log N) insert, O(log N + M) range read, with custom score (e.g., predicted engagement). Perfect for "top 50 by score" queries.'},
+    {tag:'Concept',body:'<b>Push vs pull is everywhere.</b> Same trade in Slack channels, email inboxes, notification feeds. Whenever you have a fan-out problem, ask: who has the long tail of subscribers? Push for short tails, pull for long ones.'}
+  ],
+  gotcha:'Saying &ldquo;just push to all followers&rdquo; without naming the celebrity case is a hard fail. The interviewer will say <i>&ldquo;Lady Gaga&rdquo;</i> and watch you redesign on the fly. Pre-empt it: name the threshold, name the read-time merge, name the storage cost. Also: don&rsquo;t propose a relational DB for the feed cache &mdash; sorted set in Redis, period.',
+  followups:[
+    ['What about deleted posts?','Tombstone the post_id in Redis on delete; readers skip tombstones. Or filter at read time against the post-store.'],
+    ['Real-time updates (push to client)?','WebSocket or long-poll; new posts published to a per-user pub/sub channel after fan-out completes.'],
+    ['Multi-region?','Pin user-state to home region (timeline cache, follow graph). Cross-region read of a celeb post is acceptable; cross-region write fan-out is the expensive part.'],
+    ['What melts at 10x?','Fan-out workers lag &rarr; users see stale timelines. Mitigate by sharding workers per user_id mod N and adding capacity; structural fix is to push the threshold lower (more pull, less push).']
+  ]
+});
+
+/* ---------- 5. CHAT / MESSENGER ---------- */
+PROBLEMS.push({
+  id:'chat',
+  num:'05',
+  name:'Chat / Messenger',
+  sub:'WhatsApp / Slack &mdash; ordering, delivery state, presence at scale.',
+  tag:'Stateful long-lived',
+  badges:[['Persistent connections','warn'],['Ordered per-conversation','ok'],['Multi-device','warn']],
+  framing:'1:1 and group chat with delivery receipts, online presence, multi-device. <b>500M DAU, average 40 msgs/day = 20B msgs/day</b> = ~230k msgs/s avg, 700k peak. Need persistent connections (WebSocket or long-poll), per-conversation total ordering, durable storage, sub-second delivery to online recipients, push notifications for offline. Multi-device means a message must reach all of a user&rsquo;s sessions and stay in sync.',
+  specs:[
+    ['DAU','500M'],['Msgs/day','20B'],['Msgs/s','230k avg / 700k peak'],
+    ['Connections','~500M concurrent'],['Storage','~5 PB / yr'],['p99 deliver','&lt; 500 ms']
+  ],
+  diagram:{
+    viewBox:'0 0 720 360',
+    nodes:[
+      {id:'a',x:30,y:80,w:70,h:40,kind:'rect',label:'User A',tag:'sender',tip:'Holds a WebSocket to a gateway. Sends with client_msg_id (idempotency).'},
+      {id:'b',x:30,y:260,w:70,h:40,kind:'rect',label:'User B',tag:'recipient',tip:'May be online (WS open) or offline (push notification). Multi-device: each session is a separate WS.'},
+      {id:'gw1',x:130,y:80,w:90,h:42,kind:'svc',label:'WS Gateway',tag:'sticky',tip:'Long-lived WebSocket per session. Sticky: session_id pinned to a gateway pod. Holds ~50k connections per pod.'},
+      {id:'gw2',x:130,y:260,w:90,h:42,kind:'svc',label:'WS Gateway',tag:'sticky',tip:''},
+      {id:'msg',x:260,y:170,w:100,h:46,kind:'svc',label:'Msg Service',tag:'write path',tip:'Writes to msg store with conversation_id+seq. Looks up recipient sessions; pushes to their gateways.'},
+      {id:'store',x:400,y:60,w:100,h:46,kind:'store',label:'Msg Store',tag:'cassandra',tip:'Partitioned by conversation_id, clustered by seq. Range queries (last N messages) are cheap.'},
+      {id:'seq',x:400,y:160,w:100,h:42,kind:'cache',label:'Seq Counter',tag:'redis incr',tip:'Per-conversation monotonic seq. Atomic INCR. Conversation is the partition key for ordering.'},
+      {id:'session',x:400,y:240,w:100,h:42,kind:'store',label:'Session Map',tag:'user&rarr;gateway',tip:'Per-user device_id &rarr; gateway_pod. TTL-refreshed via WS heartbeat.'},
+      {id:'push',x:400,y:320,w:100,h:42,kind:'queue',label:'Push Queue',tag:'apns / fcm',tip:'For offline recipients. Consumed by a notifier that calls APNs/FCM.'},
+      {id:'kafka',x:540,y:170,w:80,h:46,kind:'queue',label:'Outbox',tag:'kafka',tip:'Async fanout: read receipts, search index updates, e2e crypto state, audit log.'},
+      {id:'presence',x:660,y:170,w:50,h:46,kind:'svc',label:'Presence',tag:'gossip',tip:'Pod-local in-memory; gossiped or pushed to a Redis hash. Eventually consistent &mdash; "online 30s ago" is fine.'}
+    ],
+    edges:[
+      {from:'a',to:'gw1',kind:'sync',label:'WS'},
+      {from:'gw1',to:'msg',kind:'sync'},
+      {from:'msg',to:'seq',kind:'sync'},
+      {from:'msg',to:'store',kind:'sync'},
+      {from:'msg',to:'session',kind:'sync',label:'lookup'},
+      {from:'msg',to:'gw2',kind:'sync',label:'push'},
+      {from:'gw2',to:'b',kind:'sync',label:'WS'},
+      {from:'msg',to:'push',kind:'async',label:'offline'},
+      {from:'msg',to:'kafka',kind:'async'},
+      {from:'gw1',to:'presence',kind:'data'},
+      {from:'gw2',to:'presence',kind:'data'}
+    ]
+  },
+  decisions:[
+    ['Per-conversation monotonic sequence number','Total order within a conversation, no global clock needed. Lamport / vector clocks are overkill for chat &mdash; conversations have a single coordinator (the partition).'],
+    ['Sticky WebSocket gateways','Each user&rsquo;s session is pinned to one pod; reconnect picks a new pod. Routing layer does session_id &rarr; pod lookup via Redis hash.'],
+    ['Cassandra partitioned by conversation_id','One conversation = one partition; clustered by seq. Reads "last N messages" = single-partition range scan, sub-ms.'],
+    ['Idempotency via client_msg_id','Client generates UUID per message; deduplicated server-side via conditional insert. Retries don&rsquo;t double-send.'],
+    ['Async fan-out for receipts and notifications','Send-path latency budget is "deliver to recipient&rsquo;s WS". Receipts, search-indexing, push notifications go through Kafka.'],
+    ['Presence is eventually consistent','Per-pod in-memory, gossiped. "Online" means "had a heartbeat in the last 30s". Don&rsquo;t pretend it&rsquo;s real-time.'],
+    ['Multi-device sync via per-device cursor','Each device tracks its last-seen seq per conversation; on connect, fetches seq &gt; cursor. No "delivered to user" abstraction &mdash; only "delivered to device".']
+  ],
+  deepdives:[
+    {title:'Message ordering: per-conversation sequence vs Lamport / vector clocks',body:'<p>The naive answer is "use a Lamport clock" or "vector clocks." Both work for distributed systems with no central coordinator. <b>Chat doesn&rsquo;t need them</b> because each conversation has one obvious shard.</p><p><b>Per-conversation seq:</b> single Redis key <code>conv:42:seq</code>, atomic <code>INCR</code> on every send. The seq is the message&rsquo;s position. Total order within the conversation, no clock skew issues.</p><p><b>Why not vector clocks?</b> Vector clocks let you detect concurrency. In chat, concurrent messages just go in seq order &mdash; you don&rsquo;t care which "really" came first; the user just wants a stable ordering. Saving them is engineering for a problem you don&rsquo;t have.</p><p>Edge case: out-of-order writes (network reorder a multi-leg send). Use <b>conditional sequence claim</b>: client requests next seq, gets one back, includes it in the message, server rejects if seq != expected.</p>'},
+    {title:'Delivery state machine: sent &rarr; delivered &rarr; read',body:'<p>Three states, three side-channels:</p><p><b>Sent:</b> server has durably stored the message (cassandra ack). Sender sees a single check.</p><p><b>Delivered:</b> recipient&rsquo;s device has the message (WS push acked, or pulled on reconnect). Server emits a delivery_receipt event back to sender. Sender sees double-check.</p><p><b>Read:</b> recipient&rsquo;s app told the server "I scrolled past it." Per-device. Sender sees blue check.</p><p>The whole machine runs on per-device cursors. The server doesn&rsquo;t track global "delivered" &mdash; just "delivered to device X at seq Y." Read receipts are just "advanced cursor to seq Y" events.</p><p>Storage: each conversation has a <code>{device_id: cursor}</code> map; updates are append-mostly to a "events" stream. Don&rsquo;t mutate a row per receipt &mdash; you&rsquo;ll write-amplify yourself to death.</p>'}
+  ],
+  callouts:[
+    {tag:'Concept',body:'<b>WebSocket vs long-poll.</b> WS keeps a TCP connection open: cheaper per-message (no HTTP overhead), but a half-million concurrent connections per pod requires non-trivial OS tuning (file descriptors, ephemeral ports). Long-poll re-establishes a connection every time &mdash; simpler infra, more bytes on the wire.'},
+    {tag:'Concept',body:'<b>Outbox pattern.</b> When a write must spawn async work (notification, indexing), don&rsquo;t write to DB then publish to Kafka &mdash; if the publish fails after the DB write, you lose the event. Write the event into an "outbox" table in the same DB transaction; a separate process tails the outbox and publishes to Kafka. Exactly-once-ish.'}
+  ],
+  gotcha:'Saying &ldquo;use Kafka for messages&rdquo; treats Kafka as a database. Kafka is for the async fan-out (receipts, search, notifications), not the source of truth. The source of truth is Cassandra, partitioned by conversation. Also: don&rsquo;t propose a global ordering of all messages &mdash; you don&rsquo;t need it, and you can&rsquo;t scale it. Ordering is per-conversation, period.',
+  followups:[
+    ['Group chats with 1000 members?','Same model: conversation_id is the partition. Fan-out to 1000 recipients is bounded; only celebrity-broadcast (10M-member channels) needs special-casing &rarr; pull model.'],
+    ['End-to-end encryption?','Server stores ciphertext; per-recipient envelope encryption (Signal protocol). Complicates multi-device (key sharing) &amp; search (do it client-side).'],
+    ['Search?','Cassandra is bad at full-text. Async indexer reads the outbox, writes to Elasticsearch. Search per-conversation; merge globally for cross-chat.'],
+    ['Offline message storage limits?','Cap server-side retention (e.g., 30 days for free tier). Devices pull on reconnect; older messages live only on devices.']
+  ]
+});
+
+/* ---------- 6. RIDE-SHARING ---------- */
+PROBLEMS.push({
+  id:'ride-sharing',
+  num:'06',
+  name:'Ride-Sharing Match',
+  sub:'Uber / Lyft &mdash; geo indexing, real-time matching, surge.',
+  tag:'Geospatial + realtime',
+  badges:[['Lat-long ingest','warn'],['Sub-second match','cool'],['Hot cells','bad']],
+  framing:'Match a rider request to the nearest available driver in &lt;3 seconds. <b>10M active drivers, 1M rides/min peak</b>. Drivers ping their location every 4 seconds = ~2.5M location updates/s. Riders open the app and see a map of nearby drivers (read load). Match a request: find K candidate drivers within radius R, score by ETA + driver-acceptance, dispatch one. Surge pricing reflects supply/demand per geographic cell. Strong consistency on the actual booking (one driver, one rider); eventual elsewhere.',
+  specs:[
+    ['Active drivers','10M'],['Rides/min','1M peak'],['Location updates/s','2.5M'],
+    ['Match latency','&lt; 3 s'],['ETA accuracy','&plusmn;15%'],['Cells','S2 / quadtree']
+  ],
+  diagram:{
+    viewBox:'0 0 720 360',
+    nodes:[
+      {id:'driver',x:30,y:90,w:80,h:40,kind:'rect',label:'Driver App',tag:'gps ping',tip:'Posts {driver_id, lat, lng, ts} every 4s. Throttled if driver is stationary.'},
+      {id:'rider',x:30,y:260,w:80,h:40,kind:'rect',label:'Rider App',tag:'request',tip:'Requests a ride: {rider_id, pickup_loc, drop_loc, ride_type}. Shows nearby drivers on map (separate read).'},
+      {id:'ingest',x:140,y:90,w:100,h:42,kind:'svc',label:'Location Ingest',tag:'kafka producer',tip:'Validates the ping, stamps server time, writes to Kafka. Bypasses the matcher entirely &mdash; pure write path.'},
+      {id:'kafka',x:280,y:90,w:90,h:42,kind:'queue',label:'Kafka',tag:'pings',tip:'Partitioned by city / S2 cell. Consumed by the geo-index updater.'},
+      {id:'geo',x:420,y:90,w:110,h:46,kind:'cache',label:'Geo Index',tag:'redis geo / s2',tip:'In-memory spatial index. S2 cell &rarr; set of driver_ids. ZADD with cell as key. Updated by Kafka consumer.'},
+      {id:'match',x:160,y:260,w:110,h:46,kind:'svc',label:'Matcher',tag:'critical path',tip:'Pickup loc &rarr; S2 cells in radius &rarr; query geo index &rarr; rank candidates &rarr; dispatch. Sub-second.'},
+      {id:'rank',x:300,y:260,w:90,h:42,kind:'svc',label:'Ranker',tag:'eta + price',tip:'Scores candidates by ETA (road graph) + driver rating + acceptance probability. Picks top K.'},
+      {id:'dispatch',x:420,y:260,w:100,h:46,kind:'svc',label:'Dispatch',tag:'two-phase',tip:'Sends offer to driver with TTL (~10s). Marks driver as "pending" with conditional write. Falls through to next candidate on timeout.'},
+      {id:'rides',x:560,y:260,w:90,h:46,kind:'store',label:'Rides DB',tag:'postgres',tip:'Source of truth for active rides. Strong consistency; small enough to fit a sharded Postgres cluster.'},
+      {id:'surge',x:560,y:80,w:100,h:46,kind:'svc',label:'Surge Engine',tag:'per-cell',tip:'Reads supply (geo index) + demand (recent requests per cell). Computes per-cell surge multiplier; pushed to clients.'}
+    ],
+    edges:[
+      {from:'driver',to:'ingest',kind:'sync'},
+      {from:'ingest',to:'kafka',kind:'async'},
+      {from:'kafka',to:'geo',kind:'async'},
+      {from:'rider',to:'match',kind:'sync'},
+      {from:'match',to:'geo',kind:'sync',label:'cells in radius'},
+      {from:'match',to:'rank',kind:'sync'},
+      {from:'rank',to:'dispatch',kind:'sync'},
+      {from:'dispatch',to:'rides',kind:'sync',label:'compare-and-set'},
+      {from:'dispatch',to:'driver',kind:'sync',label:'offer'},
+      {from:'geo',to:'surge',kind:'data'},
+      {from:'match',to:'surge',kind:'data',label:'price'}
+    ]
+  },
+  decisions:[
+    ['S2 cells over geohash','S2 (Google) covers the sphere with hierarchical cells of bounded shape; geohash has known distortions at poles and edge artifacts. For a global service, S2 is the pro choice.'],
+    ['In-memory geo index, not a DB','Pings come in at 2.5M/s; a database can&rsquo;t take that as primary. Redis geo (sorted sets keyed by S2 cell) is the working set; durable state lives in Kafka and the source of truth is the rides DB.'],
+    ['Kafka between ingest and matcher','Decouples write rate from match rate. Pings can spike to 10x without affecting match latency.'],
+    ['Two-phase dispatch with offer TTL','Lock the driver candidate optimistically, send the offer, wait for accept; on timeout fall through to next candidate. Prevents double-booking without a global lock.'],
+    ['Postgres for rides (source of truth)','Each ride is a financial event &mdash; need ACID, need joins for analytics. Sharded by city or driver_id; fits comfortably.'],
+    ['Per-cell surge, not per-user','Cell granularity gives a stable signal even with tens of riders. Smoothing window prevents flicker.'],
+    ['Read-only nearby-drivers from geo index','Map view (rider sees taxis circling) is cheap reads against the same index that the matcher uses. Spatial query &asymp; "drivers in cell X and 8 neighbours."']
+  ],
+  deepdives:[
+    {title:'Geo indexing: S2, geohash, quadtree',body:'<p>The matching problem is "find K nearest in radius R" on streaming lat-lngs. Three indexing approaches:</p><p><b>Quadtree:</b> recursively subdivide the plane until each leaf has &le;N points. Great for static data, painful for high-churn (drivers entering/leaving leaves rebalance).</p><p><b>Geohash:</b> interleave lat/lng bits to produce a string; nearby points share prefixes. Simple, but cells are unequal in shape (stretched at poles) and adjacent points can have very different prefixes near cell edges &mdash; you must query 9 neighbouring cells.</p><p><b>S2:</b> hierarchical hexagonal-ish cells on the sphere. Cells at the same level have similar area regardless of latitude; cell IDs are 64-bit integers; parent/child/neighbour ops are bit-twiddles. The matcher computes <code>cells_in_radius(pickup, 2km)</code>, queries each cell&rsquo;s ZSET in Redis, merges, sorts by distance.</p><p><b>Storage shape:</b> Redis sorted set per S2 cell, member=driver_id, score=last_ping_ts. <code>ZRANGEBYSCORE cell now-30 now</code> &rarr; live drivers in the cell.</p>'},
+    {title:'The dispatch race &mdash; preventing double-booking',body:'<p>Two riders simultaneously match to the same driver. Both get offered; if both call "accept" at the same time, you double-booked.</p><p><b>Solution:</b> conditional write on the driver&rsquo;s state. Dispatch issues <code>UPDATE driver SET state=&rsquo;pending&rsquo;, ride_id=X WHERE state=&rsquo;available&rsquo;</code>. Only one wins (CAS). The losing matcher tries the next candidate.</p><p><b>Variant for offer flow:</b> dispatch grabs the lock with TTL = offer timeout (10s). If driver doesn&rsquo;t accept in 10s, lock auto-releases (via TTL or a sweeper). On accept, the lock becomes the booking.</p><p>This is just a lease pattern. Senior tell: name <b>fencing tokens</b> &mdash; on accept, increment a sequence; subsequent operations on this ride must include the sequence; out-of-order operations from a stale lock holder are rejected.</p>'}
+  ],
+  callouts:[
+    {tag:'Concept',body:'<b>Why hexagonal cells?</b> Hexagons tile the plane with one neighbour distance (vs squares: 4 edge-neighbours + 4 diagonal). Neighbour searches are simpler and more uniform &mdash; useful for "drivers in cell + neighbours."'},
+    {tag:'Concept',body:'<b>What does ETA need?</b> Not just euclidean distance &mdash; needs a road graph. Pre-compute travel-time matrices between cell centroids; refine with traffic data per minute.'}
+  ],
+  gotcha:'Proposing a relational DB to hold live driver locations is the classic blowup. 2.5M writes/s into Postgres = melted disk in five minutes. The interviewer wants to hear <i>spatial index in Redis (or Cassandra), Kafka between, S2 cells, and a separate strong-consistency store for rides themselves</i>. Also: don&rsquo;t skip the dispatch race &mdash; "what stops two riders from getting the same driver" is the staff-tell question.',
+  followups:[
+    ['How does ETA stay accurate?','Route on a road graph (OSRM, Valhalla); periodically update edge weights with traffic data; cache popular routes.'],
+    ['What about pool / shared rides?','Match riders to existing trips (route delta &lt; threshold). Add a "trip" entity that can hold multiple riders; matcher considers active trips as candidates.'],
+    ['Surge oscillation?','Cell-level multiplier with a smoothing window (e.g., EWMA over 30s). Hard caps to prevent runaway pricing.'],
+    ['Network partition during ride?','Driver and rider apps both run state machines locally; reconcile on reconnect via the rides DB. Fences ensure one side&rsquo;s stale view doesn&rsquo;t override.']
+  ]
+});
+
+/* ---------- 7. VIDEO STREAMING ---------- */
+PROBLEMS.push({
+  id:'video-streaming',
+  num:'07',
+  name:'Video Streaming Platform',
+  sub:'Netflix / YouTube &mdash; encode, distribute, adapt, cache.',
+  tag:'CDN-dominated',
+  badges:[['100s of TB egress','warn'],['ABR streaming','ok'],['Encode pipeline','warn']],
+  framing:'Stream video on demand at global scale. <b>200M DAU, 2 hours/user/day = 400M hours/day</b>. Avg bitrate 5 Mbps &times; 400M hrs = ~70 PB egress/day. Each upload becomes ~10 transcoded variants (1080p, 720p, 480p &times; codecs &times; HDR). Players use ABR to switch bitrates with network conditions; chunks are 4-10s. Strong availability, eventually-consistent metadata, idempotent uploads. Latency target: time-to-first-byte &lt; 500 ms.',
+  specs:[
+    ['DAU','200M'],['Egress','~70 PB/day'],['Upload size','GB-TB'],
+    ['Variants/upload','~10'],['Chunk size','4-10s'],['TTFB','&lt; 500 ms']
+  ],
+  diagram:{
+    viewBox:'0 0 720 360',
+    nodes:[
+      {id:'upl',x:30,y:60,w:90,h:42,kind:'rect',label:'Creator',tag:'upload',tip:'Multipart resumable upload. Client&rsquo;s ISP &rarr; nearest ingest pop.'},
+      {id:'viewer',x:30,y:250,w:90,h:42,kind:'rect',label:'Viewer',tag:'player (abr)',tip:'HLS / DASH player. Fetches a manifest, then chunks. Switches bitrate based on bandwidth + buffer.'},
+      {id:'ingest',x:150,y:60,w:100,h:42,kind:'svc',label:'Ingest',tag:'resumable',tip:'Tus / S3 multipart. Stores raw upload to object store; emits "new upload" event.'},
+      {id:'raw',x:280,y:60,w:90,h:42,kind:'store',label:'Raw S3',tag:'object store',tip:'Holds the original until transcoded. Often deleted or archived to glacier after publish.'},
+      {id:'kafka',x:400,y:60,w:80,h:42,kind:'queue',label:'Jobs',tag:'transcode',tip:'One event per upload. Workers fan out into per-variant transcode tasks.'},
+      {id:'tx',x:520,y:60,w:90,h:42,kind:'svc',label:'Transcoders',tag:'gpu fleet',tip:'ffmpeg / nvenc workers. Each produces one variant: e.g., 1080p H.264 segments. Idempotent: same input + recipe = same output (content-addressed).'},
+      {id:'cdn-origin',x:520,y:160,w:120,h:46,kind:'store',label:'CDN Origin',tag:'segment store',tip:'Holds finished HLS/DASH segments. Multi-region. CDN edges pull from here on miss.'},
+      {id:'meta',x:280,y:160,w:120,h:46,kind:'store',label:'Metadata DB',tag:'cassandra / dynamo',tip:'video_id, variants, manifest URL, ACL, captions. Read-heavy; eventually consistent.'},
+      {id:'edge',x:170,y:250,w:120,h:46,kind:'edge',label:'CDN Edge',tag:'pop near user',tip:'95%+ cache hit. Hierarchical: edge &rarr; regional &rarr; origin. Hottest content pinned by popularity.'},
+      {id:'auth',x:310,y:250,w:90,h:42,kind:'svc',label:'Auth / Tokens',tag:'signed url',tip:'Player presents a token; CDN validates signature + expiry. Stops link-sharing across accounts.'},
+      {id:'rec',x:420,y:250,w:90,h:42,kind:'svc',label:'Catalog API',tag:'recs / search',tip:'What to play next. Reads from metadata + ML rec service. Separate hot path from playback.'}
+    ],
+    edges:[
+      {from:'upl',to:'ingest',kind:'sync'},
+      {from:'ingest',to:'raw',kind:'sync'},
+      {from:'ingest',to:'kafka',kind:'async'},
+      {from:'kafka',to:'tx',kind:'async'},
+      {from:'tx',to:'cdn-origin',kind:'sync'},
+      {from:'tx',to:'meta',kind:'sync',label:'publish'},
+      {from:'viewer',to:'edge',kind:'sync',label:'segments'},
+      {from:'edge',to:'cdn-origin',kind:'sync',label:'on miss'},
+      {from:'viewer',to:'auth',kind:'sync',label:'token'},
+      {from:'viewer',to:'rec',kind:'sync'},
+      {from:'rec',to:'meta',kind:'sync'}
+    ]
+  },
+  decisions:[
+    ['HLS / DASH (adaptive bitrate)','Manifest lists variants; player picks one per chunk based on measured throughput. Chunk-level switching means recovery from network dips in seconds.'],
+    ['Pre-transcode all variants on upload','Don&rsquo;t transcode on demand &mdash; encoding is expensive; viewers number in millions. Pay once at ingest.'],
+    ['CDN as the egress','Origin can&rsquo;t serve 70 PB/day; CDN must. Hit ratios &gt; 95% are the norm; cold content (long tail) origin-pulls.'],
+    ['Hierarchical CDN (tiered cache)','Edge &rarr; regional &rarr; origin. Hot videos pinned to edges; long tail pulls through regional. Reduces origin egress by 10-100x.'],
+    ['Object store for blobs, KV/wide-column for metadata','S3 / GCS for segments (cheap, durable). Cassandra / DynamoDB for metadata (high QPS, key-shaped reads).'],
+    ['Signed URLs / DRM','CDN validates token signature for paid content. DRM (Widevine, FairPlay) for premium tiers; license server is a separate concern.'],
+    ['Transcode pipeline is async, idempotent','Transcoding is a Kafka-driven worker pool. Output is content-addressed; re-running the same job is a no-op.'],
+    ['Storage tiers','Raw uploads &rarr; archive (Glacier) after publish; cold variants &rarr; infrequent-access; hot variants &rarr; standard. Cuts storage cost 5-10&times;.']
+  ],
+  deepdives:[
+    {title:'HLS / DASH adaptive bitrate explained',body:'<p>The video is encoded into N variants (e.g., 360p / 720p / 1080p / 4K), each chopped into chunks of 4-10 seconds. A <b>manifest</b> lists all variants and their chunk URLs. The player downloads the manifest, picks an initial variant based on bandwidth, then for each chunk:</p><p>(1) measures actual download throughput; (2) checks current buffer level (ahead of playback); (3) picks the highest variant whose bitrate &lt; throughput &times; safety_factor; (4) requests the next chunk at that variant.</p><p>Bitrate can change <i>chunk by chunk</i> &mdash; the variants share keyframes at chunk boundaries so the player can splice without artifacts. Result: a flaky network step-downs to 480p instead of buffering.</p><p><b>HLS</b> (Apple) uses a <code>.m3u8</code> playlist + TS or fMP4 segments. <b>DASH</b> (MPEG) uses an XML manifest + fMP4. Functionally similar; HLS dominates on iOS, DASH on smart TVs and PCs. Most platforms ship both.</p>'},
+    {title:'CDN cache hierarchy &amp; the long tail',body:'<p>CDN caches are not flat &mdash; they&rsquo;re a tree. <b>Edge POPs</b> (hundreds globally) hold the hottest few percent. <b>Regional caches</b> (dozens) hold a few orders of magnitude more. <b>Origin shields</b> sit in front of origin, absorbing the cache-fill traffic that would otherwise hammer the origin store.</p><p>Why hierarchy? Egress economics. Without a regional layer, every edge miss = origin pull = expensive bandwidth. With a regional layer, a single fill from origin populates many edges &rarr; 10-100x reduction in origin egress.</p><p><b>Long-tail problem:</b> Netflix has millions of titles; cache hit ratio at the edge is bounded by working-set size vs. cache size. They use predictive pre-positioning (push popular content to edges nightly based on viewing patterns) and Open Connect (Netflix-owned hardware in ISPs).</p><p>Senior tell: name <b>"cache hierarchy collapses to origin under cold-start"</b> as the failure mode &mdash; new content release floods origin until edges populate.</p>'}
+  ],
+  callouts:[
+    {tag:'Concept',body:'<b>Why pre-transcode?</b> A 10-minute 4K video takes ~5 minutes of GPU time to transcode. Transcoding on-demand for a million viewers = 1 million GPU-minutes = ~700 GPUs constantly. Pre-transcoding once costs the same as one viewer.'},
+    {tag:'Concept',body:'<b>Live streaming</b> reuses the same shape but constraints flip: latency budget shrinks (target ~5s glass-to-glass for live, vs minutes for VOD), so chunks shrink (1-2s LL-HLS, or sub-second WebRTC for ultra-low-latency). Transcode happens as the stream arrives.'}
+  ],
+  gotcha:'Saying &ldquo;put the videos in S3 and serve them&rdquo; without naming the CDN, transcoding pipeline, and ABR is the candidate-killer. The interviewer expects <i>CDN hierarchy + ABR + async transcoding pipeline + storage tiering</i>. Also don&rsquo;t conflate VOD with live &mdash; latency budgets and pipeline shapes differ. Naming the wrong protocol (RTMP for delivery to viewer, vs to ingest) is a yellow flag.',
+  followups:[
+    ['Live streaming?','Same backbone, sub-second pipeline: LL-HLS or WebRTC. Transcode on the fly; cache misses hit a much smaller window of content.'],
+    ['DRM?','License server issues per-session keys; CDN serves encrypted segments. Widevine / FairPlay / PlayReady &mdash; one per platform. Adds ~50ms to playback start.'],
+    ['Recommendations?','Separate ML pipeline; reads viewing signals (Kafka) and writes per-user candidate lists. Played from a separate cache, not the metadata DB.'],
+    ['What melts at 10x?','Origin egress on cold content. Mitigations: more regional caches, predictive pre-positioning, more aggressive edge eviction tuning.']
+  ]
+});
+
+
+/* ---------- 8. SEARCH & TYPEAHEAD ---------- */
+PROBLEMS.push({
+  id:'search',
+  num:'08',
+  name:'Search &amp; Typeahead',
+  sub:'Google-scale &mdash; inverted index, sharding, autocomplete latency.',
+  tag:'Inverted index',
+  badges:[['Sub-100ms p99','cool'],['Massive corpus','warn'],['Relevance ranking','warn']],
+  framing:'Two products: <b>typeahead</b> (autocomplete on every keystroke, &lt; 50ms p99) and <b>search</b> (full results, &lt; 200ms p99) over a corpus of <b>10B documents</b>. Each query returns ranked results with snippets. Typeahead is high-QPS (10x search), narrow-result. Search is lower-QPS, wider-result. Index updates are continuous (new docs, edits, deletes); near-real-time freshness is fine for most documents (&lt;1 min) and seconds for trending.',
+  specs:[
+    ['Corpus','10B docs'],['Index size','~5 PB'],['Search QPS','100k peak'],
+    ['Typeahead QPS','1M+ peak'],['p99 search','&lt; 200 ms'],['p99 typeahead','&lt; 50 ms']
+  ],
+  diagram:{
+    viewBox:'0 0 720 360',
+    nodes:[
+      {id:'user',x:30,y:170,w:70,h:42,kind:'rect',label:'User',tag:'browser',tip:'Issues a typeahead query per keystroke; a full search on enter.'},
+      {id:'gw',x:120,y:170,w:80,h:42,kind:'svc',label:'API GW',tag:'edge',tip:'Routes to typeahead or search; rate-limits per user.'},
+      {id:'cache',x:220,y:60,w:100,h:42,kind:'cache',label:'Query Cache',tag:'redis',tip:'Caches the last N queries&rsquo; results. Hit ratio modest (~30%) due to long-tail; still saves index hits.'},
+      {id:'ta',x:220,y:160,w:100,h:42,kind:'svc',label:'Typeahead',tag:'trie + redis',tip:'Prefix lookups. Trie / FST in memory; result is the K most-popular completions for the prefix.'},
+      {id:'search',x:220,y:260,w:100,h:42,kind:'svc',label:'Search Coord',tag:'scatter-gather',tip:'Parses query, scatters to all index shards, gathers top-K from each, merges to global top-K, fetches doc summaries.'},
+      {id:'idx',x:380,y:160,w:130,h:50,kind:'store',label:'Inverted Index',tag:'sharded by doc',tip:'Each shard holds a slice of docs; serves the same query in parallel. ~50ms per shard latency budget.'},
+      {id:'docs',x:380,y:260,w:130,h:50,kind:'store',label:'Doc Store',tag:'fwd index',tip:'doc_id &rarr; full content. Fetched after ranking to build snippets / titles.'},
+      {id:'rank',x:540,y:160,w:90,h:42,kind:'svc',label:'Ranker',tag:'ml',tip:'Re-ranks coordinator&rsquo;s top-K with learned signals (BM25, embeddings, click-through history).'},
+      {id:'pop',x:380,y:60,w:130,h:42,kind:'store',label:'Popularity',tag:'count store',tip:'Per-prefix and per-query frequency. Used by typeahead and ranker.'},
+      {id:'idx-builder',x:540,y:60,w:120,h:42,kind:'svc',label:'Index Builder',tag:'kafka consumer',tip:'Consumes new/edited docs from Kafka; tokenises, builds postings, ships segments to index shards.'},
+      {id:'kafka',x:540,y:260,w:120,h:42,kind:'queue',label:'Doc Updates',tag:'kafka',tip:'Source of doc changes &mdash; from crawlers, internal services, etc.'}
+    ],
+    edges:[
+      {from:'user',to:'gw',kind:'sync'},
+      {from:'gw',to:'ta',kind:'sync'},
+      {from:'gw',to:'search',kind:'sync'},
+      {from:'search',to:'cache',kind:'sync'},
+      {from:'search',to:'idx',kind:'sync',label:'scatter'},
+      {from:'search',to:'rank',kind:'sync'},
+      {from:'rank',to:'docs',kind:'sync',label:'snippets'},
+      {from:'ta',to:'pop',kind:'sync'},
+      {from:'kafka',to:'idx-builder',kind:'async'},
+      {from:'idx-builder',to:'idx',kind:'async'},
+      {from:'idx-builder',to:'pop',kind:'async'}
+    ]
+  },
+  decisions:[
+    ['Inverted index sharded by doc, not by term','Each shard owns a slice of docs and indexes them locally. Query fans out to all shards in parallel, each returns top-K, coordinator merges.'],
+    ['Typeahead uses a separate path','Different latency budget (50ms), different data structure (trie / FST), different storage (in-memory). Don&rsquo;t reuse the search index &mdash; you&rsquo;ll blow the budget.'],
+    ['Ranker re-ranks the top-K, not the whole corpus','Index returns ~1000 candidates per query (BM25-cheap); ML model re-ranks them. Two-tier: cheap recall, expensive precision.'],
+    ['Async indexing pipeline','Doc edits land in Kafka; index builders tokenise and append to per-shard segments (Lucene-style). Background merges keep segments healthy.'],
+    ['Two-phase query: query phase + fetch phase','Phase 1: each shard returns (doc_id, score). Coordinator picks global top-K. Phase 2: only those K docs have summaries fetched. Halves bandwidth.'],
+    ['Snapshot-based replicas for read scale','Index segments are immutable; replicas can be added by copying segments. New writes layer on top via small live segments + periodic merges.'],
+    ['Shard sizing for tail latency','Smaller shards = faster per-shard query but more shards to merge. Sweet spot: each shard p99 &lt; latency_budget / 2; coordinator absorbs the rest.']
+  ],
+  deepdives:[
+    {title:'Inverted index sharding: by document vs by term',body:'<p>Two ways to split a 10B-doc index across machines.</p><p><b>By document:</b> each shard holds 1/N of the docs and a complete inverted index over its slice. Query fans out to all N shards. Adding a doc = appending to one shard. <b>Pros:</b> writes are local, easy to scale by adding shards. <b>Cons:</b> every query hits every shard &mdash; tail latency is bounded by the slowest shard, and merging top-K across shards has overhead.</p><p><b>By term:</b> each shard owns a slice of the term dictionary; the postings list for "the" lives entirely on one shard. Query routes to the shards that own its query terms (often 2-5 of N). <b>Pros:</b> query touches fewer shards. <b>Cons:</b> hot terms ("the", "and") create hot shards; multi-term queries need to ship postings between shards to AND them; rebalancing is painful.</p><p><b>Production answer:</b> by-document is the default everywhere (Elasticsearch, Solr, Lucene). The tail-latency cost is real but mitigable (replica selection, hedged requests). The hot-term problem of by-term sharding is unmitigable.</p>'},
+    {title:'Typeahead latency budget: trie or FST',body:'<p>50ms p99 is brutal &mdash; can&rsquo;t hit a full-text index. Typeahead lives on a separate, in-memory data structure.</p><p><b>Trie:</b> each prefix is a path in the tree, leaves carry the K most popular completions. Lookup is O(prefix_length). For "doc" you walk d &rarr; o &rarr; c and read leaf candidates. Memory cost: roughly the corpus of distinct prefixes &times; constant.</p><p><b>FST (Finite State Transducer):</b> Lucene&rsquo;s preferred representation. Same lookup as a trie but compressed (suffix sharing). 5-10x smaller in RAM; same query speed.</p><p><b>Top-K per prefix is precomputed.</b> When user types "doc", server doesn&rsquo;t scan all matching docs; it returns the cached K best for that prefix, ranked by query frequency / personalisation. Update on a slow background job (every few minutes is fine; trending terms get a faster path).</p><p>Senior tell: name <b>personalised typeahead</b> &mdash; layer a small per-user prefix &rarr; recent/preferred completions cache on top of the global trie.</p>'}
+  ],
+  callouts:[
+    {tag:'Concept',body:'<b>BM25</b> is the term-frequency / inverse-document-frequency scoring used in classical search. Modern rankers ride on top of it, not instead of it &mdash; the index gives a thousand candidates ranked by BM25; an ML model re-ranks the top thousand.'},
+    {tag:'Concept',body:'<b>Why hedged requests?</b> Tail latency is dominated by stragglers. If your shard p99 is 80ms but p999 is 400ms, sending the query to two replicas of the slowest shards (and taking the first response) cuts your p99 in half at the cost of ~5% extra traffic.'}
+  ],
+  gotcha:'Saying &ldquo;use Elasticsearch&rdquo; without explaining sharding shape, query phase / fetch phase, or refresh interval is the surface answer. Senior interviewers will follow up with: <i>"How do you keep the index fresh? What happens at p999? Why not by-term sharding?"</i> Have those answers ready. Also: don&rsquo;t propose typeahead off the search index &mdash; budget mismatch.',
+  followups:[
+    ['How do you handle index updates without downtime?','New docs go to a small "live" segment; periodic merge into larger segments. Rebuild is segment-by-segment with no global stop.'],
+    ['Personalised search?','User profile / history feeds into the ranker as features. Index stays global; personalisation happens at re-rank time.'],
+    ['Spell correction?','Edit-distance lookup against the term dictionary; suggest if no high-relevance results found. Often rendered as "did you mean..." with rerunning.'],
+    ['Vector search / semantic?','Add a dense_vector field, ANN index (HNSW). Hybrid retrieval: BM25 candidates + ANN candidates &rarr; ranker.']
+  ]
+});
+
+/* ---------- 9. WEB CRAWLER ---------- */
+PROBLEMS.push({
+  id:'web-crawler',
+  num:'09',
+  name:'Web Crawler',
+  sub:'Google-scale &mdash; politeness, dedup, the URL frontier.',
+  tag:'Massive parallel I/O',
+  badges:[['10B+ pages','warn'],['Politeness windows','ok'],['Bloom dedup','cool']],
+  framing:'Crawl ~10B pages per cycle, refresh popular pages frequently and long-tail rarely. Need to obey <code>robots.txt</code>, throttle per-host, dedupe URLs and content (mirrors), survive node failures, prioritise high-value sites. Output: pages stored to a durable blob store and pushed to the indexer (problem 8). Parallelism is bounded not by us but by remote servers&rsquo; rate limits.',
+  specs:[
+    ['Pages/cycle','10B'],['New URLs/s','100k'],['Politeness','&le; 1 req/host/sec'],
+    ['Dedup','URL + content'],['Storage','100s of TB compressed'],['Re-fetch','per page-rank']
+  ],
+  diagram:{
+    viewBox:'0 0 720 360',
+    nodes:[
+      {id:'seed',x:30,y:60,w:80,h:42,kind:'rect',label:'Seeds',tag:'curated',tip:'Initial URLs &mdash; major domains, sitemaps. Bootstrap the frontier.'},
+      {id:'frontier',x:140,y:170,w:120,h:50,kind:'queue',label:'URL Frontier',tag:'priority queue',tip:'Per-host queues with politeness windows. Front: ready-to-fetch; back: throttled pending. Multi-tier priority by domain rank.'},
+      {id:'fetcher',x:300,y:170,w:100,h:46,kind:'svc',label:'Fetchers',tag:'parallel pool',tip:'Pull URLs from frontier; respect robots.txt; HTTP GET; handle redirects, timeouts, retries with exponential backoff.'},
+      {id:'robots',x:300,y:60,w:100,h:42,kind:'cache',label:'robots.txt',tag:'per-host cache',tip:'Cached per-host (TTL ~1 day). Fetched once, applied to every URL on that host.'},
+      {id:'parser',x:440,y:170,w:100,h:46,kind:'svc',label:'Parser',tag:'extract links',tip:'Strips boilerplate, extracts new URLs, detects content type. Produces page text + URL list.'},
+      {id:'urldedup',x:440,y:60,w:100,h:42,kind:'cache',label:'URL Bloom',tag:'seen-or-not',tip:'Bloom filter of seen URLs (or hashes). False-positive (rarely skip a new URL) acceptable; false-negative (re-crawl) is not.'},
+      {id:'contentdedup',x:440,y:280,w:100,h:42,kind:'cache',label:'Content SimHash',tag:'near-dup',tip:'SimHash / MinHash of page content; rejects mirrors and near-duplicates. Crawls millions of mirror sites efficiently.'},
+      {id:'store',x:580,y:170,w:120,h:50,kind:'store',label:'Page Store',tag:'object store',tip:'Compressed pages (warc / arrow) keyed by content hash. Read by indexer pipeline.'},
+      {id:'rank',x:30,y:280,w:80,h:42,kind:'svc',label:'PageRank',tag:'offline',tip:'Periodic batch job (Spark / MapReduce) computes per-host / per-page priority; feeds back into frontier prioritisation.'},
+      {id:'kafka',x:580,y:280,w:120,h:50,kind:'queue',label:'Indexer Bus',tag:'kafka',tip:'Pages flow downstream to the indexer (problem 8) for term extraction and inverted index updates.'}
+    ],
+    edges:[
+      {from:'seed',to:'frontier',kind:'data'},
+      {from:'frontier',to:'fetcher',kind:'sync'},
+      {from:'fetcher',to:'robots',kind:'sync'},
+      {from:'fetcher',to:'parser',kind:'sync'},
+      {from:'parser',to:'urldedup',kind:'sync'},
+      {from:'urldedup',to:'frontier',kind:'data',label:'new URLs'},
+      {from:'parser',to:'contentdedup',kind:'sync'},
+      {from:'parser',to:'store',kind:'sync'},
+      {from:'store',to:'kafka',kind:'async'},
+      {from:'rank',to:'frontier',kind:'data',label:'priorities'}
+    ]
+  },
+  decisions:[
+    ['Per-host queues for politeness','One bucket per host, drained at &le; 1 req/sec. Prevents accidental DoS of a small site by your fleet.'],
+    ['Bloom filter for URL dedup','10B URLs &times; 64 bytes is too much RAM. Bloom: ~12 GB for 10B URLs at 1% false-positive rate &mdash; rare missed crawl is fine.'],
+    ['SimHash / MinHash for content dedup','Many sites mirror others (CDNs, scraped clones). Hashing the content body and comparing rejects exact and near-duplicates.'],
+    ['PageRank-based priority','Long-tail of the web is mostly low-value. Crawl prioritisation by domain rank means hot sites get refreshed often, dormant sites rarely.'],
+    ['Distributed frontier with sharding','Frontier shards by host (so politeness state is local). Each fetcher owns a set of host shards.'],
+    ['Idempotent storage by content hash','Same content fetched twice = same key in store. Minimises storage cost; re-fetches are no-ops.'],
+    ['Async pipeline to indexer','Crawler completes its job at "page stored." Indexer is a separate concern; flows over Kafka.']
+  ],
+  deepdives:[
+    {title:'The URL frontier &amp; politeness',body:'<p>Naive: one big queue of URLs. Problem: a depth-first walk would slam a single host. <b>Politeness</b> says: no more than 1 req/sec per host (or whatever robots says).</p><p><b>Mercator-style frontier:</b> two layers. <b>Front queues</b> (a few hundred): pop from these to feed the fetchers. <b>Back queues</b> (one per active host): each new URL is hashed to a back queue. A separate process moves URLs from back queues to front queues, ensuring no front queue has two URLs from the same host within the politeness window.</p><p><b>Priority:</b> within back queues, URLs are scored by PageRank / freshness / change-frequency. Hot pages (news sites) are re-fetched daily; long-tail pages might be fetched once a year.</p><p><b>Domain rank:</b> high-PR domains get more concurrent fetchers; low-PR domains get one fetcher.</p>'},
+    {title:'Bloom filters for URL dedup',body:'<p>Why not just a hashmap of all seen URLs? Memory. 10B URLs &times; even 50 bytes each = 500 GB. You don&rsquo;t want that on every fetcher.</p><p><b>Bloom filter:</b> a bit array with K hash functions. Insert: hash item K times, set those K bits. Lookup: hash, check all K bits set. <b>False-positives</b> (says yes when item not present) are possible; <b>false-negatives</b> (says no when item is present) are not. For 10B items at 1% FP rate: ~12 GB &mdash; runs on every fetcher.</p><p>For URLs: false-positive means we skip crawling something we&rsquo;ve never seen &mdash; one missed page in 100 is acceptable. False-negative would be us crawling the same URL twice; bloom guarantees this won&rsquo;t happen.</p><p><b>Counting Bloom / Cuckoo filter</b> if you need deletes (e.g., URL TTL expires); standard Bloom is set-only.</p>'}
+  ],
+  callouts:[
+    {tag:'Concept',body:'<b>SimHash</b> turns a document into a 64-bit fingerprint such that near-duplicate documents have hamming-close fingerprints. Compare fingerprints in O(1); two docs differ by &le;3 bits =&gt; near-duplicate.'},
+    {tag:'Concept',body:'<b>robots.txt</b> is fetched once per host per day. Failure to fetch / parse it &rarr; default to "allow nothing" (politeness over completeness).'}
+  ],
+  gotcha:'Forgetting <b>robots.txt</b> is the immediate disqualifier. Saying "we crawl everything fast" without naming politeness, the per-host bucket, or the priority queue tells the interviewer you&rsquo;ve never operated a crawler. Also: don&rsquo;t propose a relational DB for the URL set &mdash; bloom filter is the textbook fit.',
+  followups:[
+    ['How do you re-crawl?','Per-page change-frequency estimate (Last-Modified, sitemap lastmod, observed change rate). High-change pages fetched more often.'],
+    ['What about JavaScript-rendered pages?','Headless browser pool (Puppeteer / Playwright). 10-100x more expensive than plain HTTP fetch; reserved for high-value targets.'],
+    ['How to detect a crawler trap (infinite link generation)?','Per-host depth limit, URL-length limit, repetitive-pattern detection. Cap a host&rsquo;s URLs in a single cycle.'],
+    ['Distributed frontier failure?','Frontier state checkpointed to durable storage every minute; on node loss, replay from checkpoint; in-flight URLs replayed (idempotent fetch by content hash).']
+  ]
+});
+
+/* ---------- 10. NOTIFICATION SYSTEM ---------- */
+PROBLEMS.push({
+  id:'notifications',
+  num:'10',
+  name:'Notification System',
+  sub:'Push / email / SMS &mdash; idempotency, dedup, per-channel rate limits.',
+  tag:'Multi-channel async',
+  badges:[['Idempotency-keyed','ok'],['Per-user rate caps','warn'],['Provider failures','bad']],
+  framing:'Send notifications across push (APNs/FCM), email (SMTP/SES), SMS (Twilio), and in-app, triggered by events from any service. <b>500M users, 5B notifications/day = 60k/s avg, 200k peak</b>. Need per-channel idempotency, per-user rate limits ("don&rsquo;t notify Alice 50 times per hour"), per-template templating, opt-out / preference enforcement, and graceful handling of provider outages (APNs occasionally drops; SMS providers throttle). Delivery is asynchronous; latency target is seconds, not milliseconds.',
+  specs:[
+    ['Notifications/day','5B'],['Avg/s / Peak/s','60k / 200k'],['Channels','push / email / SMS / in-app'],
+    ['Per-user cap','typically &le; 5/hour'],['Latency','&lt; 30 s p99'],['Dedup','idempotency_key']
+  ],
+  diagram:{
+    viewBox:'0 0 720 360',
+    nodes:[
+      {id:'svc',x:30,y:170,w:90,h:42,kind:'rect',label:'Producer',tag:'any service',tip:'Posts {user_id, template_id, payload, idempotency_key}. The producer doesn&rsquo;t know about channels.'},
+      {id:'api',x:140,y:170,w:90,h:42,kind:'svc',label:'Notif API',tag:'enqueue',tip:'Validates idempotency_key, writes to ingest store, enqueues for orchestration.'},
+      {id:'ingest',x:260,y:170,w:90,h:42,kind:'queue',label:'Ingest Q',tag:'kafka',tip:'Decouples producer from orchestrator.'},
+      {id:'orch',x:380,y:170,w:100,h:46,kind:'svc',label:'Orchestrator',tag:'channel routing',tip:'Reads user prefs, decides channels, applies per-user rate limit, splits into per-channel jobs.'},
+      {id:'prefs',x:380,y:60,w:100,h:42,kind:'store',label:'Prefs / Optout',tag:'kv',tip:'Per-user channel prefs and opt-outs. Read every notification &mdash; cache aggressively.'},
+      {id:'rl',x:520,y:60,w:90,h:42,kind:'cache',label:'Per-user RL',tag:'redis',tip:'Token bucket per (user, channel). Caps spam: typically 5/hour push, 1/day email.'},
+      {id:'pushQ',x:520,y:130,w:90,h:42,kind:'queue',label:'Push Q',tag:'apns / fcm',tip:'Per-channel queue. Workers consume and call provider; retry on transient failures.'},
+      {id:'emailQ',x:520,y:180,w:90,h:42,kind:'queue',label:'Email Q',tag:'ses',tip:''},
+      {id:'smsQ',x:520,y:230,w:90,h:42,kind:'queue',label:'SMS Q',tag:'twilio',tip:''},
+      {id:'workers',x:640,y:180,w:60,h:42,kind:'svc',label:'Workers',tag:'pool',tip:'Per-channel worker pools. Apply provider-specific retries with backoff. Emit delivery events.'},
+      {id:'log',x:380,y:280,w:140,h:42,kind:'store',label:'Delivery Log',tag:'cassandra',tip:'idempotency_key &rarr; delivery state. Used to dedupe re-enqueues and to answer "did Alice get this?"'}
+    ],
+    edges:[
+      {from:'svc',to:'api',kind:'sync'},
+      {from:'api',to:'ingest',kind:'async'},
+      {from:'ingest',to:'orch',kind:'async'},
+      {from:'orch',to:'prefs',kind:'sync'},
+      {from:'orch',to:'rl',kind:'sync'},
+      {from:'orch',to:'pushQ',kind:'async'},
+      {from:'orch',to:'emailQ',kind:'async'},
+      {from:'orch',to:'smsQ',kind:'async'},
+      {from:'pushQ',to:'workers',kind:'async'},
+      {from:'emailQ',to:'workers',kind:'async'},
+      {from:'smsQ',to:'workers',kind:'async'},
+      {from:'orch',to:'log',kind:'sync',label:'state'},
+      {from:'workers',to:'log',kind:'async',label:'delivery'}
+    ]
+  },
+  decisions:[
+    ['Producer-supplied idempotency_key','Critical. Producer-side retries can reduplicate; server dedupes by key. Without it, a single producer bug spams users.'],
+    ['Per-channel queue, not one queue','Email is slow (seconds per send), push is fast (10-100ms), SMS is rate-limited by carriers. Keeping them separate prevents one slow channel from backing up another.'],
+    ['Per-user, per-channel rate limit','User wakes up to 50 notifications because of a bug. The rate limiter prevents that from being your ops incident. Token bucket in Redis.'],
+    ['Preferences cached aggressively','Every notification hits prefs &rarr; if it&rsquo;s a DB call you&rsquo;re burning IOPS. Cache prefs in Redis with invalidate-on-update.'],
+    ['Workers handle provider retries','Push providers occasionally fail; workers retry with exponential backoff up to a cap. After cap, dead-letter queue + alert.'],
+    ['Delivery log as source of truth','Every event (enqueued, sent, delivered, failed) writes to Cassandra. Used for dedup, debugging, support tickets ("did Alice get this?").'],
+    ['Sync API for high-priority, async for batch','Transactional notifications (password reset) skip the queue and go direct &mdash; lower latency, paid for in operational complexity. Marketing / digest notifications go through the queue.']
+  ],
+  deepdives:[
+    {title:'Idempotency keys, dedup, and exactly-once-ish delivery',body:'<p>Producers will retry. Networks will hiccup. Workers will get stuck and replay messages. <b>Without idempotency, your users get spammed.</b></p><p><b>The pattern:</b> producer generates a UUID per logical event (<code>idempotency_key = "user42_password_reset_2024-03-28T14:00"</code>) and includes it on every retry. Notif API does <code>INSERT IGNORE INTO ingestlog(key) VALUES (?)</code>; if the row exists, return success without enqueueing.</p><p>At the worker layer: same idempotency key is forwarded to the provider where supported (APNs collapse-id; SES message-id). Some providers don&rsquo;t support it &mdash; for those, the worker checks delivery_log before sending and skips if already-delivered.</p><p><b>Exactly-once is a lie.</b> What you&rsquo;re actually delivering is "at-least-once with deduplication" &mdash; the user perceives it as exactly-once. Lock the dedup window to a sane TTL (24 hours typical); you don&rsquo;t want to dedup against state from 2017.</p>'},
+    {title:'Per-channel rate limits and provider chaos',body:'<p>Providers go down. Twilio degrades to "send eventually." APNs sometimes silently drops. Your workers must have an opinion about each.</p><p><b>Retry strategy:</b> exponential backoff with jitter. Cap retries at ~10 over ~30 minutes. After cap, dead-letter the message; alert ops. Don&rsquo;t retry forever &mdash; workers fill up.</p><p><b>Circuit breaker:</b> if 50% of calls to a provider are failing in a 1-min window, trip the breaker; fail fast for the next 30s. Cuts cascading failure across the worker pool.</p><p><b>Per-user rate limit lives at the orchestrator</b>, not the worker. By the time a notification reaches a worker, you&rsquo;ve already committed to sending it. Drop it earlier.</p><p>Senior tell: name <b>"poison message"</b> as a failure mode &mdash; bad payload that workers never successfully process; without a cap it cycles forever. DLQ + cap + alert.</p>'}
+  ],
+  callouts:[
+    {tag:'Concept',body:'<b>APNs collapse-id</b> tells Apple "if I send another notification with the same collapse-id, throw away the previous one." Use it when sending sequential updates (e.g., live game score) so users only see the latest.'},
+    {tag:'Concept',body:'<b>Why a separate orchestrator?</b> Producer doesn&rsquo;t know "Alice prefers email but not push, currently rate-limited on email, so route to in-app." That&rsquo;s the orchestrator&rsquo;s job. Producer just says "tell Alice X happened."'}
+  ],
+  gotcha:'Saying &ldquo;use SQS&rdquo; without naming idempotency, dedup, and per-user rate limits is the surface answer. The interviewer wants <i>idempotency keys all the way through, per-channel queues, per-user rate limit at orchestrator, delivery log as truth</i>. Also: not separating transactional from marketing notifications is a senior-level miss; they have very different latency and reliability budgets.',
+  followups:[
+    ['Scheduled notifications (e.g., reminders)?','Put into a delay queue (Redis sorted set scored by send_at, or SQS delay). Sweeper service moves due items into the ingest queue.'],
+    ['User unsubscribes mid-batch?','Orchestrator checks prefs at send time, not at enqueue time. If 10M-recipient marketing batch is queued, late opt-outs are honoured.'],
+    ['Localisation?','Templates indexed by (template_id, locale). Orchestrator picks the right one based on user&rsquo;s locale preference.'],
+    ['Multi-region failover?','Active-active producers; orchestrator state is regional with cross-region replication for the delivery log. Provider tokens are global.']
+  ]
+});
+
+
+/* ---------- 11. JOB SCHEDULER / CRON ---------- */
+PROBLEMS.push({
+  id:'scheduler',
+  num:'11',
+  name:'Job Scheduler / Cron',
+  sub:'Distributed cron &mdash; leader election, time wheels, missed-tick recovery.',
+  tag:'Time-driven',
+  badges:[['At-least-once','warn'],['Leader-elected','ok'],['Time wheel','cool']],
+  framing:'Run scheduled jobs (cron-style) at scale: <b>10M registered jobs, 50k jobs/min peak</b>. Each job has a schedule (cron expression or interval), a payload, and an executor (run a worker, send a webhook, kick off a workflow). Need at-least-once execution (jobs re-fire on worker failure), bounded duplicate execution (saga / idempotency at the job level), missed-tick recovery (cluster was down for 5 min &mdash; what runs now?). Job durations vary from milliseconds to hours.',
+  specs:[
+    ['Registered jobs','10M'],['Fires/min','50k peak'],['Skew','&lt; 1 s desired'],
+    ['Missed-tick','recover within 60s'],['Job duration','ms to hours'],['Semantics','at-least-once']
+  ],
+  diagram:{
+    viewBox:'0 0 720 360',
+    nodes:[
+      {id:'admin',x:30,y:60,w:90,h:42,kind:'rect',label:'Admin',tag:'register',tip:'Posts {schedule, payload, executor}. Stored in metadata DB.'},
+      {id:'meta',x:140,y:60,w:100,h:42,kind:'store',label:'Metadata DB',tag:'postgres',tip:'Source of truth for job definitions. Read on every reschedule.'},
+      {id:'sched',x:30,y:170,w:120,h:50,kind:'svc',label:'Scheduler',tag:'leader-elected',tip:'Computes next-fire times for jobs assigned to this shard. Pushes due jobs into the dispatch queue. Leader-elected per shard.'},
+      {id:'tw',x:170,y:170,w:120,h:50,kind:'cache',label:'Time Wheel',tag:'in-memory',tip:'Hierarchical time-wheel data structure: O(1) insert and tick. Per-bucket linked list of jobs due at that tick.'},
+      {id:'lock',x:170,y:80,w:120,h:42,kind:'svc',label:'Leader Election',tag:'etcd / zk',tip:'One scheduler instance per shard holds the lease; others stand by. Lease auto-renews; failure = quick promotion.'},
+      {id:'queue',x:320,y:170,w:100,h:50,kind:'queue',label:'Dispatch Q',tag:'kafka',tip:'Due jobs enter here. Workers consume; idempotency_key = {job_id, scheduled_for}.'},
+      {id:'workers',x:450,y:170,w:120,h:50,kind:'svc',label:'Worker Pool',tag:'pull jobs',tip:'Lease a job (visibility timeout), execute, ack on success. On worker death, lease expires, another worker picks up.'},
+      {id:'execlog',x:600,y:170,w:100,h:50,kind:'store',label:'Exec Log',tag:'history',tip:'Every job execution recorded with status, start/end, attempts. For dedup, observability, retry decisions.'},
+      {id:'kafka',x:450,y:280,w:100,h:42,kind:'queue',label:'Webhook Q',tag:'http calls',tip:'Async webhook executor. Workers pull, call HTTP, retry on failure with backoff.'},
+      {id:'recovery',x:30,y:280,w:140,h:42,kind:'svc',label:'Recovery Sweeper',tag:'on startup',tip:'Scans for jobs whose scheduled_for is in the past and not in exec_log. Re-schedules with "missed" flag.'}
+    ],
+    edges:[
+      {from:'admin',to:'meta',kind:'sync'},
+      {from:'meta',to:'sched',kind:'data'},
+      {from:'sched',to:'tw',kind:'sync'},
+      {from:'sched',to:'lock',kind:'sync'},
+      {from:'sched',to:'queue',kind:'async',label:'due'},
+      {from:'queue',to:'workers',kind:'async'},
+      {from:'workers',to:'execlog',kind:'sync'},
+      {from:'workers',to:'kafka',kind:'async'},
+      {from:'recovery',to:'queue',kind:'async',label:'missed'},
+      {from:'execlog',to:'recovery',kind:'data'}
+    ]
+  },
+  decisions:[
+    ['Leader-elected scheduler per shard','One node owns scheduling for its job-id range. Other replicas stand by. Prevents two nodes from firing the same job.'],
+    ['Time wheel for in-memory scheduling','O(1) insert and tick across millions of jobs. Hierarchical wheels (seconds / minutes / hours) keep memory bounded.'],
+    ['Sharded by job_id','Hash job_id to N shards; each shard runs its own time wheel + leader election. Linear horizontal scale.'],
+    ['Kafka between scheduler and workers','Decouples fire rate from execution rate. Workers can lag without affecting scheduling.'],
+    ['Idempotency key = (job_id, scheduled_for)','Prevents duplicate execution if a job is re-fired due to scheduler hiccup. Workers check exec_log before running.'],
+    ['Visibility-timeout for worker leases','Worker leases a job for N minutes; if it dies, lease expires and another worker picks up. Cap the lease at job&rsquo;s expected runtime + safety margin.'],
+    ['Missed-tick recovery via sweeper','On scheduler restart or cluster recovery, scan for past-due jobs not in exec_log; re-enqueue. Cron has clear semantics: run-once-after-the-window.']
+  ],
+  deepdives:[
+    {title:'Hierarchical time wheels',body:'<p>Naive scheduler: priority queue of (next_fire_time, job_id), tick every second, pop due jobs. <b>O(log N) per insert/pop;</b> fine at thousands, painful at millions.</p><p><b>Time wheel:</b> a ring buffer of buckets, one per time slot. Insert a job into bucket[(now + delay) mod N]; ticker advances one bucket per second and processes jobs in that bucket. <b>O(1)</b> insert and tick.</p><p><b>Hierarchical:</b> a single ring with seconds-resolution covers only a small horizon (e.g., 1 hour = 3600 buckets). Stack three wheels &mdash; seconds, minutes, hours &mdash; each tick of the higher wheel cascades jobs into the lower wheel. Used by Linux kernel timers, Netty, Kafka. Memory ~ O(num_jobs + num_buckets).</p><p>Per shard: one in-memory time wheel of jobs assigned to this shard. Persistent state (next_fire_time per job) in DB; rebuilt into the wheel on leader takeover.</p>'},
+    {title:'Leader election &amp; missed-tick recovery',body:'<p>Two failure modes that interact: <b>(a)</b> the leader scheduler dies; <b>(b)</b> the whole cluster was unreachable for 5 minutes during a deploy.</p><p><b>Leader election:</b> per shard, scheduler instances compete for a lease in etcd / ZooKeeper / consul / Redis. One holds the lease, renewing every few seconds. Lease expiry = leader is dead; standby promotes. Standby has been streaming the metadata DB into its own time wheel, so promotion takes ~1s.</p><p><b>Missed-tick recovery:</b> on startup (or every minute), the sweeper queries the metadata DB: <code>SELECT job_id, scheduled_for FROM jobs WHERE scheduled_for &lt; now - 30s AND scheduled_for &gt; now - 2h AND NOT EXISTS (SELECT 1 FROM exec_log WHERE job_id = jobs.job_id AND scheduled_for = jobs.scheduled_for)</code>. Re-enqueues with a "missed" flag so the executor can decide: rerun, skip, or compensate.</p><p>Senior tell: <b>not all jobs are safe to re-run after a long outage.</b> "Send midnight email" missed by 6 hours probably shouldn&rsquo;t fire at 6am. Per-job policy: catch-up vs skip-late.</p>'}
+  ],
+  callouts:[
+    {tag:'Concept',body:'<b>Why at-least-once, not exactly-once?</b> Exactly-once is impossible across an unreliable network. At-least-once + idempotent jobs = exactly-once-perceived. The job logic does the dedup, not the scheduler.'},
+    {tag:'Concept',body:'<b>Cron expression gotchas.</b> "0 2 * * *" means 2am local time, which has DST ambiguity (skip / repeat hours). Always store schedules in UTC plus a timezone hint; expand at fire time.'}
+  ],
+  gotcha:'Forgetting <b>missed-tick</b> recovery is the biggest miss. Saying "use cron" without explaining what happens after a 5-minute outage tells the interviewer you&rsquo;ve never run this in production. Also: do not propose having every worker poll the DB for due jobs &mdash; that doesn&rsquo;t scale and creates thundering herds. The scheduler is the one with the time wheel; workers are dumb consumers.',
+  followups:[
+    ['Long-running jobs (hours)?','Lease renewed periodically by the worker (heartbeat). On worker death, lease expires; another picks up; idempotency key prevents double-execution.'],
+    ['Job dependencies / DAGs?','That&rsquo;s a workflow engine (Airflow / Temporal), not a cron. Scheduler fires the root, workflow engine handles the DAG.'],
+    ['Sub-second precision?','Time wheels work in ms; the bottleneck is dispatch latency. For sub-100ms, dispatcher and workers must be co-located; for ms, you&rsquo;re building hardware-timed systems, not a generic scheduler.'],
+    ['What melts at 10x?','Metadata DB read pressure (every reschedule reads it). Mitigations: cache, push schedule changes via outbox, more shards.']
+  ]
+});
+
+/* ---------- 12. PAYMENT / WALLET ---------- */
+PROBLEMS.push({
+  id:'payment',
+  num:'12',
+  name:'Payment / Wallet System',
+  sub:'Idempotent transfers, double-entry ledger, sagas vs 2PC.',
+  tag:'Strict consistency',
+  badges:[['ACID required','ok'],['Idempotency-keyed','ok'],['No money created/destroyed','bad']],
+  framing:'A wallet system: users hold balances in multiple currencies; transfers move money between accounts; external integrations charge cards (Stripe) and pay out to banks (ACH). <b>1B accounts, 10k transactions/s peak</b>. Hard requirements: <b>no money creation or destruction</b> (every cent has a credit and a debit), <b>idempotent transfers</b> (retries don&rsquo;t double-charge), strict consistency on balances, full audit trail for compliance, sub-second user-facing latency.',
+  specs:[
+    ['Accounts','1B'],['TPS','10k peak'],['Latency','&lt; 500 ms p99'],
+    ['Consistency','strong / serializable'],['Audit retention','7+ years'],['Currencies','100+']
+  ],
+  diagram:{
+    viewBox:'0 0 720 360',
+    nodes:[
+      {id:'client',x:30,y:170,w:80,h:42,kind:'rect',label:'Client',tag:'app',tip:'Sends transfer with idempotency_key. Receives sync response after authoritative write.'},
+      {id:'api',x:130,y:170,w:90,h:42,kind:'svc',label:'Transfer API',tag:'edge',tip:'Validates request, dedupes by idempotency_key, calls transfer service.'},
+      {id:'idem',x:130,y:60,w:90,h:42,kind:'cache',label:'Idem Store',tag:'redis + db',tip:'Stores {idempotency_key &rarr; result}. Returns cached result on retry &mdash; never re-executes.'},
+      {id:'tx',x:260,y:170,w:110,h:46,kind:'svc',label:'Transfer Svc',tag:'orchestrator',tip:'Core logic. Begins a saga / transaction; coordinates ledger writes and external calls.'},
+      {id:'ledger',x:400,y:90,w:120,h:50,kind:'store',label:'Double-Entry Ledger',tag:'postgres',tip:'Append-only. Every transfer = (debit row, credit row) inserted in one transaction. Balance = SUM(amount) per account.'},
+      {id:'balcache',x:400,y:170,w:120,h:42,kind:'cache',label:'Balance Cache',tag:'redis',tip:'Materialised current balance per account. Updated transactionally with ledger inserts (or via tail of WAL).'},
+      {id:'saga',x:560,y:170,w:120,h:46,kind:'store',label:'Saga State',tag:'postgres',tip:'Per-transfer FSM: pending / authorised / settled / compensated. Owner of long-running orchestration.'},
+      {id:'card',x:400,y:260,w:90,h:42,kind:'svc',label:'Card / Stripe',tag:'external',tip:'Stripe / Adyen for card auth + capture. Idempotency_key forwarded; we own retry policy.'},
+      {id:'ach',x:540,y:260,w:90,h:42,kind:'svc',label:'ACH / Bank',tag:'external',tip:'Bank rails for payouts. Async settlement; can take days; handled by the saga.'},
+      {id:'audit',x:30,y:280,w:120,h:42,kind:'store',label:'Audit Log',tag:'wal-derived',tip:'Append-only event log. Every state transition recorded with actor, ts, before/after. Source of truth for compliance.'}
+    ],
+    edges:[
+      {from:'client',to:'api',kind:'sync'},
+      {from:'api',to:'idem',kind:'sync',label:'check'},
+      {from:'api',to:'tx',kind:'sync'},
+      {from:'tx',to:'ledger',kind:'sync',label:'debit + credit'},
+      {from:'tx',to:'balcache',kind:'sync'},
+      {from:'tx',to:'saga',kind:'sync'},
+      {from:'saga',to:'card',kind:'sync',label:'auth'},
+      {from:'saga',to:'ach',kind:'async',label:'settle'},
+      {from:'ledger',to:'audit',kind:'async',label:'tail'}
+    ]
+  },
+  decisions:[
+    ['Double-entry ledger as the source of truth','Every transfer is two rows: one debit, one credit. Sum across an account = balance. Mathematically impossible to "lose" money &mdash; mismatched debits/credits are a bug, easy to detect.'],
+    ['Idempotency keys, end-to-end','Client &rarr; API &rarr; service &rarr; ledger &rarr; external. Same key all the way through; retries re-use cached result, never re-execute.'],
+    ['Postgres for the ledger','ACID, serializable transactions, mature replication. Ledger is small enough to fit a sharded Postgres cluster (10B rows = ~1 TB; sharded by account_id).'],
+    ['Sagas, not 2PC, across services','2PC across an external card processor is impossible (they don&rsquo;t implement it). Sagas: forward steps + compensating actions. Saga state lives in DB, drives recovery.'],
+    ['Append-only ledger, derived balance','Don&rsquo;t mutate a balance row; insert credit/debit rows and derive balance. Audit trail is free; no race on balance update.'],
+    ['Strong consistency on the write path; cache is read-only optimization','Balance reads can hit a cache (within a TTL or via WAL-tail invalidation), but balance writes go through the ledger transaction.'],
+    ['Per-account row-level locking on transfer','Both source and destination accounts SELECT FOR UPDATE in a defined order (sorted by account_id) to avoid deadlocks.']
+  ],
+  deepdives:[
+    {title:'Idempotency keys &amp; double-entry ledger',body:'<p>Every payment system the staff loop will ask about is built on these two ideas; you must explain both.</p><p><b>Idempotency:</b> client generates a UUID per logical operation (<code>transfer_user42_1a2b3c</code>). Sends it on every retry. Server stores <code>(key, request_hash, result)</code>; on retry, <i>if same key + same request_hash, return the cached result without executing</i>. If same key but different request, reject (replay attack). Without this, a network blip = duplicate transfer = users lose money.</p><p><b>Double-entry:</b> never store "balance = X." Store every change: <code>(account, amount, ts)</code>, where amount can be negative. Balance = SUM(amount) for the account. Every transfer is exactly two rows in one DB transaction: debit source, credit destination, equal magnitude opposite sign. Net effect on the system: zero. Two invariants fall out: <i>conservation</i> (total of all rows = system float) and <i>per-account balance is derivable from history</i>.</p><p>Operationally: insert both rows in one transaction; if it commits, money moved; if not, neither row exists. No "partial failure where money disappeared."</p>'},
+    {title:'Sagas vs 2PC for cross-service transactions',body:'<p>Transfer involves three parties: source ledger, destination ledger, external card processor. You want all-or-nothing across them. Two approaches:</p><p><b>2PC (two-phase commit):</b> coordinator asks all participants to prepare; if all say yes, asks all to commit. <b>Doesn&rsquo;t work for external services</b> &mdash; Stripe doesn&rsquo;t offer a "prepare" phase. And blocks indefinitely on coordinator failure.</p><p><b>Saga:</b> a sequence of local transactions, each with a compensating action. Forward: (1) reserve from source, (2) charge card, (3) credit destination, (4) confirm reserve. Failure at step 3? Run compensation: refund the card, release the reserve. Saga state is persisted &mdash; if the orchestrator dies, restart and resume.</p><p><b>Choreography vs orchestration:</b> choreography = each service emits events, others react; orchestration = central state machine. For payments, <i>orchestration</i> wins &mdash; the FSM is auditable, recoverable, and the support team can inspect it.</p><p>Senior tell: name <b>"compensations are not always inverses"</b> &mdash; refunding a card is a different external call than charging it; running it produces a new event. Compensations are forward steps that semantically undo, not literal undos.</p>'}
+  ],
+  callouts:[
+    {tag:'Concept',body:'<b>Why not just use distributed transactions?</b> XA / 2PC across heterogeneous services (your DB + Stripe + bank) is impossible &mdash; external systems don&rsquo;t implement the prepare phase. Sagas trade atomicity for tractability.'},
+    {tag:'Concept',body:'<b>Reconciliation is non-negotiable.</b> Daily: compare your ledger&rsquo;s record of card charges against Stripe&rsquo;s record. Mismatches = bugs. Most fintech disasters start with "we noticed a discrepancy and ignored it."'}
+  ],
+  gotcha:'Storing <code>balance</code> as a mutable column on the user row is the candidate-killer. The interviewer will say "two transfers happen at the same time" and you need to explain double-entry append-only ledgers, not <code>SELECT FOR UPDATE</code>-based balance updates. Also: do not propose 2PC across services; do not propose Kafka as the transactional commit log (it has at-least-once semantics and you cannot have duplicate financial transactions).',
+  followups:[
+    ['Multi-currency?','Each account has a single currency. Cross-currency transfer = two transfers + an FX leg through a market-maker account. All in the ledger.'],
+    ['What if Stripe times out?','Idempotency-keyed retry; query Stripe with the key to get the result if it succeeded. Never assume failure on timeout &mdash; query.'],
+    ['Multi-region?','Sharded by account_id; each account has a home region. Cross-region transfer = saga across two ledger shards.'],
+    ['Anti-fraud / hold?','Saga has a "review" step where high-risk transfers route to a fraud queue; saga waits for human or model decision, then continues or compensates.']
+  ]
+});
+
+/* ---------- 13. REALTIME ANALYTICS ---------- */
+PROBLEMS.push({
+  id:'analytics',
+  num:'13',
+  name:'Realtime Analytics Pipeline',
+  sub:'Ad clicks, page events &mdash; lambda vs kappa, exact-once semantics.',
+  tag:'Stream + batch',
+  badges:[['Multi-million events/s','warn'],['Approx OK for live','ok'],['Exact for billing','bad']],
+  framing:'Ingest event streams (ad clicks, page views, IoT readings) at <b>2M events/s, 200B events/day</b>; provide both <b>realtime dashboards</b> (counts, rates, top-K with seconds of latency) and <b>accurate batch results</b> (for billing, reports, exports) &mdash; the same data, two consumption shapes. Late events arrive (mobile clients buffer offline); duplicates happen (network retries). Some metrics need exact counts (billable impressions); others tolerate approximations (uniques, p99 latency).',
+  specs:[
+    ['Events/s','2M peak'],['Events/day','200B'],['Live latency','&lt; 5 s'],
+    ['Batch latency','&lt; 1 hr'],['Late tolerance','24h+'],['Storage','PB+ raw']
+  ],
+  diagram:{
+    viewBox:'0 0 720 360',
+    nodes:[
+      {id:'client',x:30,y:170,w:90,h:42,kind:'rect',label:'Producer',tag:'app / sdk',tip:'Page / app emits events. SDK batches locally; sends with event_id (idempotency).'},
+      {id:'collect',x:140,y:170,w:90,h:42,kind:'svc',label:'Collector',tag:'edge ingest',tip:'Validates, enriches (geo, ua), stamps server_ts, writes to Kafka. Stateless; high QPS.'},
+      {id:'kafka',x:260,y:170,w:90,h:50,kind:'queue',label:'Kafka',tag:'event log',tip:'Source of truth for raw events. Partitioned by event_type or user_id. Retention 7+ days.'},
+      {id:'flink',x:390,y:80,w:110,h:46,kind:'svc',label:'Flink / Spark',tag:'stream proc',tip:'Stateful processing: windowed counts, joins, top-K. Watermarks handle late data; checkpoints to durable store every 30s.'},
+      {id:'olap',x:540,y:80,w:120,h:50,kind:'store',label:'OLAP Store',tag:'druid / clickhouse',tip:'Pre-aggregated rollups by (dimension &times; minute). Sub-second dashboard queries.'},
+      {id:'dash',x:30,y:60,w:90,h:42,kind:'rect',label:'Dashboard',tag:'realtime',tip:'Sub-second queries. Drill-downs, top-K, p99. Shoves load onto OLAP, not raw events.'},
+      {id:'lake',x:540,y:170,w:120,h:50,kind:'store',label:'Data Lake',tag:'parquet / iceberg',tip:'All raw events, partitioned by hour. Source for batch reprocessing.'},
+      {id:'batch',x:390,y:280,w:120,h:46,kind:'svc',label:'Batch (Spark)',tag:'nightly',tip:'Hourly / daily backfill jobs. Authoritative for billing &mdash; recomputes exactly.'},
+      {id:'billing',x:540,y:280,w:120,h:46,kind:'store',label:'Billing Store',tag:'postgres',tip:'Source of truth for invoices. Written from batch, never from stream.'},
+      {id:'hll',x:390,y:170,w:110,h:42,kind:'cache',label:'HLL / TopK',tag:'approx',tip:'HyperLogLog for unique-counts; Count-Min Sketch for top-K. Fast and bounded memory.'}
+    ],
+    edges:[
+      {from:'client',to:'collect',kind:'sync'},
+      {from:'collect',to:'kafka',kind:'async'},
+      {from:'kafka',to:'flink',kind:'async'},
+      {from:'kafka',to:'lake',kind:'async',label:'archive'},
+      {from:'flink',to:'olap',kind:'async'},
+      {from:'flink',to:'hll',kind:'async'},
+      {from:'lake',to:'batch',kind:'data'},
+      {from:'batch',to:'billing',kind:'sync'},
+      {from:'olap',to:'dash',kind:'sync'},
+      {from:'hll',to:'dash',kind:'sync'}
+    ]
+  },
+  decisions:[
+    ['Kafka as the event log','Single durable source of truth for raw events. Both stream and batch read from the same log. Partitioned by event type or user.'],
+    ['Lambda or kappa &mdash; pick by your batch story','<b>Lambda:</b> two pipelines, stream (fast, approximate) + batch (slow, exact); reconcile in serving layer. <b>Kappa:</b> stream-only; reprocess from Kafka when you need a "batch" recompute. Kappa is simpler operationally if your stream engine and storage handle replay.'],
+    ['Flink for stateful streaming','Stateful operators with checkpointing, watermarks for late data, exactly-once-ish via 2-phase commit to Kafka sinks. Spark Streaming is similar but with bigger micro-batch latency.'],
+    ['HLL for unique counts','True distinct count is O(N) memory; HyperLogLog gives 2% error in 1 KB. Mergeable across windows. Indispensable for "uniques per minute" dashboards.'],
+    ['OLAP store for fast dashboards','Druid / ClickHouse / Pinot: pre-aggregated rollups, columnar storage, sub-second range queries. Don&rsquo;t query Kafka directly for dashboards.'],
+    ['Data lake for reprocessing','Raw events written to Parquet on S3, partitioned by hour. Source for backfills, schema migrations, ad-hoc Spark.'],
+    ['Billing reads only from batch','Stream is approximate (late events, retries, failed checkpoints). Batch is the authoritative source. Bill from batch, dashboard from stream.'],
+    ['Idempotency at the event level','event_id stamped at producer; downstream dedupes via state in Flink (TTL&rsquo;d) or via batch dedup in Spark.']
+  ],
+  deepdives:[
+    {title:'Lambda vs kappa &mdash; and exactly-once semantics',body:'<p><b>Lambda</b> (Marz, 2014): two parallel pipelines. The <i>speed layer</i> processes events in real time, producing approximate / recent results. The <i>batch layer</i> reprocesses the historical store, producing accurate / authoritative results. The <i>serving layer</i> merges them &mdash; recent from speed, older from batch.</p><p>Lambda&rsquo;s problem is operational: <b>two codebases</b> for the same logic. Bug fixes happen twice; numbers diverge.</p><p><b>Kappa</b> (Kreps, 2014): stream-only. Kafka retains the full event history; Flink processes it as a stream. To "reprocess," replay the Kafka topic into a new Flink job. One codebase, one pipeline. Works if your event log is durable enough and your stream engine handles backpressure on replay.</p><p><b>Exactly-once</b>: Flink + Kafka can do "exactly-once-ish" via two-phase commit on the sink side. Producer writes events idempotently (event_id); processor uses checkpointed state; sink atomically commits with the checkpoint. If a stage fails, replay from last checkpoint without duplicates.</p><p>Senior tell: "exactly-once is a property of the <i>pipeline</i>, not of any individual operator. The boundary that matters is the <i>output sink</i> &mdash; if your sink can&rsquo;t do a transactional commit (e.g., it&rsquo;s a webhook), you have at-least-once semantics regardless of internal correctness."</p>'},
+    {title:'Watermarks &amp; late data',body:'<p>Events from mobile clients arrive late &mdash; phone was offline, buffered, sent on reconnect. Some of those are an hour old; some are days. Your "5-minute rolling count" needs to know when to close a window.</p><p><b>Watermark:</b> a monotonic timestamp T saying "we&rsquo;ve seen all events with event_time &le; T." Computed as <i>max(event_time) - max_lateness</i>; conservatively assumes some events may still arrive within max_lateness.</p><p><b>Window closing:</b> when watermark passes window_end + max_lateness, the window emits its final result and discards state. Late events arriving after that are sent to a side-output (logged or backfilled).</p><p><b>The trade:</b> longer max_lateness = more accuracy but more state held in memory and bigger latency to dashboard. Tune per use case: 1 minute for ad clicks, 1 hour for IoT, 24 hours if you&rsquo;re being generous.</p>'}
+  ],
+  callouts:[
+    {tag:'Concept',body:'<b>HyperLogLog</b> approximates cardinality of large sets in fixed memory. Per-element: hash &rarr; count leading zeros &rarr; track max. ~1 KB &rarr; 2% error on cardinalities up to billions. Mergeable: union of two HLLs is the bitwise max.'},
+    {tag:'Concept',body:'<b>Count-Min Sketch</b> gives approximate frequency for top-K problems. Useful for "what are the most-clicked ads in the last minute" without storing every ad_id.'}
+  ],
+  gotcha:'Saying &ldquo;use Spark&rdquo; without naming the latency budget, late-data handling, and exactly-once trap is the staff-level miss. <i>Streaming and batch must both read the same event log; billing must come from batch; dashboards may come from stream.</i> Also: do not promise exactly-once for a webhook sink &mdash; webhooks can&rsquo;t participate in 2PC.',
+  followups:[
+    ['How do you handle schema evolution?','Schema registry (Avro / Protobuf). Forward / backward compatibility rules; producers and consumers tolerate added/removed fields.'],
+    ['What about user-facing realtime queries?','Pre-aggregate in Druid / Pinot per dimension; query latency is a function of cardinality, not of raw event count.'],
+    ['How does reprocessing work without downtime?','Run new pipeline in shadow on the same Kafka topic; write to new tables; validate; cut over.'],
+    ['What melts at 10x?','Flink state backend (RocksDB on local SSD) under skewed key distribution. Mitigations: rebalance keys, scale checkpoints, or move to remote state store.']
+  ]
+});
+
+/* ============================================================
+   Renderer + tab logic + diagram drawing
+   ============================================================ */
+(function(){
+  const tabrow = document.getElementById('tabrow');
+  const panels = document.getElementById('panels');
+  const idxgrid = document.getElementById('idxgrid');
+
+  function el(tag, attrs, children){
+    const n = document.createElement(tag);
+    if(attrs) for(const k in attrs){
+      if(k==='class') n.className = attrs[k];
+      else if(k==='html') n.innerHTML = attrs[k];
+      else n.setAttribute(k, attrs[k]);
+    }
+    if(children) children.forEach(c => n.appendChild(typeof c === 'string' ? document.createTextNode(c) : c));
+    return n;
+  }
+  function svgEl(tag, attrs){
+    const n = document.createElementNS('http://www.w3.org/2000/svg', tag);
+    if(attrs) for(const k in attrs) n.setAttribute(k, attrs[k]);
+    return n;
+  }
+
+  /* ---- index grid ---- */
+  PROBLEMS.forEach(p => {
+    const card = el('button',{class:'idxcard',type:'button','data-id':p.id});
+    card.appendChild(el('div',{class:'num'},[p.num + ' / ' + PROBLEMS.length.toString().padStart(2,'0')]));
+    card.appendChild(el('div',{class:'nm',html:p.name}));
+    card.appendChild(el('div',{class:'sub'},[p.tag || '']));
+    card.addEventListener('click', () => activate(p.id, true));
+    idxgrid.appendChild(card);
+  });
+
+  /* ---- tab strip ---- */
+  PROBLEMS.forEach(p => {
+    const t = el('button',{class:'tab',type:'button','data-id':p.id},[
+      el('span',{class:'n'},[p.num]),
+      document.createTextNode(p.name.replace(/&amp;/g,'&').replace(/<[^>]+>/g,''))
+    ]);
+    t.addEventListener('click', () => activate(p.id, true));
+    tabrow.appendChild(t);
+  });
+
+  /* ---- panels ---- */
+  PROBLEMS.forEach(p => {
+    const panel = el('div',{class:'panel','data-id':p.id, id:'panel-'+p.id});
+    // header
+    const header = el('div',{class:'ph'});
+    const left = el('div');
+    left.appendChild(el('div',{class:'meta'},['Problem ' + p.num + ' of ' + PROBLEMS.length.toString().padStart(2,'0') + ' · ' + (p.tag||'')]));
+    left.appendChild(el('h2',{html:p.name}));
+    left.appendChild(el('p',{class:'sub',html:p.sub}));
+    header.appendChild(left);
+    if(p.badges){
+      const badges = el('div',{class:'badges'});
+      p.badges.forEach(([txt, kind]) => {
+        const b = el('span',{class:'badge ' + (kind||'')},[]);
+        b.innerHTML = txt;
+        badges.appendChild(b);
+      });
+      header.appendChild(badges);
+    }
+    panel.appendChild(header);
+
+    /* (a) Framing + specs */
+    const framingBlock = el('div',{class:'block'});
+    framingBlock.appendChild(el('div',{class:'seg-h'},[
+      el('h4',{},['Problem framing']),
+      el('span',{class:'meta'},['(a) requirements + scale'])
+    ]));
+    const fgrid = el('div',{class:'framing'});
+    const ftext = el('div');
+    ftext.appendChild(el('p',{html:p.framing}));
+    fgrid.appendChild(ftext);
+    if(p.specs){
+      const specs = el('div',{class:'specs'});
+      const dl = el('dl');
+      p.specs.forEach(([k,v]) => {
+        dl.appendChild(el('dt',{},[k]));
+        dl.appendChild(el('dd',{html:v}));
+      });
+      specs.appendChild(dl);
+      fgrid.appendChild(specs);
+    }
+    framingBlock.appendChild(fgrid);
+    panel.appendChild(framingBlock);
+
+    /* (b) Diagram */
+    if(p.diagram){
+      const dblock = el('div',{class:'block'});
+      dblock.appendChild(el('div',{class:'seg-h'},[
+        el('h4',{},['High-level architecture']),
+        el('span',{class:'meta'},['(b) hover a node for the why'])
+      ]));
+      const diag = el('div',{class:'diagram'});
+      const svg = svgEl('svg',{viewBox:p.diagram.viewBox || '0 0 720 320','aria-label':'architecture for '+p.name});
+      drawDiagram(svg, p.diagram);
+      diag.appendChild(svg);
+      const tip = el('div',{class:'diag-tip idle'},['Hover a box: it tells you why it&rsquo;s there.']);
+      tip.innerHTML = 'Hover a box: it tells you why it’s there.';
+      diag.appendChild(tip);
+      const legend = el('div',{class:'legend'});
+      legend.innerHTML = '<span class="sync"><i></i>sync call</span><span class="async"><i></i>async / queue</span><span class="data"><i></i>data flow</span>';
+      diag.appendChild(legend);
+      // wire hover
+      svg.querySelectorAll('.diag-node').forEach(n => {
+        const t = n.getAttribute('data-tip') || '';
+        const lbl = n.getAttribute('data-label') || '';
+        n.addEventListener('mouseenter', () => {
+          tip.classList.remove('idle');
+          tip.innerHTML = '<b>'+lbl+'</b> &middot; ' + t;
+          svg.querySelectorAll('.diag-node').forEach(x => x.classList.remove('active'));
+          n.classList.add('active');
+        });
+        n.addEventListener('click', () => {
+          tip.classList.remove('idle');
+          tip.innerHTML = '<b>'+lbl+'</b> &middot; ' + t;
+          svg.querySelectorAll('.diag-node').forEach(x => x.classList.remove('active'));
+          n.classList.add('active');
+        });
+      });
+      dblock.appendChild(diag);
+      panel.appendChild(dblock);
+    }
+
+    /* (c) Decisions */
+    if(p.decisions){
+      const dblock = el('div',{class:'block'});
+      dblock.appendChild(el('div',{class:'seg-h'},[
+        el('h4',{},['Key design decisions']),
+        el('span',{class:'meta'},['(c) ' + p.decisions.length + ' bullets, each with a why'])
+      ]));
+      const ul = el('ul',{class:'decisions'});
+      p.decisions.forEach(([title, why]) => {
+        const li = el('li');
+        li.innerHTML = '<b class="title">'+title+'</b><span class="why">'+why+'</span>';
+        ul.appendChild(li);
+      });
+      dblock.appendChild(ul);
+      panel.appendChild(dblock);
+    }
+
+    /* (d) Deep dives */
+    if(p.deepdives){
+      const dblock = el('div',{class:'block'});
+      dblock.appendChild(el('div',{class:'seg-h'},[
+        el('h4',{},['Deep dives']),
+        el('span',{class:'meta'},['(d) the bit that earns the staff signal'])
+      ]));
+      p.deepdives.forEach(d => {
+        const dv = el('div',{class:'deep'});
+        dv.innerHTML = '<h5>'+d.title+'</h5>'+d.body;
+        dblock.appendChild(dv);
+      });
+      panel.appendChild(dblock);
+    }
+
+    /* (e) Learning callouts */
+    if(p.callouts && p.callouts.length){
+      const cblock = el('div',{class:'block'});
+      cblock.appendChild(el('div',{class:'seg-h'},[
+        el('h4',{},['Learning notes']),
+        el('span',{class:'meta'},['(e) concepts worth a second pass'])
+      ]));
+      p.callouts.forEach(c => {
+        const co = el('div',{class:'callout'});
+        co.innerHTML = '<span class="tag">'+(c.tag||'note')+'</span> '+c.body;
+        cblock.appendChild(co);
+      });
+      panel.appendChild(cblock);
+    }
+
+    /* (f) Gotcha */
+    if(p.gotcha){
+      const g = el('div',{class:'block'});
+      g.appendChild(el('div',{class:'seg-h'},[
+        el('h4',{},['Interview gotcha']),
+        el('span',{class:'meta'},['(f) the trap'])
+      ]));
+      const gt = el('div',{class:'gotcha'});
+      gt.innerHTML = '<span class="tag">trap</span> ' + p.gotcha;
+      g.appendChild(gt);
+      panel.appendChild(g);
+    }
+
+    /* (g) Followups */
+    if(p.followups){
+      const fblock = el('div',{class:'block'});
+      fblock.appendChild(el('div',{class:'seg-h'},[
+        el('h4',{},['Common follow-ups']),
+        el('span',{class:'meta'},['(g) likely next questions'])
+      ]));
+      p.followups.forEach(([q,a]) => {
+        const det = el('details',{class:'qa'});
+        const summary = el('summary',{},[]);
+        summary.innerHTML = q;
+        det.appendChild(summary);
+        const ans = el('div',{class:'ans'});
+        ans.innerHTML = '<p>'+a+'</p>';
+        det.appendChild(ans);
+        fblock.appendChild(det);
+      });
+      panel.appendChild(fblock);
+    }
+
+    panels.appendChild(panel);
+  });
+
+  /* ---- diagram drawing ---- */
+  function drawDiagram(svg, d){
+    // arrowhead defs
+    const defs = svgEl('defs');
+    function mkMarker(id, cls){
+      const m = svgEl('marker',{id:id, viewBox:'0 0 10 10', refX:9, refY:5, markerWidth:7, markerHeight:7, orient:'auto-start-reverse'});
+      const p = svgEl('path',{d:'M 0 0 L 10 5 L 0 10 z', class:'dg-arrow ' + cls});
+      m.appendChild(p);
+      defs.appendChild(m);
+    }
+    mkMarker('arr-sync','sync');
+    mkMarker('arr-async','async');
+    mkMarker('arr-data','');
+    svg.appendChild(defs);
+
+    // index nodes
+    const nmap = {};
+    d.nodes.forEach(n => nmap[n.id] = n);
+
+    // edges first (under nodes)
+    (d.edges||[]).forEach(e => {
+      const a = nmap[e.from], b = nmap[e.to];
+      if(!a || !b) return;
+      const aCx = a.x + a.w/2, aCy = a.y + a.h/2;
+      const bCx = b.x + b.w/2, bCy = b.y + b.h/2;
+      // Endpoint adjusted to the rect edge for visual cleanliness
+      const dx = bCx - aCx, dy = bCy - aCy;
+      const dist = Math.hypot(dx, dy) || 1;
+      const ux = dx/dist, uy = dy/dist;
+      // Move endpoint to b's rect boundary
+      const padB = 8;
+      const halfW = b.w/2 + padB, halfH = b.h/2 + padB;
+      const t = Math.min(halfW/Math.abs(ux||0.0001), halfH/Math.abs(uy||0.0001));
+      const ex = bCx - ux*t, ey = bCy - uy*t;
+      const padA = 8;
+      const halfWA = a.w/2 + padA, halfHA = a.h/2 + padA;
+      const tA = Math.min(halfWA/Math.abs(ux||0.0001), halfHA/Math.abs(uy||0.0001));
+      const sx = aCx + ux*tA, sy = aCy + uy*tA;
+      let cls = 'dg-edge-data', marker = 'url(#arr-data)';
+      if(e.kind==='sync'){ cls='dg-edge-sync'; marker='url(#arr-sync)'; }
+      else if(e.kind==='async'){ cls='dg-edge-async'; marker='url(#arr-async)'; }
+      const ln = svgEl('line',{x1:sx, y1:sy, x2:ex, y2:ey, class:cls, 'marker-end':marker});
+      svg.appendChild(ln);
+      if(e.label){
+        const mx = (sx+ex)/2, my = (sy+ey)/2 - 4;
+        const t2 = svgEl('text',{x:mx, y:my, 'text-anchor':'middle', class:'dg-elabel'});
+        t2.textContent = e.label;
+        svg.appendChild(t2);
+      }
+    });
+
+    // nodes
+    d.nodes.forEach(n => {
+      const g = svgEl('g',{class:'diag-node','data-tip':(n.tip||''),'data-label':(n.label||'')});
+      let shape;
+      const cls = ({
+        rect:'dg-rect', svc:'dg-svc', store:'dg-store',
+        queue:'dg-queue', cache:'dg-cache', edge:'dg-edge'
+      })[n.kind] || 'dg-rect';
+      if(n.kind==='store'){
+        // cylinder shape: rect + ellipse on top
+        shape = svgEl('rect',{x:n.x, y:n.y+8, width:n.w, height:n.h-8, rx:3, ry:3, class:cls});
+        g.appendChild(shape);
+        const top = svgEl('ellipse',{cx:n.x+n.w/2, cy:n.y+8, rx:n.w/2, ry:6, class:cls});
+        g.appendChild(top);
+        const bot = svgEl('ellipse',{cx:n.x+n.w/2, cy:n.y+n.h, rx:n.w/2, ry:6, class:cls});
+        g.appendChild(bot);
+      } else if(n.kind==='queue'){
+        shape = svgEl('rect',{x:n.x, y:n.y, width:n.w, height:n.h, rx:n.h/2, ry:n.h/2, class:cls});
+        g.appendChild(shape);
+      } else {
+        shape = svgEl('rect',{x:n.x, y:n.y, width:n.w, height:n.h, rx:6, ry:6, class:cls});
+        g.appendChild(shape);
+      }
+      // label
+      const lbl = svgEl('text',{x:n.x+n.w/2, y:n.y+n.h/2 + 1, 'text-anchor':'middle', class:'dg-text'});
+      lbl.textContent = n.label || '';
+      g.appendChild(lbl);
+      // tag
+      if(n.tag){
+        const tag = svgEl('text',{x:n.x+n.w/2, y:n.y+n.h+12, 'text-anchor':'middle', class:'dg-tag'});
+        tag.textContent = n.tag;
+        g.appendChild(tag);
+      }
+      svg.appendChild(g);
+    });
+  }
+
+  /* ---- activate tab ---- */
+  function activate(id, scrollIntoView){
+    const tabs = tabrow.querySelectorAll('.tab');
+    tabs.forEach(t => t.classList.toggle('on', t.dataset.id === id));
+    panels.querySelectorAll('.panel').forEach(p => p.classList.toggle('on', p.dataset.id === id));
+    if(scrollIntoView){
+      // Update hash and scroll the panels container into view (not the panel itself, to keep the strip visible).
+      try{ history.replaceState(null,'','#'+id); }catch(_){}
+      const ts = document.getElementById('tabstrip');
+      if(ts){
+        const y = ts.getBoundingClientRect().top + window.pageYOffset - 60;
+        window.scrollTo({top:y, behavior:'smooth'});
+      }
+      // Center the active tab in the strip
+      const onTab = tabrow.querySelector('.tab.on');
+      if(onTab){
+        const tr = tabrow;
+        const tx = onTab.offsetLeft - tr.clientWidth/2 + onTab.clientWidth/2;
+        tr.scrollTo({left:tx, behavior:'smooth'});
+      }
+    }
+  }
+
+  /* ---- initial state from hash ---- */
+  function fromHash(){
+    const h = (location.hash||'').replace(/^#/, '');
+    if(!h) return null;
+    const found = PROBLEMS.find(p => p.id === h);
+    return found ? found.id : null;
+  }
+
+  const initial = fromHash() || PROBLEMS[0].id;
+  activate(initial, false);
+
+  /* ---- keyboard nav ---- */
+  document.addEventListener('keydown', (ev) => {
+    // Ignore key events when user is typing in an input or contenteditable area
+    const t = ev.target;
+    if(t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+    if(ev.metaKey || ev.ctrlKey || ev.altKey) return;
+    const cur = tabrow.querySelector('.tab.on');
+    if(!cur) return;
+    const curId = cur.dataset.id;
+    const idx = PROBLEMS.findIndex(p => p.id === curId);
+    if(ev.key === 'ArrowRight'){
+      const next = PROBLEMS[(idx+1) % PROBLEMS.length];
+      activate(next.id, true);
+      ev.preventDefault();
+    } else if(ev.key === 'ArrowLeft'){
+      const prev = PROBLEMS[(idx-1+PROBLEMS.length) % PROBLEMS.length];
+      activate(prev.id, true);
+      ev.preventDefault();
+    }
+  });
+
+  /* ---- hash change ---- */
+  window.addEventListener('hashchange', () => {
+    const id = fromHash();
+    if(id) activate(id, true);
+  });
+
+})();
+</script>
+</body>
+</html>
