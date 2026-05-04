@@ -1,0 +1,1450 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Java Fundamentals — staff-level interview drills</title>
+<meta name="description" content="A deep Java fundamentals reference for senior, staff, and tech-lead interview prep. JDK 21 baseline." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT,WONK@9..144,300..900,0..100,0..1&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+:root{
+  --ink-0:#0a0c11;
+  --ink-1:#10131b;
+  --ink-2:#161a24;
+  --ink-3:#1d2230;
+  --ink-4:#262c3d;
+  --line:#2b3144;
+  --line-soft:#222636;
+  --paper:#ece6d8;
+  --paper-2:#dcd4c1;
+  --text:#eae6dc;
+  --text-2:#b6b3a8;
+  --text-3:#7d8095;
+  --amber:#e8a45a;
+  --amber-2:#caa067;
+  --teal:#5fb5b1;
+  --rose:#e26d6d;
+  --leaf:#7fb573;
+  --plum:#b58cd9;
+  --shadow: 0 1px 0 rgba(255,255,255,.04), 0 12px 36px -16px rgba(0,0,0,.7);
+  --r-1:6px; --r-2:10px; --r-3:16px;
+  --maxw:1180px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  background:
+    radial-gradient(1100px 700px at 100% -10%, rgba(232,164,90,0.07), transparent 60%),
+    radial-gradient(1000px 700px at -20% 30%, rgba(95,181,177,0.05), transparent 60%),
+    var(--ink-0);
+  color:var(--text);
+  font-family:"IBM Plex Sans","Helvetica Neue",sans-serif;
+  font-size:15.5px;
+  line-height:1.55;
+  -webkit-font-smoothing:antialiased;
+  font-feature-settings:"ss01","ss02","cv11";
+}
+a{color:var(--amber);text-decoration:none;border-bottom:1px solid rgba(232,164,90,.35)}
+a:hover{color:#fff;border-bottom-color:#fff}
+hr{border:0;border-top:1px solid var(--line-soft);margin:2.4rem 0}
+code,kbd,samp,.mono{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.92em}
+.mono{letter-spacing:.01em}
+.eyebrow{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--text-3)}
+h1,h2,h3,h4{font-family:"Fraunces",Georgia,serif;font-weight:600;color:#fff;letter-spacing:-.01em;margin:0 0 .5em}
+h1{font-size:clamp(2.4rem,4.4vw,3.6rem); font-variation-settings:"opsz" 144,"SOFT" 30,"WONK" 1; line-height:1.02; letter-spacing:-.025em}
+h2{font-size:clamp(1.6rem,2.4vw,2.1rem); font-variation-settings:"opsz" 96,"SOFT" 20; line-height:1.1; letter-spacing:-.018em}
+h3{font-size:1.2rem; font-variation-settings:"opsz" 36,"SOFT" 12; letter-spacing:-.01em}
+h4{font-size:1.02rem; font-family:"IBM Plex Sans"; text-transform:uppercase; letter-spacing:.12em; color:var(--text-2)}
+p{margin:0 0 .9em}
+.lede{font-family:"Fraunces",Georgia,serif; font-variation-settings:"opsz" 24,"SOFT" 30; font-size:1.18rem; line-height:1.45; color:var(--text-2); max-width:64ch}
+em{font-style:italic;color:#fff}
+strong{color:#fff;font-weight:600}
+section{padding:5.6rem 0; border-top:1px solid var(--line-soft); position:relative}
+section:first-of-type{border-top:0}
+.wrap{max-width:var(--maxw); margin:0 auto; padding:0 1.6rem}
+.label{font-family:"IBM Plex Mono",monospace; font-size:11px; color:var(--text-3); letter-spacing:.18em; text-transform:uppercase}
+.kicker{display:inline-block; font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.22em; text-transform:uppercase; color:var(--amber); padding:.32rem .6rem; border:1px solid rgba(232,164,90,.4); border-radius:99px}
+
+/* nav */
+.topbar{position:sticky; top:0; z-index:50; backdrop-filter:saturate(140%) blur(12px); background:rgba(10,12,17,.78); border-bottom:1px solid var(--line-soft)}
+.topbar .row{display:flex;align-items:center;gap:1rem; padding:.85rem 1.6rem; max-width:var(--maxw); margin:0 auto}
+.brand{font-family:"Fraunces",serif; font-variation-settings:"opsz" 96,"SOFT" 30,"WONK" 1; font-size:1.18rem; letter-spacing:-.01em}
+.brand .dot{display:inline-block; width:.55rem; height:.55rem; border-radius:50%; background:var(--amber); margin-right:.5rem; transform:translateY(-2px); box-shadow:0 0 0 4px rgba(232,164,90,.18)}
+nav.crumbs{margin-left:auto; display:flex; gap:1rem; flex-wrap:wrap}
+nav.crumbs a{font-family:"IBM Plex Mono",monospace; font-size:11.5px; letter-spacing:.16em; text-transform:uppercase; color:var(--text-2); border-bottom:0}
+nav.crumbs a:hover{color:#fff}
+
+/* cover */
+.cover{padding-top:6rem}
+.cover .grid{display:grid; grid-template-columns: 1.3fr 1fr; gap:3rem; align-items:end}
+@media (max-width:880px){ .cover .grid{grid-template-columns:1fr; gap:2rem} }
+.cover .meta{font-family:"IBM Plex Mono",monospace; color:var(--text-3); font-size:12px; letter-spacing:.16em; text-transform:uppercase}
+.cover .meta .pipe{margin:0 .55rem; opacity:.5}
+.cover h1 em{color:var(--amber); font-style:italic}
+.cover .lede{margin-top:1.6rem}
+.cover .specsheet{border:1px solid var(--line); border-radius:var(--r-2); padding:1.4rem 1.4rem 1rem; background:linear-gradient(180deg,rgba(255,255,255,.012),transparent)}
+.specsheet dl{display:grid; grid-template-columns:auto 1fr; gap:.45rem 1rem; margin:0; font-size:13.5px}
+.specsheet dt{color:var(--text-3); font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.18em; text-transform:uppercase; padding-top:.18rem}
+.specsheet dd{margin:0}
+.specsheet dd b{color:#fff}
+
+/* topic index */
+.tindex{display:grid; grid-template-columns:repeat(4,1fr); gap:.6rem; margin-top:1.4rem}
+@media(max-width:880px){.tindex{grid-template-columns:repeat(2,1fr)}}
+.tindex a{
+  border:1px solid var(--line); border-radius:var(--r-2);
+  padding:.7rem .85rem; background:rgba(255,255,255,.014);
+  color:var(--text-2); display:flex; align-items:center; gap:.55rem;
+  font-size:13px;
+}
+.tindex a:hover{border-color:rgba(232,164,90,.4); color:#fff; background:rgba(232,164,90,.04)}
+.tindex a .num{font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:.14em; color:var(--amber)}
+
+/* matrix table */
+.matrix{overflow-x:auto; margin-top:1rem; border:1px solid var(--line); border-radius:var(--r-2); background:linear-gradient(180deg,rgba(255,255,255,.012),transparent)}
+.matrix table{width:100%; border-collapse:collapse; min-width:780px}
+.matrix th, .matrix td{padding:.72rem .9rem; text-align:left; border-bottom:1px solid var(--line-soft); vertical-align:top; font-size:13.5px}
+.matrix th{font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.18em; text-transform:uppercase; color:var(--text-3); background:rgba(255,255,255,.018)}
+.matrix th:first-child{position:sticky; left:0; background:rgba(20,24,33,.96)}
+.matrix td:first-child{position:sticky; left:0; background:rgba(20,24,33,.96); font-weight:600; color:#fff}
+.matrix td{color:var(--text-2)}
+.matrix tr:hover td{background:rgba(232,164,90,.04)}
+
+/* badges */
+.badge{font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:.16em; text-transform:uppercase; padding:.32rem .55rem; border:1px solid var(--line); border-radius:99px; color:var(--text-2); background:rgba(255,255,255,.014)}
+.badge.ok{color:#cfe9b8; border-color:rgba(127,181,115,.3); background:rgba(127,181,115,.06)}
+.badge.warn{color:#f0c995; border-color:rgba(232,164,90,.35); background:rgba(232,164,90,.06)}
+.badge.bad{color:#f1b3b3; border-color:rgba(226,109,109,.4); background:rgba(226,109,109,.07)}
+.badge.cool{color:#bee0de; border-color:rgba(95,181,177,.3); background:rgba(95,181,177,.06)}
+
+/* gotcha + callout */
+.gotcha{
+  border-left:2px solid var(--amber);
+  padding:.5rem 1rem; margin:.7rem 0;
+  color:var(--text-2); background:rgba(255,255,255,.018); border-radius:0 var(--r-1) var(--r-1) 0;
+  font-size:13.8px;
+}
+.gotcha b{color:#fff}
+.probing{
+  border-left:2px solid var(--teal);
+  padding:.5rem 1rem; margin:.7rem 0;
+  color:var(--text-2); background:rgba(95,181,177,.05); border-radius:0 var(--r-1) var(--r-1) 0;
+  font-size:13.5px;
+}
+.probing b{color:#fff}
+.callout{
+  border:1px dashed var(--line); border-radius:var(--r-2);
+  padding:1.1rem 1.3rem; background:rgba(232,164,90,.04);
+  font-size:14.5px; color:var(--text-2); margin:1rem 0 1.6rem;
+}
+.callout b{color:#fff}
+.callout .heading{font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.18em; text-transform:uppercase; color:var(--amber); display:block; margin-bottom:.4rem}
+
+/* Q&A */
+details.qa{border:1px solid var(--line); border-radius:var(--r-2); background:rgba(255,255,255,.012); padding:0; margin:.6rem 0; overflow:hidden}
+details.qa[open]{background:rgba(232,164,90,.04); border-color:rgba(232,164,90,.35)}
+details.qa summary{cursor:pointer; padding:.95rem 1.1rem; list-style:none; display:flex; gap:.7rem; align-items:center; font-family:"Fraunces",serif; font-variation-settings:"opsz" 36; font-size:1.04rem; color:#fff}
+details.qa summary::-webkit-details-marker{display:none}
+details.qa summary::before{content:""; width:8px; height:8px; border-right:2px solid var(--amber); border-bottom:2px solid var(--amber); transform:rotate(-45deg); transition:transform .2s ease; flex-shrink:0; margin-left:.2rem}
+details.qa[open] summary::before{transform:rotate(45deg)}
+details.qa .ans{padding:0 1.1rem 1.1rem 2rem; color:var(--text-2); font-size:14px; line-height:1.6}
+details.qa .ans p{margin:.4rem 0}
+details.qa .ans b{color:#fff}
+details.qa .ans ul{margin:.4rem 0; padding-left:1.1rem}
+details.qa .ans li{margin:.2rem 0}
+
+/* code blocks with hand-applied highlighting */
+pre{
+  background:var(--ink-1); border:1px solid var(--line); border-radius:var(--r-2);
+  padding:1rem 1.1rem; overflow-x:auto; margin:.7rem 0; font-size:12.8px; line-height:1.55;
+  position:relative;
+}
+pre code{font-family:"IBM Plex Mono",monospace; color:var(--text); display:block; white-space:pre}
+pre .lbl{position:absolute; top:.4rem; right:.7rem; font-family:"IBM Plex Mono",monospace; font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:var(--text-3)}
+pre.bad{border-left:3px solid var(--rose)}
+pre.good{border-left:3px solid var(--leaf)}
+.k{color:var(--amber)}             /* keyword */
+.t{color:var(--teal)}              /* type */
+.s{color:var(--leaf)}              /* string */
+.c{color:var(--text-3); font-style:italic} /* comment */
+.n{color:var(--plum)}              /* number */
+.fn{color:#f3eedf}                 /* function name */
+.an{color:var(--amber-2)}          /* annotation */
+
+/* section anchor offset */
+:target{scroll-margin-top:80px}
+section{scroll-margin-top:80px}
+
+/* rapid fire table */
+.rapid{border:1px solid var(--line); border-radius:var(--r-2); background:linear-gradient(180deg,rgba(255,255,255,.012),transparent); overflow:hidden}
+.rapid table{width:100%; border-collapse:collapse}
+.rapid th,.rapid td{padding:.65rem .9rem; text-align:left; border-bottom:1px solid var(--line-soft); vertical-align:top; font-size:13.5px}
+.rapid th{font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.18em; text-transform:uppercase; color:var(--text-3); background:rgba(255,255,255,.018)}
+.rapid td:first-child{color:#fff; font-weight:500; width:42%}
+.rapid td:last-child{color:var(--text-2)}
+.rapid tr:hover td{background:rgba(232,164,90,.03)}
+
+/* concept grid (intro to a section) */
+.split2{display:grid; grid-template-columns:1fr 1fr; gap:1rem 1.4rem}
+@media (max-width:720px){ .split2{grid-template-columns:1fr} }
+
+/* footer */
+footer{padding:3rem 0 5rem; color:var(--text-3); font-size:13px}
+footer .wrap{display:flex; justify-content:space-between; gap:2rem; flex-wrap:wrap}
+.colophon{font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.16em; text-transform:uppercase}
+.print{margin-top:1rem; font-family:"Fraunces",serif; font-variation-settings:"opsz" 24,"SOFT" 30; font-style:italic; color:var(--text-2)}
+
+/* utility */
+.row{display:flex; gap:1rem; flex-wrap:wrap}
+.muted{color:var(--text-3)}
+.amber{color:var(--amber)}
+.divider{display:block; height:1px; background:linear-gradient(90deg,transparent,var(--line),transparent); margin:1.4rem 0}
+.tip{font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.14em; color:var(--text-3); text-transform:uppercase}
+
+/* copy button */
+.copy-btn{
+  position:absolute; top:.4rem; right:.7rem; background:rgba(255,255,255,.04);
+  border:1px solid var(--line); color:var(--text-3);
+  font-family:"IBM Plex Mono",monospace; font-size:10px; letter-spacing:.14em; text-transform:uppercase;
+  padding:.25rem .5rem; border-radius:99px; cursor:pointer;
+}
+.copy-btn:hover{color:#fff; border-color:var(--amber); background:rgba(232,164,90,.08)}
+.copy-btn.copied{color:var(--leaf); border-color:rgba(127,181,115,.4)}
+
+@media print{
+  body{background:#fff; color:#222}
+  .topbar, footer{display:none}
+}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="row">
+    <div class="brand"><span class="dot"></span>Java Fundamentals</div>
+    <nav class="crumbs">
+      <a href="#jvm">JVM</a>
+      <a href="#jmm">JMM</a>
+      <a href="#gc">GC</a>
+      <a href="#concurrency">Concurrency</a>
+      <a href="#collections">Collections</a>
+      <a href="#modern">Modern</a>
+      <a href="#perf">Perf</a>
+      <a href="#design">Design</a>
+      <a href="#rapid">Rapid-fire</a>
+    </nav>
+  </div>
+</header>
+
+<!-- COVER -->
+<section class="cover">
+  <div class="wrap">
+    <div class="grid">
+      <div>
+        <div class="meta">Vol. II <span class="pipe">·</span> Staff &amp; tech-lead drills <span class="pipe">·</span> JDK 21 LTS baseline <span class="pipe">·</span> 2026</div>
+        <h1 style="margin-top:1rem">Java fundamentals &mdash;<br/>not a tutorial, a <em>sparring partner</em>.</h1>
+        <p class="lede">A senior loop probes whether you understand <i>why</i> the JVM, the memory model, and the concurrency primitives behave the way they do &mdash; not whether you can name them. This is the reference for the questions that get asked when the interviewer has decided you&rsquo;re competent and wants to see if you&rsquo;re actually deep.</p>
+        <p class="muted" style="margin-top:1rem; max-width:60ch">Skips basics. Assumes you&rsquo;ve been writing Java for years. Calibrated for staff / principal / tech-lead loops at top-tier firms. Opinionated where the field has already moved on (yes, biased locking is gone; yes, post-Loom most reactive code is over-engineered).</p>
+      </div>
+      <aside class="specsheet">
+        <div class="eyebrow" style="margin-bottom:.8rem">How to use this</div>
+        <dl>
+          <dt>Read</dt><dd>Each section opens with a <b>concept card</b>. Read it before drilling.</dd>
+          <dt>Drill</dt><dd>Q&amp;A collapsibles. Click, answer aloud, then check.</dd>
+          <dt>Probe</dt><dd>Teal callouts decode <b>what the interviewer is testing for</b>.</dd>
+          <dt>Close</dt><dd>Rapid-fire round at the bottom &mdash; phone-screen catnip.</dd>
+        </dl>
+        <div class="divider"></div>
+        <div class="eyebrow" style="margin-bottom:.4rem">Version targets</div>
+        <p style="font-size:13px; color:var(--text-2); margin:0">Baseline is <b>JDK 21 LTS</b>. JDK 17 differences called out where relevant. Loom, ZGC generational, sealed types, pattern matching, virtual threads &mdash; treated as current state, not preview.</p>
+      </aside>
+    </div>
+
+    <div class="tindex">
+      <a href="#jvm"><span class="num">§ 01</span> JVM internals</a>
+      <a href="#jmm"><span class="num">§ 02</span> Memory model</a>
+      <a href="#gc"><span class="num">§ 03</span> Garbage collection</a>
+      <a href="#concurrency"><span class="num">§ 04</span> Concurrency</a>
+      <a href="#collections"><span class="num">§ 05</span> Concurrent collections</a>
+      <a href="#modern"><span class="num">§ 06</span> Modern features</a>
+      <a href="#perf"><span class="num">§ 07</span> Perf &amp; profiling</a>
+      <a href="#design"><span class="num">§ 08</span> Design questions</a>
+    </div>
+  </div>
+</section>
+</content>
+</invoke>
+<!-- SECTION 1: JVM INTERNALS -->
+<section id="jvm">
+  <div class="wrap">
+    <span class="kicker">§ 01 &nbsp;JVM internals</span>
+    <h2 style="margin-top:.7rem">The runtime under your code.</h2>
+    <p class="lede" style="margin-bottom:1.4rem">Java&rsquo;s portability story is &ldquo;write once, run anywhere&rdquo;. Its performance story is &ldquo;run cold, get fast.&rdquo; The JIT, the class-loading pipeline, escape analysis, and the off-heap escape hatches are how Java delivers C-adjacent performance from a managed runtime &mdash; and where most production weirdness lives.</p>
+
+    <div class="callout">
+      <span class="heading">Concept &middot; Runtime anatomy</span>
+      A running JVM holds: <b>heap</b> (objects, split into young gen [Eden + 2 Survivors] and old gen), <b>metaspace</b> (class metadata, native, replaced PermGen in 8), <b>code cache</b> (JIT-compiled native code, default ~240 MB), <b>thread stacks</b> (each frame holds locals + operand stack), and <b>direct memory</b> (off-heap buffers, native libs).
+      <br/><br/>
+      A class entering the JVM goes through <b>load &rarr; verify &rarr; prepare &rarr; resolve &rarr; initialize</b>. Bytecode runs in the interpreter first, gets profiled, and the hot methods are JIT-compiled by C1 (fast, light optimization) then C2 (slow, aggressive). Recompiles, deopts, and on-stack replacement happen in real time. Knowing this lets you read a JFR profile without flinching.
+    </div>
+
+    <details class="qa"><summary>Walk through what happens when a <code>.class</code> file is loaded.</summary><div class="ans">
+      <p><b>Five phases:</b> Load (find bytes, build a <code>Class</code> object, internal representation), Verify (bytecode is type-safe, stack consistency, no jumps out of bounds), Prepare (allocate static fields, default values), Resolve (symbolic references &rarr; direct references, may be lazy), Initialize (run <code>&lt;clinit&gt;</code>, static initializers, in source order).</p>
+      <p>Initialization is <b>lazy</b> &mdash; triggered by first active use (instantiation, static method call, static field read of a non-constant). The JLS guarantees thread-safe init of a class via an internal lock on the <code>Class</code> object &mdash; this is the foundation of the holder idiom for thread-safe lazy singletons.</p>
+      <div class="probing"><b>What the interviewer is probing:</b> do you know that initialization order is a runtime guarantee, not a compile-time one? It&rsquo;s the basis of correct lazy-init patterns and a common source of static-init-order bugs.</div>
+    </div></details>
+
+    <details class="qa"><summary>Explain the classloader hierarchy and parent-delegation.</summary><div class="ans">
+      <p><b>Bootstrap</b> (loads <code>java.*</code> from the JDK image; written in C) &rarr; <b>Platform</b> (was <code>ExtClassLoader</code> pre-9; loads platform modules) &rarr; <b>Application/System</b> (loads classpath/modulepath). Each loader, when asked for a class, <b>asks its parent first</b>; only loads itself if the parent fails. That&rsquo;s why you can&rsquo;t override <code>java.lang.String</code>.</p>
+      <p>Frameworks invert this: web containers, OSGi, JPMS layers each load classes per-app/per-module to isolate versions. Two classes loaded by different loaders with the same FQN are <b>not equal</b> &mdash; they live in separate runtime types. <code>ClassCastException: Foo cannot be cast to Foo</code> is the classic symptom.</p>
+      <pre><code><span class="c">// Loader identity matters for equality of Class objects</span>
+<span class="t">Class</span>&lt;?&gt; a = loaderA.loadClass(<span class="s">"com.x.Foo"</span>);
+<span class="t">Class</span>&lt;?&gt; b = loaderB.loadClass(<span class="s">"com.x.Foo"</span>);
+<span class="c">// a != b. a.isAssignableFrom(b) == false.</span></code></pre>
+      <div class="probing"><b>What the interviewer is probing:</b> have you ever debugged a real classloader leak (stuck war redeploys, Tomcat PermGen/Metaspace OOM)? &ldquo;Yes I have, here&rsquo;s how I traced it&rdquo; is the senior signal.</div>
+    </div></details>
+
+    <details class="qa"><summary>What is the constant pool? When is a String interned?</summary><div class="ans">
+      <p>Each <code>.class</code> file has a <b>constant pool</b>: indexed entries for class refs, method refs, field refs, and constants (strings, ints, etc.). At class load, these get resolved into runtime constant pools. <b>String literals</b> in source are added to a JVM-wide string table (the &ldquo;intern pool&rdquo;) at class load. <code>String.intern()</code> manually adds a runtime-built string.</p>
+      <p>Pre-JDK 7: intern pool lived in PermGen (small, fixed). <b>JDK 7+</b>: moved to the heap (size-tunable, GC&rsquo;d). Tune via <code>-XX:StringTableSize=N</code> (default 65536 buckets in modern JDKs).</p>
+      <pre><code><span class="t">String</span> a = <span class="s">"hi"</span>;
+<span class="t">String</span> b = <span class="s">"hi"</span>;
+<span class="t">String</span> c = <span class="k">new</span> <span class="t">String</span>(<span class="s">"hi"</span>);
+a == b;            <span class="c">// true  &mdash; same intern entry</span>
+a == c;            <span class="c">// false &mdash; new heap allocation</span>
+a == c.intern();   <span class="c">// true</span></code></pre>
+      <div class="gotcha"><b>Gotcha:</b> Don&rsquo;t use <code>intern()</code> as a poor-man&rsquo;s cache. The string table is a global hash table; aggressive interning of high-cardinality data leaks until GC catches up.</div>
+    </div></details>
+
+    <details class="qa"><summary>How does tiered compilation work? What is C1 vs C2?</summary><div class="ans">
+      <p>HotSpot has multiple tiers: <b>0</b> = interpreter, <b>1&ndash;3</b> = C1 (client compiler &mdash; fast compile, light opts), <b>4</b> = C2 (server compiler &mdash; slow compile, aggressive opts: inlining, escape analysis, scalar replacement, vectorization). Methods start at tier 0, get profiled, escalate to C1 then C2 once hotness thresholds (loop back-edges, invocation counts) trip.</p>
+      <p><b>Deoptimization</b> happens when an assumption breaks (a class hierarchy gets a new subclass, an inlining decision becomes unsafe, a guard fails). The method falls back to a lower tier and may recompile later. <b>OSR</b> (on-stack replacement) recompiles a long-running loop mid-execution &mdash; you don&rsquo;t restart the method.</p>
+      <p>Tunables: <code>-XX:CompileThreshold</code>, <code>-XX:+TieredCompilation</code> (default on), <code>-XX:TieredStopAtLevel=N</code>. For short-lived workloads people sometimes pin to C1 to skip C2&rsquo;s warmup cost.</p>
+      <div class="probing"><b>Probing:</b> &ldquo;why is the first request slow but the 1000th fast?&rdquo; is the warmup question. Knowing it&rsquo;s C2 + profiled inlining &mdash; not classloading &mdash; is the staff-level answer.</div>
+    </div></details>
+
+    <details class="qa"><summary>Explain escape analysis, scalar replacement, and lock elision.</summary><div class="ans">
+      <p><b>Escape analysis (EA):</b> at JIT time, C2 proves whether an allocated object &ldquo;escapes&rdquo; the current method (returned, stored in a field, passed to an unknown call). If not, three optimizations apply:</p>
+      <ul>
+        <li><b>Scalar replacement:</b> the object is decomposed into its fields, kept in registers/stack. No heap allocation, no GC pressure. This is why a tight loop allocating short-lived helper objects can run with zero allocations in steady state.</li>
+        <li><b>Lock elision:</b> if a synchronized block&rsquo;s monitor object never escapes, the JIT removes the locking entirely. <code>StringBuffer</code> in a method body becomes lock-free.</li>
+        <li><b>Stack allocation:</b> rarer than scalar replacement; some HotSpot variants do it.</li>
+      </ul>
+      <p>EA is fragile: any debug instrumentation that captures the object, any reflective access, or any megamorphic dispatch can defeat it.</p>
+      <pre><code><span class="k">public</span> <span class="t">int</span> <span class="fn">sum</span>(<span class="t">int</span>[] xs){
+    <span class="t">Stats</span> s = <span class="k">new</span> <span class="t">Stats</span>();   <span class="c">// EA: doesn't escape &rarr; scalar-replaced</span>
+    <span class="k">for</span>(<span class="t">int</span> x : xs) s.add(x);
+    <span class="k">return</span> s.total();
+}</code></pre>
+    </div></details>
+
+    <details class="qa"><summary>What is the code cache? When does it become a problem?</summary><div class="ans">
+      <p>JIT-compiled native code lives in the <b>code cache</b>, a fixed-size native segment (default ~240 MB in modern HotSpot, split into non-method, profiled, and non-profiled segments since 9). When it fills, <b>compilation stops</b>; everything stays interpreted &mdash; performance falls off a cliff.</p>
+      <p>Symptom: a long-running app that&rsquo;s fine for hours, then spikes p99 with no GC change. Check <code>jcmd Compiler.codecache</code> or JFR. Bump <code>-XX:ReservedCodeCacheSize</code>; verify with <code>-XX:+PrintCodeCache</code>.</p>
+      <p>Modern JVMs do code-cache sweeping (eviction of cold methods); it&rsquo;s usually enough. Apps with huge classpaths (Spring + dozens of dynamic proxies + lambdas) are the typical victims.</p>
+    </div></details>
+
+    <details class="qa"><summary>What does AOT compilation buy you? Where does GraalVM Native Image fit?</summary><div class="ans">
+      <p>AOT trades JIT&rsquo;s peak throughput for <b>fast startup and low memory</b>. <b>GraalVM Native Image</b> compiles your closed-world Java app to a native binary using static analysis &mdash; no JVM at runtime, no JIT, instant startup, ~10&ndash;20&times; smaller RSS. Cost: no dynamic classloading, reflection requires config, peak throughput is typically lower than C2-warmed HotSpot.</p>
+      <p><b>Project Leyden</b> (incubating, JDK 24+) brings AOT to mainline HotSpot via &ldquo;condensers&rdquo; &mdash; pre-resolved classes, pre-linked methods, AOT-cached profiles. Less radical than Native Image, more compatible with reflection &amp; dynamic loading.</p>
+      <p>Sweet spot for Native Image: serverless lambdas (cold-start sensitive), CLIs, sidecars. Anti-pattern: long-running services with heavy reflection / dynamic codegen (Hibernate, JSPs).</p>
+      <div class="probing"><b>Probing:</b> &ldquo;why isn&rsquo;t Native Image just better?&rdquo; The closed-world assumption is the answer. Reflection, dynamic classloading, and ServiceLoader-discovered impls all need explicit hints.</div>
+    </div></details>
+
+    <details class="qa"><summary>Direct ByteBuffers, Unsafe, and the Foreign-Function &amp; Memory API &mdash; when which?</summary><div class="ans">
+      <p><b>Direct <code>ByteBuffer</code>:</b> off-heap memory backed by <code>malloc</code>; freed by the buffer&rsquo;s <code>Cleaner</code> when it&rsquo;s GC&rsquo;d. Used by NIO; safe but reclamation is non-deterministic. <code>-XX:MaxDirectMemorySize</code> caps it.</p>
+      <p><b>sun.misc.Unsafe:</b> the original native escape hatch. Pointer arithmetic, raw memory ops, unsafe field access, CAS primitives. Used by every concurrency lib pre-9. Officially internal, on the deprecation path.</p>
+      <p><b>FFM API (JEP 442/454, finalized JDK 22):</b> <code>MemorySegment</code> + <code>Arena</code> + <code>Linker</code>. Replacement for both Unsafe&rsquo;s memory ops and JNI. Bounded segments, scoped lifetimes (deterministic close), structured access via <code>VarHandle</code> / <code>MemoryLayout</code>. The forward path.</p>
+      <pre><code><span class="k">try</span> (<span class="t">Arena</span> arena = <span class="t">Arena</span>.<span class="fn">ofConfined</span>()) {
+    <span class="t">MemorySegment</span> seg = arena.<span class="fn">allocate</span>(<span class="n">1024</span>);
+    seg.<span class="fn">set</span>(<span class="t">ValueLayout</span>.JAVA_INT, <span class="n">0</span>, <span class="n">42</span>);
+    <span class="t">int</span> v = seg.<span class="fn">get</span>(<span class="t">ValueLayout</span>.JAVA_INT, <span class="n">0</span>);
+} <span class="c">// arena closes &rarr; segment becomes inaccessible, memory freed</span></code></pre>
+    </div></details>
+
+    <details class="qa"><summary>Why was PermGen replaced with Metaspace?</summary><div class="ans">
+      <p>PermGen was a fixed-size heap region holding class metadata, interned strings, and (pre-7) static fields. The fixed cap caused the legendary <code>OutOfMemoryError: PermGen space</code> on Tomcat redeploy storms. Metaspace (JDK 8+) lives in <b>native memory</b>, defaults unbounded (capped by <code>-XX:MaxMetaspaceSize</code>), and is freed when its classloader becomes unreachable.</p>
+      <p>The leak shape didn&rsquo;t go away &mdash; if a classloader pins (a static field references something from the parent loader, or a thread holds a context-classloader reference), Metaspace still grows. The error message just changed.</p>
+    </div></details>
+
+    <details class="qa"><summary>Heap layout: explain young / old / TLABs.</summary><div class="ans">
+      <p>Young gen = <b>Eden</b> + two <b>Survivor</b> regions (S0, S1). New objects allocate in Eden. A minor GC (young collection) copies survivors out of Eden and the live survivor region into the empty one; objects that survive enough collections (the &ldquo;tenuring threshold&rdquo;, typically 15) get promoted to old gen.</p>
+      <p><b>TLABs</b> (thread-local allocation buffers) are per-thread Eden chunks. Allocation is a pointer bump &mdash; ~10 ns &mdash; with no synchronization. When a TLAB fills, the thread grabs a new one. This is why Java allocation is &ldquo;fast&rdquo; despite being managed.</p>
+      <p>Large objects (&gt; some threshold per GC, e.g. G1&rsquo;s humongous limit at 50% of region size) bypass Eden and go straight to old. Excessive humongous allocations fragment G1 badly.</p>
+    </div></details>
+
+    <details class="qa"><summary>Why is reflection slow? Has anything changed recently?</summary><div class="ans">
+      <p>Classic reflection went through native bridge code (<code>NativeMethodAccessorImpl</code>) until ~15 invocations, then JIT-generated bytecode (<code>GeneratedMethodAccessor</code>). Still expensive: argument boxing (varargs <code>Object[]</code>), security checks, and inability to inline through reflective dispatch.</p>
+      <p><b>JDK 18 (JEP 416):</b> reimplemented <code>Method.invoke</code> on top of <b>MethodHandles</b>. Same surface, much better steady-state. <b>VarHandle</b> + MethodHandle are the modern primitives &mdash; bind-once, invoke-many, JIT inlines them as if they were direct calls.</p>
+      <p>For hot paths: cache <code>MethodHandle</code> at init time, use <code>invokeExact</code>. Don&rsquo;t do field-by-name lookup in a loop.</p>
+    </div></details>
+
+    <details class="qa"><summary>What does <code>final</code> on a local variable buy the JIT?</summary><div class="ans">
+      <p><b>For locals: nothing measurable.</b> The JIT does its own SSA / def-use analysis; <code>final</code> is documentation. It does enable lambdas/inner classes to capture the variable (the &ldquo;effectively final&rdquo; rule).</p>
+      <p><b>For fields:</b> very different. <code>final</code> instance fields get JMM publication guarantees (see &sect;02). <code>static final</code> primitive/String fields with constant initializers become <i>compile-time constants</i> &mdash; the JIT folds them in and the field reference disappears.</p>
+      <div class="gotcha"><b>Gotcha:</b> &ldquo;<code>final</code> for performance&rdquo; on locals/methods is cargo cult. <code>final</code> on methods is a hint for inlining decisions, but C2&rsquo;s class-hierarchy analysis already handles this for most cases.</div>
+    </div></details>
+
+  </div>
+</section>
+
+<!-- SECTION 2: JMM -->
+<section id="jmm">
+  <div class="wrap">
+    <span class="kicker">§ 02 &nbsp;Java Memory Model</span>
+    <h2 style="margin-top:.7rem">Happens-before is the only contract.</h2>
+    <p class="lede" style="margin-bottom:1.4rem">The JMM is a contract between the programmer, the compiler, and the hardware. Without it, the compiler will reorder your writes, the CPU will reorder your reads, and threads will see a kaleidoscope of states. With it, you have a small set of <i>happens-before</i> guarantees that make multi-threaded reasoning tractable.</p>
+
+    <div class="callout">
+      <span class="heading">Concept &middot; Happens-before</span>
+      An action A <b>happens-before</b> action B (written A &rarr; B) if A&rsquo;s effects are guaranteed to be visible to B and A appears to occur before B in any consistent execution. HB is the only thing the JMM actually guarantees about cross-thread visibility &mdash; everything else is fair game for the compiler &amp; CPU to reorder.
+      <br/><br/>
+      <b>HB edges are created by:</b> program order within a thread; <code>volatile</code> write &rarr; subsequent <code>volatile</code> read of same field; <code>synchronized</code> exit &rarr; subsequent <code>synchronized</code> entry on same monitor; <code>Thread.start()</code> &rarr; first action in started thread; thread&rsquo;s last action &rarr; <code>thread.join()</code> return; <code>final</code> field write in constructor &rarr; any read after the constructor returns (publication safety). Without an HB edge, no ordering or visibility is guaranteed.
+    </div>
+
+    <details class="qa"><summary>What does <code>volatile</code> guarantee, and what does it NOT?</summary><div class="ans">
+      <p><b>Guarantees:</b> (1) reads/writes are atomic for the field (true even for <code>long</code>/<code>double</code>, which without volatile may tear on 32-bit JVMs); (2) every read sees the latest write &mdash; no caching in registers; (3) creates HB edges &mdash; <i>every action before the volatile write</i> happens-before <i>every action after a subsequent volatile read of that field</i>. This is the &ldquo;memory fence&rdquo; effect.</p>
+      <p><b>Does NOT guarantee:</b> atomicity for compound operations. <code>counter++</code> is read-modify-write &mdash; volatile gives you visibility but two threads will still race.</p>
+      <pre class="bad"><code><span class="c">// WRONG &mdash; volatile does NOT make ++ atomic</span>
+<span class="k">volatile</span> <span class="t">int</span> count;
+<span class="k">public</span> <span class="t">void</span> <span class="fn">inc</span>(){ count++; }     <span class="c">// race</span></code></pre>
+      <pre class="good"><code><span class="c">// Right &mdash; AtomicInteger or LongAdder</span>
+<span class="k">private</span> <span class="k">final</span> <span class="t">AtomicInteger</span> count = <span class="k">new</span> <span class="t">AtomicInteger</span>();
+<span class="k">public</span> <span class="t">void</span> <span class="fn">inc</span>(){ count.<span class="fn">incrementAndGet</span>(); }</code></pre>
+      <div class="probing"><b>Probing:</b> &ldquo;volatile makes it thread-safe&rdquo; is the junior answer. The staff answer separates <i>visibility</i> from <i>atomicity</i> from <i>ordering</i> &mdash; volatile gives you two of three.</div>
+    </div></details>
+
+    <details class="qa"><summary>Why is double-checked locking broken without <code>volatile</code>?</summary><div class="ans">
+      <p>The classic broken DCL:</p>
+      <pre class="bad"><code><span class="k">private</span> <span class="t">Singleton</span> instance;
+<span class="k">public</span> <span class="t">Singleton</span> <span class="fn">get</span>(){
+    <span class="k">if</span>(instance == <span class="k">null</span>){
+        <span class="k">synchronized</span>(<span class="k">this</span>){
+            <span class="k">if</span>(instance == <span class="k">null</span>) instance = <span class="k">new</span> <span class="t">Singleton</span>();
+        }
+    }
+    <span class="k">return</span> instance;
+}</code></pre>
+      <p>Why it&rsquo;s broken: <code>new Singleton()</code> is <i>three</i> ops &mdash; allocate, run constructor, assign reference. The compiler can reorder the publish-reference and the constructor-body. A thread reading <code>instance</code> outside the lock can see a non-null reference to a <i>partially-constructed</i> object.</p>
+      <p><b>Fix:</b> declare <code>instance</code> volatile. The volatile write inserts a release fence, ensuring constructor effects are visible before the reference is.</p>
+      <p><b>Better:</b> use the holder idiom &mdash; a static nested class that&rsquo;s loaded lazily by the JVM&rsquo;s thread-safe class init machinery. No volatile, no locks, faster.</p>
+      <pre class="good"><code><span class="k">public</span> <span class="k">final</span> <span class="k">class</span> <span class="t">Singleton</span> {
+    <span class="k">private</span> <span class="k">static</span> <span class="k">class</span> <span class="t">Holder</span> { <span class="k">static</span> <span class="k">final</span> <span class="t">Singleton</span> I = <span class="k">new</span> <span class="t">Singleton</span>(); }
+    <span class="k">public</span> <span class="k">static</span> <span class="t">Singleton</span> <span class="fn">get</span>(){ <span class="k">return</span> <span class="t">Holder</span>.I; }
+}</code></pre>
+    </div></details>
+
+    <details class="qa"><summary>What guarantees does <code>final</code> on instance fields give you?</summary><div class="ans">
+      <p><b>Final field semantics (JSR-133):</b> any thread that obtains a reference to an object after its constructor finishes is guaranteed to see the correctly-initialized values of its <code>final</code> fields &mdash; without synchronization.</p>
+      <p>This is what makes <code>String</code>, <code>Integer</code>, and most immutable types safe to share. The constructor effectively has a release fence at the end before the reference can escape.</p>
+      <p><b>Where it breaks:</b> if <code>this</code> escapes from the constructor (registering a listener, starting a thread that captures <code>this</code>, calling an overridable method), other threads can see the object pre-construction. <code>final</code> only protects you if the publication itself is safe.</p>
+      <pre class="bad"><code><span class="k">public</span> <span class="k">class</span> <span class="t">Bad</span> {
+    <span class="k">private</span> <span class="k">final</span> <span class="t">int</span> x;
+    <span class="k">public</span> <span class="fn">Bad</span>(<span class="t">EventBus</span> bus){
+        bus.<span class="fn">register</span>(<span class="k">this</span>);   <span class="c">// THIS escapes &mdash; final guarantee voided</span>
+        <span class="k">this</span>.x = <span class="n">42</span>;
+    }
+}</code></pre>
+    </div></details>
+
+    <details class="qa"><summary>Explain VarHandle. Why does it exist?</summary><div class="ans">
+      <p><b>VarHandle</b> (JDK 9, JEP 193) is a typed reference to a variable (instance field, static field, array element) with a full menu of memory-ordering modes: <code>get/set</code> (plain), <code>getOpaque/setOpaque</code> (atomic but no ordering), <code>getAcquire/setRelease</code> (acquire-release semantics), <code>getVolatile/setVolatile</code> (sequentially consistent), plus <code>compareAndSet</code>, <code>getAndAdd</code>, etc.</p>
+      <p>It&rsquo;s the public, supported replacement for <code>sun.misc.Unsafe</code>&rsquo;s atomic ops &mdash; same performance (the JIT inlines them), no internal API. The <code>java.util.concurrent.atomic</code> package internally moved to VarHandles.</p>
+      <pre><code><span class="k">private</span> <span class="k">static</span> <span class="k">final</span> <span class="t">VarHandle</span> COUNT;
+<span class="k">static</span> {
+    <span class="k">try</span> { COUNT = <span class="t">MethodHandles</span>.<span class="fn">lookup</span>()
+        .<span class="fn">findVarHandle</span>(<span class="t">Foo</span>.<span class="k">class</span>, <span class="s">"count"</span>, <span class="t">int</span>.<span class="k">class</span>); }
+    <span class="k">catch</span>(<span class="t">Exception</span> e){ <span class="k">throw</span> <span class="k">new</span> <span class="t">Error</span>(e); }
+}
+<span class="k">private</span> <span class="t">int</span> count;
+<span class="k">public</span> <span class="t">int</span> <span class="fn">inc</span>(){ <span class="k">return</span> (<span class="t">int</span>) COUNT.<span class="fn">getAndAdd</span>(<span class="k">this</span>, <span class="n">1</span>); }</code></pre>
+      <div class="probing"><b>Probing:</b> &ldquo;why don&rsquo;t we just use <code>volatile</code> always?&rdquo; Volatile is one mode; sometimes you want acquire-release (cheaper) or opaque (atomicity without ordering). Library authors care about this; app code rarely does.</div>
+    </div></details>
+
+    <details class="qa"><summary>What is &ldquo;safe publication&rdquo;? Why does it matter?</summary><div class="ans">
+      <p>To safely share a mutable object reference across threads without locks, the publication itself must establish an HB edge. Safe ways:</p>
+      <ul>
+        <li>Initialize the reference in a <code>static</code> initializer (class-init lock).</li>
+        <li>Store into a <code>volatile</code> field.</li>
+        <li>Store into an <code>AtomicReference</code>.</li>
+        <li>Store into a field protected by a lock used by all readers.</li>
+        <li>Store into a <code>final</code> field of a properly-constructed object (final-field semantics).</li>
+      </ul>
+      <p><b>Unsafe publication:</b> a plain non-volatile reference write read by another thread may yield the reference but not the object&rsquo;s fields. Common bug shape: a config object built and stashed in a non-volatile static field; reader threads see the reference but null fields. Goetz&rsquo;s <i>JCIP</i> chapter 3 is required reading.</p>
+    </div></details>
+
+    <details class="qa"><summary>What was biased locking and why was it removed?</summary><div class="ans">
+      <p>Biased locking was an optimization that &ldquo;biased&rdquo; an object&rsquo;s monitor toward the first thread that locked it &mdash; subsequent <code>synchronized</code> entries by that thread were near-free (a CAS-less mark-word check). Helped uncontended single-threaded code that used legacy synchronized collections (<code>StringBuffer</code>, <code>Hashtable</code>).</p>
+      <p><b>Disabled by default in JDK 15</b> (JEP 374), removed in 18. Reasons: the bookkeeping cost grew with multi-core; the workloads it helped have moved to <code>ConcurrentHashMap</code>, <code>StringBuilder</code>, lock-free atomics; revoking a bias under contention triggers a safepoint, which became expensive.</p>
+      <p><b>Stop bringing this up in interviews</b> unless asked. If you do, the right framing is: &ldquo;biased locking optimized a workload that doesn&rsquo;t exist anymore.&rdquo;</p>
+    </div></details>
+
+    <details class="qa"><summary>What memory fences does <code>synchronized</code> insert?</summary><div class="ans">
+      <p>Lock acquire = <b>acquire fence</b> (subsequent reads cannot move before it). Lock release = <b>release fence</b> (prior writes cannot move after it). Combined, this gives you the full HB edge: everything done in one synchronized block, on the same monitor, is visible to the next acquirer.</p>
+      <p>It does <i>not</i> give you a global StoreLoad barrier &mdash; reads after acquire could in principle be reordered with reads outside the block. In practice on x86, lock acquire/release maps to weakly-ordered ops the hardware already orders for you; on ARM/AArch64 the JIT inserts <code>dmb</code> instructions.</p>
+      <p><b>Two takeaways:</b> (1) you must hold the <i>same</i> monitor for HB to apply &mdash; locking different objects in two threads doesn&rsquo;t synchronize them; (2) the body of the synchronized block can be reordered <i>internally</i> as long as it&rsquo;s consistent with single-threaded execution.</p>
+    </div></details>
+
+    <details class="qa"><summary>How do CAS, Atomic*, and the &ldquo;ABA&rdquo; problem relate?</summary><div class="ans">
+      <p><b>CAS</b> = compare-and-swap. Atomically: &ldquo;if the variable holds X, set it to Y; otherwise fail.&rdquo; Hardware-supported (<code>cmpxchg</code> on x86, LL/SC on ARM). The foundation of every lock-free algorithm.</p>
+      <p><b>ABA:</b> thread T1 reads X, gets paused. Another thread changes X &rarr; Y &rarr; X. T1 wakes up, CAS(X, Z) succeeds &mdash; but the world isn&rsquo;t the same; if X is a pointer to a recycled node, T1 just clobbered something. Lock-free linked-list pop-and-push is the canonical case.</p>
+      <p><b>Defenses:</b> (1) version stamps &mdash; <code>AtomicStampedReference</code> wraps a (ref, int) pair; (2) <code>AtomicMarkableReference</code> for boolean-tag variants; (3) hazard pointers / epoch-based reclamation in lock-free data structures; (4) GC saves you from ABA on object identity in many cases &mdash; Java&rsquo;s GC means a recycled pointer can&rsquo;t be live yet.</p>
+    </div></details>
+
+    <details class="qa"><summary>What&rsquo;s the deal with <code>long</code> tearing?</summary><div class="ans">
+      <p>JLS allows non-volatile <code>long</code> and <code>double</code> writes/reads to be split into two 32-bit ops. On a 64-bit JVM you almost never see this in practice; on 32-bit JVMs (mostly historical now) you absolutely could observe a value that was &ldquo;half of write A, half of write B.&rdquo;</p>
+      <p>Mark such fields <code>volatile</code> and the JLS guarantees atomicity. Or use <code>AtomicLong</code>. In modern code this is mostly a trivia question, but the answer demonstrates you read the spec.</p>
+    </div></details>
+
+    <details class="qa"><summary>What is &ldquo;sequential consistency&rdquo; and does Java provide it?</summary><div class="ans">
+      <p><b>Sequentially consistent</b> = there exists a single global interleaving of all ops that respects program order in each thread. The strongest typical model.</p>
+      <p>The JMM provides SC <i>only for sequentially-consistent operations</i>: volatile reads/writes, lock acquire/release, atomic operations. Plain reads and writes are not SC; the compiler may reorder them within program-order constraints.</p>
+      <p>This is why the answer to &ldquo;why don&rsquo;t I see this write?&rdquo; is almost always &ldquo;because there&rsquo;s no HB edge and you&rsquo;re assuming SC.&rdquo;</p>
+    </div></details>
+
+    <details class="qa"><summary>When would you reach for <code>VarHandle</code> over <code>AtomicInteger</code>?</summary><div class="ans">
+      <p><b>AtomicInteger</b> wraps a value in an object &mdash; one extra pointer hop, one extra heap object per atomic. Fine for hundreds of counters, painful for millions.</p>
+      <p><b>VarHandle on a plain <code>int</code> field</b> gives you the same atomic ops with no wrapper. Used heavily in JDK collections: <code>ConcurrentHashMap</code>&rsquo;s buckets, <code>StampedLock</code>&rsquo;s state, etc.</p>
+      <p>Trade: ergonomics &mdash; VarHandle setup is verbose. For app code, AtomicInteger is fine. For library / framework code with allocation budgets, VarHandle wins.</p>
+    </div></details>
+
+    <details class="qa"><summary>Explain the &ldquo;piggybacking&rdquo; pattern with volatile.</summary><div class="ans">
+      <p>Because a volatile write/read pair establishes a full HB edge between the two threads, <i>all</i> writes done by the writer before the volatile write become visible to the reader after the volatile read. You can &ldquo;piggyback&rdquo; multiple non-volatile writes on a single volatile flag.</p>
+      <pre><code><span class="k">private</span> <span class="t">int</span> a, b, c;        <span class="c">// not volatile</span>
+<span class="k">private</span> <span class="k">volatile</span> <span class="t">boolean</span> ready;
+
+<span class="k">void</span> <span class="fn">writer</span>(){
+    a = <span class="n">1</span>; b = <span class="n">2</span>; c = <span class="n">3</span>;
+    ready = <span class="k">true</span>;             <span class="c">// release fence</span>
+}
+<span class="k">void</span> <span class="fn">reader</span>(){
+    <span class="k">if</span>(ready){              <span class="c">// acquire fence</span>
+        <span class="c">// a, b, c are guaranteed to be 1, 2, 3</span>
+    }
+}</code></pre>
+      <p>This pattern underpins many fast-path designs (initialization-once, immutable-after-publish state machines).</p>
+    </div></details>
+
+  </div>
+</section>
+
+<!-- SECTION 3: GC -->
+<section id="gc">
+  <div class="wrap">
+    <span class="kicker">§ 03 &nbsp;Garbage collection</span>
+    <h2 style="margin-top:.7rem">Six collectors. One workload. Pick wrong, suffer.</h2>
+    <p class="lede" style="margin-bottom:1.4rem">Modern GC is no longer a single dial between &ldquo;throughput&rdquo; and &ldquo;pause&rdquo;. It&rsquo;s a menu: low-latency concurrent collectors that target sub-millisecond pauses (ZGC, Shenandoah), region-based generational collectors with predictable pauses (G1), and old-school throughput collectors for batch work (Parallel). Choose wrong and you&rsquo;ll spend a quarter chasing a tail latency that the collector was never built to deliver.</p>
+
+    <div class="callout">
+      <span class="heading">Concept &middot; The collector lineup</span>
+      <b>Serial</b> (single-threaded, embedded/tiny heaps), <b>Parallel</b> (throughput-first; default in 8, gone as default since 9), <b>G1</b> (default since 9; region-based, mostly concurrent, ~10&ndash;100 ms pauses), <b>ZGC</b> (concurrent, sub-millisecond pauses, generational since JDK 21, scales to multi-TB heaps), <b>Shenandoah</b> (Red Hat&rsquo;s concurrent collector, similar pause goals to ZGC, generational since 24), <b>Epsilon</b> (no-op &mdash; allocates, never collects; for short-lived perf work).
+      <br/><br/>
+      <b>CMS is gone</b> (deprecated 9, removed 14). If your runbook references CMS flags, your runbook is out of date. The strict throughput-vs-pause trade has softened: ZGC&rsquo;s overhead is now within ~10% of throughput collectors for many workloads.
+    </div>
+
+    <div class="matrix">
+      <table>
+        <thead><tr>
+          <th>&nbsp;</th><th>Pause target</th><th>Heap fit</th><th>Generational</th><th>Concurrency</th><th>Best for</th>
+        </tr></thead>
+        <tbody>
+          <tr><td>Serial</td><td>seconds (small heap)</td><td>&lt; 100 MB</td><td>yes</td><td>STW</td><td>embedded / containers w/ 1 vCPU</td></tr>
+          <tr><td>Parallel</td><td>100s of ms</td><td>up to 32 GB</td><td>yes</td><td>STW, multi-thread</td><td>batch / max throughput</td></tr>
+          <tr><td>G1</td><td>~10&ndash;100 ms (target)</td><td>4 GB&ndash;64 GB</td><td>yes</td><td>mostly concurrent</td><td>general-purpose default</td></tr>
+          <tr><td>ZGC</td><td>&lt; 1 ms</td><td>up to 16 TB</td><td>yes (since 21)</td><td>fully concurrent</td><td>low-latency services, big heaps</td></tr>
+          <tr><td>Shenandoah</td><td>&lt; 10 ms</td><td>up to TB</td><td>yes (since 24)</td><td>fully concurrent</td><td>low-latency, JDK 17/21 alternative</td></tr>
+          <tr><td>Epsilon</td><td>n/a</td><td>any</td><td>n/a</td><td>none</td><td>perf testing, short-run jobs</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <details class="qa"><summary>Walk through a G1 collection cycle.</summary><div class="ans">
+      <p>G1 divides the heap into <b>regions</b> (1&ndash;32 MB each). At any time, regions are tagged Eden / Survivor / Old / Humongous. Two phases:</p>
+      <ul>
+        <li><b>Young GC (STW):</b> evacuates live objects from Eden + Survivor into a new Survivor region (or Old, if tenured enough). Short pause, scales with live young set.</li>
+        <li><b>Mixed GC (STW):</b> after a concurrent marking phase identifies regions with the most garbage, G1 evacuates a mix of young + chosen old regions. The &ldquo;collection set&rdquo; (CSet) targets the goal of <code>-XX:MaxGCPauseMillis</code> (default 200 ms).</li>
+      </ul>
+      <p>The concurrent marking is SATB (snapshot-at-the-beginning) &mdash; uses a write barrier on reference updates to track changes. <b>Humongous objects</b> (&gt; 50% of region size) bypass young, go straight to old, and fragment the heap if frequent.</p>
+      <p><b>Failure modes:</b> &ldquo;to-space exhausted&rdquo; (not enough free regions to evacuate into &mdash; full GC), allocation rate &gt; concurrent marking rate (mixed GCs can&rsquo;t keep up &mdash; full GC).</p>
+    </div></details>
+
+    <details class="qa"><summary>How does ZGC achieve sub-millisecond pauses?</summary><div class="ans">
+      <p>Three ideas:</p>
+      <ul>
+        <li><b>Colored pointers:</b> pointer metadata bits encode mark state (Marked0, Marked1, Remapped, Finalizable). Reading any pointer goes through a <b>load barrier</b> that masks/checks these bits.</li>
+        <li><b>Concurrent everything:</b> mark, relocate (move objects), and remap (update pointers) all run while the application is running. STW pauses happen only at root scanning &amp; phase transitions &mdash; bounded, <b>independent of heap size</b>.</li>
+        <li><b>Region-based heap (&ldquo;ZPages&rdquo;)</b> in small/medium/large flavors; relocate copies live objects to fresh pages and patches pointers via the load barrier on first dereference (lazy remap).</li>
+      </ul>
+      <p><b>Generational ZGC (JDK 21+, JEP 439):</b> adds young/old separation, addressing ZGC&rsquo;s historical weakness on allocation-heavy workloads (it had to scan the whole heap each cycle). With generational, allocation-driven workloads see ~2&ndash;3&times; throughput improvement vs the original single-gen ZGC.</p>
+      <p>Flag: <code>-XX:+UseZGC -XX:+ZGenerational</code> in 21; just <code>-XX:+UseZGC</code> in 23+ (generational is default).</p>
+      <div class="probing"><b>Probing:</b> &ldquo;sub-ms pauses sound magical, what&rsquo;s the catch?&rdquo; CPU overhead (~5&ndash;15% throughput tax for the load barrier), more memory (colored pointers + page metadata), and historically less mature than G1.</div>
+    </div></details>
+
+    <details class="qa"><summary>How is Shenandoah different from ZGC?</summary><div class="ans">
+      <p>Both target sub-10ms pauses with concurrent everything, but the implementations differ:</p>
+      <ul>
+        <li><b>Brooks pointers:</b> Shenandoah originally used a forwarding pointer in each object header. Reads dereferenced through it. Simpler than ZGC&rsquo;s colored-pointer scheme but added a per-object overhead. JDK 13+ moved to <b>load reference barriers</b> &mdash; closer to ZGC&rsquo;s model.</li>
+        <li><b>Read &amp; write barriers:</b> Shenandoah uses both; ZGC uses load-only.</li>
+        <li><b>Backports:</b> Shenandoah is available in JDK 11 LTS via the OpenJDK backport (Red Hat-maintained); ZGC is too but considered experimental there.</li>
+      </ul>
+      <p>Picking: ZGC for the largest heaps + lowest pauses, Shenandoah if you&rsquo;re on Red Hat&rsquo;s OpenJDK and want concurrent GC on JDK 17. The performance gap has narrowed; either works for most low-latency services.</p>
+    </div></details>
+
+    <details class="qa"><summary>Explain reference types: strong, soft, weak, phantom.</summary><div class="ans">
+      <ul>
+        <li><b>Strong:</b> the default. As long as a strong reference exists, the object is reachable, never collected.</li>
+        <li><b>Soft (<code>SoftReference</code>):</b> collected when the JVM &ldquo;needs memory.&rdquo; In practice, the policy is fuzzy and tied to <code>-XX:SoftRefLRUPolicyMSPerMB</code>. Don&rsquo;t use for caches &mdash; <code>Caffeine</code> with explicit size limits is what you actually want.</li>
+        <li><b>Weak (<code>WeakReference</code>):</b> collected on the next GC cycle if no strong refs remain. Foundation of <code>WeakHashMap</code>. Useful for canonicalizing maps, ThreadLocal value cleanup.</li>
+        <li><b>Phantom (<code>PhantomReference</code>):</b> never returns the referent; only enqueued in a <code>ReferenceQueue</code> after the object is finalized. Used to schedule cleanup actions deterministically &mdash; the modern replacement for <code>finalize()</code>.</li>
+      </ul>
+      <p><b><code>finalize()</code> is deprecated</b> (since 9, marked for removal). Use <code>java.lang.ref.Cleaner</code>: a phantom-reference-backed mechanism that runs cleanup in a separate thread without resurrection risk.</p>
+    </div></details>
+
+    <details class="qa"><summary>What are common GC anti-patterns?</summary><div class="ans">
+      <ul>
+        <li><b>Massive allocation in a hot loop</b> creating short-lived garbage that overwhelms the young gen &mdash; promotes objects prematurely. Fix: reuse buffers, use <code>StringBuilder</code>, pool primitives.</li>
+        <li><b>Soft refs for caches.</b> See above. Use a real cache lib.</li>
+        <li><b>Long-lived ThreadLocals</b> in a thread pool &mdash; the value pins on the thread for the pool&rsquo;s lifetime. Memory leak by design. <code>ScopedValue</code> is the JDK 21 replacement for the request-scoped use case.</li>
+        <li><b>Huge static caches</b> with no eviction. Filling old gen forces frequent old-gen collections / mixed GCs.</li>
+        <li><b>Calling <code>System.gc()</code></b> in production. It&rsquo;s a hint that <i>can</i> trigger a Full GC. Fight whoever added it.</li>
+        <li><b>Heap sizing wrong:</b> <code>-Xmx</code> too small &rarr; thrashing; <code>-Xmx</code> too large &rarr; long old-gen scans. Right answer: size to expected working set + headroom (~30%); profile with JFR.</li>
+      </ul>
+    </div></details>
+
+    <details class="qa"><summary>Why set <code>-Xms == -Xmx</code> in production?</summary><div class="ans">
+      <p>Heap-resize events trigger Full GCs, return memory to the OS (then re-mmap on grow), and confuse pause-time tuning. In a steady-state long-running service, you want predictable behavior. Set <code>-Xms == -Xmx</code>; let the GC pace itself within a fixed envelope.</p>
+      <p>Also: container-aware JVMs (8u191+) honor cgroup memory limits; <code>-Xmx</code> sized as a fraction of container memory (<code>-XX:MaxRAMPercentage=75</code>) is the modern idiom.</p>
+    </div></details>
+
+    <details class="qa"><summary>What does <code>MaxGCPauseMillis</code> actually do?</summary><div class="ans">
+      <p>For G1 it&rsquo;s a <b>soft target</b>. G1 sizes the young gen and CSet so that the pause comes in under the target on average; it&rsquo;s not a guarantee. Set it too low (e.g., 5 ms) and G1 will starve the young gen, causing heavy mixed GC pressure and worse overall pauses.</p>
+      <p>For ZGC/Shenandoah the flag is largely irrelevant &mdash; pauses are already sub-millisecond by design.</p>
+      <p><b>Sane defaults:</b> 200 ms (G1 default) for general apps; lower (50&ndash;100 ms) only if you measure it&rsquo;s achievable. If you need &lt; 10 ms p99 GC pause, switch collectors, don&rsquo;t tune G1 to death.</p>
+    </div></details>
+
+    <details class="qa"><summary>How do you actually diagnose GC pressure?</summary><div class="ans">
+      <p>Modern toolchain:</p>
+      <ul>
+        <li><b>JFR (Java Flight Recorder):</b> always on, near-zero overhead. <code>jcmd PID JFR.start duration=60s filename=app.jfr</code>. Open in JDK Mission Control.</li>
+        <li><b>GC log:</b> <code>-Xlog:gc*:file=gc.log:time,level,tags</code>. Read with <a href="#" style="border:0">GCViewer</a> or GCEasy.</li>
+        <li><b>Native: <code>async-profiler</code></b> for allocation profiling (<code>-e alloc</code>). Identifies allocation hot spots that GC won&rsquo;t tell you about.</li>
+        <li><b>Heap dump:</b> <code>jcmd PID GC.heap_dump out.hprof</code>; analyze with Eclipse MAT for retention paths and dominator trees.</li>
+      </ul>
+      <p><b>The questions:</b> What&rsquo;s the allocation rate? What&rsquo;s the promotion rate? Is old gen growing? Are pauses dominated by mark, evacuation, or root-scanning? &ldquo;GC is slow&rdquo; without these numbers is a guess.</p>
+    </div></details>
+
+    <details class="qa"><summary>What is a &ldquo;safepoint&rdquo;?</summary><div class="ans">
+      <p>A point in execution where the JVM can pause all threads consistently &mdash; required for STW phases of GC, deoptimization, biased-lock revocation (historically), and various jcmd ops. The compiler inserts safepoint polls at loop back-edges, method entries, etc.</p>
+      <p><b>Safepoint &ldquo;time-to-safepoint&rdquo;</b> is sometimes the actual pause culprit, not the GC itself. A long counted loop without safepoint polls can hold up the whole JVM. Symptom: GC pause shows ~50 ms &ldquo;sync&rdquo; phase before any actual GC work.</p>
+      <p>Diagnose with <code>-XX:+PrintSafepointStatistics</code> (older), <code>-Xlog:safepoint*</code> in modern JDK. Fix: ensure JIT-compiled hot loops have safepoint polls (uncounted loops do automatically; counted <code>int</code> loops in some JIT modes don&rsquo;t until JDK 10+&rsquo;s loop-strip-mining helps).</p>
+    </div></details>
+
+    <details class="qa"><summary>When should you use Epsilon GC?</summary><div class="ans">
+      <p>Three cases: (1) <b>perf testing</b> &mdash; eliminate GC noise from benchmarks; (2) <b>extremely short-lived JVMs</b> where you&rsquo;ll exit before exhausting the heap (CLI tools, lambdas); (3) <b>memory-pressure regression detection</b> &mdash; OOM is a clear signal that allocation budget changed.</p>
+      <p>Not for production services. Allocate &gt; <code>-Xmx</code> and the JVM dies.</p>
+    </div></details>
+
+    <details class="qa"><summary>What does &ldquo;humongous allocation&rdquo; mean in G1?</summary><div class="ans">
+      <p>An object &gt; 50% of G1 region size is a humongous object. It&rsquo;s allocated in <b>contiguous old-gen regions</b> (it can occupy multiple). G1 has special handling: humongous regions are reclaimed in concurrent cycles, can fragment the heap if frequent, and bypass the young gen entirely.</p>
+      <p>Region size is tuned via <code>-XX:G1HeapRegionSize</code> (defaults to a power of 2 between 1 and 32 MB based on heap size). If your app frequently allocates 1&ndash;4 MB byte arrays / images, bump the region size to keep them out of humongous handling.</p>
+    </div></details>
+
+    <details class="qa"><summary>Why is <code>finalize()</code> dead?</summary><div class="ans">
+      <p>Finalizers are slow (resurrection-checking adds GC overhead), unreliable (no guaranteed run, weird ordering), and dangerous (can resurrect objects, causing double-finalize). Officially deprecated since JDK 9; marked for removal.</p>
+      <p>The replacement is <code>java.lang.ref.Cleaner</code> (JDK 9+). You register a cleanup action with a Cleaner instance; it&rsquo;s tracked via a phantom reference and run on a dedicated thread when the object becomes phantom-reachable. No resurrection, no GC overhead beyond the phantom ref.</p>
+      <pre><code><span class="k">private</span> <span class="k">static</span> <span class="k">final</span> <span class="t">Cleaner</span> CLEANER = <span class="t">Cleaner</span>.<span class="fn">create</span>();
+<span class="k">public</span> <span class="k">class</span> <span class="t">NativeBuf</span> <span class="k">implements</span> <span class="t">AutoCloseable</span> {
+    <span class="k">private</span> <span class="k">final</span> <span class="t">Cleaner</span>.<span class="t">Cleanable</span> cleanable;
+    <span class="k">public</span> <span class="fn">NativeBuf</span>(<span class="t">long</span> ptr){
+        cleanable = CLEANER.<span class="fn">register</span>(<span class="k">this</span>, () -> <span class="fn">freeNative</span>(ptr));
+    }
+    <span class="k">public</span> <span class="t">void</span> <span class="fn">close</span>(){ cleanable.<span class="fn">clean</span>(); }
+}</code></pre>
+    </div></details>
+
+  </div>
+</section>
+
+<!-- SECTION 4: CONCURRENCY -->
+<section id="concurrency">
+  <div class="wrap">
+    <span class="kicker">§ 04 &nbsp;Concurrency</span>
+    <h2 style="margin-top:.7rem">Threads, locks, and the post-Loom landscape.</h2>
+    <p class="lede" style="margin-bottom:1.4rem">Java&rsquo;s concurrency story has three eras: the <code>synchronized</code>/<code>wait</code>/<code>notify</code> era (1.0&ndash;1.4), the <code>java.util.concurrent</code> era (5.0+), and the <b>Loom</b> era (21+). Knowing which patterns are still alive in each era is the staff-level test. A reactive solution is the right answer to a 2018 question; in 2026, it&rsquo;s probably over-engineered.</p>
+
+    <div class="callout">
+      <span class="heading">Concept &middot; The post-Loom shift</span>
+      Project Loom (JEP 444, GA in JDK 21) introduces <b>virtual threads</b>: lightweight threads scheduled by the JVM, not the OS. A million virtual threads cost what a few thousand platform threads used to. The classic trade &mdash; &ldquo;blocking I/O is wasteful, write reactive&rdquo; &mdash; largely evaporates: blocking a virtual thread is cheap because the carrier (platform thread) is freed during the block.
+      <br/><br/>
+      <b>Implication:</b> for most server apps, the &ldquo;thread per request&rdquo; model is back, simpler, and competitive with reactive. Reactive (Reactor, RxJava) still has uses &mdash; backpressure, complex stream composition, pre-21 codebases &mdash; but the default has shifted.
+    </div>
+
+    <details class="qa"><summary><code>synchronized</code>, <code>ReentrantLock</code>, <code>StampedLock</code> &mdash; when each?</summary><div class="ans">
+      <ul>
+        <li><b><code>synchronized</code>:</b> the default. Simple, JIT-optimized to death, biased toward correctness. <b>JDK 21 fixed virtual-thread pinning</b> (JEP 491 finalized in 24 removed the last cases). Pre-21, holding a synchronized monitor pinned the virtual thread to its carrier &mdash; a major Loom footgun.</li>
+        <li><b><code>ReentrantLock</code>:</b> when you need <code>tryLock</code>, fairness, multiple condition variables (<code>newCondition</code>), or interruptible acquisition. Lock fairness costs throughput &mdash; only enable if starvation is a real problem.</li>
+        <li><b><code>StampedLock</code>:</b> when reads dominate writes by a wide margin and you can tolerate optimistic-read complexity. <b>Not reentrant</b>; <b>not interruptible by default</b>; tricky API. Reach for it only when profiling proves <code>ReentrantReadWriteLock</code> is the bottleneck.</li>
+      </ul>
+      <pre><code><span class="c">// StampedLock optimistic read pattern</span>
+<span class="t">long</span> stamp = lock.<span class="fn">tryOptimisticRead</span>();
+<span class="t">int</span> snap = value;
+<span class="k">if</span>(!lock.<span class="fn">validate</span>(stamp)){    <span class="c">// concurrent write happened</span>
+    stamp = lock.<span class="fn">readLock</span>();
+    <span class="k">try</span>{ snap = value; } <span class="k">finally</span>{ lock.<span class="fn">unlockRead</span>(stamp); }
+}</code></pre>
+      <div class="probing"><b>Probing:</b> &ldquo;why prefer synchronized when you have ReentrantLock?&rdquo; Modern HotSpot&rsquo;s synchronized has had decades of optimization; ReentrantLock&rsquo;s only wins are the API features, not raw speed.</div>
+    </div></details>
+
+    <details class="qa"><summary>What is AQS and what does it power?</summary><div class="ans">
+      <p><b>AbstractQueuedSynchronizer</b> is the framework underneath most <code>java.util.concurrent</code> primitives: <code>ReentrantLock</code>, <code>Semaphore</code>, <code>CountDownLatch</code>, <code>ReentrantReadWriteLock</code>, <code>FutureTask</code>, <code>SynchronousQueue</code> internals.</p>
+      <p>Core idea: a single <code>volatile int state</code> + a CLH-style FIFO wait queue. Subclasses override <code>tryAcquire</code> / <code>tryRelease</code> defining what the state means (lock held count, permits, etc.); AQS handles queueing, blocking via <code>LockSupport.park</code>, and signaling.</p>
+      <p>You almost never subclass AQS directly &mdash; but knowing it exists lets you read the JDK source and answer &ldquo;how does Semaphore actually work?&rdquo; with confidence.</p>
+    </div></details>
+
+    <details class="qa"><summary>How would you size a <code>ThreadPoolExecutor</code>?</summary><div class="ans">
+      <p><b>Rule of thumb (Brian Goetz):</b> <code>N_threads = N_cpu * U * (1 + W/C)</code> where U is target CPU utilization, W is wait time, C is compute time per task.</p>
+      <p>Practical:</p>
+      <ul>
+        <li><b>CPU-bound:</b> <code>N_cpu</code> or <code>N_cpu + 1</code>. More threads = context-switch overhead, no throughput gain.</li>
+        <li><b>I/O-bound:</b> sized by concurrency limit, not CPU. A pool of 200&ndash;500 for a service hitting Postgres is normal &mdash; bounded by DB connection pool size, not CPU. Or: use virtual threads &amp; let Loom schedule.</li>
+        <li><b>Mixed:</b> separate pools by workload class. Don&rsquo;t use the common pool for blocking I/O.</li>
+      </ul>
+      <p><b>Queue + rejection:</b> bounded queue + sensible <code>RejectedExecutionHandler</code> (CallerRunsPolicy applies backpressure). <b>Unbounded queues are a footgun:</b> a slow consumer means the queue grows, OOM, and meanwhile the pool size never reaches <code>maximumPoolSize</code> because the queue isn&rsquo;t full.</p>
+    </div></details>
+
+    <details class="qa"><summary>What changes with virtual threads?</summary><div class="ans">
+      <p>Virtual threads are scheduled by a small pool of <b>carrier threads</b> (platform threads, default = <code>ForkJoinPool</code> with parallelism = CPU count). When a virtual thread blocks (I/O, lock wait, sleep), it&rsquo;s <b>unmounted</b> from its carrier; the carrier picks up another. When the block resolves, the virtual thread is rescheduled.</p>
+      <p>Cost per virtual thread: a few hundred bytes of stack metadata that lives on the heap. You can have <b>millions</b>. <code>Thread.ofVirtual().start(task)</code> or <code>Executors.newVirtualThreadPerTaskExecutor()</code>.</p>
+      <p><b>Pinning</b> (the carrier can&rsquo;t be released): historically caused by holding a <code>synchronized</code> monitor across a blocking op, or by native (JNI) frames. JEP 491 in JDK 24 fixed synchronized pinning. Native pinning still applies &mdash; rare in app code.</p>
+      <pre><code><span class="t">var</span> exec = <span class="t">Executors</span>.<span class="fn">newVirtualThreadPerTaskExecutor</span>();
+<span class="t">List</span>&lt;<span class="t">Future</span>&lt;<span class="t">String</span>&gt;&gt; results = ids.<span class="fn">stream</span>()
+    .<span class="fn">map</span>(id -> exec.<span class="fn">submit</span>(() -> fetchFromDb(id)))
+    .<span class="fn">toList</span>();</code></pre>
+      <div class="gotcha"><b>Gotcha:</b> don&rsquo;t pool virtual threads &mdash; they&rsquo;re cheap, the point is unbounded creation. Pooling them just adds a synchronization layer for no gain. Use a virtual-thread-per-task executor.</div>
+    </div></details>
+
+    <details class="qa"><summary>What is structured concurrency?</summary><div class="ans">
+      <p><b><code>StructuredTaskScope</code></b> (JEP 480, preview through 23, finalizing): a way to start a group of subtasks whose lifetimes are bounded by a lexical scope. If the scope exits (normally, with exception, or via cancellation), all subtasks are cancelled. Treats threads like resources &mdash; AutoCloseable.</p>
+      <pre><code><span class="k">try</span>(<span class="k">var</span> scope = <span class="k">new</span> <span class="t">StructuredTaskScope</span>.<span class="t">ShutdownOnFailure</span>()){
+    <span class="t">Subtask</span>&lt;<span class="t">User</span>&gt; user = scope.<span class="fn">fork</span>(() -> fetchUser(id));
+    <span class="t">Subtask</span>&lt;<span class="t">List</span>&lt;<span class="t">Order</span>&gt;&gt; orders = scope.<span class="fn">fork</span>(() -> fetchOrders(id));
+    scope.<span class="fn">join</span>().<span class="fn">throwIfFailed</span>();
+    <span class="k">return</span> <span class="k">new</span> <span class="t">Profile</span>(user.<span class="fn">get</span>(), orders.<span class="fn">get</span>());
+}</code></pre>
+      <p>Replaces the &ldquo;launch a bunch of <code>CompletableFuture.supplyAsync</code> + remember to cancel on failure&rdquo; pattern that nobody got right. Pairs naturally with virtual threads.</p>
+    </div></details>
+
+    <details class="qa"><summary>What is <code>ScopedValue</code> and how does it differ from <code>ThreadLocal</code>?</summary><div class="ans">
+      <p><b><code>ScopedValue</code></b> (JEP 487, finalizing): an immutable, scope-bounded value accessible to a callable and its callees, without leaking outside the scope. <i>Replaces ThreadLocal for the request-scoped use case.</i></p>
+      <pre><code><span class="k">static</span> <span class="k">final</span> <span class="t">ScopedValue</span>&lt;<span class="t">User</span>&gt; CURRENT = <span class="t">ScopedValue</span>.<span class="fn">newInstance</span>();
+
+<span class="t">ScopedValue</span>.<span class="fn">where</span>(CURRENT, user).<span class="fn">run</span>(() -> {
+    handleRequest();    <span class="c">// CURRENT.get() returns user inside this scope</span>
+});                     <span class="c">// outside: not bound</span></code></pre>
+      <p><b>Why it matters:</b> ThreadLocal is mutable, leaks easily across thread-pool reuse, and balloons memory in the virtual-thread-per-task era (a million ThreadLocals is a million entries). ScopedValue is immutable, scope-bounded, and the JVM can share storage efficiently across virtual threads.</p>
+    </div></details>
+
+    <details class="qa"><summary>How does <code>CompletableFuture</code> compose? When does it bite?</summary><div class="ans">
+      <p>CF gives you a future plus a fluent combinator API: <code>thenApply</code>, <code>thenCompose</code> (flatMap), <code>thenCombine</code>, <code>allOf</code>, <code>anyOf</code>, <code>exceptionally</code>, <code>handle</code>. Composition is async by default; without <code>Async</code> suffix, callbacks may run on the completing thread (caller may bear the work).</p>
+      <p><b>Bites:</b></p>
+      <ul>
+        <li><b>Default executor is the common ForkJoinPool.</b> A blocking call inside <code>supplyAsync</code> stalls the pool, hurts parallel streams, hurts everyone.</li>
+        <li><b>Exception swallowing:</b> if you don&rsquo;t terminate the chain with <code>exceptionally</code> / <code>handle</code> / <code>whenComplete</code>, errors silently disappear unless someone calls <code>get</code>/<code>join</code>.</li>
+        <li><b><code>get</code> wraps in <code>ExecutionException</code></b>, <code>join</code> wraps in <code>CompletionException</code> (unchecked) &mdash; mind which you call.</li>
+      </ul>
+      <p><b>Post-Loom:</b> the &ldquo;CF for async I/O&rdquo; story is mostly redundant. <code>scope.fork(() -> blockingCall())</code> on virtual threads is simpler, has structured cleanup, and benchmarks roughly as fast.</p>
+    </div></details>
+
+    <details class="qa"><summary>How would you cancel a long-running task?</summary><div class="ans">
+      <p>Java has <b>cooperative cancellation</b> only. You signal; the task checks the signal. The signal is <code>Thread.interrupt()</code>, which sets the interrupt flag and causes blocking ops (<code>sleep</code>, <code>wait</code>, <code>BlockingQueue.take</code>) to throw <code>InterruptedException</code>.</p>
+      <pre><code><span class="k">while</span>(!<span class="t">Thread</span>.<span class="fn">currentThread</span>().<span class="fn">isInterrupted</span>()){
+    <span class="k">try</span>{ doStep(); }
+    <span class="k">catch</span>(<span class="t">InterruptedException</span> e){
+        <span class="t">Thread</span>.<span class="fn">currentThread</span>().<span class="fn">interrupt</span>();   <span class="c">// re-set flag</span>
+        <span class="k">break</span>;
+    }
+}</code></pre>
+      <p><b>Common bug:</b> catching <code>InterruptedException</code> and swallowing it &mdash; the flag is cleared, the task can&rsquo;t notice cancellation later. Either re-throw or <code>Thread.currentThread().interrupt()</code> to re-set the flag.</p>
+      <p><b>Hard cases:</b> blocking on <code>InputStream.read</code> on a socket &mdash; doesn&rsquo;t respond to interrupt. Close the socket from another thread; the read throws <code>SocketException</code>.</p>
+    </div></details>
+
+    <details class="qa"><summary>What&rsquo;s the deal with <code>ForkJoinPool</code> and parallel streams?</summary><div class="ans">
+      <p>FJP is a work-stealing pool: each thread has a deque, pushes/pops from one end, steals from others&rsquo; opposite end. Optimized for divide-and-conquer recursive tasks (<code>RecursiveTask</code>). The <b>common pool</b> is shared across the JVM &mdash; default parallelism = <code>availableProcessors() - 1</code>.</p>
+      <p><b>Parallel streams use the common pool.</b> One blocking I/O call inside a parallel stream stalls the pool for everyone. Fix: don&rsquo;t mix I/O with parallel streams. For CPU-bound work over collections (image processing, math), parallel streams are great.</p>
+      <p>To use a separate pool: submit the parallel stream as a task to your own FJP &mdash; the work executes on that pool because FJ tasks see <code>currentThread().getPool()</code>.</p>
+      <pre><code><span class="t">ForkJoinPool</span> myPool = <span class="k">new</span> <span class="t">ForkJoinPool</span>(<span class="n">8</span>);
+<span class="t">long</span> sum = myPool.<span class="fn">submit</span>(() ->
+    nums.<span class="fn">parallelStream</span>().<span class="fn">mapToLong</span>(<span class="t">Long</span>::<span class="fn">longValue</span>).<span class="fn">sum</span>()
+).<span class="fn">join</span>();</code></pre>
+    </div></details>
+
+    <details class="qa"><summary>When is reactive (Reactor, RxJava) still the right answer?</summary><div class="ans">
+      <p>Three reasons reactive still earns its keep:</p>
+      <ul>
+        <li><b>Backpressure</b> as a first-class signal &mdash; producers can be slowed by slow consumers. Loom&rsquo;s answer is &ldquo;the producer blocks&rdquo;, which works for many cases but not for streaming pipelines that need explicit demand control.</li>
+        <li><b>Composition operators</b> &mdash; <code>flatMap</code>, <code>window</code>, <code>buffer</code>, <code>retryWhen</code>, <code>publishOn</code>. The Reactor algebra is dense; rebuilding it on top of virtual threads + manual coordination is doable but verbose.</li>
+        <li><b>Existing investment</b> &mdash; if your stack is Spring WebFlux + R2DBC + Reactor, switching to MVC + JDBC + virtual threads is a major migration with marginal gains.</li>
+      </ul>
+      <p><b>For new business apps</b>, Loom-flavored MVC is simpler. The reactive default of the late 2010s was an over-correction.</p>
+      <div class="probing"><b>Probing:</b> &ldquo;reactive vs Loom&rdquo; is a litmus test for whether you&rsquo;ve actually used Loom in anger. Knowing the line &mdash; backpressure / streaming yes, request-response no &mdash; is the senior signal.</div>
+    </div></details>
+
+    <details class="qa"><summary>How do you handle ThreadLocal cleanup correctly?</summary><div class="ans">
+      <p>In a thread-pool world, ThreadLocal values <i>persist across task boundaries</i> on the same thread. Three failure modes:</p>
+      <ul>
+        <li><b>Memory leak:</b> the value retains a reference to a request-scoped object, holding it until the next task overwrites or the thread dies.</li>
+        <li><b>State bleed:</b> task A sets the TL, task B (later, same thread) reads stale value from A.</li>
+        <li><b>Classloader leak:</b> a TL set by an undeployed webapp pins its classloader (very common Tomcat issue).</li>
+      </ul>
+      <p>Discipline: <code>try/finally</code> with <code>ThreadLocal.remove()</code> at the end of each task. Or use <code>InheritableThreadLocal</code> only when you need it (it copies on thread creation, not on task scheduling).</p>
+      <p><b>Modern fix:</b> for request context, use <code>ScopedValue</code>; it&rsquo;s scope-bounded by design.</p>
+    </div></details>
+
+    <details class="qa"><summary>What does <code>LongAdder</code> do that <code>AtomicLong</code> doesn&rsquo;t?</summary><div class="ans">
+      <p><b>AtomicLong</b> is a single CAS-protected long. Under high contention, every increment fights for the same cache line &mdash; throughput collapses.</p>
+      <p><b>LongAdder</b> stripes the counter across multiple cells (one per thread when contended). Each thread updates its own cell with no contention. <code>sum()</code> walks the cells. Trade: reads are slower (linear in cells), writes are much faster under contention.</p>
+      <p><b>Use:</b> high-frequency counters (request count, allocation count). <b>Don&rsquo;t use:</b> when you frequently need the exact current value for logic, since <code>sum()</code> is not atomic w.r.t. concurrent updates.</p>
+    </div></details>
+
+    <details class="qa"><summary>Why is <code>wait/notify</code> a code smell now?</summary><div class="ans">
+      <p>Three reasons:</p>
+      <ul>
+        <li><b>Spurious wakeups</b> are real &mdash; <code>wait</code> must always be in a <code>while</code> loop checking the condition.</li>
+        <li><b>Lost wakeups:</b> notifying before the waiter has gotten in is a race; you have to hold the same monitor.</li>
+        <li><b>Better tools exist:</b> <code>BlockingQueue</code> for producer-consumer, <code>CountDownLatch</code>/<code>CyclicBarrier</code>/<code>Phaser</code> for coordination, <code>Condition</code> on a <code>ReentrantLock</code> for explicit guarded wait.</li>
+      </ul>
+      <p>If you&rsquo;re writing <code>wait/notify</code> in 2026, you&rsquo;re probably reinventing one of the above. The classic JCIP rule still holds: <i>use the highest-level coordination primitive that solves your problem.</i></p>
+    </div></details>
+
+  </div>
+</section>
+
+<!-- SECTION 5: COLLECTIONS -->
+<section id="collections">
+  <div class="wrap">
+    <span class="kicker">§ 05 &nbsp;Concurrent collections</span>
+    <h2 style="margin-top:.7rem">Pick the data structure, not the lock.</h2>
+    <p class="lede" style="margin-bottom:1.4rem">Wrapping a <code>HashMap</code> in <code>Collections.synchronizedMap</code> is a junior reflex. The <code>java.util.concurrent</code> collections are differentiated by access pattern (read-heavy, write-heavy, append-only, blocking), and choosing right is what separates &ldquo;it works&rdquo; from &ldquo;it scales.&rdquo;</p>
+
+    <div class="callout">
+      <span class="heading">Concept &middot; Collections taxonomy</span>
+      Three families: <b>thread-safe maps</b> (<code>ConcurrentHashMap</code>, <code>ConcurrentSkipListMap</code>), <b>copy-on-write lists/sets</b> (<code>CopyOnWriteArrayList</code>, <code>CopyOnWriteArraySet</code>), <b>blocking queues</b> (<code>ArrayBlockingQueue</code>, <code>LinkedBlockingQueue</code>, <code>SynchronousQueue</code>, <code>LinkedTransferQueue</code>, <code>PriorityBlockingQueue</code>, <code>DelayQueue</code>).
+      <br/><br/>
+      Modern <code>HashMap</code> (since 8) <b>treeifies</b> a bucket to a red-black tree at &gt;8 entries (and &gt;64 total table size) &mdash; so worst-case lookup is O(log n) under hash collisions, not O(n). It&rsquo;s still not thread-safe; concurrent <code>put</code> can corrupt the structure (infinite loops on resize were the JDK 7 bug).
+    </div>
+
+    <details class="qa"><summary>Walk through <code>HashMap</code>&rsquo;s internals.</summary><div class="ans">
+      <p>An array of buckets (default capacity 16, load factor 0.75 &rarr; resize at 12 entries). Hash is computed from <code>key.hashCode()</code> then mixed (<code>h ^ (h &gt;&gt;&gt; 16)</code>) to spread bits to the low end (since the bucket index is <code>hash &amp; (n-1)</code>).</p>
+      <p>Each bucket is a <b>linked list</b> of entries. Since JDK 8, when a bucket reaches <b>8 entries AND the table is &ge; 64 buckets</b>, the bucket converts to a <b>red-black tree</b>. Below 64 entries total, it resizes the table instead. Untreeify happens at 6.</p>
+      <p>Resize doubles the table; entries split between &ldquo;low&rdquo; (same index) and &ldquo;high&rdquo; (index + oldCap) buckets based on one hash bit. Smart move &mdash; no full rehash.</p>
+      <p><b>Why not thread-safe:</b> concurrent put during resize can put a node into a bucket on the new table while another thread is still walking the old; in JDK 7 this caused infinite loops on next get. JDK 8 doesn&rsquo;t infinite-loop but still corrupts state.</p>
+    </div></details>
+
+    <details class="qa"><summary>How does <code>ConcurrentHashMap</code> achieve thread safety?</summary><div class="ans">
+      <p><b>Pre-JDK 8:</b> segment-based locking &mdash; the map was split into N segments, each its own lock. Concurrency level = number of segments.</p>
+      <p><b>JDK 8+:</b> rewritten. Buckets are still arrays + linked lists / trees. Updates use <b>CAS on the bucket head</b> for empty buckets, fall back to <b>synchronized on the bucket head</b> for collision chains. Reads are completely lock-free (<code>volatile</code> reads on the table reference + bucket head).</p>
+      <p><b>Bonus methods:</b> <code>computeIfAbsent</code> / <code>compute</code> / <code>merge</code> are atomic w.r.t. the bucket; safe for things like &ldquo;get-or-create&rdquo; counters. <code>size()</code> uses a <code>LongAdder</code>-style striped counter &mdash; reads are approximate, writes are fast.</p>
+      <p><b>Iterators are weakly consistent:</b> never throw <code>ConcurrentModificationException</code>, may or may not see concurrent updates.</p>
+      <pre><code><span class="c">// Atomic get-or-compute &mdash; no race with another thread doing the same</span>
+counts.<span class="fn">computeIfAbsent</span>(key, k -> <span class="k">new</span> <span class="t">AtomicLong</span>()).<span class="fn">incrementAndGet</span>();</code></pre>
+      <div class="probing"><b>Probing:</b> &ldquo;why not just synchronizedMap?&rdquo; That single-lock wrapper serializes <i>all</i> ops; CHM lets unrelated buckets be touched concurrently. The throughput delta under contention is order-of-magnitude.</div>
+    </div></details>
+
+    <details class="qa"><summary>When is <code>CopyOnWriteArrayList</code> right?</summary><div class="ans">
+      <p>When <b>reads vastly outnumber writes</b> (think 1000:1) and the list is small enough that copying it is cheap. Each write copies the entire backing array; reads are a volatile-read of the array reference and have no synchronization at all.</p>
+      <p><b>Sweet spot:</b> listener / observer registries, immutable-after-startup config lists, small whitelists.</p>
+      <p><b>Wrong tool:</b> high-write workloads (each write is O(n)), large lists (the copy itself becomes the cost), iteration-during-mutation when you need to see the latest state (you see the snapshot taken when the iterator was created).</p>
+    </div></details>
+
+    <details class="qa"><summary>Compare the blocking queues.</summary><div class="ans">
+      <ul>
+        <li><b><code>ArrayBlockingQueue</code>:</b> bounded, fixed-size circular buffer. One lock for both ends. Simple; predictable memory.</li>
+        <li><b><code>LinkedBlockingQueue</code>:</b> optionally bounded, linked nodes. <b>Two locks</b> (head &amp; tail) &mdash; producers and consumers don&rsquo;t contend with each other. Higher throughput at the cost of per-node allocation.</li>
+        <li><b><code>SynchronousQueue</code>:</b> capacity zero. A put blocks until a take; a take blocks until a put. Hand-off, not a buffer. Used in <code>Executors.newCachedThreadPool</code> &mdash; if no thread is free, queue rejects, pool grows.</li>
+        <li><b><code>LinkedTransferQueue</code>:</b> linked queue with a <code>transfer()</code> method &mdash; producer can wait for a consumer to take. Higher throughput than SynchronousQueue + LinkedBlockingQueue combined for hand-off workloads.</li>
+        <li><b><code>PriorityBlockingQueue</code>:</b> unbounded, priority-ordered (heap). Watch out: unbounded means OOM if you keep producing.</li>
+        <li><b><code>DelayQueue</code>:</b> elements are <code>Delayed</code>; <code>take</code> blocks until the head element&rsquo;s delay expires. Used for scheduled tasks (<code>ScheduledThreadPoolExecutor</code> internally).</li>
+      </ul>
+    </div></details>
+
+    <details class="qa"><summary>Why is <code>Vector</code> a code smell?</summary><div class="ans">
+      <p><code>Vector</code> synchronizes <i>every method</i> on <code>this</code>. The compound-op problem strikes hard:</p>
+      <pre class="bad"><code><span class="k">if</span>(!v.<span class="fn">isEmpty</span>()) v.<span class="fn">remove</span>(<span class="n">0</span>);   <span class="c">// race: two threads pass isEmpty, one fails on remove</span></code></pre>
+      <p>It&rsquo;s also slower than <code>ArrayList</code> in single-threaded use due to the synchronization overhead. Modern alternatives:</p>
+      <ul>
+        <li>Single-threaded: <code>ArrayList</code>.</li>
+        <li>Read-heavy concurrent: <code>CopyOnWriteArrayList</code>.</li>
+        <li>Concurrent with full ops: <code>ConcurrentLinkedDeque</code> or wrap with explicit lock.</li>
+      </ul>
+      <p>If you see <code>Vector</code> or <code>Hashtable</code> in modern code, it&rsquo;s almost always a port from 1.x days that nobody updated.</p>
+    </div></details>
+
+    <details class="qa"><summary>How do you implement an LRU cache with stdlib?</summary><div class="ans">
+      <p>Trick using <code>LinkedHashMap</code>: pass <code>accessOrder=true</code> to the constructor, override <code>removeEldestEntry</code> to return true past your size limit. <i>Not thread-safe</i> &mdash; wrap with <code>Collections.synchronizedMap</code> for low-volume use, or use <code>Caffeine</code> (the de-facto Java cache library) for production.</p>
+      <pre><code><span class="k">public</span> <span class="k">class</span> <span class="t">Lru</span>&lt;K,V&gt; <span class="k">extends</span> <span class="t">LinkedHashMap</span>&lt;K,V&gt; {
+    <span class="k">private</span> <span class="k">final</span> <span class="t">int</span> max;
+    <span class="k">public</span> <span class="fn">Lru</span>(<span class="t">int</span> max){
+        <span class="k">super</span>(<span class="n">16</span>, <span class="n">0.75f</span>, <span class="k">true</span>);   <span class="c">// access-order</span>
+        <span class="k">this</span>.max = max;
+    }
+    <span class="k">protected</span> <span class="t">boolean</span> <span class="fn">removeEldestEntry</span>(<span class="t">Map</span>.<span class="t">Entry</span>&lt;K,V&gt; e){
+        <span class="k">return</span> <span class="fn">size</span>() &gt; max;
+    }
+}</code></pre>
+      <p>For real production: Caffeine offers W-TinyLFU eviction, async loading, refresh-after-write, async cache, all the things you actually want.</p>
+    </div></details>
+
+    <details class="qa"><summary>What is <code>ConcurrentSkipListMap</code> for?</summary><div class="ans">
+      <p>A concurrent sorted map &mdash; the lock-free analog of <code>TreeMap</code>. Skip lists are probabilistically balanced (no rebalance needed), making them friendlier than red-black trees for concurrent updates.</p>
+      <p><b>Use:</b> when you need a sorted view (range queries, headmap/tailmap/subMap) under concurrent access. <b>Don&rsquo;t use</b> for plain key lookups &mdash; CHM is materially faster (O(1) vs O(log n) and better cache behavior).</p>
+    </div></details>
+
+    <details class="qa"><summary>How does <code>ConcurrentHashMap</code> handle null?</summary><div class="ans">
+      <p>It doesn&rsquo;t. Both null keys and null values throw <code>NullPointerException</code>. The reason: in a concurrent map, <code>get(k)</code> returning null is ambiguous &mdash; absent or present-with-null? Forbidding nulls makes the contract clean.</p>
+      <p><code>HashMap</code> allows both (one null key, many null values). Cross-context bug magnet: code that worked on <code>HashMap</code> NPEs when refactored to CHM.</p>
+    </div></details>
+
+    <details class="qa"><summary>Why does <code>HashSet</code> care about <code>equals</code> and <code>hashCode</code> consistency?</summary><div class="ans">
+      <p>A <code>HashSet</code> is backed by a <code>HashMap</code>. <code>contains</code>: hash the element, find bucket, walk for equals. If two equal objects have different hashCodes, they land in different buckets and the set holds both as &ldquo;different&rdquo; &mdash; violating set semantics.</p>
+      <p>The contract: <b>if <code>a.equals(b)</code> then <code>a.hashCode() == b.hashCode()</code></b>. The reverse is not required (collisions are fine). <code>Records</code> (JDK 14+) generate equals + hashCode from components &mdash; one of the strongest reasons to prefer them for value objects.</p>
+      <p><b>Bug shape:</b> mutate a field that participates in equals/hashCode after adding to a set. The element &ldquo;disappears&rdquo; (lookup hashes to a different bucket than where it was stored). Cure: don&rsquo;t put mutable objects in hash collections; use immutable identity.</p>
+    </div></details>
+
+    <details class="qa"><summary>What&rsquo;s special about <code>ConcurrentLinkedQueue</code>?</summary><div class="ans">
+      <p>Unbounded, lock-free queue (Michael &amp; Scott&rsquo;s algorithm). All operations are CAS-based; no blocking, no waiting. <code>poll</code> returns null on empty rather than blocking.</p>
+      <p><b>Use when:</b> producers can&rsquo;t block, you don&rsquo;t need backpressure, and unboundedness is fine. <b>Don&rsquo;t use:</b> for producer-consumer where consumers should block on empty &mdash; use a <code>BlockingQueue</code> instead. Also no <code>size()</code> in O(1) &mdash; it walks the list.</p>
+    </div></details>
+
+    <details class="qa"><summary>What does <code>Collections.synchronizedMap</code> still buy you?</summary><div class="ans">
+      <p>Wrap-and-forget thread safety for small maps with low contention &mdash; e.g. a config map populated at boot, read occasionally. Single coarse lock; iteration must be manually wrapped (<code>synchronized(map) { for (... : map.entrySet()) }</code>) or you get CME.</p>
+      <p><b>For anything performance-sensitive:</b> use <code>ConcurrentHashMap</code>. The wrapper exists mostly for legacy compatibility.</p>
+    </div></details>
+
+  </div>
+</section>
+
+<!-- SECTION 6: MODERN -->
+<section id="modern">
+  <div class="wrap">
+    <span class="kicker">§ 06 &nbsp;Modern features</span>
+    <h2 style="margin-top:.7rem">Post-8 Java is a different language.</h2>
+    <p class="lede" style="margin-bottom:1.4rem">If you write Java like it&rsquo;s 2014, your code is twice as long and half as expressive as it should be. Records, sealed types, pattern matching, switch expressions, and text blocks together form a coherent &ldquo;data-oriented Java&rdquo; that the language committee has been driving toward for years.</p>
+
+    <div class="callout">
+      <span class="heading">Concept &middot; Data-oriented Java</span>
+      <b>Records</b> = transparent carriers of immutable data. <b>Sealed types</b> = closed sum types &mdash; the JVM&rsquo;s answer to algebraic data types. <b>Pattern matching</b> = destructure those types in <code>switch</code> with exhaustiveness checking. Together you can express &ldquo;a Shape is a Circle, Square, or Triangle&rdquo; in 6 lines and dispatch on it with compile-time exhaustiveness, no Visitor pattern in sight.
+      <br/><br/>
+      Brian Goetz has called this <i>data-oriented programming</i>: model your data as transparent immutable records of an exhaustive set of cases; let pattern matching dispatch the behavior. It&rsquo;s the most significant shift in idiomatic Java since lambdas.
+    </div>
+
+    <details class="qa"><summary>What does <code>record</code> actually generate?</summary><div class="ans">
+      <p>For <code>record Point(int x, int y) {}</code>:</p>
+      <ul>
+        <li><code>private final int x; private final int y;</code></li>
+        <li>Canonical constructor (you can override; supports <i>compact</i> constructor for validation).</li>
+        <li>Accessors named <code>x()</code> and <code>y()</code> (not <code>getX</code>).</li>
+        <li><code>equals</code>, <code>hashCode</code>, <code>toString</code> derived from components.</li>
+      </ul>
+      <p>Records are <b>final</b>, <b>extend java.lang.Record</b>, and components are <b>shallowly immutable</b> (you can still hold a mutable list inside). Compact constructor is the idiomatic place for validation:</p>
+      <pre><code><span class="k">public</span> <span class="k">record</span> <span class="t">Range</span>(<span class="t">int</span> lo, <span class="t">int</span> hi) {
+    <span class="k">public</span> <span class="fn">Range</span> {
+        <span class="k">if</span>(lo &gt; hi) <span class="k">throw</span> <span class="k">new</span> <span class="t">IllegalArgumentException</span>();
+    }
+}</code></pre>
+      <p><b>Use:</b> DTOs, value objects, message types. <b>Don&rsquo;t force it:</b> if you want to vary toString or hide fields, a regular class is fine.</p>
+    </div></details>
+
+    <details class="qa"><summary>How do sealed types and pattern matching work together?</summary><div class="ans">
+      <p>A <b>sealed</b> interface/class declares a closed set of permitted subtypes. <b>Switch over a sealed type</b> with patterns gets exhaustiveness checking &mdash; the compiler errors if you miss a case.</p>
+      <pre><code><span class="k">sealed interface</span> <span class="t">Shape</span> <span class="k">permits</span> <span class="t">Circle</span>, <span class="t">Square</span>, <span class="t">Triangle</span> {}
+<span class="k">record</span> <span class="t">Circle</span>(<span class="t">double</span> r) <span class="k">implements</span> <span class="t">Shape</span> {}
+<span class="k">record</span> <span class="t">Square</span>(<span class="t">double</span> side) <span class="k">implements</span> <span class="t">Shape</span> {}
+<span class="k">record</span> <span class="t">Triangle</span>(<span class="t">double</span> b, <span class="t">double</span> h) <span class="k">implements</span> <span class="t">Shape</span> {}
+
+<span class="t">double</span> <span class="fn">area</span>(<span class="t">Shape</span> s) {
+    <span class="k">return</span> <span class="k">switch</span>(s) {
+        <span class="k">case</span> <span class="t">Circle</span> c -&gt; <span class="t">Math</span>.PI * c.<span class="fn">r</span>() * c.<span class="fn">r</span>();
+        <span class="k">case</span> <span class="t">Square</span> sq -&gt; sq.<span class="fn">side</span>() * sq.<span class="fn">side</span>();
+        <span class="k">case</span> <span class="t">Triangle</span> t -&gt; <span class="n">0.5</span> * t.<span class="fn">b</span>() * t.<span class="fn">h</span>();
+    };  <span class="c">// no default needed &mdash; exhaustive over sealed</span>
+}</code></pre>
+      <p>Add a <code>Pentagon</code> to <code>permits</code> and the switch fails to compile until you handle it. This is the killer feature: refactor-safe sum types in Java.</p>
+      <p><b>Record patterns</b> (JEP 440, JDK 21) extend this with deconstruction: <code>case Circle(double r) -&gt; ...</code> binds <code>r</code> directly.</p>
+    </div></details>
+
+    <details class="qa"><summary>When should you NOT use <code>var</code>?</summary><div class="ans">
+      <p><code>var</code> is local-variable type inference (since 10). Rules of thumb for when not to use it:</p>
+      <ul>
+        <li><b>When the RHS doesn&rsquo;t express the type clearly:</b> <code>var x = compute();</code> &mdash; what is x? Bad.</li>
+        <li><b>When you want a different type than the RHS:</b> assigning a <code>HashMap</code> to a <code>Map</code> reference is impossible with <code>var</code>.</li>
+        <li><b>For numeric literals:</b> <code>var x = 0;</code> infers <code>int</code> &mdash; if you wanted <code>long</code>, you got a bug.</li>
+        <li><b>For diamond on the LHS:</b> <code>var list = new ArrayList&lt;&gt;();</code> infers <code>ArrayList&lt;Object&gt;</code>.</li>
+      </ul>
+      <p>Sweet spot: builder chains, long generic types, <code>Map.Entry&lt;String, List&lt;Foo&gt;&gt;</code> in for-each. Anywhere the type adds visual noise without information.</p>
+    </div></details>
+
+    <details class="qa"><summary>What are common <code>Optional</code> abuses?</summary><div class="ans">
+      <ul>
+        <li><b>Field of type <code>Optional</code>:</b> wrong tool. <code>Optional</code> is a return type. As a field it&rsquo;s an extra heap object per instance, not <code>Serializable</code>, and signals you should restructure.</li>
+        <li><b>Method parameter of type <code>Optional</code>:</b> just overload, or accept null with documentation. Forces every caller to wrap.</li>
+        <li><b><code>Optional.get()</code> without <code>isPresent</code>:</b> the equivalent of <code>!= null</code>-then-deref. Use <code>orElse</code>, <code>orElseGet</code>, <code>orElseThrow</code>, <code>map</code>, <code>ifPresent</code>.</li>
+        <li><b>Wrapping a non-null collection:</b> empty list/map already represents &ldquo;no values.&rdquo; Don&rsquo;t double-wrap.</li>
+      </ul>
+      <p><b>Right use:</b> a method return type indicating &ldquo;may not produce a value, please handle the absence.&rdquo; In streams, the terminal ops (<code>findFirst</code>, <code>reduce</code>) naturally return <code>Optional</code>.</p>
+    </div></details>
+
+    <details class="qa"><summary>What are the Stream API gotchas?</summary><div class="ans">
+      <ul>
+        <li><b>Streams are lazy and one-shot.</b> A stream can be consumed once. Re-streaming requires re-creating from the source.</li>
+        <li><b>Side effects in operations are forbidden</b> (<code>forEach</code> excepted) &mdash; <code>map</code> writing to an external list is the classic broken-parallel-stream bug.</li>
+        <li><b>Parallel streams use the common ForkJoinPool.</b> Blocking I/O inside one starves the pool. CPU-bound work over collections is the right use.</li>
+        <li><b>Order:</b> <code>parallel()</code> may break encounter order; <code>findFirst</code> respects it (and is therefore slower in parallel than <code>findAny</code>).</li>
+        <li><b><code>collect(toList())</code></b> (since 16) returns an <i>unmodifiable</i> list. Pre-16 <code>Collectors.toList()</code> returned a mutable <code>ArrayList</code>. Migration trap.</li>
+      </ul>
+    </div></details>
+
+    <details class="qa"><summary>Why didn&rsquo;t the module system (JPMS) take over?</summary><div class="ans">
+      <p>Modules (JDK 9, JEP 261) brought strong encapsulation and explicit dependency declarations. Adoption was muted because:</p>
+      <ul>
+        <li><b>Build tools already solved most of the dependency problem</b> via Maven/Gradle.</li>
+        <li><b>Migration cost</b> for non-trivial codebases (split packages, reflective access to internal APIs) was real.</li>
+        <li><b>Most apps live behind a build tool boundary</b> &mdash; the encapsulation gain over <code>package-private</code> didn&rsquo;t justify the friction.</li>
+      </ul>
+      <p>Where it shipped value: <b>jlink</b> (custom runtime images), <b>strong encapsulation of JDK internals</b> (no more <code>sun.misc.Unsafe</code> imports without warnings), <b>Native Image</b> closed-world analysis. JPMS quietly works in the background; few application devs author <code>module-info.java</code>.</p>
+    </div></details>
+
+    <details class="qa"><summary>What do text blocks change?</summary><div class="ans">
+      <p>Triple-quoted multiline strings (since 15). Compile-time concatenation, indent normalization (the leading whitespace common to all lines is stripped). Backslash at end suppresses the newline; <code>\s</code> escapes a trailing space.</p>
+      <pre><code><span class="t">String</span> json = <span class="s">"""
+    {
+      "id": %d,
+      "name": "%s"
+    }
+    """</span>.<span class="fn">formatted</span>(id, name);</code></pre>
+      <p><b>Gotcha:</b> indent normalization is based on the <i>least-indented</i> non-blank line including the closing <code>"""</code>. Move the closing quotes to control normalization.</p>
+    </div></details>
+
+    <details class="qa"><summary>Switch expressions vs switch statements?</summary><div class="ans">
+      <p>Switch <i>expressions</i> (returns a value, exhaustive, no fallthrough by default) replaced almost every use of switch <i>statements</i>. Arrow form (<code>case X -&gt; expr</code>) blocks fallthrough; <code>yield</code> returns from a block.</p>
+      <pre><code><span class="t">int</span> daysIn = <span class="k">switch</span>(month) {
+    <span class="k">case</span> JAN, MAR, MAY, JUL, AUG, OCT, DEC -&gt; <span class="n">31</span>;
+    <span class="k">case</span> APR, JUN, SEP, NOV -&gt; <span class="n">30</span>;
+    <span class="k">case</span> FEB -&gt; isLeap ? <span class="n">29</span> : <span class="n">28</span>;
+};</code></pre>
+      <p>Combined with patterns, this becomes the primary dispatch mechanism in modern Java.</p>
+    </div></details>
+
+    <details class="qa"><summary>What did <code>instanceof</code> patterns change?</summary><div class="ans">
+      <p>Pattern <code>instanceof</code> binds the typed reference inline:</p>
+      <pre><code><span class="k">if</span>(obj <span class="k">instanceof</span> <span class="t">String</span> s &amp;&amp; !s.<span class="fn">isEmpty</span>()){
+    <span class="c">// s is in scope here, typed as String</span>
+}</code></pre>
+      <p>Eliminates the <code>(String) obj</code> cast that everyone used to write right after the check. Combined with record deconstruction:</p>
+      <pre><code><span class="k">if</span>(shape <span class="k">instanceof</span> <span class="t">Circle</span>(<span class="t">double</span> r)){
+    area = <span class="t">Math</span>.PI * r * r;
+}</code></pre>
+    </div></details>
+
+    <details class="qa"><summary>What is the &ldquo;effectively final&rdquo; rule?</summary><div class="ans">
+      <p>A local variable can be captured by a lambda or anonymous inner class only if it&rsquo;s <code>final</code> or <i>effectively final</i> &mdash; assigned exactly once, never reassigned. The compiler enforces this.</p>
+      <p><b>Why:</b> the lambda&rsquo;s &ldquo;captured&rdquo; variables are copied at capture time. Allowing reassignment would create a hidden mutable shared state with surprising semantics.</p>
+      <p><b>Workaround</b> when you need mutability: capture an array of one (<code>int[] count = {0}; count[0]++</code>) or an <code>AtomicInteger</code>. Both signal &ldquo;I knew what I was doing.&rdquo;</p>
+    </div></details>
+
+    <details class="qa"><summary>How do you migrate code to use records safely?</summary><div class="ans">
+      <ul>
+        <li><b>Pure DTOs</b> with no behavior &mdash; trivially convert.</li>
+        <li><b>Hibernate / JPA entities:</b> don&rsquo;t use records directly &mdash; they need mutable proxies, lazy fetching, no-arg constructors. Hibernate 6 has limited record support; treat with care.</li>
+        <li><b>JSON binding:</b> Jackson 2.12+, Gson, and <code>java.beans.JavaBean</code>-style frameworks support records via the canonical constructor.</li>
+        <li><b>Builders:</b> for many fields, records are awkward. Either generate a builder (<code>@Builder</code>-style with Lombok or Avaje), or stick with a class.</li>
+      </ul>
+      <p><b>Rule:</b> if the class is a transparent carrier of values with derived equals/hashCode/toString, it&rsquo;s a record candidate. If it has identity, lifecycle, or mutability, it isn&rsquo;t.</p>
+    </div></details>
+
+    <details class="qa"><summary>What changed about <code>String</code> internals?</summary><div class="ans">
+      <p>JDK 9 introduced <b>compact strings</b> (JEP 254): <code>String</code>&rsquo;s backing array became <code>byte[]</code> + a coder byte. Latin-1-only strings use 1 byte per char; UTF-16 strings use 2. Most Western text halves its memory footprint.</p>
+      <p><b>Implication:</b> <code>charAt</code> reads through the coder; tight loops doing per-character access took a small hit but most string ops got faster from cache friendliness. Most apps saw 5&ndash;15% heap reduction on upgrade.</p>
+      <p><b>String concatenation</b> via <code>+</code> uses <code>invokedynamic</code> + <code>StringConcatFactory</code> (JDK 9+) &mdash; the bytecode no longer hardcodes <code>StringBuilder</code>. The runtime picks an optimal strategy.</p>
+    </div></details>
+
+  </div>
+</section>
+
+<!-- SECTION 7: PERF -->
+<section id="perf">
+  <div class="wrap">
+    <span class="kicker">§ 07 &nbsp;Performance &amp; profiling</span>
+    <h2 style="margin-top:.7rem">Measure, then measure better.</h2>
+    <p class="lede" style="margin-bottom:1.4rem">Java performance is measurable with surprisingly cheap tooling &mdash; if you know what to measure. The question is rarely &ldquo;is the code fast?&rdquo; but &ldquo;where is it spending time?&rdquo; and &ldquo;what is the JIT actually doing?&rdquo; Get this wrong and you&rsquo;ll spend a week optimizing a method that runs 0.1% of the workload.</p>
+
+    <div class="callout">
+      <span class="heading">Concept &middot; The profiling toolbox</span>
+      <b>JFR</b> (always-on, cheap, JVM-aware): allocation profiling, lock contention, GC events, JIT events. <b>async-profiler</b> (kernel-aware sampling, flame graphs, allocation profiling, no safepoint bias): the gold standard for CPU + alloc profiling. <b>JMH</b>: the only sane way to write a Java micro-benchmark. <b>JIT logs</b> (<code>-XX:+PrintCompilation</code>, <code>-XX:+UnlockDiagnosticVMOptions -XX:+PrintInlining</code>): understand what got inlined, what didn&rsquo;t. <b>Mission Control</b>: the GUI on top of JFR.
+    </div>
+
+    <details class="qa"><summary>Why does JMH exist? What goes wrong without it?</summary><div class="ans">
+      <p>Naive Java micro-benchmarks are wrong by default:</p>
+      <ul>
+        <li><b>JIT warmup:</b> the first iterations run interpreted/C1, the steady state runs C2. Mix them, your number is meaningless.</li>
+        <li><b>Dead code elimination:</b> if your computed value isn&rsquo;t used, the JIT removes the call entirely. Your &ldquo;1 ns method&rdquo; was a no-op.</li>
+        <li><b>Constant folding:</b> if inputs are <code>final</code>, the JIT precomputes the answer at compile time.</li>
+        <li><b>Loop unrolling, vectorization, scalar replacement</b> &mdash; all distort what you think you&rsquo;re measuring.</li>
+      </ul>
+      <p><b>JMH</b> handles all of this: warmup iterations, <code>Blackhole.consume</code>, <code>@State</code> for per-thread state, fork isolation. <code>@BenchmarkMode</code>, <code>@OutputTimeUnit</code>, sane defaults.</p>
+      <pre><code><span class="an">@BenchmarkMode</span>(<span class="t">Mode</span>.AverageTime)
+<span class="an">@OutputTimeUnit</span>(<span class="t">TimeUnit</span>.NANOSECONDS)
+<span class="k">public</span> <span class="k">class</span> <span class="t">HashBench</span> {
+    <span class="an">@Param</span>({<span class="s">"100"</span>,<span class="s">"10000"</span>}) <span class="k">int</span> n;
+    <span class="an">@Benchmark</span>
+    <span class="k">public</span> <span class="t">int</span> <span class="fn">sum</span>(<span class="t">Blackhole</span> bh){ <span class="c">/* ... */</span> }
+}</code></pre>
+    </div></details>
+
+    <details class="qa"><summary>What is &ldquo;false sharing&rdquo;? How do you fix it?</summary><div class="ans">
+      <p>Two threads hot-write to two distinct fields that happen to live in the same <b>cache line</b> (typically 64 bytes). Each write invalidates the line in the other CPU&rsquo;s cache. Throughput drops 10&ndash;100&times; despite there being no logical contention.</p>
+      <p><b>Diagnosis:</b> <code>perf c2c</code> on Linux, async-profiler with cache-miss events. Heuristic: tight per-thread counters with abnormally bad multi-thread scaling.</p>
+      <p><b>Fix:</b> pad fields to occupy whole cache lines. <code>@Contended</code> (since 8) annotation does it for you, but is hidden behind <code>-XX:-RestrictContended</code> in newer JDKs. Or pad manually with dummy longs:</p>
+      <pre><code><span class="k">public</span> <span class="k">class</span> <span class="t">PaddedAtomicLong</span> {
+    <span class="k">public</span> <span class="k">volatile</span> <span class="t">long</span> v;
+    <span class="k">public</span> <span class="t">long</span> p1, p2, p3, p4, p5, p6;   <span class="c">// pad to a cache line</span>
+}</code></pre>
+      <p>JDK&rsquo;s <code>LongAdder</code>&rsquo;s cells use <code>@Contended</code> internally for exactly this reason.</p>
+    </div></details>
+
+    <details class="qa"><summary>How do you read a JIT inlining log?</summary><div class="ans">
+      <p><code>-XX:+UnlockDiagnosticVMOptions -XX:+PrintInlining</code> dumps decisions: <code>inline (hot)</code>, <code>too big</code>, <code>callee is too large</code>, <code>not inlineable</code>, <code>direct call</code>, <code>virtual call (megamorphic)</code>.</p>
+      <p>The two failures that hurt:</p>
+      <ul>
+        <li><b>Megamorphic dispatch:</b> a call site sees &gt; 2 implementations &mdash; C2 falls back to a virtual call, no inlining. Common in heavily abstracted code with many small impls.</li>
+        <li><b>Too big to inline:</b> hot method body exceeds <code>-XX:MaxInlineSize</code> (default 35 bytes); deeper hot paths exceed <code>FreqInlineSize</code> (default 325 bytes). Methods that should be hot get truncated.</li>
+      </ul>
+      <p>Fix: split large hot methods so the hot path is small. For megamorphic, consider <code>@Stable</code> on framework hot fields, or refactor to monomorphic dispatch where you can.</p>
+    </div></details>
+
+    <details class="qa"><summary>What is a deopt loop and how do you spot it?</summary><div class="ans">
+      <p>The JIT inlines based on profiled type info; if a fresh class arrives that breaks the assumption, the method deoptimizes back to the interpreter, gets reprofiled, recompiles. Usually fine. Pathological: if the workload alternates between two type assumptions, the JIT may oscillate &mdash; <b>deopt loop</b> &mdash; spending more time recompiling than running.</p>
+      <p>Diagnose with <code>-XX:+PrintCompilation</code> looking for repeated <code>made not entrant</code> + <code>made zombie</code> + recompile cycles for the same method. JFR&rsquo;s <code>Compilation</code> events also surface this.</p>
+      <p>Mitigations: pre-load all subtype implementations at warmup, exclude the offending method from compilation (<code>-XX:CompileCommand=exclude</code>), or refactor to remove the bimodal dispatch.</p>
+    </div></details>
+
+    <details class="qa"><summary>What does async-profiler give you that JFR doesn&rsquo;t?</summary><div class="ans">
+      <ul>
+        <li><b>No safepoint bias:</b> JFR&rsquo;s sampler waits for safepoints; long-running native sections / counted loops without safepoint polls are invisible. async-profiler uses <code>perf_events</code> + <code>AsyncGetCallTrace</code> &mdash; samples wherever execution is.</li>
+        <li><b>Native + JVM unified stacks:</b> see C library calls, kernel time, alongside Java frames. Indispensable for I/O analysis.</li>
+        <li><b>Flame graphs out of the box:</b> <code>asprof -f profile.html</code> &mdash; the most readable perf visualization there is.</li>
+        <li><b>Allocation profiling</b> via TLAB events: where are bytes coming from? Often more useful than CPU profiling for GC-heavy workloads.</li>
+      </ul>
+      <p>JFR is still better for JVM-internal events (locks, monitors, GC details, JIT events). They&rsquo;re complementary &mdash; use both.</p>
+    </div></details>
+
+    <details class="qa"><summary>How much overhead does JFR have?</summary><div class="ans">
+      <p>Default profile: <b>~1% in steady state</b>. The default config is what production should run continuously &mdash; you get a recording when something breaks instead of trying to reproduce it under a profiler.</p>
+      <p>Tunable: <code>-XX:StartFlightRecording=settings=profile,duration=60s,filename=app.jfr</code>. Profile-level settings (more events) &le; 2&ndash;3% overhead. The JFR ring buffer is bounded; old events drop, new ones write.</p>
+      <p><b>Operational pattern:</b> always-on JFR with the default profile. <code>jcmd PID JFR.dump filename=...</code> when an alert fires. Open in Mission Control or Honest Profiler.</p>
+    </div></details>
+
+    <details class="qa"><summary>What allocation hotspots are easiest to miss?</summary><div class="ans">
+      <ul>
+        <li><b>Autoboxing</b> in collections: <code>Map&lt;Integer, ...&gt;</code> boxes every key. Use Eclipse Collections / <code>fastutil</code> for primitive maps.</li>
+        <li><b>Stream allocations:</b> stream pipelines allocate intermediate operations, lambdas, and (for collectors) result containers. Per-call cheap; in tight loops, expensive.</li>
+        <li><b>String concatenation in logging</b>: <code>log.debug("x=" + x)</code> always concatenates, even at INFO level. Use parameterized SLF4J: <code>log.debug("x={}", x)</code>.</li>
+        <li><b>Iterator allocation:</b> <code>for (X x : list)</code> on an <code>ArrayList</code> allocates an <code>Iterator</code>. Indexed loops avoid it (rarely matters but visible in profiles).</li>
+        <li><b>Implicit lambdas with captured state</b> allocate &mdash; non-capturing lambdas are cached; capturing ones are not.</li>
+      </ul>
+    </div></details>
+
+    <details class="qa"><summary>How do you measure tail latency correctly?</summary><div class="ans">
+      <p>Use <b>HdrHistogram</b> &mdash; a high-dynamic-range histogram that records sub-microsecond resolution over a wide range without losing precision at the tail. Most monitoring stacks (Micrometer, Dropwizard) have HdrHistogram backends.</p>
+      <p><b>Avoid mean and stddev</b> for latency. The distribution is multimodal and heavy-tailed; the mean lies. <b>p99, p99.9, p99.99</b>, plus max, are what matter.</p>
+      <p><b>Coordinated omission</b> is the killer bug: if your benchmark <i>stops sending requests</i> when the system stalls, you don&rsquo;t record the stall in the latency histogram. <code>wrk2</code>, <code>jitter</code>, JMH&rsquo;s <code>SampleTime</code> mode handle this; naive scripts don&rsquo;t.</p>
+    </div></details>
+
+    <details class="qa"><summary>What does branch prediction have to do with Java?</summary><div class="ans">
+      <p>The CPU speculates which side of a branch will be taken. Predictable branches: ~0 cycles. Unpredictable (50/50 random): a mispredict every other time, ~15&ndash;20 cycles to flush + refetch.</p>
+      <p>The famous Stack Overflow question (<a href="#" style="border:0">&ldquo;why is processing a sorted array faster than an unsorted one?&rdquo;</a>) is exactly this. Sort the data &rarr; branch becomes predictable &rarr; 6&times; speedup, no algorithm change.</p>
+      <p><b>Practical:</b> branches in tight inner loops should be predictable. If they&rsquo;re not, branch-free alternatives (bitwise tricks, conditional moves) help. C2 occasionally generates <code>cmov</code> automatically.</p>
+    </div></details>
+
+    <details class="qa"><summary>What&rsquo;s the deal with <code>-XX:+UseStringDeduplication</code>?</summary><div class="ans">
+      <p>G1 + ZGC have a string dedup feature: during GC, identify <code>String</code> objects with identical character data and merge them to share a single backing array. Helps memory-bound apps with lots of duplicate strings (Hibernate, JSON parsing).</p>
+      <p>Cost: extra GC work; only kicks in for old-gen tenured strings. Off by default; turn on with the flag. Win is highly workload-dependent &mdash; measure heap before/after.</p>
+    </div></details>
+
+    <details class="qa"><summary>What&rsquo;s the cheapest way to confirm an optimization helped?</summary><div class="ans">
+      <p>The right answer is <b>JMH</b> with proper baseline + variant + statistical analysis (JMH reports confidence intervals).</p>
+      <p>The shortcut for &ldquo;yes/no&rdquo;: deploy to a canary, run real traffic, compare percentile latencies on a histogram. Real workloads exercise paths micro-benchmarks miss.</p>
+      <p><b>Anti-pattern:</b> <code>System.nanoTime()</code> around a single method call. Useless &mdash; warmup, JIT, GC, scheduling jitter all dwarf the signal.</p>
+    </div></details>
+
+  </div>
+</section>
+
+<!-- SECTION 8: DESIGN -->
+<section id="design">
+  <div class="wrap">
+    <span class="kicker">§ 08 &nbsp;Design questions</span>
+    <h2 style="margin-top:.7rem">Build it on a whiteboard.</h2>
+    <p class="lede" style="margin-bottom:1.4rem">The interview classics &mdash; LRU, rate limiter, producer-consumer &mdash; are not about whether you can write the code. They&rsquo;re about whether you can pick the right primitives, articulate the tradeoffs, and identify the failure modes. The wrong solution often <i>also works</i>; the senior signal is knowing why it&rsquo;s wrong anyway.</p>
+
+    <div class="callout">
+      <span class="heading">Concept &middot; Common patterns</span>
+      Most of these problems share a small set of tools: <b>concurrent maps</b> for shared state, <b>BlockingQueue</b> for hand-off, <b>AtomicReference</b> + CAS for lock-free updates, <b>ReentrantLock</b> + <b>Condition</b> when you need explicit guarded waits, <b>Semaphore</b> for permit-based concurrency limits. The art is matching the problem to the smallest set of these that solves it correctly.
+    </div>
+
+    <details class="qa"><summary>Implement a thread-safe LRU cache.</summary><div class="ans">
+      <p><b>Naive:</b> wrap a <code>LinkedHashMap</code> (access-order) in <code>Collections.synchronizedMap</code>. Correct but every op contends on a single lock.</p>
+      <p><b>Better:</b> use Caffeine in production. For an interview, sketch a segmented design:</p>
+      <pre><code><span class="k">public</span> <span class="k">class</span> <span class="t">LruCache</span>&lt;K,V&gt; {
+    <span class="k">private</span> <span class="k">final</span> <span class="t">int</span> capacity;
+    <span class="k">private</span> <span class="k">final</span> <span class="t">LinkedHashMap</span>&lt;K,V&gt; map;
+    <span class="k">private</span> <span class="k">final</span> <span class="t">ReentrantLock</span> lock = <span class="k">new</span> <span class="t">ReentrantLock</span>();
+
+    <span class="k">public</span> <span class="fn">LruCache</span>(<span class="t">int</span> capacity){
+        <span class="k">this</span>.capacity = capacity;
+        <span class="k">this</span>.map = <span class="k">new</span> <span class="t">LinkedHashMap</span>&lt;&gt;(<span class="n">16</span>, <span class="n">0.75f</span>, <span class="k">true</span>);
+    }
+    <span class="k">public</span> V <span class="fn">get</span>(K k){
+        lock.<span class="fn">lock</span>(); <span class="k">try</span>{ <span class="k">return</span> map.<span class="fn">get</span>(k); } <span class="k">finally</span>{ lock.<span class="fn">unlock</span>(); }
+    }
+    <span class="k">public</span> <span class="t">void</span> <span class="fn">put</span>(K k, V v){
+        lock.<span class="fn">lock</span>();
+        <span class="k">try</span>{
+            map.<span class="fn">put</span>(k, v);
+            <span class="k">if</span>(map.<span class="fn">size</span>() &gt; capacity){
+                <span class="t">Iterator</span>&lt;K&gt; it = map.<span class="fn">keySet</span>().<span class="fn">iterator</span>();
+                it.<span class="fn">next</span>(); it.<span class="fn">remove</span>();   <span class="c">// evict eldest</span>
+            }
+        } <span class="k">finally</span>{ lock.<span class="fn">unlock</span>(); }
+    }
+}</code></pre>
+      <p><b>Talk through:</b> why not <code>ConcurrentHashMap</code>? Because LRU requires ordered access tracking that&rsquo;s not part of CHM. Caffeine solves this with sampled probabilistic eviction (W-TinyLFU) over CHM &mdash; that&rsquo;s the &ldquo;production&rdquo; level answer.</p>
+      <div class="probing"><b>Probing:</b> the interviewer wants to hear &ldquo;single-lock LRU is the canonical answer; production uses Caffeine; truly contended designs need ConcurrentLinkedHashMap or W-TinyLFU.&rdquo;</div>
+    </div></details>
+
+    <details class="qa"><summary>Implement a token-bucket rate limiter.</summary><div class="ans">
+      <p>State: <code>tokens</code>, <code>capacity</code>, <code>refillPerSec</code>, <code>lastRefillNanos</code>. On each request: refill based on elapsed time, then attempt to consume.</p>
+      <pre><code><span class="k">public</span> <span class="k">class</span> <span class="t">TokenBucket</span> {
+    <span class="k">private</span> <span class="k">final</span> <span class="t">double</span> capacity, refillPerSec;
+    <span class="k">private</span> <span class="t">double</span> tokens;
+    <span class="k">private</span> <span class="t">long</span> last = <span class="t">System</span>.<span class="fn">nanoTime</span>();
+
+    <span class="k">public</span> <span class="k">synchronized</span> <span class="t">boolean</span> <span class="fn">tryAcquire</span>(<span class="t">int</span> n){
+        <span class="t">long</span> now = <span class="t">System</span>.<span class="fn">nanoTime</span>();
+        <span class="t">double</span> elapsed = (now - last) / <span class="n">1e9</span>;
+        tokens = <span class="t">Math</span>.<span class="fn">min</span>(capacity, tokens + elapsed * refillPerSec);
+        last = now;
+        <span class="k">if</span>(tokens &gt;= n){ tokens -= n; <span class="k">return</span> <span class="k">true</span>; }
+        <span class="k">return</span> <span class="k">false</span>;
+    }
+}</code></pre>
+      <p><b>Distributed version:</b> Redis Lua script that does the read-update-write atomically on a key per bucket. Watch for clock-skew issues across nodes.</p>
+      <p><b>Talk through:</b> token bucket vs leaky bucket (smoothness vs burst tolerance), why <code>System.nanoTime()</code> not <code>currentTimeMillis()</code> (monotonic, not subject to NTP jumps).</p>
+    </div></details>
+
+    <details class="qa"><summary>Implement bounded producer-consumer.</summary><div class="ans">
+      <p>Trivial with <code>ArrayBlockingQueue</code>:</p>
+      <pre><code><span class="t">BlockingQueue</span>&lt;<span class="t">Task</span>&gt; q = <span class="k">new</span> <span class="t">ArrayBlockingQueue</span>&lt;&gt;(<span class="n">1024</span>);
+<span class="c">// producer</span>
+q.<span class="fn">put</span>(task);     <span class="c">// blocks if full &mdash; backpressure</span>
+<span class="c">// consumer</span>
+<span class="t">Task</span> t = q.<span class="fn">take</span>();   <span class="c">// blocks if empty</span></code></pre>
+      <p>Hand-rolled with <code>ReentrantLock</code> + 2 <code>Condition</code>s shows you understand the underlying mechanics. Two conditions because a producer waiting for &ldquo;not full&rdquo; should not be woken when the queue becomes &ldquo;not empty&rdquo;:</p>
+      <pre><code><span class="k">private</span> <span class="k">final</span> <span class="t">ReentrantLock</span> lock = <span class="k">new</span> <span class="t">ReentrantLock</span>();
+<span class="k">private</span> <span class="k">final</span> <span class="t">Condition</span> notFull = lock.<span class="fn">newCondition</span>();
+<span class="k">private</span> <span class="k">final</span> <span class="t">Condition</span> notEmpty = lock.<span class="fn">newCondition</span>();
+
+<span class="k">public</span> <span class="t">void</span> <span class="fn">put</span>(T x) <span class="k">throws</span> <span class="t">InterruptedException</span> {
+    lock.<span class="fn">lock</span>();
+    <span class="k">try</span>{
+        <span class="k">while</span>(buf.<span class="fn">size</span>() == cap) notFull.<span class="fn">await</span>();
+        buf.<span class="fn">add</span>(x);
+        notEmpty.<span class="fn">signal</span>();
+    } <span class="k">finally</span>{ lock.<span class="fn">unlock</span>(); }
+}</code></pre>
+      <div class="probing"><b>Probing:</b> if you say <code>signalAll</code> instead of <code>signal</code>, the interviewer expects you to know why it&rsquo;s wasteful (thundering herd) and when it&rsquo;s required (multiple condition predicates on the same Condition).</div>
+    </div></details>
+
+    <details class="qa"><summary>Implement a TTL cache with capacity bound.</summary><div class="ans">
+      <p>Two ideas combined:</p>
+      <ul>
+        <li><b>TTL:</b> store <code>(value, expiresAtNanos)</code>. On get, check expiry; if past, treat as miss + remove.</li>
+        <li><b>Capacity:</b> LRU as above. Or sampled eviction (Caffeine&rsquo;s approach).</li>
+      </ul>
+      <p>For high concurrency: <code>ConcurrentHashMap&lt;K, Holder&gt;</code> where <code>Holder</code> has the value + expiry. Lazy expiry on <code>get</code>; periodic sweep thread for the long tail. Eviction policy is the hard part &mdash; for production, Caffeine.</p>
+      <p><b>Pitfall:</b> if reader threads do the eviction work synchronously, GC can stall reads. Caffeine offloads eviction to a small drainer thread &mdash; reads pay only an O(1) record-access bookkeeping cost.</p>
+    </div></details>
+
+    <details class="qa"><summary>Implement a copy-on-write state container.</summary><div class="ans">
+      <p>Single source of truth + atomic reference swap:</p>
+      <pre><code><span class="k">public</span> <span class="k">class</span> <span class="t">Cow</span>&lt;T&gt; {
+    <span class="k">private</span> <span class="k">final</span> <span class="t">AtomicReference</span>&lt;T&gt; ref;
+    <span class="k">public</span> <span class="fn">Cow</span>(T initial){ ref = <span class="k">new</span> <span class="t">AtomicReference</span>&lt;&gt;(initial); }
+    <span class="k">public</span> T <span class="fn">get</span>(){ <span class="k">return</span> ref.<span class="fn">get</span>(); }
+    <span class="k">public</span> <span class="t">void</span> <span class="fn">update</span>(<span class="t">UnaryOperator</span>&lt;T&gt; f){
+        T curr, next;
+        <span class="k">do</span> { curr = ref.<span class="fn">get</span>(); next = f.<span class="fn">apply</span>(curr); }
+        <span class="k">while</span>(!ref.<span class="fn">compareAndSet</span>(curr, next));
+    }
+}</code></pre>
+      <p>Reads are lock-free, updates are CAS-loop. <b>Critical:</b> <code>T</code> must be immutable &mdash; readers may hold a reference to an old version while a new one is being computed.</p>
+      <p><b>Use:</b> small frequently-read state (config, routing table, listener registry). <b>Don&rsquo;t use:</b> large state where copy is expensive, or write-heavy workloads where CAS-loop spins forever.</p>
+    </div></details>
+
+    <details class="qa"><summary>Implement a counting semaphore from scratch.</summary><div class="ans">
+      <p>If you understand AQS, the answer is &ldquo;subclass <code>AbstractQueuedSynchronizer</code> with state = permits.&rdquo; If you don&rsquo;t, build it on a <code>ReentrantLock</code> + <code>Condition</code>:</p>
+      <pre><code><span class="k">public</span> <span class="k">class</span> <span class="t">Sem</span> {
+    <span class="k">private</span> <span class="t">int</span> permits;
+    <span class="k">private</span> <span class="k">final</span> <span class="t">ReentrantLock</span> lock = <span class="k">new</span> <span class="t">ReentrantLock</span>();
+    <span class="k">private</span> <span class="k">final</span> <span class="t">Condition</span> avail = lock.<span class="fn">newCondition</span>();
+
+    <span class="k">public</span> <span class="t">void</span> <span class="fn">acquire</span>() <span class="k">throws</span> <span class="t">InterruptedException</span> {
+        lock.<span class="fn">lock</span>();
+        <span class="k">try</span>{
+            <span class="k">while</span>(permits == <span class="n">0</span>) avail.<span class="fn">await</span>();
+            permits--;
+        } <span class="k">finally</span>{ lock.<span class="fn">unlock</span>(); }
+    }
+    <span class="k">public</span> <span class="t">void</span> <span class="fn">release</span>(){
+        lock.<span class="fn">lock</span>();
+        <span class="k">try</span>{ permits++; avail.<span class="fn">signal</span>(); } <span class="k">finally</span>{ lock.<span class="fn">unlock</span>(); }
+    }
+}</code></pre>
+      <p>Talk through fairness (FIFO vs barging), why <code>signal</code> not <code>signalAll</code>, why <code>while</code> not <code>if</code> (spurious wakeup, also the ABA problem on the predicate).</p>
+    </div></details>
+
+    <details class="qa"><summary>Why is <code>String</code> immutable?</summary><div class="ans">
+      <p>Several reasons, layered:</p>
+      <ul>
+        <li><b>Security:</b> file paths, class names, network addresses passed across trust boundaries can&rsquo;t be modified after validation.</li>
+        <li><b>Hashcode caching:</b> <code>String.hashCode()</code> is computed once, cached in a final field &mdash; only safe if the value can&rsquo;t change.</li>
+        <li><b>Interning:</b> a string pool only works if entries can&rsquo;t mutate.</li>
+        <li><b>Concurrency:</b> share freely between threads, no synchronization.</li>
+        <li><b>Substring sharing</b> (pre-JDK 7): <code>substring</code> shared the backing array; mutability would have leaked into the parent.</li>
+      </ul>
+      <p>Cost: every transformation allocates. <code>StringBuilder</code> is the mutable companion for hot string-construction paths.</p>
+    </div></details>
+
+    <details class="qa"><summary>Why does <code>equals</code> require <code>hashCode</code> consistency?</summary><div class="ans">
+      <p>Hash-based collections (<code>HashMap</code>, <code>HashSet</code>) bucket entries by hash. When you <code>contains(x)</code>, the collection hashes <code>x</code>, finds the bucket, and walks looking for an <code>equals</code> match. If two equal objects have different hashes, they live in different buckets &mdash; the contains lookup misses and the set silently holds duplicates.</p>
+      <p>The contract: <b>if a.equals(b), then a.hashCode() == b.hashCode()</b>. The reverse isn&rsquo;t required (collisions are allowed). Records auto-derive both correctly; for hand-written classes, always override both together.</p>
+      <p><b>Mutability gotcha:</b> if equals/hashCode depend on a mutable field and you mutate after adding to a set, the element is &ldquo;lost&rdquo; (different hash, walks the wrong bucket). Don&rsquo;t store mutable objects in hash collections by mutable identity.</p>
+    </div></details>
+
+    <details class="qa"><summary>How would you detect a deadlock at runtime?</summary><div class="ans">
+      <p><code>jstack PID</code> dumps thread states; the JVM detects deadlocks and prints &ldquo;Found one Java-level deadlock&rdquo; with the cycle. Programmatic: <code>ManagementFactory.getThreadMXBean().findDeadlockedThreads()</code>.</p>
+      <p>JFR records lock contention events; long blocking on a monitor with a circular wait shows up as a deadlock cluster. In production, set up an alert on <code>jstack</code>-detectable deadlocks &mdash; one is enough to take action.</p>
+      <p><b>Prevention:</b> consistent lock ordering (always acquire A before B), avoid nested locks, prefer <code>tryLock</code> with timeout for fallible paths, replace pairs of locks with concurrent collections where possible.</p>
+    </div></details>
+
+    <details class="qa"><summary>Implement a CountDownLatch from scratch.</summary><div class="ans">
+      <p>Conceptually: a counter that threads wait on; reaching zero releases everyone.</p>
+      <pre><code><span class="k">public</span> <span class="k">class</span> <span class="t">Latch</span> {
+    <span class="k">private</span> <span class="t">int</span> count;
+    <span class="k">private</span> <span class="k">final</span> <span class="t">ReentrantLock</span> lock = <span class="k">new</span> <span class="t">ReentrantLock</span>();
+    <span class="k">private</span> <span class="k">final</span> <span class="t">Condition</span> zero = lock.<span class="fn">newCondition</span>();
+    <span class="k">public</span> <span class="fn">Latch</span>(<span class="t">int</span> n){ <span class="k">this</span>.count = n; }
+
+    <span class="k">public</span> <span class="t">void</span> <span class="fn">await</span>() <span class="k">throws</span> <span class="t">InterruptedException</span> {
+        lock.<span class="fn">lock</span>();
+        <span class="k">try</span>{ <span class="k">while</span>(count &gt; <span class="n">0</span>) zero.<span class="fn">await</span>(); }
+        <span class="k">finally</span>{ lock.<span class="fn">unlock</span>(); }
+    }
+    <span class="k">public</span> <span class="t">void</span> <span class="fn">countDown</span>(){
+        lock.<span class="fn">lock</span>();
+        <span class="k">try</span>{ <span class="k">if</span>(--count == <span class="n">0</span>) zero.<span class="fn">signalAll</span>(); }
+        <span class="k">finally</span>{ lock.<span class="fn">unlock</span>(); }
+    }
+}</code></pre>
+      <p>Note <code>signalAll</code> &mdash; everyone waiting needs to wake. Compare to <code>CyclicBarrier</code> (resets, used for repeated phases) and <code>Phaser</code> (dynamic-party variant).</p>
+    </div></details>
+
+    <details class="qa"><summary>Why is <code>Iterator.remove()</code> the only safe way to remove during iteration?</summary><div class="ans">
+      <p>Most collections track a <code>modCount</code>; the iterator captures the current value when created and checks it on <code>next</code>. If the underlying collection mutated through any path other than the iterator, modCount diverges and you get <code>ConcurrentModificationException</code>. CME is fail-fast detection of incorrect iteration; it&rsquo;s your friend.</p>
+      <p><code>Iterator.remove()</code> updates both the collection and the iterator&rsquo;s internal state. Use that, or <code>Collection.removeIf(Predicate)</code> (since 8) which is cleaner.</p>
+      <p>Concurrent collections (CHM, COW lists) have <b>weakly consistent</b> iterators &mdash; never throw CME, may or may not see concurrent updates. Different contract; know which you&rsquo;re using.</p>
+    </div></details>
+
+  </div>
+</section>
+
+<!-- RAPID FIRE -->
+<section id="rapid">
+  <div class="wrap">
+    <span class="kicker">§ 09 &nbsp;Rapid-fire round</span>
+    <h2 style="margin-top:.7rem">One sentence each. Phone-screen catnip.</h2>
+    <p class="lede" style="margin-bottom:1.6rem">The machine-gun questions a recruiter or first-pass interviewer fires off in five minutes. Have a one-line answer for each.</p>
+
+    <div class="rapid">
+      <table>
+        <thead><tr><th>Question</th><th>Answer</th></tr></thead>
+        <tbody>
+          <tr><td>What does <code>String.intern()</code> do?</td><td>Returns the canonical entry for the string from the JVM&rsquo;s string table; adds it if missing.</td></tr>
+          <tr><td>Is <code>String</code> immutable?</td><td>Yes &mdash; <code>final</code> class, all fields <code>final</code>, returns new strings from every transformation.</td></tr>
+          <tr><td>Difference between <code>==</code> and <code>equals()</code>?</td><td><code>==</code> tests reference identity; <code>equals</code> tests logical equality (and may be overridden).</td></tr>
+          <tr><td>What does <code>volatile</code> give you that <code>synchronized</code> doesn&rsquo;t?</td><td>Lock-free visibility for single reads/writes; not atomicity for compound ops.</td></tr>
+          <tr><td>Default GC in JDK 21?</td><td>G1.</td></tr>
+          <tr><td>What does <code>final</code> on a parameter do?</td><td>Documents that the local won&rsquo;t be reassigned; required for legacy lambda capture (now &ldquo;effectively final&rdquo;).</td></tr>
+          <tr><td>Can a <code>finally</code> block be skipped?</td><td>Only by JVM exit (<code>System.exit</code>, kill -9, fatal VM error) or daemon thread death.</td></tr>
+          <tr><td>What is checked vs unchecked exception?</td><td>Checked extends <code>Exception</code> (compiler enforces handling); unchecked extends <code>RuntimeException</code>.</td></tr>
+          <tr><td>Why is <code>Vector</code> a code smell?</td><td>All methods synchronized on <code>this</code> &mdash; slow, doesn&rsquo;t protect compound ops, replaced by <code>ArrayList</code> + <code>CopyOnWriteArrayList</code>.</td></tr>
+          <tr><td>Difference between <code>throw</code> and <code>throws</code>?</td><td><code>throw</code> raises an exception; <code>throws</code> declares it on a method signature.</td></tr>
+          <tr><td>What&rsquo;s the contract of <code>compareTo</code>?</td><td>Antisymmetric, transitive, consistent with equals (recommended). Returns negative/zero/positive.</td></tr>
+          <tr><td>What does <code>transient</code> mean?</td><td>Field excluded from default Java serialization (<code>Serializable</code>).</td></tr>
+          <tr><td>Can a static method be overridden?</td><td>No &mdash; it&rsquo;s hidden, not overridden. Resolved at compile time by declared type.</td></tr>
+          <tr><td>What is autoboxing?</td><td>Automatic conversion between primitives and wrappers (<code>int</code> &harr; <code>Integer</code>); allocates on box, can NPE on unbox.</td></tr>
+          <tr><td>What&rsquo;s a virtual thread?</td><td>JVM-scheduled lightweight thread (Loom, JDK 21+) that mounts on a carrier platform thread when running.</td></tr>
+          <tr><td>What does <code>jcmd</code> do?</td><td>Sends commands to a running JVM &mdash; thread dumps, heap dumps, JFR control, GC trigger.</td></tr>
+          <tr><td>What is the fork-join common pool?</td><td>Shared <code>ForkJoinPool</code> used by parallel streams, <code>CompletableFuture</code> default async, fork-join tasks.</td></tr>
+          <tr><td>Why prefer <code>StringBuilder</code> over <code>StringBuffer</code>?</td><td>Same API but unsynchronized; faster in single-threaded use, which is &gt;99% of cases.</td></tr>
+          <tr><td>What is a <code>sealed</code> class for?</td><td>Closed sum types &mdash; restricts which classes can extend, enables exhaustive pattern matching.</td></tr>
+          <tr><td>What does <code>record</code> auto-generate?</td><td>Final fields, accessors, canonical constructor, <code>equals</code>, <code>hashCode</code>, <code>toString</code>.</td></tr>
+          <tr><td>What is structured concurrency?</td><td>Subtask lifetimes bound to a lexical scope &mdash; cancel-on-failure, cleanup on exit.</td></tr>
+          <tr><td>Default Java charset?</td><td>UTF-8 since JDK 18 (JEP 400). Was platform-default before.</td></tr>
+          <tr><td>What is metaspace?</td><td>Native-memory region for class metadata; replaced PermGen in 8, freed when classloader unreachable.</td></tr>
+          <tr><td>Difference between <code>HashMap</code> and <code>LinkedHashMap</code>?</td><td>LinkedHashMap maintains insertion or access order via a doubly-linked list across entries.</td></tr>
+          <tr><td>What is the diamond operator?</td><td><code>&lt;&gt;</code> &mdash; lets the compiler infer the generic type from context (since 7).</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div>
+      <div class="colophon">Java Fundamentals &middot; Vol. II &middot; 2026 &middot; JDK 21 baseline</div>
+      <div class="print">Set in <i>Fraunces</i>, IBM Plex Sans, IBM Plex Mono. Single self-contained file. Open in any modern browser. Click any code snippet to copy.</div>
+    </div>
+    <div class="muted" style="font-size:12px; max-width:36ch; text-align:right">
+      Versions, flags, and JEP numbers reflect JDK 21 LTS as the reference, with notes where 17 differs. Loom, generational ZGC, sealed types, pattern matching are treated as current state. The point is the shape of the answer, not memorizing the JEP number.
+    </div>
+  </div>
+</footer>
+
+<script>
+/* tiny: copy-to-clipboard for code blocks */
+(function(){
+  document.querySelectorAll('pre').forEach(function(pre){
+    var btn = document.createElement('button');
+    btn.className = 'copy-btn';
+    btn.textContent = 'copy';
+    btn.addEventListener('click', function(e){
+      e.stopPropagation();
+      var code = pre.querySelector('code');
+      var text = code ? code.textContent : pre.textContent;
+      if(navigator.clipboard){
+        navigator.clipboard.writeText(text).then(function(){
+          btn.textContent='copied'; btn.classList.add('copied');
+          setTimeout(function(){ btn.textContent='copy'; btn.classList.remove('copied'); }, 1400);
+        });
+      }
+    });
+    pre.appendChild(btn);
+  });
+})();
+</script>
+</body>
+</html>
