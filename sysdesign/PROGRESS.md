@@ -17,7 +17,7 @@ Hard pace: 1 mock/day Mon–Sat, calibration mocks on Days 9–10. Tier 1 proble
 | Day | Mock | New cheat sheet / pattern | Course revisit |
 |-----|------|---------------------------|----------------|
 | 1 | URL Shortener (calibration) ✅ | ✅ `back-of-envelope.html` | ✅ RU case study reviewed |
-| 2 | News Feed / Twitter | `feed-fanout.md` (write/read/hybrid) | — |
+| 2 | News Feed / Twitter ✅ | ✅ `feed-fanout.md` (push/pull/hybrid + celeb cache + classification) | — |
 | 3 | **Live Streaming Chat (Twitch / YouTube Live)** _(swapped — Messenger covered in RU course)_ | `realtime-fanout.md` (WebSocket connection mgmt, hot-channel sharding, read-fanout patterns) | — |
 | 4 | Uber / ride-sharing | `geohashing.md` + visualization | — |
 | 5 | Distributed Cache (Redis-like) | `consistent-hashing.md` + visualization | — |
@@ -53,7 +53,7 @@ Tier 1 covers ~70% of distributed/SaaS/backend rounds. Tier 2 adds ~20%. Tier 3 
 
 ### Tier 1 — must-do (drill before any real loop)
 - [x] **URL Shortener** — base "DB + cache + ID gen" template. _(✅ Day 1 calibration mock complete — see `problems/url-shortener.md`.)_
-- [ ] **News Feed / Twitter** — fanout-on-write vs read, hot-key handling, hybrid. _(Concept gap: feed-fanout cheat sheet.)_
+- [x] **News Feed / Twitter** — fanout-on-write vs read, hot-key handling, hybrid. _(✅ Day 2 mock complete — see `problems/news-feed.md`. Cheat sheet: `patterns/feed-fanout.md`.)_
 - [ ] **Live Streaming Chat (Twitch / YouTube Live)** _(replaces Messenger in 10-day schedule)_ — real-time fanout at extreme scale (1 streamer → 100K–1M viewers per channel), per-channel ordering, presence, hot-channel sharding, WebSocket connection mgmt, moderation pipeline. _(Concept gap: realtime-fanout cheat sheet.)_
 - [ ] **Uber / ride-sharing** — geohashing, dispatch matching, surge pricing. _(Concept gap: spatial indexing cheat sheet.)_
 - [ ] **Distributed Cache (Redis-like)** — consistent hashing, eviction, replication. _(Concept gap: consistent-hashing visualization.)_
@@ -124,7 +124,7 @@ Tick when a problem walkthrough has *actively exercised* it (not just mentioned)
 - [ ] **Consistent hashing** + visualization — `patterns/consistent-hashing.md`
 - [ ] **Geohashing / spatial indexing** — `patterns/geohashing.md`
 - [ ] **Snowflake-style ID generation** — `patterns/snowflake-id.md`
-- [ ] **Fanout-on-write vs fanout-on-read for feeds** — `patterns/feed-fanout.md`
+- [x] **Fanout-on-write vs fanout-on-read for feeds** — `patterns/feed-fanout.md` _(✅ Day 2 — hybrid push/pull, celeb cache, classification on follow edge, latency budget)_
 - [ ] **Idempotency keys, request hedging, retries with backoff/jitter** — `patterns/idempotency.md`
 - [ ] **CDC (Change Data Capture) patterns** — `patterns/cdc.md`
 - [ ] **Real-time fanout patterns** (WebSocket vs SSE vs long-polling, connection affinity, hot-channel sharding, pub-sub broker shape) — `concepts/realtime-fanout.md` _(Day 3 live streaming chat)_
@@ -138,6 +138,7 @@ Tick when a problem walkthrough has *actively exercised* it (not just mentioned)
 | # | Date | Problem | Coverage | Communication | Notes / gaps |
 |---|------|---------|----------|---------------|--------------|
 | 1 | 2026-04-28 | URL Shortener (calibration) | ✅ all 5 stages | ✓ coherent; pause more | ✅ Day 1 calibration goal met. Majors: skipped-HLD ask, vendor-naming, sloppy Stage 1 close, FCC+SLEDS partial scan _(framework since replaced with SCALDS+COO)_, math errors (38K→3.8K reads, base62=45→62), hot-key required probing. Strong: reset under correction, click-counter shape, ID gen, stampede insight. Full critique → [`problems/url-shortener.md`](problems/url-shortener.md). |
+| 2 | 2026-05-08 | News Feed / Twitter | ✅ stages 1-4; Stage 5 ended early via `end early` (Observability covered) | ⚠️ stream-of-consciousness in HLD; reset cleanly under correction | **Lean hire / borderline**. Round-goal hot-key story landed but with heavy pushback (6 iterations to hybrid). **Majors**: Stage 1 close regression (same Day 1 miss — durability/security never stated), slow path to hybrid, materialized feed storage shape never specified, notification path scoped-in-then-evaporated, celeb classification took 2 iterations. **Strong**: read/write svc split, async Kafka fire-and-forget, ML-relocation under correction, observability section (4 golden signals + SLO/error-budget + business metrics consumer), storage math correct (Day 1 weakness fixed), cursor pagination once raised. Full critique → [`problems/news-feed.md`](problems/news-feed.md). Cheat sheet → [`patterns/feed-fanout.md`](patterns/feed-fanout.md). |
 
 Coverage = did all 6 framework stages get hit (clarify → estimate → API → schema → high-level → deep-dive → bottlenecks)? Communication = clarity, structure, signal density.
 
