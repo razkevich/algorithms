@@ -1,0 +1,1845 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MongoDB Topologies -- Interactive Simulation</title>
+<style>
+:root {
+  --bg: #0f0f15;
+  --surface: #181820;
+  --surface-2: #20202a;
+  --border: #2a2a35;
+  --text: #e6e6ea;
+  --text-2: #cfcfd6;
+  --text-3: #888;
+  --accent-red: #ff6b6b;
+  --accent-green: #51cf66;
+  --accent-blue: #339af0;
+  --accent-yellow: #ffd43b;
+  --accent-purple: #cc5de8;
+  --accent-cyan: #8be9fd;
+  --accent-orange: #ffa94d;
+}
+*, *::before, *::after { box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  padding: 32px 24px;
+  max-width: 1100px;
+  margin: 0 auto;
+  line-height: 1.55;
+}
+h1 { color: #fff; margin-bottom: 4px; }
+h1 + p.sub { color: var(--text-3); font-style: italic; margin-top: 0; margin-bottom: 24px; }
+h2 { color: #fff; margin-top: 32px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+h3 { color: var(--text-2); margin-top: 20px; }
+code {
+  background: var(--surface-2);
+  padding: 2px 6px;
+  border-radius: 3px;
+  color: var(--accent-cyan);
+  font-size: 13px;
+}
+svg {
+  background: var(--surface);
+  border-radius: 8px;
+  display: block;
+  margin: 14px auto;
+  width: 100%;
+  height: auto;
+}
+.tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+.tabs button {
+  padding: 10px 20px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-2);
+  border-radius: 6px;
+  cursor: pointer;
+  min-height: 44px;
+  font-size: 14px;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.tabs button:hover { background: var(--surface); }
+.tabs button.active {
+  border-color: var(--accent-blue);
+  border-bottom: 2px solid var(--accent-blue);
+  color: #fff;
+}
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0;
+  align-items: center;
+}
+.controls button, .btn {
+  padding: 10px 16px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  border-radius: 6px;
+  cursor: pointer;
+  min-height: 44px;
+  font-size: 14px;
+  transition: background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+.controls button:hover, .btn:hover { background: var(--surface); }
+.controls button:disabled, .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.controls button.active-btn { border-color: var(--accent-blue); color: var(--accent-blue); }
+.controls button.danger { border-color: var(--accent-red); color: var(--accent-red); }
+.controls button.danger:hover { background: #2a1520; }
+.slider-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-3);
+  min-width: 180px;
+}
+.slider-group input[type="range"] {
+  flex: 1;
+  min-width: 80px;
+  accent-color: var(--accent-blue);
+}
+.select-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-3);
+}
+.select-group select {
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  border-radius: 6px;
+  font-size: 13px;
+  min-height: 44px;
+  cursor: pointer;
+}
+.commentary {
+  background: var(--surface-2);
+  padding: 14px;
+  border-radius: 6px;
+  font-size: 14px;
+  color: var(--text-2);
+  margin: 12px 0;
+  min-height: 44px;
+  line-height: 1.5;
+}
+.takeaway {
+  background: #1a1a22;
+  border-left: 3px solid var(--accent-green);
+  padding: 12px 16px;
+  margin: 14px 0;
+  font-size: 14px;
+}
+.takeaway strong { color: var(--accent-green); }
+.takeaway ul { margin: 6px 0 0 0; padding-left: 18px; }
+.takeaway li { margin-bottom: 6px; }
+section[hidden] { display: none !important; }
+@media (max-width: 720px) {
+  body { padding: 20px 14px; }
+}
+@media (max-width: 600px) {
+  .tabs { gap: 4px; }
+  .tabs button { padding: 10px 12px; font-size: 13px; flex: 1; min-width: 90px; text-align: center; }
+}
+@media (max-width: 480px) {
+  .controls { flex-direction: column; }
+  .controls button { width: 100%; }
+  .slider-group { width: 100%; min-width: auto; }
+  .select-group { width: 100%; }
+  .select-group select { width: 100%; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>MongoDB topologies</h1>
+  <p class="sub">Replica set elections, sharded clusters, chunk migration, the read concerns that actually matter. Click "kill primary," watch the Raft-pv1 election. Pick the wrong shard key, watch the hot spot form.</p>
+</header>
+
+<nav class="tabs">
+  <button class="active" onclick="setActiveTab('standalone')">Standalone</button>
+  <button onclick="setActiveTab('replicaset')">Replica Set</button>
+  <button onclick="setActiveTab('sharded')">Sharded Cluster</button>
+  <button onclick="setActiveTab('readconcern')">Read Concerns</button>
+</nav>
+
+<!-- ============================================================ -->
+<!-- TAB 1: STANDALONE                                             -->
+<!-- ============================================================ -->
+<section data-tab="standalone">
+  <h2>Standalone mongod</h2>
+  <p>A single <code>mongod</code> process. Writes go to memory (WiredTiger cache), then to the journal. Write concern controls when the server acknowledges: <code>w:1</code> after memory write, <code>j:true</code> after journal sync to disk.</p>
+
+  <svg id="sa-svg" viewBox="0 0 850 400" preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <marker id="sa-arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="#555"/>
+      </marker>
+    </defs>
+    <!-- Clients -->
+    <rect x="20" y="40" width="120" height="44" rx="6" fill="#181820" stroke="#ff6b6b" stroke-width="2"/>
+    <text x="80" y="67" text-anchor="middle" fill="#ff6b6b" font-size="13" font-weight="600">Client 1</text>
+    <rect x="20" y="120" width="120" height="44" rx="6" fill="#181820" stroke="#51cf66" stroke-width="2"/>
+    <text x="80" y="147" text-anchor="middle" fill="#51cf66" font-size="13" font-weight="600">Client 2</text>
+    <rect x="20" y="200" width="120" height="44" rx="6" fill="#181820" stroke="#ffd43b" stroke-width="2"/>
+    <text x="80" y="227" text-anchor="middle" fill="#ffd43b" font-size="13" font-weight="600">Client 3</text>
+
+    <!-- Connection lines -->
+    <line x1="140" y1="62" x2="290" y2="120" stroke="#333" stroke-width="1" stroke-dasharray="4,4"/>
+    <line x1="140" y1="142" x2="290" y2="150" stroke="#333" stroke-width="1" stroke-dasharray="4,4"/>
+    <line x1="140" y1="222" x2="290" y2="180" stroke="#333" stroke-width="1" stroke-dasharray="4,4"/>
+
+    <!-- mongod container -->
+    <rect x="280" y="30" width="540" height="340" rx="8" fill="none" stroke="var(--accent-blue)" stroke-width="2"/>
+    <text x="550" y="58" text-anchor="middle" fill="var(--accent-blue)" font-size="14" font-weight="700">mongod (multi-threaded)</text>
+
+    <!-- WiredTiger cache -->
+    <rect x="310" y="80" width="200" height="80" rx="6" fill="#12121a" stroke="var(--accent-green)" stroke-width="1.5"/>
+    <text x="410" y="105" text-anchor="middle" fill="var(--accent-green)" font-size="12" font-weight="600">WiredTiger Cache</text>
+    <text x="410" y="125" text-anchor="middle" fill="var(--text-3)" font-size="11">(memory)</text>
+    <text x="410" y="148" text-anchor="middle" fill="var(--text-3)" font-size="11" id="sa-cache-status">idle</text>
+
+    <!-- Arrow: cache -> journal -->
+    <line x1="510" y1="120" x2="570" y2="120" stroke="#444" stroke-width="1" marker-end="url(#sa-arrow)"/>
+    <text x="540" y="112" text-anchor="middle" fill="var(--text-3)" font-size="9">fsync</text>
+
+    <!-- Journal -->
+    <rect x="580" y="80" width="210" height="80" rx="6" fill="#12121a" stroke="var(--accent-orange)" stroke-width="1.5"/>
+    <text x="685" y="105" text-anchor="middle" fill="var(--accent-orange)" font-size="12" font-weight="600">Journal (WAL)</text>
+    <text x="685" y="125" text-anchor="middle" fill="var(--text-3)" font-size="11">(disk)</text>
+    <text x="685" y="148" text-anchor="middle" fill="var(--text-3)" font-size="11" id="sa-journal-status">idle</text>
+
+    <!-- Data files -->
+    <rect x="580" y="190" width="210" height="60" rx="6" fill="#12121a" stroke="var(--text-3)" stroke-width="1"/>
+    <text x="685" y="218" text-anchor="middle" fill="var(--text-3)" font-size="12">Data Files</text>
+    <text x="685" y="236" text-anchor="middle" fill="var(--text-3)" font-size="10">(checkpoint every 60s)</text>
+    <line x1="685" y1="160" x2="685" y2="190" stroke="#333" stroke-width="1" marker-end="url(#sa-arrow)" stroke-dasharray="3,3"/>
+
+    <!-- Ack path display -->
+    <rect x="310" y="190" width="200" height="45" rx="6" fill="#12121a" stroke="var(--accent-purple)" stroke-width="1.5"/>
+    <text x="410" y="210" text-anchor="middle" fill="var(--accent-purple)" font-size="11" font-weight="600">ACK point</text>
+    <text x="410" y="228" text-anchor="middle" fill="var(--text-3)" font-size="11" id="sa-ack-label">w:1 (after cache)</text>
+
+    <!-- Slow query area -->
+    <rect x="310" y="270" width="490" height="80" rx="6" fill="#12121a" stroke="var(--text-3)" stroke-width="1"/>
+    <text x="555" y="295" text-anchor="middle" fill="var(--text-3)" font-size="12">Concurrent Operations</text>
+    <text x="555" y="315" text-anchor="middle" fill="var(--text-3)" font-size="11" id="sa-ops-label">No active operations</text>
+    <text x="555" y="335" text-anchor="middle" fill="var(--text-3)" font-size="10" id="sa-ops-detail"></text>
+
+    <!-- Animated packets -->
+    <g id="sa-packets"></g>
+  </svg>
+
+  <div class="controls">
+    <button onclick="SA.sendWrite('w1')">Write (w:1)</button>
+    <button onclick="SA.sendWrite('jtrue')">Write (j:true)</button>
+    <button onclick="SA.sendRead('fast')">find() with index</button>
+    <button onclick="SA.sendRead('slow')" class="danger">find() full scan</button>
+    <button onclick="SA.reset()">Reset</button>
+  </div>
+
+  <div class="commentary" id="sa-commentary">Standalone has no failover. The journal is the durability story. <code>w:1</code> acks after the memory write; <code>j:true</code> acks after journal sync. MongoDB is multi-threaded -- a slow query does not block other operations (unlike Redis), but it still consumes resources.</div>
+
+  <div class="takeaway">
+    <strong>Takeaways</strong>
+    <ul>
+      <li>Use a replica set even for dev -- <code>w:1</code> standalone has the same latency, no HA loss.</li>
+      <li><code>j:true</code> adds ~2-5ms latency (journal fsync) but guarantees durability through crashes.</li>
+      <li>MongoDB's WiredTiger engine is multi-threaded: concurrent reads and writes proceed in parallel. A full collection scan does not block other operations, but it pressures cache and I/O.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- TAB 2: REPLICA SET                                            -->
+<!-- ============================================================ -->
+<section data-tab="replicaset" hidden>
+  <h2>Replica Set with Elections</h2>
+  <p>3-member replica set: 1 PRIMARY + 2 SECONDARIES. The primary accepts writes and records them in its oplog. Secondaries tail the oplog and apply operations. On primary failure, Raft-pv1 election promotes a new primary.</p>
+
+  <svg id="rs-svg" viewBox="0 0 900 480" preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <marker id="rs-arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="#555"/>
+      </marker>
+      <marker id="rs-arrow-blue" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="var(--accent-blue)"/>
+      </marker>
+      <marker id="rs-arrow-green" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="var(--accent-green)"/>
+      </marker>
+      <marker id="rs-arrow-red" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="var(--accent-red)"/>
+      </marker>
+      <marker id="rs-arrow-yellow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="var(--accent-yellow)"/>
+      </marker>
+    </defs>
+    <g id="rs-scene"></g>
+  </svg>
+
+  <div class="controls">
+    <button onclick="RS.triggerWrite()" id="rs-btn-write">Send Write</button>
+    <button onclick="RS.toggleContinuous()" id="rs-btn-cont">Continuous Writes</button>
+    <button onclick="RS.sendRead()" id="rs-btn-read">Send Read</button>
+    <button onclick="RS.killPrimary()" id="rs-btn-kill" class="danger">Kill Primary</button>
+    <button onclick="RS.bringBack()" id="rs-btn-back" disabled>Bring Back</button>
+    <button onclick="RS.reset()">Reset</button>
+  </div>
+  <div class="controls">
+    <div class="select-group">
+      <span>Write concern:</span>
+      <select id="rs-wc" onchange="RS.updateWC()">
+        <option value="w1">w:1</option>
+        <option value="wmaj" selected>w:majority</option>
+        <option value="w2">w:2</option>
+      </select>
+    </div>
+    <div class="select-group">
+      <span>Read pref:</span>
+      <select id="rs-rp" onchange="RS.updateRP()">
+        <option value="primary" selected>primary</option>
+        <option value="primaryPreferred">primaryPreferred</option>
+        <option value="secondary">secondary</option>
+        <option value="secondaryPreferred">secondaryPreferred</option>
+        <option value="nearest">nearest</option>
+      </select>
+    </div>
+    <div class="slider-group">
+      <span>Repl. lag</span>
+      <input type="range" min="0" max="2000" value="400" id="rs-lag" oninput="RS.updateLag()">
+      <span id="rs-lag-label">400ms</span>
+    </div>
+    <div class="slider-group">
+      <span>Election timeout</span>
+      <input type="range" min="2000" max="15000" value="10000" step="1000" id="rs-timeout" oninput="RS.updateTimeout()">
+      <span id="rs-timeout-label">10s</span>
+    </div>
+  </div>
+
+  <div class="commentary" id="rs-commentary">Replica set = Raft-pv1 election + oplog tail replication. The primary accepts writes, records them in the oplog, and secondaries asynchronously tail and apply. Heartbeats every 2 seconds detect failures.</div>
+
+  <div class="takeaway">
+    <strong>Takeaways</strong>
+    <ul>
+      <li>Replica set = Raft-pv1 election + oplog tail replication.</li>
+      <li><code>w:majority</code> + <code>readConcern:majority</code> = strong consistency, but slower.</li>
+      <li>Rollback can happen -- bound it with <code>w:majority</code> and avoid disastrously losing data.</li>
+      <li>A member with <code>priority:0</code> or <code>votes:0</code> can serve reads (analytics secondary) but never becomes primary.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- TAB 3: SHARDED CLUSTER                                        -->
+<!-- ============================================================ -->
+<section data-tab="sharded" hidden>
+  <h2>Sharded Cluster</h2>
+  <p>mongos routers at the top, config server replica set in the middle, shard replica sets at the bottom. Each shard owns a set of chunks. The balancer migrates chunks to keep shards even.</p>
+
+  <svg id="sh-svg" viewBox="0 0 900 560" preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <marker id="sh-arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="#555"/>
+      </marker>
+      <marker id="sh-arrow-blue" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="var(--accent-blue)"/>
+      </marker>
+      <marker id="sh-arrow-orange" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="var(--accent-orange)"/>
+      </marker>
+    </defs>
+    <g id="sh-scene"></g>
+  </svg>
+
+  <div class="controls">
+    <button onclick="SH.queryTargeted()">Targeted Query (tenantId=42)</button>
+    <button onclick="SH.queryScatter()" class="danger">Scatter-Gather (no shard key)</button>
+    <button onclick="SH.addShard()" id="sh-btn-add">Add Shard 4</button>
+    <button onclick="SH.toggleBalancer()" id="sh-btn-bal">Run Balancer</button>
+    <button onclick="SH.reset()">Reset</button>
+  </div>
+  <div class="controls">
+    <div class="select-group">
+      <span>Shard key:</span>
+      <select id="sh-key" onchange="SH.changeKey()">
+        <option value="range" selected>{ tenantId: 1 } (range)</option>
+        <option value="hashed">{ _id: 'hashed' } (hashed)</option>
+      </select>
+    </div>
+    <button onclick="SH.demoHotspot()" class="danger" id="sh-btn-hot">Demo: Monotonic Insert Hotspot</button>
+  </div>
+
+  <div class="commentary" id="sh-commentary">Sharded cluster: mongos routers cache the chunk-to-shard mapping from the config servers. Targeted queries include the shard key and route to one shard. Queries without the shard key broadcast to all shards (scatter-gather) -- avoid this in production.</div>
+
+  <div class="takeaway">
+    <strong>Takeaways</strong>
+    <ul>
+      <li>Pick hashed shard key when writes are monotonic OR no natural range key.</li>
+      <li>Pick range shard key when locality matters (multi-tenant, time-bucketed).</li>
+      <li>Avoid scatter-gather -- always include the shard key in queries.</li>
+      <li>Compound shard keys give you range locality + better distribution.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- TAB 4: READ CONCERNS + CAUSAL CONSISTENCY                     -->
+<!-- ============================================================ -->
+<section data-tab="readconcern" hidden>
+  <h2>Read Concerns + Causal Consistency</h2>
+  <p>Read concerns describe the freshness guarantee of a read. Read preferences route the read to a node. Causal consistency sessions give you read-your-own-writes across secondaries.</p>
+
+  <svg id="rc-svg" viewBox="0 0 900 420" preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <marker id="rc-arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="#555"/>
+      </marker>
+    </defs>
+    <g id="rc-scene"></g>
+  </svg>
+
+  <div class="controls">
+    <button onclick="RC.demoLocal()">readConcern: local</button>
+    <button onclick="RC.demoAvailable()">readConcern: available</button>
+    <button onclick="RC.demoMajority()">readConcern: majority</button>
+    <button onclick="RC.demoLinearizable()" class="danger">readConcern: linearizable</button>
+    <button onclick="RC.demoCausal()">Causal Session Demo</button>
+    <button onclick="RC.reset()">Reset</button>
+  </div>
+
+  <div class="commentary" id="rc-commentary">Read concerns control what data a read operation returns relative to the cluster's replication state. <code>local</code> returns the node's latest data. <code>majority</code> returns only data confirmed by a majority. <code>linearizable</code> adds a round-trip to confirm the primary still holds the lease.</div>
+
+  <div class="takeaway">
+    <strong>Takeaways</strong>
+    <ul>
+      <li><code>readConcern:majority</code> + <code>writeConcern:majority</code> + causal sessions = the production-grade default.</li>
+      <li><code>linearizable</code> is rarely needed -- usually causal is enough.</li>
+      <li>Read preferences route the read; read concerns describe the freshness guarantee.</li>
+      <li>Causal consistency is the practical answer between strong and eventual -- read-your-own-writes guarantee with low latency.</li>
+    </ul>
+  </div>
+</section>
+
+<script>
+/* ================================================================
+   SHARED UTILITIES
+   ================================================================ */
+function delay(ms) { return new Promise(function(r) { setTimeout(r, ms); }); }
+
+function setActiveTab(name) {
+  var tabNames = ['standalone', 'replicaset', 'sharded', 'readconcern'];
+  var btns = document.querySelectorAll('nav.tabs button');
+  btns.forEach(function(b, i) { b.classList.toggle('active', tabNames[i] === name); });
+  document.querySelectorAll('section[data-tab]').forEach(function(s) {
+    s.hidden = s.getAttribute('data-tab') !== name;
+  });
+}
+
+function svgEl(tag, attrs) {
+  var el = document.createElementNS('http://www.w3.org/2000/svg', tag);
+  if (attrs) { for (var k in attrs) { el.setAttribute(k, attrs[k]); } }
+  return el;
+}
+
+function svgText(x, y, text, opts) {
+  var t = svgEl('text', Object.assign({
+    x: x, y: y, 'text-anchor': 'middle', fill: '#888', 'font-size': '11'
+  }, opts || {}));
+  t.textContent = text;
+  return t;
+}
+
+function svgRect(x, y, w, h, opts) {
+  return svgEl('rect', Object.assign({
+    x: x, y: y, width: w, height: h, rx: '6', fill: '#181820', stroke: '#333', 'stroke-width': '1.5'
+  }, opts || {}));
+}
+
+function animatePacket(parent, x1, y1, x2, y2, color, durationMs, label) {
+  var g = svgEl('g', {});
+  var c = svgEl('circle', { cx: x1, cy: y1, r: '5', fill: color, opacity: '0.9' });
+  g.appendChild(c);
+  if (label) {
+    var t = svgText(x1, y1 - 10, label, { fill: color, 'font-size': '9', 'font-weight': '600' });
+    g.appendChild(t);
+  }
+  parent.appendChild(g);
+  return new Promise(function(resolve) {
+    requestAnimationFrame(function() {
+      c.style.transition = 'cx ' + durationMs + 'ms linear, cy ' + durationMs + 'ms linear';
+      c.setAttribute('cx', x2);
+      c.setAttribute('cy', y2);
+      if (label) {
+        var t2 = g.querySelector('text');
+        t2.style.transition = 'all ' + durationMs + 'ms linear';
+        t2.setAttribute('x', x2);
+        t2.setAttribute('y', y2 - 10);
+      }
+      setTimeout(function() {
+        if (g.parentNode) g.parentNode.removeChild(g);
+        resolve();
+      }, durationMs + 30);
+    });
+  });
+}
+
+/* ================================================================
+   TAB 1 -- STANDALONE
+   ================================================================ */
+var SA = (function() {
+  var packets = null;
+  var activeOps = [];
+  var opId = 0;
+
+  function init() {
+    packets = document.getElementById('sa-packets');
+  }
+
+  function comm(msg) {
+    document.getElementById('sa-commentary').innerHTML = msg;
+  }
+
+  function updateOpsDisplay() {
+    var label = document.getElementById('sa-ops-label');
+    var detail = document.getElementById('sa-ops-detail');
+    if (activeOps.length === 0) {
+      label.textContent = 'No active operations';
+      detail.textContent = '';
+    } else {
+      label.textContent = activeOps.length + ' active operation(s)';
+      detail.textContent = activeOps.map(function(o) { return o.label; }).join(' | ');
+    }
+  }
+
+  function addOp(lbl) {
+    var id = ++opId;
+    activeOps.push({ id: id, label: lbl });
+    updateOpsDisplay();
+    return id;
+  }
+
+  function removeOp(id) {
+    activeOps = activeOps.filter(function(o) { return o.id !== id; });
+    updateOpsDisplay();
+  }
+
+  async function sendWrite(mode) {
+    if (!packets) init();
+    var isJtrue = mode === 'jtrue';
+    var color = isJtrue ? '#ffa94d' : '#51cf66';
+    var clientY = isJtrue ? 142 : 62;
+    var label = isJtrue ? 'insert (j:true)' : 'insert (w:1)';
+    var oid = addOp(label);
+
+    comm(isJtrue
+      ? 'Write with <code>j:true</code>: data goes to WiredTiger cache, then journal is fsynced to disk. Ack sent only after journal sync -- ~2-5ms extra latency, but crash-safe.'
+      : 'Write with <code>w:1</code>: data goes to WiredTiger cache (memory). Ack sent immediately. Journal writes happen in the background (~100ms default). A crash before journal sync loses the write.');
+
+    document.getElementById('sa-ack-label').textContent = isJtrue ? 'j:true (after journal)' : 'w:1 (after cache)';
+
+    // Client -> cache
+    await animatePacket(packets, 140, clientY, 410, 120, color, 400, label);
+    document.getElementById('sa-cache-status').textContent = 'writing...';
+
+    await delay(200);
+    document.getElementById('sa-cache-status').textContent = 'committed';
+
+    if (!isJtrue) {
+      // w:1 acks after cache
+      await animatePacket(packets, 410, 130, 140, clientY, '#51cf66', 300, 'ACK');
+      document.getElementById('sa-cache-status').textContent = 'idle';
+      // Background journal
+      document.getElementById('sa-journal-status').textContent = 'syncing...';
+      await delay(400);
+      document.getElementById('sa-journal-status').textContent = 'synced';
+      await delay(300);
+      document.getElementById('sa-journal-status').textContent = 'idle';
+    } else {
+      // j:true waits for journal
+      document.getElementById('sa-journal-status').textContent = 'syncing...';
+      await animatePacket(packets, 510, 120, 685, 120, color, 400, 'fsync');
+      await delay(300);
+      document.getElementById('sa-journal-status').textContent = 'synced';
+      // Now ack
+      await animatePacket(packets, 410, 130, 140, clientY, '#ffa94d', 300, 'ACK');
+      document.getElementById('sa-cache-status').textContent = 'idle';
+      await delay(300);
+      document.getElementById('sa-journal-status').textContent = 'idle';
+    }
+    removeOp(oid);
+  }
+
+  async function sendRead(mode) {
+    if (!packets) init();
+    var isSlow = mode === 'slow';
+    var color = isSlow ? '#ff6b6b' : '#339af0';
+    var label = isSlow ? 'find() COLLSCAN' : 'find() IXSCAN';
+    var oid = addOp(label);
+
+    comm(isSlow
+      ? 'Full collection scan (<code>COLLSCAN</code>): no index covers this query, so MongoDB reads every document. This does NOT block other operations (multi-threaded), but it pressures WiredTiger cache and I/O bandwidth.'
+      : 'Index scan (<code>IXSCAN</code>): the query is covered by an index. MongoDB reads the B-tree, then fetches matching documents. Fast -- typically sub-millisecond for indexed lookups.');
+
+    // Client -> mongod
+    await animatePacket(packets, 140, 222, 410, 120, color, 300, label);
+    document.getElementById('sa-cache-status').textContent = isSlow ? 'scanning...' : 'index lookup';
+
+    if (isSlow) {
+      // Simulate slow scan
+      for (var i = 1; i <= 5; i++) {
+        document.getElementById('sa-ops-detail').textContent = activeOps.map(function(o) {
+          return o.id === oid ? label + ' (' + (i * 20) + '% scanned)' : o.label;
+        }).join(' | ');
+        await delay(300);
+      }
+    } else {
+      await delay(200);
+    }
+
+    document.getElementById('sa-cache-status').textContent = 'idle';
+    // Response back
+    await animatePacket(packets, 410, 130, 140, 222, color, 300, 'result');
+    removeOp(oid);
+  }
+
+  function reset() {
+    activeOps = [];
+    updateOpsDisplay();
+    document.getElementById('sa-cache-status').textContent = 'idle';
+    document.getElementById('sa-journal-status').textContent = 'idle';
+    document.getElementById('sa-ack-label').textContent = 'w:1 (after cache)';
+    if (packets) packets.innerHTML = '';
+    comm('Standalone has no failover. The journal is the durability story. <code>w:1</code> acks after the memory write; <code>j:true</code> acks after journal sync. MongoDB is multi-threaded -- a slow query does not block other operations (unlike Redis), but it still consumes resources.');
+  }
+
+  return {
+    sendWrite: sendWrite,
+    sendRead: sendRead,
+    reset: reset
+  };
+})();
+
+/* ================================================================
+   TAB 2 -- REPLICA SET
+   ================================================================ */
+var RS = (function() {
+  var scene = null;
+  var state = {};
+  var contTimer = null;
+  var electionTimer = null;
+
+  var nodeColors = {
+    PRIMARY: 'var(--accent-green)',
+    SECONDARY: 'var(--accent-blue)',
+    DOWN: 'var(--accent-red)',
+    ARBITER: 'var(--text-3)',
+    RECOVERING: 'var(--accent-yellow)'
+  };
+
+  function initState() {
+    state = {
+      nodes: [
+        { id: 0, role: 'PRIMARY', label: 'Node 0', x: 450, y: 80, alive: true, optime: 100, term: 1, priority: 1, voted: false },
+        { id: 1, role: 'SECONDARY', label: 'Node 1', x: 200, y: 330, alive: true, optime: 100, term: 1, priority: 1, voted: false },
+        { id: 2, role: 'SECONDARY', label: 'Node 2', x: 700, y: 330, alive: true, optime: 100, term: 1, priority: 1, voted: false }
+      ],
+      term: 1,
+      heartbeatInterval: null,
+      electionInProgress: false,
+      oldPrimaryId: -1,
+      writeConcern: 'wmaj',
+      readPref: 'primary',
+      lag: 400,
+      electionTimeout: 10000
+    };
+  }
+
+  function getPrimary() {
+    return state.nodes.find(function(n) { return n.role === 'PRIMARY' && n.alive; });
+  }
+
+  function getAliveSecondaries() {
+    return state.nodes.filter(function(n) { return n.role === 'SECONDARY' && n.alive; });
+  }
+
+  function comm(msg) {
+    document.getElementById('rs-commentary').innerHTML = msg;
+  }
+
+  function render() {
+    if (!scene) scene = document.getElementById('rs-scene');
+    scene.innerHTML = '';
+
+    // Client box
+    var clientX = 50, clientY = 180;
+    scene.appendChild(svgRect(clientX, clientY, 100, 44, { stroke: 'var(--accent-cyan)' }));
+    scene.appendChild(svgText(clientX + 50, clientY + 27, 'Client', { fill: 'var(--accent-cyan)', 'font-size': '13', 'font-weight': '600' }));
+
+    // Draw nodes
+    state.nodes.forEach(function(node) {
+      var color = node.alive ? nodeColors[node.role] : nodeColors.DOWN;
+      var boxW = 160, boxH = 100;
+      var bx = node.x - boxW / 2, by = node.y;
+
+      // Node box
+      scene.appendChild(svgRect(bx, by, boxW, boxH, {
+        stroke: color,
+        'stroke-width': node.role === 'PRIMARY' ? '2.5' : '1.5',
+        fill: node.alive ? '#181820' : '#1a1215',
+        'stroke-dasharray': node.alive ? 'none' : '6,4'
+      }));
+
+      // Role label
+      scene.appendChild(svgText(node.x, by + 22, node.role, {
+        fill: color, 'font-size': '12', 'font-weight': '700'
+      }));
+
+      // Node name
+      scene.appendChild(svgText(node.x, by + 42, node.label, {
+        fill: 'var(--text-2)', 'font-size': '11'
+      }));
+
+      // Optime + term
+      scene.appendChild(svgText(node.x, by + 62, 'optime: ' + node.optime + '  term: ' + node.term, {
+        fill: 'var(--text-3)', 'font-size': '10'
+      }));
+
+      // Lag indicator for secondaries
+      if (node.role === 'SECONDARY' && node.alive) {
+        var primary = getPrimary();
+        if (primary) {
+          var lagAmount = primary.optime - node.optime;
+          if (lagAmount > 0) {
+            scene.appendChild(svgText(node.x, by + 80, 'lag: ' + lagAmount + ' ops', {
+              fill: 'var(--accent-yellow)', 'font-size': '10'
+            }));
+          } else {
+            scene.appendChild(svgText(node.x, by + 80, 'caught up', {
+              fill: 'var(--accent-green)', 'font-size': '10'
+            }));
+          }
+        }
+      }
+
+      if (!node.alive) {
+        // X mark
+        scene.appendChild(svgText(node.x, by + 80, 'DOWN', {
+          fill: 'var(--accent-red)', 'font-size': '12', 'font-weight': '700'
+        }));
+      }
+
+      // Oplog inside node
+      var oy = by + boxH + 8;
+      scene.appendChild(svgRect(bx + 10, oy, boxW - 20, 24, {
+        stroke: '#333', fill: '#12121a', rx: '3'
+      }));
+      scene.appendChild(svgText(node.x, oy + 16, 'oplog', {
+        fill: 'var(--text-3)', 'font-size': '9'
+      }));
+    });
+
+    // Draw heartbeat lines between alive nodes
+    var alive = state.nodes.filter(function(n) { return n.alive; });
+    for (var i = 0; i < alive.length; i++) {
+      for (var j = i + 1; j < alive.length; j++) {
+        var a = alive[i], b = alive[j];
+        scene.appendChild(svgEl('line', {
+          x1: a.x, y1: a.y + 50,
+          x2: b.x, y2: b.y + 50,
+          stroke: '#2a2a35', 'stroke-width': '1', 'stroke-dasharray': '4,4'
+        }));
+      }
+    }
+
+    // Heartbeat label
+    if (alive.length > 1) {
+      scene.appendChild(svgText(450, 260, 'heartbeat every 2s', {
+        fill: 'var(--text-3)', 'font-size': '10', 'font-style': 'italic'
+      }));
+    }
+
+    // Client -> primary line
+    var primary = getPrimary();
+    if (primary) {
+      scene.appendChild(svgEl('line', {
+        x1: clientX + 100, y1: clientY + 22,
+        x2: primary.x - 80, y2: primary.y + 50,
+        stroke: '#333', 'stroke-width': '1', 'stroke-dasharray': '4,4'
+      }));
+    }
+
+    // Replication arrows: primary -> secondaries
+    if (primary) {
+      getAliveSecondaries().forEach(function(sec) {
+        scene.appendChild(svgEl('line', {
+          x1: primary.x, y1: primary.y + 100 + 32,
+          x2: sec.x, y2: sec.y,
+          stroke: 'var(--accent-blue)', 'stroke-width': '1',
+          'stroke-dasharray': '3,3',
+          'marker-end': 'url(#rs-arrow-blue)'
+        }));
+      });
+    }
+
+    // Write concern + read pref display
+    scene.appendChild(svgRect(620, 10, 260, 50, { stroke: 'var(--border)', fill: '#12121a', rx: '4' }));
+    scene.appendChild(svgText(750, 30, 'wc: ' + state.writeConcern + '  rp: ' + state.readPref, {
+      fill: 'var(--text-2)', 'font-size': '11'
+    }));
+    scene.appendChild(svgText(750, 48, 'term: ' + state.term, {
+      fill: 'var(--accent-yellow)', 'font-size': '11'
+    }));
+  }
+
+  function startHeartbeats() {
+    if (state.heartbeatInterval) clearInterval(state.heartbeatInterval);
+    state.heartbeatInterval = setInterval(function() {
+      if (state.electionInProgress) return;
+      var alive = state.nodes.filter(function(n) { return n.alive; });
+      // Animate small heartbeat pulses
+      alive.forEach(function(n) {
+        var el = scene.querySelector('rect[x="' + (n.x - 80) + '"]');
+        if (el) {
+          el.style.transition = 'stroke-width 0.3s';
+          el.setAttribute('stroke-width', '3');
+          setTimeout(function() { el.setAttribute('stroke-width', n.role === 'PRIMARY' ? '2.5' : '1.5'); }, 300);
+        }
+      });
+    }, 2000);
+  }
+
+  function updateLag() {
+    state.lag = parseInt(document.getElementById('rs-lag').value);
+    document.getElementById('rs-lag-label').textContent = state.lag + 'ms';
+  }
+
+  function updateTimeout() {
+    state.electionTimeout = parseInt(document.getElementById('rs-timeout').value);
+    document.getElementById('rs-timeout-label').textContent = (state.electionTimeout / 1000) + 's';
+  }
+
+  function updateWC() {
+    state.writeConcern = document.getElementById('rs-wc').value;
+    render();
+  }
+
+  function updateRP() {
+    state.readPref = document.getElementById('rs-rp').value;
+    render();
+  }
+
+  async function triggerWrite() {
+    var primary = getPrimary();
+    if (!primary) {
+      comm('No primary available -- writes are rejected. Wait for election to complete.');
+      return;
+    }
+    var packetsG = scene;
+
+    comm('Write sent to primary. Primary records in oplog (optime incremented). Replication to secondaries follows asynchronously.');
+
+    // Animate client -> primary
+    await animatePacket(packetsG, 150, 202, primary.x, primary.y + 50, 'var(--accent-green)', 400, 'insert');
+
+    primary.optime++;
+    primary.term = state.term;
+    render();
+
+    var wc = state.writeConcern;
+    var secs = getAliveSecondaries();
+
+    if (wc === 'w1') {
+      // Ack immediately
+      await animatePacket(packetsG, primary.x, primary.y + 50, 150, 202, 'var(--accent-green)', 300, 'ACK');
+      comm('Write concern <code>w:1</code>: primary acks immediately after local write. Replication continues in background. If primary crashes before replication, this write is lost.');
+
+      // Background replication
+      for (var i = 0; i < secs.length; i++) {
+        (function(sec) {
+          setTimeout(function() {
+            if (sec.alive) {
+              sec.optime = primary.optime;
+              sec.term = state.term;
+              render();
+            }
+          }, state.lag);
+        })(secs[i]);
+      }
+    } else if (wc === 'wmaj') {
+      // Need majority (2 of 3) -- primary counts as 1, need 1 more
+      comm('Write concern <code>w:majority</code>: primary waits for at least 1 secondary to confirm replication before ack. This ensures the write survives primary failure.');
+
+      if (secs.length === 0) {
+        comm('No secondaries alive -- <code>w:majority</code> will block indefinitely (or timeout). Primary cannot form a majority alone.');
+        return;
+      }
+
+      // Replicate to first secondary
+      var firstSec = secs[0];
+      await animatePacket(packetsG, primary.x, primary.y + 132, firstSec.x, firstSec.y, 'var(--accent-blue)', state.lag, 'oplog');
+      firstSec.optime = primary.optime;
+      firstSec.term = state.term;
+      render();
+
+      // Now ack (majority achieved: primary + 1 secondary = 2/3)
+      await animatePacket(packetsG, primary.x, primary.y + 50, 150, 202, 'var(--accent-green)', 300, 'ACK');
+      comm('<code>w:majority</code> satisfied: primary + 1 secondary = 2 of 3 members. Ack sent. Remaining secondary replicates in background.');
+
+      // Background replication to remaining
+      if (secs.length > 1) {
+        setTimeout(function() {
+          secs[1].optime = primary.optime;
+          secs[1].term = state.term;
+          render();
+        }, state.lag);
+      }
+    } else if (wc === 'w2') {
+      comm('Write concern <code>w:2</code>: primary waits for 1 additional member to confirm. Similar to majority in a 3-node set, but not topology-aware.');
+
+      if (secs.length === 0) {
+        comm('No secondaries alive -- <code>w:2</code> will block.');
+        return;
+      }
+
+      await animatePacket(packetsG, primary.x, primary.y + 132, secs[0].x, secs[0].y, 'var(--accent-blue)', state.lag, 'oplog');
+      secs[0].optime = primary.optime;
+      secs[0].term = state.term;
+      render();
+
+      await animatePacket(packetsG, primary.x, primary.y + 50, 150, 202, 'var(--accent-green)', 300, 'ACK');
+      comm('<code>w:2</code> satisfied: primary + 1 secondary = 2 nodes acknowledged.');
+
+      if (secs.length > 1) {
+        setTimeout(function() {
+          secs[1].optime = primary.optime;
+          secs[1].term = state.term;
+          render();
+        }, state.lag);
+      }
+    }
+  }
+
+  async function sendRead() {
+    var rp = state.readPref;
+    var target = null;
+    var staleness = 0;
+
+    if (rp === 'primary') {
+      target = getPrimary();
+      if (!target) { comm('Read preference <code>primary</code>: no primary available. Read fails.'); return; }
+    } else if (rp === 'primaryPreferred') {
+      target = getPrimary();
+      if (!target) {
+        var secs = getAliveSecondaries();
+        target = secs.length > 0 ? secs[0] : null;
+      }
+      if (!target) { comm('No nodes available for read.'); return; }
+    } else if (rp === 'secondary') {
+      var secs = getAliveSecondaries();
+      if (secs.length === 0) { comm('Read preference <code>secondary</code>: no secondaries available. Read fails.'); return; }
+      target = secs[Math.floor(Math.random() * secs.length)];
+    } else if (rp === 'secondaryPreferred') {
+      var secs = getAliveSecondaries();
+      target = secs.length > 0 ? secs[Math.floor(Math.random() * secs.length)] : getPrimary();
+      if (!target) { comm('No nodes available for read.'); return; }
+    } else { // nearest
+      var alive = state.nodes.filter(function(n) { return n.alive; });
+      if (alive.length === 0) { comm('No nodes available.'); return; }
+      target = alive[Math.floor(Math.random() * alive.length)];
+    }
+
+    var primary = getPrimary();
+    if (target.role === 'SECONDARY' && primary) {
+      staleness = primary.optime - target.optime;
+    }
+
+    var label = 'find()';
+    if (staleness > 0) {
+      label = 'find() [stale by ' + staleness + ' ops]';
+    }
+
+    comm('Read preference <code>' + rp + '</code>: routing read to <strong>' + target.label + '</strong> (' + target.role + ').' +
+      (staleness > 0 ? ' Data may be stale by ' + staleness + ' ops behind primary.' : ''));
+
+    await animatePacket(scene, 150, 202, target.x, target.y + 50, 'var(--accent-cyan)', 400, label);
+    await animatePacket(scene, target.x, target.y + 50, 150, 202, 'var(--accent-cyan)', 300, 'result' + (staleness > 0 ? ' (stale)' : ''));
+  }
+
+  async function killPrimary() {
+    var primary = getPrimary();
+    if (!primary || state.electionInProgress) return;
+
+    document.getElementById('rs-btn-kill').disabled = true;
+    document.getElementById('rs-btn-write').disabled = true;
+    document.getElementById('rs-btn-read').disabled = true;
+
+    state.oldPrimaryId = primary.id;
+    primary.alive = false;
+    primary.role = 'DOWN';
+    render();
+
+    comm('Primary killed. Secondaries will detect failure when heartbeats stop responding. After <code>electionTimeoutMillis</code> (' + (state.electionTimeout / 1000) + 's), an election begins.');
+
+    // Wait for election timeout (scaled down for visualization)
+    var scaledTimeout = Math.min(state.electionTimeout / 3, 4000);
+    await delay(scaledTimeout);
+
+    comm('Heartbeat timeout reached. Secondaries detect primary is unreachable. Election protocol pv1 (Raft-based) begins...');
+    state.electionInProgress = true;
+
+    await delay(600);
+
+    // Find the candidate (secondary with highest optime)
+    var secs = state.nodes.filter(function(n) { return n.role === 'SECONDARY' && n.alive; });
+    if (secs.length === 0) {
+      comm('No secondaries alive -- cannot elect a new primary. The replica set is read-only (or fully down).');
+      state.electionInProgress = false;
+      return;
+    }
+
+    secs.sort(function(a, b) { return b.optime - a.optime; });
+    var candidate = secs[0];
+
+    // Step 1: candidate increments term
+    state.term++;
+    candidate.term = state.term;
+    render();
+    comm('Step 1: <strong>' + candidate.label + '</strong> increments its term to ' + state.term + ' and votes for itself.');
+
+    await delay(800);
+
+    // Step 2: request votes
+    var otherAlive = state.nodes.filter(function(n) { return n.alive && n.id !== candidate.id; });
+
+    comm('Step 2: ' + candidate.label + ' sends VOTE_REQUEST to all other alive members.');
+
+    for (var i = 0; i < otherAlive.length; i++) {
+      var peer = otherAlive[i];
+      await animatePacket(scene, candidate.x, candidate.y + 50, peer.x, peer.y + 50, 'var(--accent-yellow)', 400, 'VOTE_REQ t:' + state.term);
+    }
+
+    await delay(400);
+
+    // Step 3: peers vote
+    var votes = 1; // candidate votes for itself
+    for (var i = 0; i < otherAlive.length; i++) {
+      var peer = otherAlive[i];
+      // Each peer votes for the first eligible candidate in this term
+      if (candidate.optime >= peer.optime) {
+        votes++;
+        peer.term = state.term;
+        await animatePacket(scene, peer.x, peer.y + 50, candidate.x, candidate.y + 50, 'var(--accent-green)', 400, 'VOTE_YES');
+        comm('Step 3: <strong>' + peer.label + '</strong> grants vote to ' + candidate.label + ' (candidate optime >= peer optime, same term). Votes: ' + votes + '/' + state.nodes.filter(function(n){return n.alive;}).length);
+      }
+    }
+
+    await delay(500);
+
+    // Step 4: check majority
+    var totalVoting = state.nodes.length; // all members count for majority, even dead ones
+    var majority = Math.floor(totalVoting / 2) + 1;
+
+    if (votes >= majority) {
+      comm('Step 4: Majority reached (' + votes + '/' + totalVoting + ' votes, need ' + majority + '). <strong>' + candidate.label + '</strong> becomes PRIMARY in term ' + state.term + '.');
+      candidate.role = 'PRIMARY';
+      render();
+
+      await delay(600);
+
+      // Check for rollback scenario
+      var deadPrimary = state.nodes[state.oldPrimaryId];
+      if (deadPrimary && deadPrimary.optime > candidate.optime) {
+        comm('New primary elected: <strong>' + candidate.label + '</strong>. The old primary had uncommitted writes (optime ' + deadPrimary.optime + ' vs new primary ' + candidate.optime + '). If the old primary returns, those writes will be rolled back to a file.');
+      } else {
+        comm('New primary elected: <strong>' + candidate.label + '</strong>. Election complete in term ' + state.term + '. Writes can resume. Old primary will rejoin as secondary when it comes back online.');
+      }
+    } else {
+      comm('Election failed -- not enough votes (' + votes + '/' + totalVoting + '). Will retry after a random backoff.');
+    }
+
+    state.electionInProgress = false;
+    document.getElementById('rs-btn-back').disabled = false;
+    document.getElementById('rs-btn-write').disabled = false;
+    document.getElementById('rs-btn-read').disabled = false;
+  }
+
+  async function bringBack() {
+    if (state.oldPrimaryId < 0) return;
+
+    var old = state.nodes[state.oldPrimaryId];
+    old.alive = true;
+    old.role = 'RECOVERING';
+    render();
+
+    var primary = getPrimary();
+    comm('Old primary (<strong>' + old.label + '</strong>) comes back as RECOVERING. It must sync with the current primary.');
+
+    await delay(800);
+
+    // Check rollback
+    if (primary && old.optime > primary.optime) {
+      comm('<strong>' + old.label + '</strong> had writes that did not replicate (optime ' + old.optime + ' vs primary ' + primary.optime + '). These writes are rolled back to a file on disk. Data is not silently lost -- it can be manually recovered from the rollback directory.');
+      old.optime = primary.optime;
+      await delay(800);
+    }
+
+    old.role = 'SECONDARY';
+    old.term = state.term;
+    if (primary) old.optime = primary.optime;
+    render();
+
+    comm('<strong>' + old.label + '</strong> has rejoined as SECONDARY. It tails the oplog from the current primary and is now caught up.');
+
+    document.getElementById('rs-btn-back').disabled = true;
+    document.getElementById('rs-btn-kill').disabled = false;
+    state.oldPrimaryId = -1;
+  }
+
+  function toggleContinuous() {
+    if (contTimer) {
+      clearInterval(contTimer);
+      contTimer = null;
+      document.getElementById('rs-btn-cont').textContent = 'Continuous Writes';
+      document.getElementById('rs-btn-cont').classList.remove('active-btn');
+    } else {
+      document.getElementById('rs-btn-cont').textContent = 'Stop Writes';
+      document.getElementById('rs-btn-cont').classList.add('active-btn');
+      contTimer = setInterval(function() { triggerWrite(); }, 2000);
+    }
+  }
+
+  function reset() {
+    if (contTimer) { clearInterval(contTimer); contTimer = null; }
+    if (state.heartbeatInterval) clearInterval(state.heartbeatInterval);
+    if (electionTimer) { clearTimeout(electionTimer); electionTimer = null; }
+
+    document.getElementById('rs-btn-cont').textContent = 'Continuous Writes';
+    document.getElementById('rs-btn-cont').classList.remove('active-btn');
+    document.getElementById('rs-btn-kill').disabled = false;
+    document.getElementById('rs-btn-back').disabled = true;
+    document.getElementById('rs-btn-write').disabled = false;
+    document.getElementById('rs-btn-read').disabled = false;
+
+    initState();
+    render();
+    startHeartbeats();
+    comm('Replica set = Raft-pv1 election + oplog tail replication. The primary accepts writes, records them in the oplog, and secondaries asynchronously tail and apply. Heartbeats every 2 seconds detect failures.');
+  }
+
+  // Initialize
+  initState();
+
+  // Defer render until DOM is ready
+  setTimeout(function() {
+    render();
+    startHeartbeats();
+  }, 0);
+
+  return {
+    triggerWrite: triggerWrite,
+    sendRead: sendRead,
+    killPrimary: killPrimary,
+    bringBack: bringBack,
+    toggleContinuous: toggleContinuous,
+    updateLag: updateLag,
+    updateTimeout: updateTimeout,
+    updateWC: updateWC,
+    updateRP: updateRP,
+    reset: reset
+  };
+})();
+
+/* ================================================================
+   TAB 3 -- SHARDED CLUSTER
+   ================================================================ */
+var SH = (function() {
+  var scene = null;
+  var state = {};
+
+  function initState() {
+    state = {
+      shardKey: 'range', // 'range' or 'hashed'
+      shards: [
+        { id: 0, label: 'Shard 1', x: 100, y: 370, chunks: [], color: 'var(--accent-blue)' },
+        { id: 1, label: 'Shard 2', x: 350, y: 370, chunks: [], color: 'var(--accent-green)' },
+        { id: 2, label: 'Shard 3', x: 600, y: 370, chunks: [], color: 'var(--accent-purple)' }
+      ],
+      mongos: [
+        { id: 0, label: 'mongos 1', x: 250, y: 30 },
+        { id: 1, label: 'mongos 2', x: 600, y: 30 }
+      ],
+      configRS: { label: 'Config RS', x: 425, y: 190 },
+      balancerRunning: false,
+      nextShardId: 3
+    };
+    distributeChunks();
+  }
+
+  function distributeChunks() {
+    state.shards.forEach(function(s) { s.chunks = []; });
+    if (state.shardKey === 'range') {
+      // Range sharding: tenantId ranges
+      var ranges = [
+        { min: 0, max: 33, label: '[0,33)' },
+        { min: 33, max: 50, label: '[33,50)' },
+        { min: 50, max: 66, label: '[50,66)' },
+        { min: 66, max: 80, label: '[66,80)' },
+        { min: 80, max: 90, label: '[80,90)' },
+        { min: 90, max: 100, label: '[90,100)' }
+      ];
+      // Distribute evenly
+      ranges.forEach(function(r, i) {
+        state.shards[i % state.shards.length].chunks.push(r);
+      });
+    } else {
+      // Hashed sharding: hash buckets
+      var buckets = [
+        { min: 0, max: 'H1', label: 'hash[0,H1)' },
+        { min: 'H1', max: 'H2', label: 'hash[H1,H2)' },
+        { min: 'H2', max: 'H3', label: 'hash[H2,H3)' },
+        { min: 'H3', max: 'H4', label: 'hash[H3,H4)' },
+        { min: 'H4', max: 'H5', label: 'hash[H4,H5)' },
+        { min: 'H5', max: 'Max', label: 'hash[H5,Max)' }
+      ];
+      buckets.forEach(function(b, i) {
+        state.shards[i % state.shards.length].chunks.push(b);
+      });
+    }
+  }
+
+  function comm(msg) {
+    document.getElementById('sh-commentary').innerHTML = msg;
+  }
+
+  function render() {
+    if (!scene) scene = document.getElementById('sh-scene');
+    scene.innerHTML = '';
+
+    // Client
+    scene.appendChild(svgRect(20, 30, 90, 40, { stroke: 'var(--accent-cyan)' }));
+    scene.appendChild(svgText(65, 55, 'Client', { fill: 'var(--accent-cyan)', 'font-size': '12', 'font-weight': '600' }));
+
+    // Client -> mongos lines
+    state.mongos.forEach(function(m) {
+      scene.appendChild(svgEl('line', {
+        x1: 110, y1: 50, x2: m.x - 50, y2: m.y + 20,
+        stroke: '#2a2a35', 'stroke-width': '1', 'stroke-dasharray': '4,4'
+      }));
+    });
+
+    // Mongos routers
+    state.mongos.forEach(function(m) {
+      scene.appendChild(svgRect(m.x - 60, m.y, 120, 44, { stroke: 'var(--accent-orange)', 'stroke-width': '2' }));
+      scene.appendChild(svgText(m.x, m.y + 27, m.label, { fill: 'var(--accent-orange)', 'font-size': '12', 'font-weight': '600' }));
+    });
+
+    // Config RS
+    var cx = state.configRS.x, cy = state.configRS.y;
+    scene.appendChild(svgRect(cx - 120, cy, 240, 70, { stroke: 'var(--accent-yellow)', 'stroke-width': '2' }));
+    scene.appendChild(svgText(cx, cy + 20, 'Config Server RS', { fill: 'var(--accent-yellow)', 'font-size': '12', 'font-weight': '700' }));
+    scene.appendChild(svgText(cx, cy + 38, 'chunk map + metadata', { fill: 'var(--text-3)', 'font-size': '10' }));
+    scene.appendChild(svgText(cx, cy + 55, state.shardKey === 'range' ? '{ tenantId: 1 }' : '{ _id: "hashed" }', { fill: 'var(--accent-cyan)', 'font-size': '10' }));
+
+    // Mongos -> Config RS lines
+    state.mongos.forEach(function(m) {
+      scene.appendChild(svgEl('line', {
+        x1: m.x, y1: m.y + 44,
+        x2: cx, y2: cy,
+        stroke: 'var(--accent-yellow)', 'stroke-width': '1', 'stroke-dasharray': '3,3'
+      }));
+    });
+
+    // Shards
+    state.shards.forEach(function(shard) {
+      var sx = shard.x, sy = shard.y;
+      var boxW = 180, boxH = 150;
+      var bx = sx - boxW / 2;
+
+      // Shard container
+      scene.appendChild(svgRect(bx, sy, boxW, boxH, {
+        stroke: shard.color, 'stroke-width': '2'
+      }));
+      scene.appendChild(svgText(sx, sy + 20, shard.label, {
+        fill: shard.color, 'font-size': '12', 'font-weight': '700'
+      }));
+      scene.appendChild(svgText(sx, sy + 36, '(replica set)', {
+        fill: 'var(--text-3)', 'font-size': '9'
+      }));
+
+      // Show replica set members inside
+      var members = ['P', 'S', 'S'];
+      var memberColors = ['var(--accent-green)', 'var(--accent-blue)', 'var(--accent-blue)'];
+      members.forEach(function(m, i) {
+        var mx = bx + 25 + i * 55;
+        var my = sy + 48;
+        scene.appendChild(svgRect(mx, my, 40, 24, { stroke: memberColors[i], fill: '#12121a', rx: '3' }));
+        scene.appendChild(svgText(mx + 20, my + 16, m, { fill: memberColors[i], 'font-size': '10', 'font-weight': '600' }));
+      });
+
+      // Chunks
+      shard.chunks.forEach(function(chunk, ci) {
+        var ccy = sy + 82 + ci * 20;
+        scene.appendChild(svgRect(bx + 10, ccy, boxW - 20, 16, {
+          stroke: '#333', fill: '#12121a', rx: '2'
+        }));
+        scene.appendChild(svgText(sx, ccy + 12, chunk.label, {
+          fill: 'var(--text-3)', 'font-size': '9'
+        }));
+      });
+
+      // Config RS -> shard lines
+      scene.appendChild(svgEl('line', {
+        x1: cx, y1: cy + 70,
+        x2: sx, y2: sy,
+        stroke: '#2a2a35', 'stroke-width': '1', 'stroke-dasharray': '3,3'
+      }));
+    });
+
+    // Balancer indicator
+    if (state.balancerRunning) {
+      scene.appendChild(svgRect(cx + 140, cy + 5, 100, 28, {
+        stroke: 'var(--accent-green)', fill: '#12121a', rx: '4'
+      }));
+      scene.appendChild(svgText(cx + 190, cy + 24, 'Balancer ON', {
+        fill: 'var(--accent-green)', 'font-size': '10', 'font-weight': '600'
+      }));
+    }
+  }
+
+  async function queryTargeted() {
+    render();
+    var mongos = state.mongos[0];
+    var packetsG = scene;
+
+    comm('Targeted query: <code>db.users.find({tenantId: 42})</code>. The mongos consults its cached chunk map to determine which shard owns tenantId=42, then routes the query to that single shard.');
+
+    // Client -> mongos
+    await animatePacket(packetsG, 110, 50, mongos.x, mongos.y + 22, 'var(--accent-cyan)', 400, 'find({tenantId:42})');
+
+    // mongos -> config (cache check)
+    await animatePacket(packetsG, mongos.x, mongos.y + 44, state.configRS.x, state.configRS.y + 35, 'var(--accent-yellow)', 300, 'chunk map?');
+
+    // Determine target shard
+    var targetShard;
+    if (state.shardKey === 'range') {
+      targetShard = state.shards.find(function(s) {
+        return s.chunks.some(function(c) { return c.min <= 42 && c.max > 42; });
+      }) || state.shards[0];
+    } else {
+      // Hashed -- pseudo-random target
+      targetShard = state.shards[1];
+    }
+
+    comm('Chunk map consulted: tenantId=42 belongs to <strong>' + targetShard.label + '</strong>. Query routed to a single shard -- this is the fast path.');
+
+    // config -> mongos (response)
+    await animatePacket(packetsG, state.configRS.x, state.configRS.y + 35, mongos.x, mongos.y + 44, 'var(--accent-yellow)', 200, 'route');
+
+    // mongos -> target shard
+    await animatePacket(packetsG, mongos.x, mongos.y + 44, targetShard.x, targetShard.y + 50, targetShard.color, 400, 'find()');
+
+    // shard -> mongos (result)
+    await animatePacket(packetsG, targetShard.x, targetShard.y + 50, mongos.x, mongos.y + 22, targetShard.color, 300, 'result');
+
+    // mongos -> client
+    await animatePacket(packetsG, mongos.x, mongos.y + 22, 110, 50, 'var(--accent-cyan)', 300, 'result');
+
+    comm('Targeted query complete. Single shard contacted: <strong>' + targetShard.label + '</strong>. This is the optimal query pattern for sharded collections -- always include the shard key.');
+  }
+
+  async function queryScatter() {
+    render();
+    var mongos = state.mongos[0];
+    var packetsG = scene;
+
+    comm('Scatter-gather query: <code>db.users.find({email: "foo@bar.com"})</code>. No shard key in the query filter -- mongos must broadcast to ALL shards and merge results.');
+
+    // Client -> mongos
+    await animatePacket(packetsG, 110, 50, mongos.x, mongos.y + 22, 'var(--accent-red)', 400, 'find({email:...})');
+
+    await delay(200);
+    comm('No shard key in query -- mongos broadcasts to all ' + state.shards.length + ' shards. Each shard performs a local scan. This is the SLOW path.');
+
+    // mongos -> all shards (parallel-ish)
+    var promises = state.shards.map(function(shard) {
+      return animatePacket(packetsG, mongos.x, mongos.y + 44, shard.x, shard.y + 50, 'var(--accent-red)', 500, 'find()');
+    });
+    await Promise.all(promises);
+
+    // All shards -> mongos (results)
+    await delay(300);
+    var returnPromises = state.shards.map(function(shard, i) {
+      return new Promise(function(resolve) {
+        setTimeout(function() {
+          animatePacket(packetsG, shard.x, shard.y + 50, mongos.x, mongos.y + 22, shard.color, 400, 'partial').then(resolve);
+        }, i * 150);
+      });
+    });
+    await Promise.all(returnPromises);
+
+    // mongos merges and returns
+    await animatePacket(packetsG, mongos.x, mongos.y + 22, 110, 50, 'var(--accent-red)', 300, 'merged result');
+
+    comm('Scatter-gather complete. All ' + state.shards.length + ' shards were queried. Latency is dominated by the slowest shard. In production, this pattern causes unnecessary load on every shard -- always include the shard key in queries.');
+  }
+
+  async function addShard() {
+    if (state.shards.length >= 5) {
+      comm('Maximum 5 shards for this demo.');
+      return;
+    }
+    var newId = state.nextShardId++;
+    var colors = ['var(--accent-orange)', 'var(--accent-cyan)', 'var(--accent-red)'];
+    var newShard = {
+      id: newId,
+      label: 'Shard ' + (newId + 1),
+      x: 0,
+      y: 370,
+      chunks: [],
+      color: colors[(newId - 3) % colors.length]
+    };
+    state.shards.push(newShard);
+    layoutShards();
+    render();
+
+    comm('Shard ' + (newId + 1) + ' added. It has zero chunks. The balancer will migrate chunks from heavy shards to equalize the distribution. Click "Run Balancer" to trigger.');
+
+    document.getElementById('sh-btn-add').textContent = state.shards.length >= 5 ? 'Max shards' : 'Add Shard ' + (state.shards.length + 1);
+    if (state.shards.length >= 5) document.getElementById('sh-btn-add').disabled = true;
+  }
+
+  function layoutShards() {
+    var n = state.shards.length;
+    var totalWidth = 800;
+    var spacing = totalWidth / (n + 1);
+    state.shards.forEach(function(s, i) {
+      s.x = 50 + spacing * (i + 1);
+    });
+  }
+
+  async function toggleBalancer() {
+    state.balancerRunning = !state.balancerRunning;
+    var btn = document.getElementById('sh-btn-bal');
+    btn.textContent = state.balancerRunning ? 'Stop Balancer' : 'Run Balancer';
+    btn.classList.toggle('active-btn', state.balancerRunning);
+
+    if (!state.balancerRunning) {
+      render();
+      return;
+    }
+
+    comm('Balancer activated. Checking chunk distribution across shards...');
+    render();
+    await delay(600);
+
+    // Find imbalance
+    var maxChunks = 0, minChunks = Infinity;
+    var heaviestShard = null, lightestShard = null;
+    state.shards.forEach(function(s) {
+      if (s.chunks.length > maxChunks) { maxChunks = s.chunks.length; heaviestShard = s; }
+      if (s.chunks.length < minChunks) { minChunks = s.chunks.length; lightestShard = s; }
+    });
+
+    if (maxChunks - minChunks <= 1) {
+      comm('Balancer: chunks are already balanced (difference <= 1 chunk between shards). No migration needed.');
+      state.balancerRunning = false;
+      btn.textContent = 'Run Balancer';
+      btn.classList.remove('active-btn');
+      return;
+    }
+
+    // Migrate chunks one at a time until balanced
+    var migrations = 0;
+    while (state.balancerRunning) {
+      maxChunks = 0; minChunks = Infinity;
+      heaviestShard = null; lightestShard = null;
+      state.shards.forEach(function(s) {
+        if (s.chunks.length > maxChunks) { maxChunks = s.chunks.length; heaviestShard = s; }
+        if (s.chunks.length < minChunks) { minChunks = s.chunks.length; lightestShard = s; }
+      });
+
+      if (maxChunks - minChunks <= 1) break;
+
+      var chunk = heaviestShard.chunks.pop();
+      migrations++;
+
+      comm('Balancer: migrating chunk <code>' + chunk.label + '</code> from <strong>' + heaviestShard.label + '</strong> to <strong>' + lightestShard.label + '</strong>. During migration, writes to this chunk coordinate between source and target.');
+
+      render();
+      // Animate migration
+      await animatePacket(scene, heaviestShard.x, heaviestShard.y + 80, lightestShard.x, lightestShard.y + 80, 'var(--accent-yellow)', 800, 'migrate: ' + chunk.label);
+
+      lightestShard.chunks.push(chunk);
+      render();
+
+      await delay(400);
+    }
+
+    comm('Balancer complete: ' + migrations + ' chunk(s) migrated. Distribution is now balanced (max difference: 1 chunk). Balancer updates chunk map on config servers; mongos routers refresh their cache.');
+
+    state.balancerRunning = false;
+    btn.textContent = 'Run Balancer';
+    btn.classList.remove('active-btn');
+    render();
+  }
+
+  async function demoHotspot() {
+    // Switch to range sharding and show monotonic insert hotspot
+    document.getElementById('sh-key').value = 'range';
+    state.shardKey = 'range';
+    distributeChunks();
+    layoutShards();
+    render();
+
+    comm('Demonstrating hot-spot with monotonic shard key: inserts with auto-incrementing <code>_id: ObjectId()</code> always land in the last chunk (highest range). Watch all writes concentrate on a single shard...');
+
+    await delay(800);
+
+    // Find the shard with the highest range chunk
+    var hotShard = null;
+    var maxEnd = -1;
+    state.shards.forEach(function(s) {
+      s.chunks.forEach(function(c) {
+        if (c.max > maxEnd) {
+          maxEnd = c.max;
+          hotShard = s;
+        }
+      });
+    });
+
+    // Send 6 writes, all to the hot shard
+    for (var i = 0; i < 6; i++) {
+      var mongos = state.mongos[i % 2];
+      comm('Insert #' + (i + 1) + ': <code>ObjectId()</code> is monotonically increasing -- routes to the last chunk on <strong>' + hotShard.label + '</strong>. Other shards are idle. This is the hotspot problem.');
+
+      await animatePacket(scene, 110, 50, mongos.x, mongos.y + 22, 'var(--accent-red)', 250, 'insert');
+      await animatePacket(scene, mongos.x, mongos.y + 44, hotShard.x, hotShard.y + 50, 'var(--accent-red)', 350, 'insert');
+      await delay(200);
+    }
+
+    comm('All 6 inserts hit <strong>' + hotShard.label + '</strong>. This is the range sharding hot-spot: monotonically increasing keys concentrate writes on one shard. <strong>Fix:</strong> use hashed sharding (<code>{_id: "hashed"}</code>) to distribute evenly, at the cost of losing range locality.');
+  }
+
+  function changeKey() {
+    state.shardKey = document.getElementById('sh-key').value;
+    distributeChunks();
+    render();
+    comm(state.shardKey === 'range'
+      ? 'Range sharding: <code>{ tenantId: 1 }</code>. Chunks are contiguous ranges of tenantId. Good for locality (multi-tenant queries), but susceptible to hotspots with monotonic keys.'
+      : 'Hashed sharding: <code>{ _id: "hashed" }</code>. The shard key value is hashed before range assignment. Even distribution regardless of insert pattern, but no range locality.');
+  }
+
+  function reset() {
+    state.balancerRunning = false;
+    state.nextShardId = 3;
+    initState();
+    layoutShards();
+    render();
+    document.getElementById('sh-btn-add').textContent = 'Add Shard 4';
+    document.getElementById('sh-btn-add').disabled = false;
+    document.getElementById('sh-btn-bal').textContent = 'Run Balancer';
+    document.getElementById('sh-btn-bal').classList.remove('active-btn');
+    document.getElementById('sh-key').value = 'range';
+    comm('Sharded cluster: mongos routers cache the chunk-to-shard mapping from the config servers. Targeted queries include the shard key and route to one shard. Queries without the shard key broadcast to all shards (scatter-gather) -- avoid this in production.');
+  }
+
+  initState();
+  layoutShards();
+  setTimeout(function() { render(); }, 0);
+
+  return {
+    queryTargeted: queryTargeted,
+    queryScatter: queryScatter,
+    addShard: addShard,
+    toggleBalancer: toggleBalancer,
+    demoHotspot: demoHotspot,
+    changeKey: changeKey,
+    reset: reset
+  };
+})();
+
+/* ================================================================
+   TAB 4 -- READ CONCERNS + CAUSAL CONSISTENCY
+   ================================================================ */
+var RC = (function() {
+  var scene = null;
+
+  var nodePositions = {
+    primary: { x: 450, y: 60, label: 'PRIMARY', color: 'var(--accent-green)' },
+    sec1: { x: 200, y: 290, label: 'SECONDARY 1', color: 'var(--accent-blue)' },
+    sec2: { x: 700, y: 290, label: 'SECONDARY 2', color: 'var(--accent-blue)' }
+  };
+
+  function comm(msg) {
+    document.getElementById('rc-commentary').innerHTML = msg;
+  }
+
+  function render(annotations) {
+    if (!scene) scene = document.getElementById('rc-scene');
+    scene.innerHTML = '';
+
+    // Client
+    scene.appendChild(svgRect(20, 150, 100, 44, { stroke: 'var(--accent-cyan)' }));
+    scene.appendChild(svgText(70, 177, 'Client', { fill: 'var(--accent-cyan)', 'font-size': '12', 'font-weight': '600' }));
+
+    // Causal session badge
+    scene.appendChild(svgRect(20, 200, 100, 28, { stroke: 'var(--text-3)', fill: '#12121a', rx: '3' }));
+    scene.appendChild(svgText(70, 218, 'session', { fill: 'var(--text-3)', 'font-size': '9' }));
+
+    // Draw nodes
+    Object.keys(nodePositions).forEach(function(key) {
+      var n = nodePositions[key];
+      var boxW = 160, boxH = 90;
+      var bx = n.x - boxW / 2;
+
+      scene.appendChild(svgRect(bx, n.y, boxW, boxH, {
+        stroke: n.color, 'stroke-width': key === 'primary' ? '2.5' : '1.5'
+      }));
+      scene.appendChild(svgText(n.x, n.y + 22, n.label, {
+        fill: n.color, 'font-size': '12', 'font-weight': '700'
+      }));
+
+      // Oplog bar
+      scene.appendChild(svgRect(bx + 10, n.y + 35, boxW - 20, 20, {
+        stroke: '#333', fill: '#12121a', rx: '3'
+      }));
+      scene.appendChild(svgText(n.x, n.y + 49, 'oplog', {
+        fill: 'var(--text-3)', 'font-size': '9'
+      }));
+
+      // Status line
+      var statusText = '';
+      var statusColor = 'var(--text-3)';
+      if (annotations && annotations[key]) {
+        statusText = annotations[key].text;
+        statusColor = annotations[key].color || 'var(--text-3)';
+      }
+      scene.appendChild(svgText(n.x, n.y + 78, statusText, {
+        fill: statusColor, 'font-size': '10'
+      }));
+    });
+
+    // Replication lines
+    scene.appendChild(svgEl('line', {
+      x1: nodePositions.primary.x, y1: nodePositions.primary.y + 90,
+      x2: nodePositions.sec1.x, y2: nodePositions.sec1.y,
+      stroke: '#2a2a35', 'stroke-width': '1', 'stroke-dasharray': '3,3'
+    }));
+    scene.appendChild(svgEl('line', {
+      x1: nodePositions.primary.x, y1: nodePositions.primary.y + 90,
+      x2: nodePositions.sec2.x, y2: nodePositions.sec2.y,
+      stroke: '#2a2a35', 'stroke-width': '1', 'stroke-dasharray': '3,3'
+    }));
+
+    // Client -> primary line
+    scene.appendChild(svgEl('line', {
+      x1: 120, y1: 172,
+      x2: nodePositions.primary.x - 80, y2: nodePositions.primary.y + 45,
+      stroke: '#2a2a35', 'stroke-width': '1', 'stroke-dasharray': '3,3'
+    }));
+  }
+
+  async function demoLocal() {
+    render({
+      primary: { text: 'readConcern: local', color: 'var(--accent-cyan)' },
+      sec1: { text: 'lag: 200ms', color: 'var(--accent-yellow)' },
+      sec2: { text: 'lag: 500ms', color: 'var(--accent-yellow)' }
+    });
+
+    comm('<code>readConcern: local</code> (the default): returns whatever data the target node has locally, including data that has not yet been replicated to a majority. Fast, but on failover you might read data that gets rolled back.');
+
+    // Send read to primary
+    await animatePacket(scene, 120, 172, nodePositions.primary.x, nodePositions.primary.y + 45, 'var(--accent-cyan)', 400, 'find() local');
+    await delay(200);
+    await animatePacket(scene, nodePositions.primary.x, nodePositions.primary.y + 45, 120, 172, 'var(--accent-cyan)', 300, 'result (latest)');
+
+    comm('<code>readConcern: local</code> returns the primary\'s latest data, including uncommitted writes. If the primary fails before those writes replicate, a new primary may not have them -- the read returned data that effectively "disappears." This is the default and is fine for most use cases.');
+  }
+
+  async function demoAvailable() {
+    render({
+      primary: { text: 'readConcern: available', color: 'var(--accent-cyan)' },
+      sec1: { text: 'available (no config check)', color: 'var(--accent-orange)' },
+      sec2: { text: 'available (no config check)', color: 'var(--accent-orange)' }
+    });
+
+    comm('<code>readConcern: available</code>: like local, but in a sharded cluster, the mongos does not verify chunk ownership with config servers. Fastest possible read, but may return orphaned documents during chunk migration. Only meaningful in sharded deployments.');
+
+    await animatePacket(scene, 120, 172, nodePositions.sec1.x, nodePositions.sec1.y + 45, 'var(--accent-orange)', 400, 'find() available');
+    await delay(200);
+    await animatePacket(scene, nodePositions.sec1.x, nodePositions.sec1.y + 45, 120, 172, 'var(--accent-orange)', 300, 'result (may be orphaned)');
+
+    comm('<code>readConcern: available</code> skips the config server check. During a chunk migration, a shard may still hold documents that have been moved to another shard. <code>available</code> reads may return these orphaned documents. Use <code>local</code> instead -- the extra config check is negligible.');
+  }
+
+  async function demoMajority() {
+    render({
+      primary: { text: 'readConcern: majority', color: 'var(--accent-green)' },
+      sec1: { text: 'majority-committed: op 98', color: 'var(--accent-green)' },
+      sec2: { text: 'majority-committed: op 98', color: 'var(--accent-green)' }
+    });
+
+    comm('<code>readConcern: majority</code>: only returns data that has been acknowledged by a majority of members. This data is durable -- it survives failover. May be slightly stale (the latest uncommitted writes are skipped).');
+
+    await animatePacket(scene, 120, 172, nodePositions.primary.x, nodePositions.primary.y + 45, 'var(--accent-green)', 400, 'find() majority');
+
+    // Show primary checking majority commit point
+    render({
+      primary: { text: 'checking majority commit point...', color: 'var(--accent-yellow)' },
+      sec1: { text: 'confirmed op 98', color: 'var(--accent-green)' },
+      sec2: { text: 'confirmed op 98', color: 'var(--accent-green)' }
+    });
+
+    await delay(500);
+
+    render({
+      primary: { text: 'majority commit point: op 98', color: 'var(--accent-green)' },
+      sec1: { text: 'confirmed op 98', color: 'var(--accent-green)' },
+      sec2: { text: 'confirmed op 98', color: 'var(--accent-green)' }
+    });
+
+    await animatePacket(scene, nodePositions.primary.x, nodePositions.primary.y + 45, 120, 172, 'var(--accent-green)', 300, 'result (durable)');
+
+    comm('<code>readConcern: majority</code> returns data at the majority commit point. Even if the primary crashes immediately after, this data is guaranteed to exist on a majority of members. Combined with <code>writeConcern: majority</code>, you get a consistency model where reads never return data that can be rolled back.');
+  }
+
+  async function demoLinearizable() {
+    render({
+      primary: { text: 'readConcern: linearizable', color: 'var(--accent-red)' },
+      sec1: { text: 'waiting for confirmation...', color: 'var(--accent-yellow)' },
+      sec2: { text: 'waiting for confirmation...', color: 'var(--accent-yellow)' }
+    });
+
+    comm('<code>readConcern: linearizable</code> (primary only): the primary confirms it still holds the lease by doing a no-op majority write. This guarantees real-time ordering -- no stale reads even during network partitions. Expensive: adds a round-trip to every read.');
+
+    await animatePacket(scene, 120, 172, nodePositions.primary.x, nodePositions.primary.y + 45, 'var(--accent-red)', 400, 'find() linearizable');
+
+    // Primary confirms lease
+    comm('Primary confirming it still holds the lease... performing no-op majority write to verify.');
+
+    await animatePacket(scene, nodePositions.primary.x, nodePositions.primary.y + 90, nodePositions.sec1.x, nodePositions.sec1.y + 20, 'var(--accent-yellow)', 500, 'no-op write');
+    await animatePacket(scene, nodePositions.sec1.x, nodePositions.sec1.y + 20, nodePositions.primary.x, nodePositions.primary.y + 90, 'var(--accent-green)', 400, 'confirm');
+
+    await animatePacket(scene, nodePositions.primary.x, nodePositions.primary.y + 90, nodePositions.sec2.x, nodePositions.sec2.y + 20, 'var(--accent-yellow)', 500, 'no-op write');
+    await animatePacket(scene, nodePositions.sec2.x, nodePositions.sec2.y + 20, nodePositions.primary.x, nodePositions.primary.y + 90, 'var(--accent-green)', 400, 'confirm');
+
+    render({
+      primary: { text: 'lease confirmed, returning result', color: 'var(--accent-green)' },
+      sec1: { text: 'confirmed', color: 'var(--accent-green)' },
+      sec2: { text: 'confirmed', color: 'var(--accent-green)' }
+    });
+
+    await animatePacket(scene, nodePositions.primary.x, nodePositions.primary.y + 45, 120, 172, 'var(--accent-red)', 300, 'result (linearized)');
+
+    comm('<code>readConcern: linearizable</code> complete. The primary confirmed it still holds the lease via a majority no-op write. This prevents stale reads from a "zombie" primary that has been partitioned. Rarely needed -- <code>majority</code> + causal sessions cover nearly all use cases.');
+  }
+
+  async function demoCausal() {
+    render({
+      primary: { text: 'optime: 100, term: 1', color: 'var(--accent-green)' },
+      sec1: { text: 'optime: 98 (lagging)', color: 'var(--accent-yellow)' },
+      sec2: { text: 'optime: 100', color: 'var(--accent-green)' }
+    });
+
+    comm('Causal consistency demo: the client session tracks <code>clusterTime</code> and <code>operationTime</code>. After writing <code>{a:1}</code>, a subsequent read on a lagged secondary in the same session must wait until the secondary catches up.');
+
+    await delay(600);
+
+    // Step 1: Write {a:1} to primary
+    comm('Step 1: Client writes <code>{a:1}</code> with <code>w:majority</code>. Primary records optime=101.');
+    await animatePacket(scene, 120, 172, nodePositions.primary.x, nodePositions.primary.y + 45, 'var(--accent-green)', 400, 'insert({a:1}) w:maj');
+
+    render({
+      primary: { text: 'optime: 101, term: 1', color: 'var(--accent-green)' },
+      sec1: { text: 'optime: 98 (lagging)', color: 'var(--accent-yellow)' },
+      sec2: { text: 'optime: 100', color: 'var(--accent-blue)' }
+    });
+
+    // Ack with operationTime
+    await animatePacket(scene, nodePositions.primary.x, nodePositions.primary.y + 45, 120, 172, 'var(--accent-green)', 300, 'ACK (opTime=101)');
+
+    comm('Step 1 complete. Session now tracks <code>operationTime=101</code>. Any subsequent read in this session must see data at least at optime 101.');
+
+    await delay(800);
+
+    // Step 2: Read from lagged secondary
+    comm('Step 2: Client reads from <strong>Secondary 1</strong> (read preference: secondary). Secondary 1 is at optime 98 -- it has NOT caught up to the session\'s operationTime (101). The secondary must wait...');
+
+    await animatePacket(scene, 120, 172, nodePositions.sec1.x, nodePositions.sec1.y + 45, 'var(--accent-cyan)', 400, 'find() opTime>=101');
+
+    // Secondary waits
+    render({
+      primary: { text: 'optime: 101', color: 'var(--accent-green)' },
+      sec1: { text: 'WAITING for optime >= 101...', color: 'var(--accent-red)' },
+      sec2: { text: 'optime: 100', color: 'var(--accent-blue)' }
+    });
+
+    comm('Secondary 1 is at optime 98. It must apply oplog entries until it reaches optime >= 101. The read blocks on the secondary until it catches up.');
+
+    await delay(600);
+
+    // Oplog replication catches up
+    render({
+      primary: { text: 'optime: 101', color: 'var(--accent-green)' },
+      sec1: { text: 'catching up... optime: 99', color: 'var(--accent-yellow)' },
+      sec2: { text: 'optime: 101', color: 'var(--accent-green)' }
+    });
+    await delay(400);
+
+    render({
+      primary: { text: 'optime: 101', color: 'var(--accent-green)' },
+      sec1: { text: 'catching up... optime: 100', color: 'var(--accent-yellow)' },
+      sec2: { text: 'optime: 101', color: 'var(--accent-green)' }
+    });
+    await delay(400);
+
+    render({
+      primary: { text: 'optime: 101', color: 'var(--accent-green)' },
+      sec1: { text: 'caught up! optime: 101', color: 'var(--accent-green)' },
+      sec2: { text: 'optime: 101', color: 'var(--accent-green)' }
+    });
+
+    comm('Secondary 1 has caught up to optime 101. Now it can serve the read with the guarantee that the client sees its own write.');
+
+    await delay(400);
+
+    await animatePacket(scene, nodePositions.sec1.x, nodePositions.sec1.y + 45, 120, 172, 'var(--accent-cyan)', 300, 'result ({a:1})');
+
+    comm('Causal consistency complete. The client read its own write from a <em>different node</em> (secondary), with the guarantee enforced by the session\'s <code>operationTime</code>. This is the practical middle ground between eventual and strong consistency: read-your-own-writes + low latency from secondary reads.');
+  }
+
+  function reset() {
+    render({});
+    comm('Read concerns control what data a read operation returns relative to the cluster\'s replication state. <code>local</code> returns the node\'s latest data. <code>majority</code> returns only data confirmed by a majority. <code>linearizable</code> adds a round-trip to confirm the primary still holds the lease.');
+  }
+
+  setTimeout(function() { render({}); }, 0);
+
+  return {
+    demoLocal: demoLocal,
+    demoAvailable: demoAvailable,
+    demoMajority: demoMajority,
+    demoLinearizable: demoLinearizable,
+    demoCausal: demoCausal,
+    reset: reset
+  };
+})();
+</script>
+</body>
+</html>

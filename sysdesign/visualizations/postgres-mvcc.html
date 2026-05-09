@@ -1,0 +1,1532 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Postgres MVCC + Isolation Levels</title>
+<style>
+:root {
+  --bg: #0f0f15;
+  --surface: #181820;
+  --surface-2: #20202a;
+  --border: #2a2a35;
+  --text: #e6e6ea;
+  --text-2: #cfcfd6;
+  --text-3: #888;
+  --accent-red: #ff6b6b;
+  --accent-green: #51cf66;
+  --accent-blue: #339af0;
+  --accent-yellow: #ffd43b;
+  --accent-purple: #cc5de8;
+  --accent-cyan: #8be9fd;
+  --accent-orange: #ffa94d;
+  --t1: #339af0;
+  --t2: #ffa94d;
+  --t3: #cc5de8;
+}
+*, *::before, *::after { box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  padding: 32px 24px;
+  max-width: 1100px;
+  margin: 0 auto;
+  line-height: 1.55;
+}
+h1 { color: #fff; margin-bottom: 4px; }
+h1 + p.sub { color: var(--text-3); font-style: italic; margin-top: 0; margin-bottom: 24px; }
+h2 { color: #fff; margin-top: 40px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+h3 { color: var(--text-2); margin-top: 20px; }
+code {
+  background: var(--surface-2);
+  padding: 2px 6px;
+  border-radius: 3px;
+  color: var(--accent-cyan);
+  font-size: 13px;
+}
+.mono {
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+}
+.commentary {
+  background: var(--surface-2);
+  padding: 14px;
+  border-radius: 6px;
+  font-size: 14px;
+  color: var(--text-2);
+  margin: 12px 0;
+  min-height: 44px;
+  line-height: 1.5;
+}
+.takeaway {
+  background: #1a1a22;
+  border-left: 3px solid var(--accent-green);
+  padding: 12px 16px;
+  margin: 14px 0;
+  font-size: 14px;
+}
+.takeaway strong { color: var(--accent-green); }
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0;
+  align-items: center;
+}
+.controls button {
+  padding: 10px 16px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  border-radius: 6px;
+  cursor: pointer;
+  min-height: 44px;
+  font-size: 14px;
+  transition: background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+.controls button:hover { background: var(--surface); }
+.controls button:disabled { opacity: 0.4; cursor: not-allowed; }
+.controls .step-label {
+  font-size: 13px;
+  color: var(--text-3);
+  margin-left: 4px;
+}
+
+/* Timeline lanes */
+.timeline-widget {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 18px;
+  margin: 14px 0;
+  overflow-x: auto;
+}
+.lane-container {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.lane {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  min-height: 40px;
+}
+.lane-label {
+  width: 40px;
+  flex-shrink: 0;
+  font-weight: 700;
+  font-size: 13px;
+  text-align: right;
+  padding-right: 8px;
+}
+.lane-label.t1 { color: var(--t1); }
+.lane-label.t2 { color: var(--t2); }
+.lane-label.t3 { color: var(--t3); }
+.lane-steps {
+  display: flex;
+  gap: 4px;
+  flex: 1;
+}
+.lane-step {
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+  white-space: nowrap;
+  opacity: 0.25;
+  transition: opacity 0.3s, transform 0.2s, box-shadow 0.3s;
+  border: 1px solid transparent;
+}
+.lane-step.active {
+  opacity: 1;
+  transform: scale(1.05);
+  box-shadow: 0 0 8px rgba(0,0,0,0.4);
+}
+.lane-step.done {
+  opacity: 0.7;
+}
+.lane-step.t1 { background: rgba(51,154,240,0.15); color: var(--t1); }
+.lane-step.t1.active { border-color: var(--t1); background: rgba(51,154,240,0.25); }
+.lane-step.t2 { background: rgba(255,169,77,0.15); color: var(--t2); }
+.lane-step.t2.active { border-color: var(--t2); background: rgba(255,169,77,0.25); }
+.lane-step.t3 { background: rgba(204,93,232,0.15); color: var(--t3); }
+.lane-step.t3.active { border-color: var(--t3); background: rgba(204,93,232,0.25); }
+.lane-step.error { background: rgba(255,107,107,0.25) !important; color: var(--accent-red) !important; border-color: var(--accent-red) !important; }
+
+/* Row state table */
+.row-state {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  margin: 10px 0;
+}
+.row-state th {
+  background: var(--surface-2);
+  padding: 6px 10px;
+  text-align: left;
+  font-weight: 600;
+  color: var(--text-3);
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+}
+.row-state td {
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+  font-size: 12px;
+  transition: background 0.3s, color 0.3s;
+}
+.row-state tr.dead td { color: var(--text-3); text-decoration: line-through; opacity: 0.5; }
+.row-state tr.highlight td { background: rgba(51,154,240,0.1); }
+.row-state tr.new-version td { background: rgba(81,207,102,0.1); }
+.row-state .xmin { color: var(--accent-blue); }
+.row-state .xmax { color: var(--accent-red); }
+.row-state .xmax-zero { color: var(--accent-green); }
+
+/* Vacuum visualization */
+.vacuum-bar-container {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 14px 0;
+}
+.vacuum-bar {
+  display: flex;
+  gap: 2px;
+  padding: 4px;
+  background: var(--surface-2);
+  border-radius: 6px;
+  min-height: 32px;
+  flex-wrap: wrap;
+}
+.vacuum-block {
+  width: 22px;
+  height: 22px;
+  border-radius: 3px;
+  transition: all 0.3s;
+  flex-shrink: 0;
+}
+.vacuum-block.live { background: var(--accent-green); }
+.vacuum-block.dead { background: var(--accent-red); opacity: 0.6; }
+.vacuum-block.freed { background: var(--surface); border: 1px dashed var(--border); opacity: 0.3; }
+.vacuum-stats {
+  display: flex;
+  gap: 20px;
+  font-size: 13px;
+  color: var(--text-3);
+  margin: 6px 0;
+}
+.vacuum-stats span { display: flex; align-items: center; gap: 6px; }
+.vacuum-stats .dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+}
+
+/* Lock grid */
+.lock-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 8px;
+  margin: 12px 0;
+}
+.lock-job {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px;
+  text-align: center;
+  font-size: 12px;
+  transition: all 0.3s;
+}
+.lock-job.locked-t1 { border-color: var(--t1); background: rgba(51,154,240,0.1); }
+.lock-job.locked-t2 { border-color: var(--t2); background: rgba(255,169,77,0.1); }
+.lock-job.locked-t3 { border-color: var(--t3); background: rgba(204,93,232,0.1); }
+.lock-job.skipped { opacity: 0.3; }
+.lock-job .job-id { font-weight: 700; color: var(--text); }
+.lock-job .job-status { font-size: 11px; color: var(--text-3); margin-top: 4px; }
+
+/* XID ring */
+.xid-ring-wrap {
+  display: flex;
+  justify-content: center;
+  margin: 14px 0;
+}
+.xid-ring-wrap svg {
+  background: var(--surface);
+  border-radius: 8px;
+}
+
+/* Toggle group for lock section */
+.toggle-group {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin: 10px 0;
+}
+.toggle-group button {
+  padding: 8px 14px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-2);
+  border-radius: 6px;
+  cursor: pointer;
+  min-height: 38px;
+  font-size: 13px;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.toggle-group button:hover { background: var(--surface); }
+.toggle-group button.active {
+  border-color: var(--accent-blue);
+  color: #fff;
+}
+
+/* Slider */
+.slider-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-3);
+  min-width: 180px;
+}
+.slider-group input[type="range"] {
+  flex: 1;
+  min-width: 80px;
+  accent-color: var(--accent-blue);
+}
+
+/* Dependency graph */
+.dep-graph {
+  display: flex;
+  justify-content: center;
+  margin: 10px 0;
+}
+
+@media (max-width: 720px) {
+  body { padding: 20px 14px; }
+  .timeline-widget { padding: 12px; }
+}
+@media (max-width: 480px) {
+  .controls { flex-direction: column; }
+  .controls button { width: 100%; }
+  .toggle-group { flex-direction: column; }
+  .toggle-group button { width: 100%; }
+  .slider-group { width: 100%; min-width: auto; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Postgres MVCC + isolation</h1>
+  <p class="sub">Step through each anomaly. Watch read-committed allow non-repeatable reads; watch repeatable-read allow write skew; watch serializable abort to prevent it. The interview tell isn't naming levels -- it's naming the anomalies they prevent and the cost of each.</p>
+</header>
+
+<!-- ============================================================ -->
+<!-- SECTION 1: HOW MVCC WORKS                                     -->
+<!-- ============================================================ -->
+<h2>1. How MVCC works (xmin / xmax)</h2>
+
+<p>Every Postgres row has hidden columns: <code>xmin</code> (transaction ID that created this row version) and <code>xmax</code> (transaction ID that deleted or superseded it -- 0 if the version is still alive). A transaction with snapshot <em>S</em> sees a row version when:</p>
+<p style="padding-left: 20px; color: var(--accent-cyan); font-family: 'SF Mono', 'Fira Code', monospace; font-size: 13px;">
+xmin &lt; S &nbsp;AND&nbsp; xmin committed &nbsp;AND&nbsp; (xmax = 0 &nbsp;OR&nbsp; xmax &gt; S &nbsp;OR&nbsp; xmax aborted)
+</p>
+
+<div class="timeline-widget" id="mvcc-widget">
+  <div class="lane-container" id="mvcc-lanes"></div>
+  <h3 style="margin-top:8px;">Row versions (accounts table)</h3>
+  <table class="row-state" id="mvcc-table">
+    <thead>
+      <tr><th>xmin</th><th>xmax</th><th>name</th><th>balance</th><th>status</th></tr>
+    </thead>
+    <tbody id="mvcc-tbody"></tbody>
+  </table>
+  <div class="commentary" id="mvcc-commentary">Click "Next" to begin stepping through the MVCC timeline.</div>
+  <div class="controls">
+    <button onclick="mvccPrev()" id="mvcc-prev" disabled>Prev</button>
+    <button onclick="mvccNext()" id="mvcc-next">Next</button>
+    <button onclick="mvccReset()">Reset</button>
+    <button onclick="mvccAutoplay()" id="mvcc-auto">Autoplay</button>
+    <span class="step-label" id="mvcc-step-label">Step 0 / 7</span>
+  </div>
+</div>
+
+<div class="takeaway">
+  <strong>Takeaway:</strong> MVCC's superpower -- readers don't block writers, writers don't block readers. The cost: bloat (dead row versions) and VACUUM.
+</div>
+
+<!-- ============================================================ -->
+<!-- SECTION 2: ISOLATION LEVELS                                   -->
+<!-- ============================================================ -->
+<h2>2. Isolation levels -- anomalies and prevention</h2>
+
+<!-- 2a: Read Committed -->
+<h3>2a. Read Committed (Postgres default)</h3>
+<p>Each <em>statement</em> gets a fresh snapshot -- not the transaction. This prevents dirty reads but allows <strong>non-repeatable reads</strong>: the same SELECT in the same transaction can return different values if another transaction commits in between.</p>
+
+<div class="timeline-widget" id="rc-widget">
+  <div class="lane-container" id="rc-lanes"></div>
+  <h3 style="margin-top:8px;">Row state</h3>
+  <table class="row-state" id="rc-table">
+    <thead>
+      <tr><th>xmin</th><th>xmax</th><th>name</th><th>balance</th><th>visible to T1?</th><th>visible to T2?</th></tr>
+    </thead>
+    <tbody id="rc-tbody"></tbody>
+  </table>
+  <div class="commentary" id="rc-commentary">Click "Next" to see non-repeatable read under Read Committed.</div>
+  <div class="controls">
+    <button onclick="rcPrev()" id="rc-prev" disabled>Prev</button>
+    <button onclick="rcNext()" id="rc-next">Next</button>
+    <button onclick="rcReset()">Reset</button>
+    <button onclick="rcAutoplay()" id="rc-auto">Autoplay</button>
+    <span class="step-label" id="rc-step-label">Step 0 / 7</span>
+  </div>
+</div>
+
+<div class="takeaway">
+  <strong>Takeaway:</strong> RC prevents dirty reads but allows non-repeatable reads. Fine for most OLTP -- and it is Postgres's default for a reason.
+</div>
+
+<!-- 2b: Repeatable Read -->
+<h3>2b. Repeatable Read (Postgres = snapshot isolation)</h3>
+<p>Snapshot taken at first statement, held for the entire transaction. This prevents non-repeatable reads but allows <strong>write skew</strong> -- the anomaly Postgres RR does <em>not</em> prevent.</p>
+<p>Classic example: the doctor-on-call constraint. Two doctors both check "is there at least one other doctor on call?" -- both see "yes" -- both update themselves to off-duty -- constraint violated, zero doctors on call.</p>
+
+<div class="timeline-widget" id="rr-widget">
+  <div class="lane-container" id="rr-lanes"></div>
+  <h3 style="margin-top:8px;">doctors_on_call table</h3>
+  <table class="row-state" id="rr-table">
+    <thead>
+      <tr><th>doctor</th><th>on_call</th><th>visible to T1?</th><th>visible to T2?</th></tr>
+    </thead>
+    <tbody id="rr-tbody"></tbody>
+  </table>
+  <div class="commentary" id="rr-commentary">Click "Next" to see write skew under Repeatable Read.</div>
+  <div class="controls">
+    <button onclick="rrPrev()" id="rr-prev" disabled>Prev</button>
+    <button onclick="rrNext()" id="rr-next">Next</button>
+    <button onclick="rrReset()">Reset</button>
+    <button onclick="rrAutoplay()" id="rr-auto">Autoplay</button>
+    <span class="step-label" id="rr-step-label">Step 0 / 8</span>
+  </div>
+</div>
+
+<div class="takeaway">
+  <strong>Takeaway:</strong> RR prevents non-repeatable reads but is snapshot isolation, not serializable. Write skew slips through. The senior tell: name this anomaly.
+</div>
+
+<!-- 2c: Serializable -->
+<h3>2c. Serializable (SSI = Serializable Snapshot Isolation)</h3>
+<p>Same as RR <em>plus</em> dependency-cycle detection. Replaying the doctor scenario: the second transaction to attempt commit gets aborted with <code>ERROR: could not serialize access due to read/write dependencies among transactions</code>.</p>
+
+<div class="timeline-widget" id="ssi-widget">
+  <div class="lane-container" id="ssi-lanes"></div>
+  <h3 style="margin-top:8px;">doctors_on_call table</h3>
+  <table class="row-state" id="ssi-table">
+    <thead>
+      <tr><th>doctor</th><th>on_call</th><th>visible to T1?</th><th>visible to T2?</th></tr>
+    </thead>
+    <tbody id="ssi-tbody"></tbody>
+  </table>
+  <div class="dep-graph" id="ssi-dep-graph"></div>
+  <div class="commentary" id="ssi-commentary">Click "Next" to see serialization failure under SSI.</div>
+  <div class="controls">
+    <button onclick="ssiPrev()" id="ssi-prev" disabled>Prev</button>
+    <button onclick="ssiNext()" id="ssi-next">Next</button>
+    <button onclick="ssiReset()">Reset</button>
+    <button onclick="ssiAutoplay()" id="ssi-auto">Autoplay</button>
+    <span class="step-label" id="ssi-step-label">Step 0 / 9</span>
+  </div>
+</div>
+
+<div class="takeaway">
+  <strong>Takeaway:</strong> Serializable = correctness with retries. Cost: ~10-30% throughput at high contention. Use when business correctness can't tolerate write skew.
+</div>
+
+<!-- Comparison table -->
+<h3>Comparison: what each level prevents</h3>
+
+<table class="row-state" style="margin: 14px 0;">
+  <thead>
+    <tr>
+      <th>Anomaly</th>
+      <th>Read Committed</th>
+      <th>Repeatable Read</th>
+      <th>Serializable</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Dirty read</td>
+      <td style="color:var(--accent-green);">Prevented</td>
+      <td style="color:var(--accent-green);">Prevented</td>
+      <td style="color:var(--accent-green);">Prevented</td>
+    </tr>
+    <tr>
+      <td>Non-repeatable read</td>
+      <td style="color:var(--accent-red);">Allowed</td>
+      <td style="color:var(--accent-green);">Prevented</td>
+      <td style="color:var(--accent-green);">Prevented</td>
+    </tr>
+    <tr>
+      <td>Phantom read</td>
+      <td style="color:var(--accent-red);">Allowed</td>
+      <td style="color:var(--accent-green);">Prevented</td>
+      <td style="color:var(--accent-green);">Prevented</td>
+    </tr>
+    <tr>
+      <td>Write skew</td>
+      <td style="color:var(--accent-red);">Allowed</td>
+      <td style="color:var(--accent-red);">Allowed</td>
+      <td style="color:var(--accent-green);">Prevented (abort + retry)</td>
+    </tr>
+    <tr>
+      <td>Snapshot scope</td>
+      <td>Per statement</td>
+      <td>Per transaction (first stmt)</td>
+      <td>Per transaction + dependency tracking</td>
+    </tr>
+    <tr>
+      <td>Performance cost</td>
+      <td>Lowest</td>
+      <td>Low (snapshot overhead)</td>
+      <td>Medium (SSI tracking + retries)</td>
+    </tr>
+    <tr>
+      <td>When to use</td>
+      <td>Default OLTP workloads</td>
+      <td>Read-heavy analytics, point-in-time reports</td>
+      <td>Financial transactions, constraint invariants</td>
+    </tr>
+  </tbody>
+</table>
+
+<p style="font-size:13px; color:var(--text-3);">Note: Postgres RR also prevents phantom reads (unlike the SQL standard minimum). This is because Postgres implements RR as true snapshot isolation, not just locking-based repeatable read.</p>
+
+<!-- ============================================================ -->
+<!-- SECTION 3: VACUUM AND BLOAT                                   -->
+<!-- ============================================================ -->
+<h2>3. VACUUM and bloat</h2>
+
+<p>Every UPDATE creates a new row version and marks the old one dead (<code>xmax</code> set). DELETEs do the same -- no data is physically removed immediately. Without VACUUM, dead versions pile up: table size grows while live rows stay flat.</p>
+
+<div class="timeline-widget" id="vacuum-widget">
+  <h3 style="margin-top:0;">Table pages (green = live, red = dead)</h3>
+  <div class="vacuum-bar" id="vacuum-bar"></div>
+  <div class="vacuum-stats">
+    <span><span class="dot" style="background:var(--accent-green);"></span> Live: <strong id="vac-live">20</strong></span>
+    <span><span class="dot" style="background:var(--accent-red);opacity:0.6;"></span> Dead: <strong id="vac-dead">0</strong></span>
+    <span>Table size: <strong id="vac-size">20</strong> blocks</span>
+    <span>Bloat: <strong id="vac-bloat">0%</strong></span>
+  </div>
+  <div class="controls">
+    <div class="slider-group">
+      <label>Updates:</label>
+      <input type="range" id="vac-slider" min="0" max="40" value="0" oninput="vacSlide(this.value)">
+      <span id="vac-slider-val">0</span>
+    </div>
+    <button onclick="vacVacuum()">VACUUM</button>
+    <button onclick="vacVacuumFull()">VACUUM FULL</button>
+    <button onclick="vacReset()">Reset</button>
+  </div>
+  <div class="commentary" id="vac-commentary">Slide "Updates" to add dead row versions. Then click VACUUM or VACUUM FULL to reclaim space.</div>
+
+  <h3>Autovacuum threshold</h3>
+  <p style="font-size:14px; color:var(--text-2);">The autovacuum daemon wakes periodically and vacuums tables that exceed the threshold formula:</p>
+  <p style="padding-left: 20px; color: var(--accent-cyan); font-family: 'SF Mono', 'Fira Code', monospace; font-size: 13px;">
+    dead_tuples &gt; autovacuum_vacuum_threshold + autovacuum_vacuum_scale_factor * n_live_tup
+  </p>
+  <p style="font-size:14px; color:var(--text-2);">With defaults (threshold=50, scale_factor=0.2), a table with 10,000 live rows triggers autovacuum at 50 + 0.2 * 10,000 = <strong>2,050 dead tuples</strong>. For high-write tables, lower <code>autovacuum_vacuum_scale_factor</code> from 0.2 to 0.01-0.05.</p>
+  <div style="display:flex; gap:16px; flex-wrap:wrap; margin:10px 0;">
+    <div class="slider-group" style="flex:1; min-width:200px;">
+      <label style="white-space:nowrap;">scale_factor:</label>
+      <input type="range" id="av-scale" min="1" max="30" value="20" oninput="avCalc()">
+      <span id="av-scale-val" style="min-width:30px;">0.20</span>
+    </div>
+    <div class="slider-group" style="flex:1; min-width:200px;">
+      <label style="white-space:nowrap;">n_live_tup:</label>
+      <input type="range" id="av-live" min="100" max="100000" value="10000" step="100" oninput="avCalc()">
+      <span id="av-live-val" style="min-width:50px;">10,000</span>
+    </div>
+  </div>
+  <div class="commentary" id="av-result">Autovacuum triggers at: 50 + 0.20 * 10,000 = 2,050 dead tuples</div>
+
+  <h3>Transaction ID wraparound</h3>
+  <p style="font-size:14px; color:var(--text-2);">Postgres uses 32-bit transaction IDs (~4.2 billion). The XID space is circular: IDs "in the past" (more than 2 billion behind the current XID) are considered old. If a table is not vacuumed and XIDs advance past the wraparound horizon, Postgres must shut down to prevent data corruption.</p>
+
+  <div class="xid-ring-wrap">
+    <svg id="xid-ring" viewBox="0 0 340 340" width="340" height="340" preserveAspectRatio="xMidYMid meet">
+      <!-- drawn by JS -->
+    </svg>
+  </div>
+  <div class="controls" style="justify-content:center;">
+    <button onclick="xidAdvance()">Advance XID</button>
+    <button onclick="xidVacuum()">Freeze (VACUUM)</button>
+    <button onclick="xidReset()">Reset</button>
+  </div>
+  <div class="commentary" id="xid-commentary">Click "Advance XID" to move the current transaction counter forward. Watch the wraparound horizon approach. Click "Freeze" to push the frozen horizon forward.</div>
+</div>
+
+<div class="takeaway">
+  <strong>Takeaway:</strong> VACUUM isn't optional. Tune <code>autovacuum_vacuum_scale_factor</code> for high-write tables. Wraparound is an emergency event -- <code>vacuum_freeze_min_age</code> exists for this.
+</div>
+
+<!-- ============================================================ -->
+<!-- SECTION 4: LOCK TYPES AND PATTERNS                            -->
+<!-- ============================================================ -->
+<h2>4. Lock types and patterns</h2>
+
+<div class="toggle-group" id="lock-toggles">
+  <button class="active" onclick="lockSetMode('skip', event)">FOR UPDATE SKIP LOCKED</button>
+  <button onclick="lockSetMode('forupdate', event)">FOR UPDATE (blocking)</button>
+  <button onclick="lockSetMode('forshare', event)">FOR SHARE</button>
+  <button onclick="lockSetMode('advisory', event)">Advisory locks</button>
+  <button onclick="lockSetMode('tablelock', event)">Table-level locks</button>
+</div>
+
+<div class="timeline-widget" id="lock-widget">
+  <div id="lock-content"></div>
+  <div class="commentary" id="lock-commentary">Select a lock mode above, then step through the demo.</div>
+  <div class="controls" id="lock-controls">
+    <button onclick="lockPrev()" id="lock-prev" disabled>Prev</button>
+    <button onclick="lockNext()" id="lock-next">Next</button>
+    <button onclick="lockReset()">Reset</button>
+    <button onclick="lockAutoplay()" id="lock-auto">Autoplay</button>
+    <span class="step-label" id="lock-step-label">Step 0 / 0</span>
+  </div>
+</div>
+
+<div class="takeaway">
+  <strong>Takeaway:</strong> <code>FOR UPDATE SKIP LOCKED</code> is the canonical Postgres-as-a-queue pattern. Advisory locks are the senior tool for distributed coordination without external systems like Redis.
+</div>
+
+<!-- ============================================================ -->
+<!-- SECTION 5: INTERVIEW QUICK REFERENCE                          -->
+<!-- ============================================================ -->
+<h2>5. Interview quick reference</h2>
+
+<h3>The 30-second MVCC answer</h3>
+<div class="commentary">
+  "Postgres implements MVCC by storing multiple physical versions of each row. Every row has xmin (creating transaction) and xmax (deleting/superseding transaction). Readers see a consistent snapshot without acquiring locks -- they simply ignore row versions that are invisible to their snapshot. Writers create new versions rather than overwriting in place. The cost is dead row versions that VACUUM must reclaim. This architecture means readers never block writers and writers never block readers -- the fundamental reason Postgres handles mixed read/write workloads well."
+</div>
+
+<h3>The "name the anomaly" probe</h3>
+<table class="row-state" style="margin: 14px 0;">
+  <thead>
+    <tr><th>Interviewer asks...</th><th>You say...</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>"What does Read Committed allow?"</td>
+      <td>Non-repeatable reads: same SELECT returns different results within one transaction because each statement re-snapshots. Also phantom reads (new rows appear).</td>
+    </tr>
+    <tr>
+      <td>"What does Repeatable Read allow?"</td>
+      <td>Write skew: two transactions read overlapping data, each writes to a different row, both commit, and a multi-row invariant is violated. Classic example: the doctor-on-call constraint.</td>
+    </tr>
+    <tr>
+      <td>"How does Serializable work in Postgres?"</td>
+      <td>SSI (Serializable Snapshot Isolation). Same snapshot mechanism as RR, plus dependency tracking. Postgres detects rw-dependency cycles and aborts one transaction. The application must retry. Cost: ~10-30% throughput overhead at high contention.</td>
+    </tr>
+    <tr>
+      <td>"Why not just use Serializable everywhere?"</td>
+      <td>Retry overhead and reduced throughput. Most OLTP workloads don't have cross-row invariants that need serializable protection. Read Committed is sufficient when writes are independent or protected by explicit locks (FOR UPDATE).</td>
+    </tr>
+    <tr>
+      <td>"What is VACUUM and why does it matter?"</td>
+      <td>MVCC produces dead row versions on every UPDATE/DELETE. VACUUM marks that space reusable. Without it: table bloat (wasted disk and slower seq scans), index bloat, and ultimately transaction ID wraparound (Postgres shuts down). Autovacuum handles this automatically, but high-write tables may need tuned thresholds.</td>
+    </tr>
+    <tr>
+      <td>"How would you build a job queue in Postgres?"</td>
+      <td>SELECT ... FOR UPDATE SKIP LOCKED LIMIT N. Workers skip already-locked rows instead of blocking. Combined with an index on status, this gives you a zero-contention queue without external infrastructure. At very high throughput (>10K jobs/sec), consider dedicated systems like SQS or Redis streams.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Common mistakes in interviews</h3>
+<div class="takeaway" style="border-left-color: var(--accent-red);">
+  <strong style="color: var(--accent-red);">Mistakes to avoid:</strong>
+  <ul>
+    <li><strong>Confusing Postgres RR with true serializability.</strong> Postgres Repeatable Read is snapshot isolation. It prevents phantom reads (unlike the SQL standard minimum) but allows write skew. Many candidates say "RR prevents all anomalies except phantoms" -- wrong for Postgres.</li>
+    <li><strong>Saying "MVCC uses locks."</strong> MVCC's entire point is avoiding read locks. Writers take row-level locks against other writers, but readers use snapshot visibility, not locks.</li>
+    <li><strong>Ignoring the retry obligation.</strong> Serializable will abort transactions. If your application doesn't retry on serialization failure, you've just made it less reliable than Read Committed.</li>
+    <li><strong>Treating VACUUM as optional.</strong> "We'll tune it later" is how you get a transaction ID wraparound emergency at 3 AM.</li>
+    <li><strong>Using SELECT ... FOR UPDATE when you mean SKIP LOCKED.</strong> FOR UPDATE without SKIP LOCKED serializes all workers onto one row. For queue patterns, you almost always want SKIP LOCKED.</li>
+  </ul>
+</div>
+
+<!-- ============================================================ -->
+<!-- JAVASCRIPT                                                    -->
+<!-- ============================================================ -->
+<script>
+/* ================================================================
+   UTILITY: Generic timeline stepper
+   ================================================================ */
+function buildLanes(containerId, steps, currentStep) {
+  const c = document.getElementById(containerId);
+  c.innerHTML = '';
+  // Determine which lanes exist
+  const lanes = {};
+  steps.forEach(s => {
+    if (!lanes[s.lane]) lanes[s.lane] = [];
+    lanes[s.lane].push(s);
+  });
+  const laneOrder = Object.keys(lanes).sort();
+  laneOrder.forEach(laneId => {
+    const row = document.createElement('div');
+    row.className = 'lane';
+    const label = document.createElement('div');
+    label.className = 'lane-label ' + laneId.toLowerCase();
+    label.textContent = laneId;
+    row.appendChild(label);
+    const stepsDiv = document.createElement('div');
+    stepsDiv.className = 'lane-steps';
+    lanes[laneId].forEach(s => {
+      const idx = steps.indexOf(s);
+      const el = document.createElement('div');
+      let cls = 'lane-step ' + laneId.toLowerCase();
+      if (s.error) cls += ' error';
+      if (idx < currentStep) cls += ' done';
+      if (idx === currentStep) cls += ' active';
+      el.className = cls;
+      el.textContent = s.label;
+      stepsDiv.appendChild(el);
+    });
+    row.appendChild(stepsDiv);
+    c.appendChild(row);
+  });
+}
+
+function updateStepLabel(prefix, current, total) {
+  document.getElementById(prefix + '-step-label').textContent = 'Step ' + current + ' / ' + total;
+  document.getElementById(prefix + '-prev').disabled = current <= 0;
+  document.getElementById(prefix + '-next').disabled = current >= total;
+}
+
+/* ================================================================
+   SECTION 1: MVCC BASICS
+   ================================================================ */
+const mvccSteps = [
+  { lane: 'T1', label: 'BEGIN (xid=20)', commentary:
+    'T1 starts with transaction ID 20. No changes yet. The existing row (xmin=10) is visible to everyone because xid 10 is committed.',
+    rows: [
+      { xmin: 10, xmax: 0, name: 'Alice', balance: 100, status: 'LIVE', cls: '' }
+    ]
+  },
+  { lane: 'T2', label: 'BEGIN (xid=21)', commentary:
+    'T2 starts with transaction ID 21. Both T1 and T2 see the same row. Neither has modified anything yet.',
+    rows: [
+      { xmin: 10, xmax: 0, name: 'Alice', balance: 100, status: 'LIVE', cls: '' }
+    ]
+  },
+  { lane: 'T1', label: 'UPDATE balance=80', commentary:
+    'T1 updates Alice\'s balance. Postgres does NOT overwrite in place. It creates a NEW row version (xmin=20, balance=80) and sets xmax=20 on the OLD version. The old version is now "dead" to T1 but still visible to T2 (since T1 hasn\'t committed).',
+    rows: [
+      { xmin: 10, xmax: 20, name: 'Alice', balance: 100, status: 'DEAD (superseded)', cls: 'dead' },
+      { xmin: 20, xmax: 0, name: 'Alice', balance: 80, status: 'LIVE (uncommitted)', cls: 'new-version' }
+    ]
+  },
+  { lane: 'T2', label: 'SELECT balance', commentary:
+    'T2 reads. Its snapshot sees xmin=10 (committed, xmin < 21). The new version (xmin=20) is NOT visible because T1 hasn\'t committed yet. T2 sees balance = 100. Readers never block -- they just look at older row versions.',
+    rows: [
+      { xmin: 10, xmax: 20, name: 'Alice', balance: 100, status: 'visible to T2', cls: 'highlight' },
+      { xmin: 20, xmax: 0, name: 'Alice', balance: 80, status: 'invisible to T2', cls: 'dead' }
+    ]
+  },
+  { lane: 'T1', label: 'COMMIT', commentary:
+    'T1 commits. The new row version (xmin=20, balance=80) is now committed and visible to new snapshots. The old version (xmin=10, xmax=20) is dead -- eligible for VACUUM.',
+    rows: [
+      { xmin: 10, xmax: 20, name: 'Alice', balance: 100, status: 'DEAD (vacuumable)', cls: 'dead' },
+      { xmin: 20, xmax: 0, name: 'Alice', balance: 80, status: 'LIVE (committed)', cls: 'new-version' }
+    ]
+  },
+  { lane: 'T2', label: 'SELECT balance', commentary:
+    'T2 reads again. What it sees NOW depends on the isolation level. Under Read Committed, each statement gets a fresh snapshot -- T2 would see 80. Under Repeatable Read, T2 holds its original snapshot -- it would still see 100. This is the fork point.',
+    rows: [
+      { xmin: 10, xmax: 20, name: 'Alice', balance: 100, status: 'DEAD', cls: 'dead' },
+      { xmin: 20, xmax: 0, name: 'Alice', balance: 80, status: 'LIVE (committed)', cls: 'highlight' }
+    ]
+  },
+  { lane: 'T2', label: 'COMMIT', commentary:
+    'T2 commits. Final state: one live row version (balance=80, xmin=20) and one dead version waiting for VACUUM. This is MVCC in action -- two concurrent transactions ran without either blocking the other.',
+    rows: [
+      { xmin: 10, xmax: 20, name: 'Alice', balance: 100, status: 'DEAD (vacuum me)', cls: 'dead' },
+      { xmin: 20, xmax: 0, name: 'Alice', balance: 80, status: 'LIVE', cls: '' }
+    ]
+  }
+];
+let mvccStep = -1;
+let mvccAutoTimer = null;
+
+function mvccRender() {
+  buildLanes('mvcc-lanes', mvccSteps, mvccStep);
+  const tbody = document.getElementById('mvcc-tbody');
+  if (mvccStep < 0) {
+    tbody.innerHTML = '<tr><td class="xmin">10</td><td class="xmax-zero">0</td><td>Alice</td><td>100</td><td>LIVE</td></tr>';
+    document.getElementById('mvcc-commentary').textContent = 'Click "Next" to begin stepping through the MVCC timeline.';
+  } else {
+    const s = mvccSteps[mvccStep];
+    tbody.innerHTML = s.rows.map(r =>
+      '<tr class="' + r.cls + '"><td class="xmin">' + r.xmin + '</td><td class="' + (r.xmax === 0 ? 'xmax-zero' : 'xmax') + '">' + r.xmax + '</td><td>' + r.name + '</td><td>' + r.balance + '</td><td>' + r.status + '</td></tr>'
+    ).join('');
+    document.getElementById('mvcc-commentary').textContent = s.commentary;
+  }
+  updateStepLabel('mvcc', mvccStep + 1, mvccSteps.length);
+}
+function mvccNext() { if (mvccStep < mvccSteps.length - 1) { mvccStep++; mvccRender(); } }
+function mvccPrev() { if (mvccStep >= 0) { mvccStep--; mvccRender(); } }
+function mvccReset() { clearInterval(mvccAutoTimer); mvccStep = -1; mvccRender(); }
+function mvccAutoplay() {
+  clearInterval(mvccAutoTimer);
+  mvccReset();
+  mvccAutoTimer = setInterval(() => { if (mvccStep >= mvccSteps.length - 1) { clearInterval(mvccAutoTimer); return; } mvccNext(); }, 1800);
+}
+mvccRender();
+
+/* ================================================================
+   SECTION 2a: READ COMMITTED
+   ================================================================ */
+const rcSteps = [
+  { lane: 'T1', label: 'BEGIN', commentary:
+    'T1 starts under READ COMMITTED (the Postgres default). Each statement will get its own fresh snapshot.',
+    rows: [
+      { xmin: 10, xmax: 0, name: 'Alice', balance: 100, status: 'LIVE', t1vis: 'yes', t2vis: '-' }
+    ]
+  },
+  { lane: 'T2', label: 'BEGIN', commentary:
+    'T2 starts, also under READ COMMITTED.',
+    rows: [
+      { xmin: 10, xmax: 0, name: 'Alice', balance: 100, status: 'LIVE', t1vis: 'yes', t2vis: 'yes' }
+    ]
+  },
+  { lane: 'T1', label: 'SELECT balance', commentary:
+    'T1 takes a statement-level snapshot and reads balance. Sees 100. The snapshot is discarded after the statement completes.',
+    rows: [
+      { xmin: 10, xmax: 0, name: 'Alice', balance: 100, status: 'LIVE', t1vis: 'yes (reads 100)', t2vis: 'yes' }
+    ]
+  },
+  { lane: 'T2', label: 'UPDATE balance=80', commentary:
+    'T2 updates Alice\'s balance to 80. New row version created (xmin=21). Old version marked with xmax=21. T2 has not committed yet.',
+    rows: [
+      { xmin: 10, xmax: 21, name: 'Alice', balance: 100, status: 'DEAD (superseded)', t1vis: 'yes (old snapshot)', t2vis: 'no' },
+      { xmin: 21, xmax: 0, name: 'Alice', balance: 80, status: 'LIVE (uncommitted)', t1vis: 'no (uncommitted)', t2vis: 'yes' }
+    ]
+  },
+  { lane: 'T2', label: 'COMMIT', commentary:
+    'T2 commits. The new row version (balance=80) is now committed and visible to any new snapshot.',
+    rows: [
+      { xmin: 10, xmax: 21, name: 'Alice', balance: 100, status: 'DEAD', t1vis: '-', t2vis: '-' },
+      { xmin: 21, xmax: 0, name: 'Alice', balance: 80, status: 'LIVE (committed)', t1vis: '-', t2vis: '-' }
+    ]
+  },
+  { lane: 'T1', label: 'SELECT balance', commentary:
+    'T1 reads again -- and under READ COMMITTED, this statement takes a FRESH snapshot. The fresh snapshot sees T2\'s commit. T1 now reads balance = 80. Same transaction, same query, different result. This is a non-repeatable read.',
+    rows: [
+      { xmin: 10, xmax: 21, name: 'Alice', balance: 100, status: 'DEAD', t1vis: 'no', t2vis: '-' },
+      { xmin: 21, xmax: 0, name: 'Alice', balance: 80, status: 'LIVE', t1vis: 'yes (reads 80)', t2vis: '-' }
+    ]
+  },
+  { lane: 'T1', label: 'COMMIT', commentary:
+    'T1 commits. The anomaly has occurred: T1 read balance=100, then balance=80 within the same transaction. This is a non-repeatable read -- permitted under Read Committed because each statement re-snapshots.',
+    rows: [
+      { xmin: 10, xmax: 21, name: 'Alice', balance: 100, status: 'DEAD', t1vis: '-', t2vis: '-' },
+      { xmin: 21, xmax: 0, name: 'Alice', balance: 80, status: 'LIVE', t1vis: '-', t2vis: '-' }
+    ]
+  }
+];
+let rcStep = -1;
+let rcAutoTimer = null;
+
+function rcRender() {
+  buildLanes('rc-lanes', rcSteps, rcStep);
+  const tbody = document.getElementById('rc-tbody');
+  if (rcStep < 0) {
+    tbody.innerHTML = '<tr><td class="xmin">10</td><td class="xmax-zero">0</td><td>Alice</td><td>100</td><td>-</td><td>-</td></tr>';
+    document.getElementById('rc-commentary').textContent = 'Click "Next" to see non-repeatable read under Read Committed.';
+  } else {
+    const s = rcSteps[rcStep];
+    tbody.innerHTML = s.rows.map(r =>
+      '<tr class="' + (r.status.includes('DEAD') ? 'dead' : '') + '"><td class="xmin">' + r.xmin + '</td><td class="' + (r.xmax === 0 ? 'xmax-zero' : 'xmax') + '">' + r.xmax + '</td><td>' + r.name + '</td><td>' + r.balance + '</td><td>' + r.t1vis + '</td><td>' + r.t2vis + '</td></tr>'
+    ).join('');
+    document.getElementById('rc-commentary').textContent = s.commentary;
+  }
+  updateStepLabel('rc', rcStep + 1, rcSteps.length);
+}
+function rcNext() { if (rcStep < rcSteps.length - 1) { rcStep++; rcRender(); } }
+function rcPrev() { if (rcStep >= 0) { rcStep--; rcRender(); } }
+function rcReset() { clearInterval(rcAutoTimer); rcStep = -1; rcRender(); }
+function rcAutoplay() {
+  clearInterval(rcAutoTimer);
+  rcReset();
+  rcAutoTimer = setInterval(() => { if (rcStep >= rcSteps.length - 1) { clearInterval(rcAutoTimer); return; } rcNext(); }, 2200);
+}
+rcRender();
+
+/* ================================================================
+   SECTION 2b: REPEATABLE READ (write skew)
+   ================================================================ */
+const rrSteps = [
+  { lane: 'T1', label: 'BEGIN RR', commentary:
+    'T1 starts under REPEATABLE READ. Snapshot will be taken at the first statement and held for the entire transaction. Initial state: Dr. Alice and Dr. Bob are both on call.',
+    rows: [
+      { doctor: 'Dr. Alice', on_call: 'true', t1vis: '-', t2vis: '-' },
+      { doctor: 'Dr. Bob', on_call: 'true', t1vis: '-', t2vis: '-' }
+    ]
+  },
+  { lane: 'T2', label: 'BEGIN RR', commentary:
+    'T2 starts under REPEATABLE READ. Both transactions will take their snapshots at their first statement.',
+    rows: [
+      { doctor: 'Dr. Alice', on_call: 'true', t1vis: '-', t2vis: '-' },
+      { doctor: 'Dr. Bob', on_call: 'true', t1vis: '-', t2vis: '-' }
+    ]
+  },
+  { lane: 'T1', label: 'SELECT count(*) WHERE on_call', commentary:
+    'T1 (Dr. Alice) checks: "How many doctors are on call?" Snapshot taken NOW. Sees 2 (Alice + Bob). She reasons: "There\'s at least one other doctor (Bob), so I can go off-duty."',
+    rows: [
+      { doctor: 'Dr. Alice', on_call: 'true', t1vis: 'sees (count=2)', t2vis: '-' },
+      { doctor: 'Dr. Bob', on_call: 'true', t1vis: 'sees (count=2)', t2vis: '-' }
+    ]
+  },
+  { lane: 'T2', label: 'SELECT count(*) WHERE on_call', commentary:
+    'T2 (Dr. Bob) checks the same thing. His snapshot also sees 2 on-call doctors. He reasons identically: "Alice is on call, so I can go off-duty." Both transactions have independently verified the safety condition -- but neither has acted yet.',
+    rows: [
+      { doctor: 'Dr. Alice', on_call: 'true', t1vis: 'sees (count=2)', t2vis: 'sees (count=2)' },
+      { doctor: 'Dr. Bob', on_call: 'true', t1vis: 'sees (count=2)', t2vis: 'sees (count=2)' }
+    ]
+  },
+  { lane: 'T1', label: 'UPDATE Alice SET off-duty', commentary:
+    'T1 updates Dr. Alice to off-duty. This creates a new row version. But T2\'s snapshot is frozen -- T2 will NEVER see this change (RR holds the snapshot from the first statement).',
+    rows: [
+      { doctor: 'Dr. Alice', on_call: 'false', t1vis: 'updated', t2vis: 'still sees true' },
+      { doctor: 'Dr. Bob', on_call: 'true', t1vis: 'sees', t2vis: 'sees' }
+    ]
+  },
+  { lane: 'T2', label: 'UPDATE Bob SET off-duty', commentary:
+    'T2 updates Dr. Bob to off-duty. Same logic. T2\'s snapshot still shows Alice as on-call (from the frozen snapshot), so this looks safe. No conflict detected -- T1 wrote Alice\'s row, T2 wrote Bob\'s row. Different rows, no write-write conflict.',
+    rows: [
+      { doctor: 'Dr. Alice', on_call: 'false', t1vis: 'updated', t2vis: 'still sees true' },
+      { doctor: 'Dr. Bob', on_call: 'false', t1vis: 'sees true', t2vis: 'updated' }
+    ]
+  },
+  { lane: 'T1', label: 'COMMIT', commentary:
+    'T1 commits successfully. Dr. Alice is now off-duty in the committed state.',
+    rows: [
+      { doctor: 'Dr. Alice', on_call: 'false', t1vis: 'committed', t2vis: 'still sees true' },
+      { doctor: 'Dr. Bob', on_call: 'false', t1vis: '-', t2vis: 'updated' }
+    ]
+  },
+  { lane: 'T2', label: 'COMMIT', commentary:
+    'T2 commits successfully too. No conflict detected -- Postgres RR only prevents write-write conflicts on the SAME row. T1 wrote Alice, T2 wrote Bob. Both committed. Final state: ZERO doctors on call. The constraint is violated. This is WRITE SKEW -- each transaction read data that the other was about to invalidate, and each wrote to a different row.',
+    rows: [
+      { doctor: 'Dr. Alice', on_call: 'false', t1vis: '-', t2vis: '-' },
+      { doctor: 'Dr. Bob', on_call: 'false', t1vis: '-', t2vis: '-' }
+    ]
+  }
+];
+let rrStep = -1;
+let rrAutoTimer = null;
+
+function rrRender() {
+  buildLanes('rr-lanes', rrSteps, rrStep);
+  const tbody = document.getElementById('rr-tbody');
+  if (rrStep < 0) {
+    tbody.innerHTML = '<tr><td>Dr. Alice</td><td style="color:var(--accent-green);">true</td><td>-</td><td>-</td></tr>' +
+      '<tr><td>Dr. Bob</td><td style="color:var(--accent-green);">true</td><td>-</td><td>-</td></tr>';
+    document.getElementById('rr-commentary').textContent = 'Click "Next" to see write skew under Repeatable Read.';
+  } else {
+    const s = rrSteps[rrStep];
+    tbody.innerHTML = s.rows.map(r => {
+      const color = r.on_call === 'true' ? 'var(--accent-green)' : 'var(--accent-red)';
+      return '<tr><td>' + r.doctor + '</td><td style="color:' + color + ';">' + r.on_call + '</td><td>' + r.t1vis + '</td><td>' + r.t2vis + '</td></tr>';
+    }).join('');
+    document.getElementById('rr-commentary').textContent = s.commentary;
+  }
+  updateStepLabel('rr', rrStep + 1, rrSteps.length);
+}
+function rrNext() { if (rrStep < rrSteps.length - 1) { rrStep++; rrRender(); } }
+function rrPrev() { if (rrStep >= 0) { rrStep--; rrRender(); } }
+function rrReset() { clearInterval(rrAutoTimer); rrStep = -1; rrRender(); }
+function rrAutoplay() {
+  clearInterval(rrAutoTimer);
+  rrReset();
+  rrAutoTimer = setInterval(() => { if (rrStep >= rrSteps.length - 1) { clearInterval(rrAutoTimer); return; } rrNext(); }, 2400);
+}
+rrRender();
+
+/* ================================================================
+   SECTION 2c: SERIALIZABLE (SSI)
+   ================================================================ */
+const ssiSteps = [
+  { lane: 'T1', label: 'BEGIN SERIALIZABLE', commentary:
+    'T1 starts under SERIALIZABLE. Postgres will track all read/write dependencies for cycle detection.',
+    rows: [
+      { doctor: 'Dr. Alice', on_call: 'true', t1vis: '-', t2vis: '-' },
+      { doctor: 'Dr. Bob', on_call: 'true', t1vis: '-', t2vis: '-' }
+    ],
+    deps: []
+  },
+  { lane: 'T2', label: 'BEGIN SERIALIZABLE', commentary:
+    'T2 starts under SERIALIZABLE. Both transactions now have SSI tracking enabled.',
+    rows: [
+      { doctor: 'Dr. Alice', on_call: 'true', t1vis: '-', t2vis: '-' },
+      { doctor: 'Dr. Bob', on_call: 'true', t1vis: '-', t2vis: '-' }
+    ],
+    deps: []
+  },
+  { lane: 'T1', label: 'SELECT count(*) WHERE on_call', commentary:
+    'T1 reads the on_call predicate. SSI records: "T1 read rows matching on_call=true." Sees count=2.',
+    rows: [
+      { doctor: 'Dr. Alice', on_call: 'true', t1vis: 'reads (count=2)', t2vis: '-' },
+      { doctor: 'Dr. Bob', on_call: 'true', t1vis: 'reads (count=2)', t2vis: '-' }
+    ],
+    deps: [{ label: 'T1 reads on_call rows', type: 'read' }]
+  },
+  { lane: 'T2', label: 'SELECT count(*) WHERE on_call', commentary:
+    'T2 reads the same predicate. SSI records: "T2 read rows matching on_call=true." Sees count=2.',
+    rows: [
+      { doctor: 'Dr. Alice', on_call: 'true', t1vis: 'reads (count=2)', t2vis: 'reads (count=2)' },
+      { doctor: 'Dr. Bob', on_call: 'true', t1vis: 'reads (count=2)', t2vis: 'reads (count=2)' }
+    ],
+    deps: [{ label: 'T1 reads on_call rows', type: 'read' }, { label: 'T2 reads on_call rows', type: 'read' }]
+  },
+  { lane: 'T1', label: 'UPDATE Alice SET off-duty', commentary:
+    'T1 writes to Alice\'s row. SSI detects a rw-dependency: T2 read the on_call predicate, and T1 is now writing a row that affects that predicate. Dependency: T2 --rw--> T1 (T2\'s read depends on T1\'s write).',
+    rows: [
+      { doctor: 'Dr. Alice', on_call: 'false', t1vis: 'updated', t2vis: 'still sees true' },
+      { doctor: 'Dr. Bob', on_call: 'true', t1vis: 'sees', t2vis: 'sees' }
+    ],
+    deps: [
+      { from: 'T2', to: 'T1', label: 'rw-dependency', color: 'var(--accent-yellow)' }
+    ],
+    showGraph: true
+  },
+  { lane: 'T2', label: 'UPDATE Bob SET off-duty', commentary:
+    'T2 writes to Bob\'s row. SSI detects another rw-dependency: T1 read the on_call predicate, and T2 is writing a row that affects it. Dependency: T1 --rw--> T2. Now there is a CYCLE: T1 --rw--> T2 --rw--> T1.',
+    rows: [
+      { doctor: 'Dr. Alice', on_call: 'false', t1vis: 'updated', t2vis: 'still sees true' },
+      { doctor: 'Dr. Bob', on_call: 'false', t1vis: 'still sees true', t2vis: 'updated' }
+    ],
+    deps: [
+      { from: 'T2', to: 'T1', label: 'rw-dependency', color: 'var(--accent-yellow)' },
+      { from: 'T1', to: 'T2', label: 'rw-dependency', color: 'var(--accent-orange)' }
+    ],
+    showGraph: true,
+    cycle: true
+  },
+  { lane: 'T1', label: 'COMMIT', commentary:
+    'T1 commits successfully (it commits first). Postgres allows the first committer to succeed -- the cycle will be enforced when the second transaction tries to commit.',
+    rows: [
+      { doctor: 'Dr. Alice', on_call: 'false', t1vis: 'committed', t2vis: 'still sees true' },
+      { doctor: 'Dr. Bob', on_call: 'false', t1vis: '-', t2vis: 'updated' }
+    ],
+    deps: [
+      { from: 'T2', to: 'T1', label: 'rw-dependency', color: 'var(--accent-yellow)' },
+      { from: 'T1', to: 'T2', label: 'rw-dependency', color: 'var(--accent-orange)' }
+    ],
+    showGraph: true,
+    cycle: true
+  },
+  { lane: 'T2', label: 'COMMIT -- ABORTED', error: true, commentary:
+    'T2 attempts to commit. Postgres detects the dependency cycle: T1 read data that T2 wrote, AND T2 read data that T1 wrote. ERROR: could not serialize access due to read/write dependencies among transactions. T2 is rolled back. The constraint is preserved -- Dr. Alice is off-duty, Dr. Bob remains on call.',
+    rows: [
+      { doctor: 'Dr. Alice', on_call: 'false', t1vis: '-', t2vis: '-' },
+      { doctor: 'Dr. Bob', on_call: 'true', t1vis: '-', t2vis: '-' }
+    ],
+    deps: [
+      { from: 'T2', to: 'T1', label: 'rw-dependency', color: 'var(--accent-yellow)' },
+      { from: 'T1', to: 'T2', label: 'rw-dependency', color: 'var(--accent-red)' }
+    ],
+    showGraph: true,
+    cycle: true,
+    aborted: 'T2'
+  },
+  { lane: 'T2', label: 'RETRY and succeed', commentary:
+    'The application retries T2. This time T2 reads count=1 (only Bob on call) and decides NOT to go off-duty -- the constraint is checked against the committed state. Serializable = correctness, but the application MUST handle retries on serialization failures.',
+    rows: [
+      { doctor: 'Dr. Alice', on_call: 'false', t1vis: '-', t2vis: '-' },
+      { doctor: 'Dr. Bob', on_call: 'true', t1vis: '-', t2vis: 'retry: sees count=1, stays on call' }
+    ],
+    deps: [],
+    showGraph: false
+  }
+];
+let ssiStep = -1;
+let ssiAutoTimer = null;
+
+function ssiRenderDepGraph(deps, cycle, aborted) {
+  const container = document.getElementById('ssi-dep-graph');
+  if (!deps || deps.length === 0 || !deps[0].from) {
+    container.innerHTML = '';
+    return;
+  }
+  const w = 300, h = 140;
+  const t1x = 80, t2x = 220, cy = 70;
+  let svg = '<svg viewBox="0 0 ' + w + ' ' + h + '" width="' + w + '" height="' + h + '" style="background:var(--surface);border-radius:8px;">';
+  // Nodes
+  const t1fill = aborted === 'T1' ? 'var(--accent-red)' : 'var(--t1)';
+  const t2fill = aborted === 'T2' ? 'var(--accent-red)' : 'var(--t2)';
+  svg += '<circle cx="' + t1x + '" cy="' + cy + '" r="28" fill="none" stroke="' + t1fill + '" stroke-width="2"/>';
+  svg += '<text x="' + t1x + '" y="' + (cy + 5) + '" text-anchor="middle" fill="' + t1fill + '" font-size="14" font-weight="700">T1</text>';
+  svg += '<circle cx="' + t2x + '" cy="' + cy + '" r="28" fill="none" stroke="' + t2fill + '" stroke-width="2"/>';
+  svg += '<text x="' + t2x + '" y="' + (cy + 5) + '" text-anchor="middle" fill="' + t2fill + '" font-size="14" font-weight="700">T2</text>';
+
+  // Arrows
+  deps.forEach((d, i) => {
+    const fromX = d.from === 'T1' ? t1x + 28 : t2x - 28;
+    const toX = d.from === 'T1' ? t2x - 28 : t1x + 28;
+    const yOff = i === 0 ? -10 : 10;
+    const markerId = 'dep-arrow-' + i;
+    svg += '<defs><marker id="' + markerId + '" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="' + d.color + '"/></marker></defs>';
+    svg += '<line x1="' + fromX + '" y1="' + (cy + yOff) + '" x2="' + toX + '" y2="' + (cy + yOff) + '" stroke="' + d.color + '" stroke-width="2" marker-end="url(#' + markerId + ')"/>';
+    const midX = (fromX + toX) / 2;
+    svg += '<text x="' + midX + '" y="' + (cy + yOff - 8) + '" text-anchor="middle" fill="' + d.color + '" font-size="10">' + d.label + '</text>';
+  });
+  if (cycle) {
+    svg += '<text x="' + (w / 2) + '" y="' + (h - 10) + '" text-anchor="middle" fill="var(--accent-red)" font-size="12" font-weight="700">CYCLE DETECTED' + (aborted ? ' -- ' + aborted + ' aborted' : '') + '</text>';
+  }
+  svg += '</svg>';
+  container.innerHTML = svg;
+}
+
+function ssiRender() {
+  buildLanes('ssi-lanes', ssiSteps, ssiStep);
+  const tbody = document.getElementById('ssi-tbody');
+  if (ssiStep < 0) {
+    tbody.innerHTML = '<tr><td>Dr. Alice</td><td style="color:var(--accent-green);">true</td><td>-</td><td>-</td></tr>' +
+      '<tr><td>Dr. Bob</td><td style="color:var(--accent-green);">true</td><td>-</td><td>-</td></tr>';
+    document.getElementById('ssi-commentary').textContent = 'Click "Next" to see serialization failure under SSI.';
+    document.getElementById('ssi-dep-graph').innerHTML = '';
+  } else {
+    const s = ssiSteps[ssiStep];
+    tbody.innerHTML = s.rows.map(r => {
+      const color = r.on_call === 'true' ? 'var(--accent-green)' : 'var(--accent-red)';
+      return '<tr><td>' + r.doctor + '</td><td style="color:' + color + ';">' + r.on_call + '</td><td>' + r.t1vis + '</td><td>' + r.t2vis + '</td></tr>';
+    }).join('');
+    document.getElementById('ssi-commentary').textContent = s.commentary;
+    if (s.showGraph) {
+      ssiRenderDepGraph(s.deps, s.cycle, s.aborted);
+    } else {
+      document.getElementById('ssi-dep-graph').innerHTML = '';
+    }
+  }
+  updateStepLabel('ssi', ssiStep + 1, ssiSteps.length);
+}
+function ssiNext() { if (ssiStep < ssiSteps.length - 1) { ssiStep++; ssiRender(); } }
+function ssiPrev() { if (ssiStep >= 0) { ssiStep--; ssiRender(); } }
+function ssiReset() { clearInterval(ssiAutoTimer); ssiStep = -1; ssiRender(); }
+function ssiAutoplay() {
+  clearInterval(ssiAutoTimer);
+  ssiReset();
+  ssiAutoTimer = setInterval(() => { if (ssiStep >= ssiSteps.length - 1) { clearInterval(ssiAutoTimer); return; } ssiNext(); }, 2400);
+}
+ssiRender();
+
+/* ================================================================
+   SECTION 3: VACUUM AND BLOAT
+   ================================================================ */
+const VAC_INITIAL = 20;
+let vacLive = VAC_INITIAL;
+let vacDead = 0;
+let vacBlocks = [];
+
+function vacInit() {
+  vacBlocks = [];
+  for (let i = 0; i < VAC_INITIAL; i++) vacBlocks.push('live');
+  vacLive = VAC_INITIAL;
+  vacDead = 0;
+}
+vacInit();
+
+function vacRenderBar() {
+  const bar = document.getElementById('vacuum-bar');
+  bar.innerHTML = vacBlocks.map(b => '<div class="vacuum-block ' + b + '"></div>').join('');
+  document.getElementById('vac-live').textContent = vacLive;
+  document.getElementById('vac-dead').textContent = vacDead;
+  document.getElementById('vac-size').textContent = vacBlocks.length;
+  const bloat = vacBlocks.length > 0 ? Math.round((vacDead / vacBlocks.length) * 100) : 0;
+  document.getElementById('vac-bloat').textContent = bloat + '%';
+}
+
+function vacSlide(val) {
+  val = parseInt(val);
+  document.getElementById('vac-slider-val').textContent = val;
+  // Reset and apply val updates
+  vacInit();
+  for (let i = 0; i < val; i++) {
+    // Pick a random live block, mark it dead, add a new live block
+    const liveIdxs = [];
+    vacBlocks.forEach((b, idx) => { if (b === 'live') liveIdxs.push(idx); });
+    if (liveIdxs.length > 0) {
+      const pick = liveIdxs[Math.floor(Math.random() * liveIdxs.length)];
+      vacBlocks[pick] = 'dead';
+      vacDead++;
+      vacBlocks.push('live');
+    }
+  }
+  vacRenderBar();
+  document.getElementById('vac-commentary').textContent = val === 0 ?
+    'Slide "Updates" to add dead row versions. Then click VACUUM or VACUUM FULL to reclaim space.' :
+    val + ' updates applied. Each update created a new row version and left the old one dead. Table has grown from ' + VAC_INITIAL + ' to ' + vacBlocks.length + ' blocks. Live rows unchanged at ' + vacLive + '. Click VACUUM to reclaim dead space in place, or VACUUM FULL to rewrite the table compactly.';
+}
+
+function vacVacuum() {
+  // VACUUM: mark dead blocks as freed (space reusable but not returned to OS)
+  let freed = 0;
+  vacBlocks = vacBlocks.map(b => {
+    if (b === 'dead') { freed++; return 'freed'; }
+    return b;
+  });
+  vacDead = 0;
+  vacRenderBar();
+  document.getElementById('vac-commentary').textContent = 'VACUUM complete: ' + freed + ' dead row versions marked as free space. The table size (' + vacBlocks.length + ' blocks) is unchanged -- VACUUM does NOT shrink the file. The freed space will be reused by future inserts/updates. No table lock acquired -- reads and writes continued normally during VACUUM.';
+}
+
+function vacVacuumFull() {
+  // VACUUM FULL: rewrite table, only live blocks remain
+  const commentary = document.getElementById('vac-commentary');
+  commentary.textContent = 'VACUUM FULL: acquiring AccessExclusiveLock... table is UNAVAILABLE for reads and writes during rewrite.';
+  // Animate: first show lock, then compact
+  setTimeout(() => {
+    vacBlocks = vacBlocks.filter(b => b === 'live');
+    vacDead = 0;
+    vacRenderBar();
+    commentary.textContent = 'VACUUM FULL complete: table rewritten compactly to ' + vacBlocks.length + ' blocks. All dead and freed space removed. Cost: AccessExclusiveLock held for the entire duration -- no concurrent reads or writes were possible. Use VACUUM FULL only as a last resort for severely bloated tables; prefer regular VACUUM or pg_repack for online compaction.';
+  }, 1200);
+}
+
+function vacReset() {
+  document.getElementById('vac-slider').value = 0;
+  document.getElementById('vac-slider-val').textContent = '0';
+  vacInit();
+  vacRenderBar();
+  document.getElementById('vac-commentary').textContent = 'Slide "Updates" to add dead row versions. Then click VACUUM or VACUUM FULL to reclaim space.';
+}
+vacRenderBar();
+
+/* --- Autovacuum threshold calculator --- */
+function avCalc() {
+  const scaleFactor = parseInt(document.getElementById('av-scale').value) / 100;
+  const liveTup = parseInt(document.getElementById('av-live').value);
+  const threshold = 50 + scaleFactor * liveTup;
+  document.getElementById('av-scale-val').textContent = scaleFactor.toFixed(2);
+  document.getElementById('av-live-val').textContent = liveTup.toLocaleString();
+  document.getElementById('av-result').textContent =
+    'Autovacuum triggers at: 50 + ' + scaleFactor.toFixed(2) + ' * ' + liveTup.toLocaleString() + ' = ' +
+    Math.round(threshold).toLocaleString() + ' dead tuples' +
+    (scaleFactor <= 0.05 ? ' (aggressive -- good for high-write tables)' :
+     scaleFactor >= 0.15 ? ' (default range -- may be too lazy for hot tables)' : '');
+}
+
+/* --- XID Wraparound Ring --- */
+let xidCurrent = 50;     // degrees (0-360 represents the 32-bit space)
+let xidFrozen = 10;      // frozen horizon angle
+const XID_RING_R = 120;
+const XID_RING_CX = 170;
+const XID_RING_CY = 170;
+
+function polarToCart(cx, cy, r, angleDeg) {
+  const rad = (angleDeg - 90) * Math.PI / 180;
+  return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
+}
+
+function describeArc(cx, cy, r, startAngle, endAngle) {
+  const start = polarToCart(cx, cy, r, endAngle);
+  const end = polarToCart(cx, cy, r, startAngle);
+  const largeArc = endAngle - startAngle <= 180 ? '0' : '1';
+  return 'M ' + start.x + ' ' + start.y + ' A ' + r + ' ' + r + ' 0 ' + largeArc + ' 0 ' + end.x + ' ' + end.y;
+}
+
+function xidRender() {
+  const svg = document.getElementById('xid-ring');
+  const r = XID_RING_R;
+  const cx = XID_RING_CX, cy = XID_RING_CY;
+  // Wraparound danger zone: 180 degrees ahead of frozen
+  const wrapAngle = (xidFrozen + 180) % 360;
+  // Distance from current to wrap
+  let distToWrap = wrapAngle - xidCurrent;
+  if (distToWrap < 0) distToWrap += 360;
+  const danger = distToWrap < 40;
+
+  let s = '';
+  // Background circle
+  s += '<circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="none" stroke="var(--border)" stroke-width="18"/>';
+
+  // Frozen-to-current arc (used space, green)
+  if (xidCurrent !== xidFrozen) {
+    const usedArc = describeArc(cx, cy, r, xidFrozen, xidCurrent);
+    s += '<path d="' + usedArc + '" fill="none" stroke="var(--accent-green)" stroke-width="16" opacity="0.4"/>';
+  }
+
+  // Current-to-wrap arc (available space, dim)
+  const availArc = describeArc(cx, cy, r, xidCurrent, wrapAngle);
+  s += '<path d="' + availArc + '" fill="none" stroke="var(--accent-blue)" stroke-width="16" opacity="0.15"/>';
+
+  // Wrap-to-frozen arc (danger zone, red)
+  const dangerArc = describeArc(cx, cy, r, wrapAngle, xidFrozen + 360);
+  s += '<path d="' + dangerArc + '" fill="none" stroke="var(--accent-red)" stroke-width="16" opacity="0.25"/>';
+
+  // Markers
+  const curPos = polarToCart(cx, cy, r, xidCurrent);
+  s += '<circle cx="' + curPos.x + '" cy="' + curPos.y + '" r="8" fill="var(--accent-blue)" stroke="#fff" stroke-width="2"/>';
+  const curLabel = polarToCart(cx, cy, r + 22, xidCurrent);
+  s += '<text x="' + curLabel.x + '" y="' + curLabel.y + '" text-anchor="middle" fill="var(--accent-blue)" font-size="10" font-weight="600">current xid</text>';
+
+  const frzPos = polarToCart(cx, cy, r, xidFrozen);
+  s += '<circle cx="' + frzPos.x + '" cy="' + frzPos.y + '" r="6" fill="var(--accent-green)" stroke="#fff" stroke-width="2"/>';
+  const frzLabel = polarToCart(cx, cy, r + 22, xidFrozen);
+  s += '<text x="' + frzLabel.x + '" y="' + frzLabel.y + '" text-anchor="middle" fill="var(--accent-green)" font-size="10" font-weight="600">frozen</text>';
+
+  const wrapPos = polarToCart(cx, cy, r, wrapAngle);
+  s += '<circle cx="' + wrapPos.x + '" cy="' + wrapPos.y + '" r="6" fill="var(--accent-red)" stroke="#fff" stroke-width="2"/>';
+  const wrapLabel = polarToCart(cx, cy, r + 22, wrapAngle);
+  s += '<text x="' + wrapLabel.x + '" y="' + wrapLabel.y + '" text-anchor="middle" fill="var(--accent-red)" font-size="10" font-weight="600">wraparound</text>';
+
+  // Center label
+  s += '<text x="' + cx + '" y="' + (cy - 8) + '" text-anchor="middle" fill="var(--text)" font-size="13" font-weight="600">32-bit XID space</text>';
+  s += '<text x="' + cx + '" y="' + (cy + 10) + '" text-anchor="middle" fill="' + (danger ? 'var(--accent-red)' : 'var(--text-3)') + '" font-size="11">' + (danger ? 'WRAPAROUND DANGER' : 'Safe') + '</text>';
+
+  svg.innerHTML = s;
+
+  const commentary = document.getElementById('xid-commentary');
+  if (danger) {
+    commentary.textContent = 'DANGER: Current XID is approaching the wraparound horizon. If the frozen horizon is not advanced (via VACUUM FREEZE), Postgres will shut down to prevent data corruption. In production, this triggers a "transaction ID wraparound" emergency -- the database refuses new writes.';
+  } else {
+    commentary.textContent = 'The 32-bit XID space is circular. The "frozen" marker shows the oldest unfrozen transaction. The "wraparound" marker is 2 billion XIDs ahead of frozen. Click "Advance XID" to simulate transaction progress. Click "Freeze" to advance the frozen horizon (what VACUUM does).';
+  }
+}
+xidRender();
+
+function xidAdvance() {
+  xidCurrent = (xidCurrent + 15) % 360;
+  xidRender();
+}
+function xidVacuum() {
+  xidFrozen = xidCurrent > 10 ? xidCurrent - 10 : xidCurrent;
+  xidRender();
+}
+function xidReset() {
+  xidCurrent = 50;
+  xidFrozen = 10;
+  xidRender();
+}
+
+/* ================================================================
+   SECTION 4: LOCK TYPES AND PATTERNS
+   ================================================================ */
+let lockMode = 'skip';
+let lockStep = -1;
+let lockAutoTimer = null;
+
+const lockScenarios = {
+  skip: {
+    title: 'FOR UPDATE SKIP LOCKED -- job queue pattern',
+    description: 'Three workers each run <code>SELECT id, payload FROM jobs WHERE status=\'pending\' FOR UPDATE SKIP LOCKED LIMIT 1</code>. Each grabs a different job without blocking.',
+    steps: [
+      { commentary: 'Initial state: 5 pending jobs in the queue. No locks held.', jobs: [
+        { id: 1, status: 'pending', lock: '' }, { id: 2, status: 'pending', lock: '' },
+        { id: 3, status: 'pending', lock: '' }, { id: 4, status: 'pending', lock: '' },
+        { id: 5, status: 'pending', lock: '' }
+      ]},
+      { commentary: 'T1: SELECT ... FOR UPDATE SKIP LOCKED LIMIT 1. T1 acquires an exclusive row lock on job 1. No waiting -- it is the first.', jobs: [
+        { id: 1, status: 'locked', lock: 'T1' }, { id: 2, status: 'pending', lock: '' },
+        { id: 3, status: 'pending', lock: '' }, { id: 4, status: 'pending', lock: '' },
+        { id: 5, status: 'pending', lock: '' }
+      ]},
+      { commentary: 'T2: SELECT ... FOR UPDATE SKIP LOCKED LIMIT 1. Job 1 is locked by T1 -- SKIP it. T2 acquires job 2. No blocking, no waiting.', jobs: [
+        { id: 1, status: 'locked', lock: 'T1' }, { id: 2, status: 'locked', lock: 'T2' },
+        { id: 3, status: 'pending', lock: '' }, { id: 4, status: 'pending', lock: '' },
+        { id: 5, status: 'pending', lock: '' }
+      ]},
+      { commentary: 'T3: SELECT ... FOR UPDATE SKIP LOCKED LIMIT 1. Jobs 1 and 2 are locked -- SKIP both. T3 acquires job 3. Three workers, three jobs, zero contention.', jobs: [
+        { id: 1, status: 'locked', lock: 'T1' }, { id: 2, status: 'locked', lock: 'T2' },
+        { id: 3, status: 'locked', lock: 'T3' }, { id: 4, status: 'pending', lock: '' },
+        { id: 5, status: 'pending', lock: '' }
+      ]},
+      { commentary: 'T1 finishes processing and commits: UPDATE jobs SET status=\'done\' WHERE id=1; COMMIT. Job 1 is released and marked done.', jobs: [
+        { id: 1, status: 'done', lock: '' }, { id: 2, status: 'locked', lock: 'T2' },
+        { id: 3, status: 'locked', lock: 'T3' }, { id: 4, status: 'pending', lock: '' },
+        { id: 5, status: 'pending', lock: '' }
+      ]},
+      { commentary: 'T1 grabs next job: SELECT ... FOR UPDATE SKIP LOCKED LIMIT 1. Jobs 2,3 locked -- skip. T1 acquires job 4. The queue is self-balancing with zero coordination overhead.', jobs: [
+        { id: 1, status: 'done', lock: '' }, { id: 2, status: 'locked', lock: 'T2' },
+        { id: 3, status: 'locked', lock: 'T3' }, { id: 4, status: 'locked', lock: 'T1' },
+        { id: 5, status: 'pending', lock: '' }
+      ]}
+    ]
+  },
+  forupdate: {
+    title: 'FOR UPDATE (blocking)',
+    description: 'Without SKIP LOCKED, <code>SELECT ... FOR UPDATE</code> blocks until the lock holder releases. This serializes access.',
+    steps: [
+      { commentary: 'Initial state: 3 rows available.', jobs: [
+        { id: 1, status: 'pending', lock: '' }, { id: 2, status: 'pending', lock: '' },
+        { id: 3, status: 'pending', lock: '' }
+      ]},
+      { commentary: 'T1: SELECT * FROM accounts WHERE id=1 FOR UPDATE. T1 acquires exclusive row lock on row 1.', jobs: [
+        { id: 1, status: 'locked', lock: 'T1' }, { id: 2, status: 'pending', lock: '' },
+        { id: 3, status: 'pending', lock: '' }
+      ]},
+      { commentary: 'T2: SELECT * FROM accounts WHERE id=1 FOR UPDATE. Row 1 is locked by T1. T2 BLOCKS -- it waits for T1 to commit or rollback. Unlike SKIP LOCKED, it does not move on.', jobs: [
+        { id: 1, status: 'locked', lock: 'T1 (T2 waits)' }, { id: 2, status: 'pending', lock: '' },
+        { id: 3, status: 'pending', lock: '' }
+      ]},
+      { commentary: 'T1 commits. The lock is released. T2 is unblocked and acquires the lock on row 1. T2 now sees the committed version.', jobs: [
+        { id: 1, status: 'locked', lock: 'T2' }, { id: 2, status: 'pending', lock: '' },
+        { id: 3, status: 'pending', lock: '' }
+      ]},
+      { commentary: 'Use case: bank transfers. You WANT to serialize access to the same account -- "skip" would be wrong. FOR UPDATE ensures the balance check and debit are atomic per row.', jobs: [
+        { id: 1, status: 'locked', lock: 'T2' }, { id: 2, status: 'pending', lock: '' },
+        { id: 3, status: 'pending', lock: '' }
+      ]}
+    ]
+  },
+  forshare: {
+    title: 'FOR SHARE (shared lock)',
+    description: '<code>SELECT ... FOR SHARE</code> acquires a shared lock. Multiple readers can hold it simultaneously, but writers must wait.',
+    steps: [
+      { commentary: 'Initial state: row with id=1 available.', jobs: [
+        { id: 1, status: 'pending', lock: '' }
+      ]},
+      { commentary: 'T1: SELECT * FROM orders WHERE id=1 FOR SHARE. T1 acquires shared lock. Any concurrent reader can also acquire a shared lock.', jobs: [
+        { id: 1, status: 'shared', lock: 'T1 (shared)' }
+      ]},
+      { commentary: 'T2: SELECT * FROM orders WHERE id=1 FOR SHARE. T2 also acquires shared lock. Both hold it simultaneously -- reads don\'t conflict with reads.', jobs: [
+        { id: 1, status: 'shared', lock: 'T1+T2 (shared)' }
+      ]},
+      { commentary: 'T3: UPDATE orders SET total=200 WHERE id=1. T3 tries to acquire exclusive lock for the write -- BLOCKED. Must wait for both T1 and T2 to release their shared locks.', jobs: [
+        { id: 1, status: 'shared', lock: 'T1+T2 (T3 waits)' }
+      ]},
+      { commentary: 'T1 and T2 commit. Shared locks released. T3 acquires exclusive lock and proceeds with the update. FOR SHARE is useful for foreign-key checks: "ensure this parent row isn\'t deleted while I insert a child."', jobs: [
+        { id: 1, status: 'locked', lock: 'T3 (exclusive)' }
+      ]}
+    ]
+  },
+  advisory: {
+    title: 'Advisory locks',
+    description: '<code>pg_advisory_lock(key)</code> acquires an application-level lock that is NOT tied to any row or table. Released on transaction end or explicitly.',
+    steps: [
+      { commentary: 'Advisory locks use a bigint key. The application decides the semantics. Example: lock key 42 means "I\'m running the daily report batch."', jobs: [
+        { id: 42, status: 'pending', lock: 'key: 42 (report batch)' },
+        { id: 99, status: 'pending', lock: 'key: 99 (email sync)' }
+      ]},
+      { commentary: 'Worker A: SELECT pg_advisory_lock(42). Acquires the advisory lock. This is session-level by default -- held until session ends or explicit unlock.', jobs: [
+        { id: 42, status: 'locked', lock: 'Worker A holds' },
+        { id: 99, status: 'pending', lock: 'key: 99 (available)' }
+      ]},
+      { commentary: 'Worker B: SELECT pg_advisory_lock(42). Worker B blocks -- same key, exclusive. Worker B will wait until Worker A releases. No row data involved.', jobs: [
+        { id: 42, status: 'locked', lock: 'A holds (B waits)' },
+        { id: 99, status: 'pending', lock: 'key: 99 (available)' }
+      ]},
+      { commentary: 'Worker C: SELECT pg_try_advisory_lock(42). The "try" variant returns false immediately instead of blocking. Worker C can check the result and skip or retry. Non-blocking coordination.', jobs: [
+        { id: 42, status: 'locked', lock: 'A holds (B waits, C: false)' },
+        { id: 99, status: 'pending', lock: 'key: 99 (available)' }
+      ]},
+      { commentary: 'Worker A: SELECT pg_advisory_unlock(42). Lock released. Worker B acquires it immediately. Advisory locks are the senior tool for cross-process coordination without external systems.', jobs: [
+        { id: 42, status: 'locked', lock: 'Worker B holds' },
+        { id: 99, status: 'pending', lock: 'key: 99 (available)' }
+      ]}
+    ]
+  },
+  tablelock: {
+    title: 'Table-level locks',
+    description: '<code>LOCK TABLE foo IN ACCESS EXCLUSIVE MODE</code> blocks ALL other access -- reads, writes, DDL. Use for schema migrations or rare maintenance.',
+    steps: [
+      { commentary: 'Table "users" in normal operation. Multiple transactions reading and writing concurrently.', jobs: [
+        { id: 1, status: 'pending', lock: 'users table (normal)' }
+      ]},
+      { commentary: 'DBA: LOCK TABLE users IN ACCESS EXCLUSIVE MODE. This acquires the strongest lock -- blocks all other sessions from reading, writing, or modifying the table schema.', jobs: [
+        { id: 1, status: 'locked', lock: 'AccessExclusiveLock (DBA)' }
+      ]},
+      { commentary: 'App query: SELECT * FROM users WHERE id=5. BLOCKED. Even plain reads are blocked by AccessExclusiveLock. The app hangs until the DBA commits or rolls back.', jobs: [
+        { id: 1, status: 'locked', lock: 'DBA (app blocked)' }
+      ]},
+      { commentary: 'DBA runs ALTER TABLE users ADD COLUMN verified boolean. The DDL proceeds safely because no other transaction can access the table. Then: COMMIT.', jobs: [
+        { id: 1, status: 'locked', lock: 'DDL in progress...' }
+      ]},
+      { commentary: 'DBA commits. Lock released. App queries resume. In practice, avoid holding AccessExclusiveLock for long -- use pg_repack or CREATE INDEX CONCURRENTLY to avoid blocking. Some ALTER TABLE variants (ADD COLUMN with no default) acquire only a brief ShareUpdateExclusiveLock.', jobs: [
+        { id: 1, status: 'pending', lock: 'users table (normal)' }
+      ]}
+    ]
+  }
+};
+
+function lockRenderContent() {
+  const scenario = lockScenarios[lockMode];
+  const content = document.getElementById('lock-content');
+  let html = '<h3 style="margin-top:0;">' + scenario.title + '</h3>';
+  html += '<p style="font-size:14px; color:var(--text-2);">' + scenario.description + '</p>';
+
+  // Render job grid
+  html += '<div class="lock-grid" id="lock-jobs">';
+  const currentJobs = lockStep >= 0 ? scenario.steps[lockStep].jobs : scenario.steps[0].jobs;
+  currentJobs.forEach(j => {
+    let cls = 'lock-job';
+    if (j.lock && j.lock.includes('T1') && !j.lock.includes('T2') && !j.lock.includes('T3')) cls += ' locked-t1';
+    else if (j.lock && j.lock.includes('T2') && !j.lock.includes('T1')) cls += ' locked-t2';
+    else if (j.lock && j.lock.includes('T3') && !j.lock.includes('T1') && !j.lock.includes('T2')) cls += ' locked-t3';
+    else if (j.lock && j.lock.includes('Worker A')) cls += ' locked-t1';
+    else if (j.lock && j.lock.includes('Worker B')) cls += ' locked-t2';
+    else if (j.lock && j.lock.includes('DBA')) cls += ' locked-t1';
+    else if (j.lock && (j.lock.includes('T1') || j.lock.includes('T2'))) cls += ' locked-t1';
+    if (j.status === 'done') cls += ' skipped';
+    html += '<div class="' + cls + '">';
+    html += '<div class="job-id">' + (lockMode === 'advisory' ? 'Key ' + j.id : (lockMode === 'tablelock' ? '' : 'Job ' + j.id)) + '</div>';
+    html += '<div class="job-status">' + j.lock + '</div>';
+    html += '</div>';
+  });
+  html += '</div>';
+  content.innerHTML = html;
+
+  // Commentary
+  const commentary = document.getElementById('lock-commentary');
+  if (lockStep >= 0) {
+    commentary.textContent = scenario.steps[lockStep].commentary;
+  } else {
+    commentary.textContent = 'Click "Next" to step through the ' + scenario.title + ' demo.';
+  }
+  updateStepLabel('lock', lockStep + 1, scenario.steps.length);
+}
+
+function lockSetMode(mode, evt) {
+  lockMode = mode;
+  lockStep = -1;
+  clearInterval(lockAutoTimer);
+  // Update toggle buttons
+  document.querySelectorAll('#lock-toggles button').forEach(btn => {
+    btn.classList.remove('active');
+  });
+  if (evt && evt.target) evt.target.classList.add('active');
+  lockRenderContent();
+}
+
+function lockNext() {
+  const max = lockScenarios[lockMode].steps.length - 1;
+  if (lockStep < max) { lockStep++; lockRenderContent(); }
+}
+function lockPrev() {
+  if (lockStep >= 0) { lockStep--; lockRenderContent(); }
+}
+function lockReset() {
+  clearInterval(lockAutoTimer);
+  lockStep = -1;
+  lockRenderContent();
+}
+function lockAutoplay() {
+  clearInterval(lockAutoTimer);
+  lockReset();
+  const max = lockScenarios[lockMode].steps.length - 1;
+  lockAutoTimer = setInterval(() => {
+    if (lockStep >= max) { clearInterval(lockAutoTimer); return; }
+    lockNext();
+  }, 2000);
+}
+lockRenderContent();
+
+</script>
+</body>
+</html>

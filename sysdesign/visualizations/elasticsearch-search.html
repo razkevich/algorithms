@@ -1,0 +1,1619 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Elasticsearch -- Search Internals</title>
+<style>
+:root {
+  --bg: #0f0f15;
+  --surface: #181820;
+  --surface-2: #20202a;
+  --border: #2a2a35;
+  --text: #e6e6ea;
+  --text-2: #cfcfd6;
+  --text-3: #888;
+  --accent-red: #ff6b6b;
+  --accent-green: #51cf66;
+  --accent-blue: #339af0;
+  --accent-yellow: #ffd43b;
+  --accent-purple: #cc5de8;
+  --accent-cyan: #8be9fd;
+  --accent-orange: #ffa94d;
+}
+*, *::before, *::after { box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  padding: 32px 24px;
+  max-width: 1100px;
+  margin: 0 auto;
+  line-height: 1.55;
+}
+h1 { color: #fff; margin-bottom: 4px; }
+h1 + p.sub { color: var(--text-3); font-style: italic; margin-top: 0; margin-bottom: 24px; }
+h2 { color: #fff; margin-top: 48px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+h3 { color: var(--text-2); margin-top: 20px; }
+code {
+  background: var(--surface-2);
+  padding: 2px 6px;
+  border-radius: 3px;
+  color: var(--accent-cyan);
+  font-size: 13px;
+}
+pre.code-block {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 14px 18px;
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+  font-size: 13px;
+  color: var(--text-2);
+  overflow-x: auto;
+  line-height: 1.5;
+  margin: 12px 0;
+  white-space: pre;
+}
+.commentary {
+  background: var(--surface-2);
+  padding: 14px;
+  border-radius: 6px;
+  font-size: 14px;
+  color: var(--text-2);
+  margin: 12px 0;
+  min-height: 44px;
+  line-height: 1.5;
+}
+.takeaway {
+  background: #1a1a22;
+  border-left: 3px solid var(--accent-green);
+  padding: 12px 16px;
+  margin: 14px 0;
+  font-size: 14px;
+}
+.takeaway strong { color: var(--accent-green); }
+.takeaway ul { margin: 6px 0 0 0; padding-left: 18px; }
+.takeaway li { margin-bottom: 6px; }
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0;
+  align-items: center;
+}
+.controls button, .btn {
+  padding: 10px 16px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  border-radius: 6px;
+  cursor: pointer;
+  min-height: 44px;
+  font-size: 14px;
+  transition: background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+.controls button:hover, .btn:hover { background: var(--surface); }
+.slider-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-3);
+  min-width: 200px;
+}
+.slider-group input[type="range"] {
+  flex: 1;
+  min-width: 80px;
+  accent-color: var(--accent-blue);
+}
+.slider-group .val { color: var(--accent-cyan); font-family: 'SF Mono', monospace; min-width: 32px; }
+input[type="text"], input[type="search"] {
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  border-radius: 6px;
+  font-size: 14px;
+  min-height: 44px;
+  width: 320px;
+  max-width: 100%;
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+}
+input[type="text"]::placeholder, input[type="search"]::placeholder { color: var(--text-3); }
+
+/* Inverted index table */
+.ii-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12px 0;
+  font-size: 13px;
+  font-family: 'SF Mono', monospace;
+}
+.ii-table th {
+  text-align: left;
+  padding: 8px 12px;
+  border-bottom: 2px solid var(--border);
+  color: var(--text-3);
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 0.5px;
+}
+.ii-table td {
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-2);
+  transition: background 0.3s, color 0.3s;
+}
+.ii-table tr.highlight td {
+  background: rgba(51, 154, 240, 0.15);
+  color: #fff;
+}
+.ii-table .posting { color: var(--accent-blue); }
+.ii-table .freq { color: var(--accent-yellow); }
+
+/* Doc cards */
+.doc-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin: 12px 0;
+}
+.doc-card {
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 14px;
+  font-size: 13px;
+  font-family: 'SF Mono', monospace;
+  transition: border-color 0.3s, background 0.3s;
+}
+.doc-card.highlight {
+  border-color: var(--accent-blue);
+  background: rgba(51, 154, 240, 0.08);
+}
+.doc-card .doc-id {
+  color: var(--accent-purple);
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.doc-card .doc-text { color: var(--text-2); }
+.doc-card .doc-text .term-hl {
+  color: var(--accent-yellow);
+  font-weight: 600;
+}
+
+/* Analyzer columns */
+.analyzer-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin: 12px 0;
+}
+.analyzer-col {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 12px;
+}
+.analyzer-col h4 {
+  margin: 0 0 8px 0;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.analyzer-col .tokens {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.analyzer-col .token-pill {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 3px 8px;
+  font-size: 12px;
+  font-family: 'SF Mono', monospace;
+  color: var(--accent-cyan);
+}
+.analyzer-col .removed {
+  text-decoration: line-through;
+  color: var(--accent-red);
+  opacity: 0.5;
+}
+.analyzer-col .stemmed {
+  color: var(--accent-orange);
+  border-color: var(--accent-orange);
+}
+
+/* Pipeline diagram */
+.pipeline {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  margin: 16px 0;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.pipeline-stage {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 16px;
+  text-align: center;
+  min-width: 120px;
+}
+.pipeline-stage .stage-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent-blue);
+}
+.pipeline-stage .stage-detail {
+  font-size: 11px;
+  color: var(--text-3);
+  margin-top: 4px;
+}
+.pipeline-arrow {
+  font-size: 20px;
+  color: var(--text-3);
+  padding: 0 8px;
+}
+
+/* BM25 score cards */
+.score-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin: 12px 0;
+}
+.score-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 12px;
+  text-align: center;
+}
+.score-card .sc-label { font-size: 12px; color: var(--text-3); margin-bottom: 4px; }
+.score-card .sc-score {
+  font-size: 22px;
+  font-weight: 700;
+  font-family: 'SF Mono', monospace;
+  color: var(--accent-green);
+}
+.score-card .sc-rank {
+  font-size: 11px;
+  color: var(--accent-yellow);
+  margin-top: 4px;
+}
+.score-card .sc-detail {
+  font-size: 11px;
+  color: var(--text-3);
+  margin-top: 6px;
+  text-align: left;
+  line-height: 1.4;
+}
+
+/* TF curve canvas */
+canvas.tf-curve {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  display: block;
+  margin: 12px auto;
+  width: 100%;
+  max-width: 500px;
+  height: 260px;
+}
+
+/* Bool query visualization */
+.bool-query {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin: 12px 0;
+}
+.bq-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 14px;
+}
+.bq-panel h4 {
+  margin: 0 0 10px 0;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.bq-flow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 0;
+  flex-wrap: wrap;
+}
+.bq-box {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 8px 12px;
+  font-size: 12px;
+  text-align: center;
+  min-width: 70px;
+}
+.bq-arrow { color: var(--text-3); font-size: 16px; }
+
+/* Aggregation tree */
+.agg-tree {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 16px;
+  margin: 12px 0;
+  font-family: 'SF Mono', monospace;
+  font-size: 13px;
+}
+.agg-bucket {
+  margin: 8px 0;
+  padding-left: 20px;
+  border-left: 2px solid var(--border);
+}
+.agg-bucket-header {
+  color: var(--accent-purple);
+  font-weight: 600;
+  padding: 4px 0;
+}
+.agg-metric {
+  color: var(--accent-cyan);
+  padding: 2px 0 2px 12px;
+  font-size: 12px;
+}
+.agg-hist-bar {
+  display: inline-block;
+  height: 14px;
+  background: var(--accent-blue);
+  border-radius: 2px;
+  margin-right: 6px;
+  vertical-align: middle;
+  transition: width 0.5s;
+  opacity: 0.7;
+}
+
+/* Scoring levers */
+.lever-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin: 12px 0;
+}
+.lever-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 14px;
+}
+.lever-card h4 {
+  margin: 0 0 8px 0;
+  color: var(--accent-orange);
+  font-size: 14px;
+}
+.lever-card p { font-size: 13px; color: var(--text-2); margin: 6px 0; }
+
+/* Ngram display */
+.ngram-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 8px 0;
+}
+.ngram-pill {
+  background: var(--surface-2);
+  border: 1px solid var(--accent-orange);
+  border-radius: 4px;
+  padding: 3px 8px;
+  font-size: 12px;
+  font-family: 'SF Mono', monospace;
+  color: var(--accent-orange);
+}
+
+@media (max-width: 720px) {
+  body { padding: 20px 14px; }
+  .doc-grid { grid-template-columns: 1fr; }
+  .analyzer-grid { grid-template-columns: 1fr 1fr; }
+  .score-grid { grid-template-columns: 1fr 1fr; }
+  .bool-query { grid-template-columns: 1fr; }
+  .lever-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 480px) {
+  .analyzer-grid { grid-template-columns: 1fr; }
+  .score-grid { grid-template-columns: 1fr 1fr; }
+  .controls { flex-direction: column; }
+  .controls button { width: 100%; }
+  .slider-group { width: 100%; min-width: auto; }
+  input[type="text"], input[type="search"] { width: 100%; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Elasticsearch -- search internals</h1>
+  <p class="sub">Inverted index, analyzers, BM25 scoring, aggregations, filter vs search context. Type a query, watch tokenization. Slide k1 and b, watch scores shift. The depth-probe answers in one page.</p>
+</header>
+
+<!-- ============================================================ -->
+<!-- SECTION 1: THE INVERTED INDEX                                  -->
+<!-- ============================================================ -->
+<section id="s-inverted-index">
+<h2>1. The Inverted Index</h2>
+
+<p>A traditional database stores <code>doc -> fields</code>. A search engine stores <code>term -> list of docs</code>. That's the inversion.</p>
+
+<h3>Corpus</h3>
+<div class="doc-grid" id="doc-grid">
+  <div class="doc-card" data-doc="doc1">
+    <div class="doc-id">doc1</div>
+    <div class="doc-text">the quick brown fox jumps over the lazy dog</div>
+  </div>
+  <div class="doc-card" data-doc="doc2">
+    <div class="doc-id">doc2</div>
+    <div class="doc-text">lazy quick brown dogs sleep</div>
+  </div>
+  <div class="doc-card" data-doc="doc3">
+    <div class="doc-id">doc3</div>
+    <div class="doc-text">foxes are quick brown animals</div>
+  </div>
+  <div class="doc-card" data-doc="doc4">
+    <div class="doc-id">doc4</div>
+    <div class="doc-text">the dog is lazy</div>
+  </div>
+</div>
+
+<h3>Inverted Index (standard analyzer: lowercase, whitespace split)</h3>
+<div style="margin: 12px 0;">
+  <input type="search" id="ii-search" placeholder="Search for a term... e.g. quick" autocomplete="off">
+</div>
+<table class="ii-table" id="ii-table">
+  <thead>
+    <tr><th>Term</th><th>Posting List [doc (term freq)]</th></tr>
+  </thead>
+  <tbody id="ii-body"></tbody>
+</table>
+
+<div class="commentary" id="ii-commentary">Type a term above to highlight matching documents and their posting list entries.</div>
+
+<p style="color: var(--text-3); font-size: 13px; margin-top: 8px;">Notice: <code>fox</code> and <code>foxes</code> are different terms because the standard analyzer does not stem. <code>dog</code> and <code>dogs</code> likewise. This is why analyzer choice matters -- next section.</p>
+
+<h3>What's Actually Stored</h3>
+<div class="commentary">
+  The posting list stores more than just doc IDs and term frequencies. A full Lucene posting list entry contains:
+  <br><br>
+  <div style="font-family: 'SF Mono', monospace; font-size: 12px; line-height: 1.6;">
+    "quick" -> [<br>
+    &nbsp; doc1: { tf: 1, positions: [1], offsets: [(4,9)] },<br>
+    &nbsp; doc2: { tf: 1, positions: [1], offsets: [(5,10)] },<br>
+    &nbsp; doc3: { tf: 1, positions: [2], offsets: [(10,15)] }<br>
+    ]
+  </div>
+  <br>
+  <strong>Positions</strong> enable phrase queries: <code>"quick brown"</code> matches only if "quick" is at position N and "brown" at position N+1. Without positions, you can find docs containing both terms but can't verify adjacency.
+  <br><br>
+  <strong>Offsets</strong> enable highlighting: ES can mark the exact character range in the original text that matched.
+  <br><br>
+  <strong>Doc values</strong> (column-oriented storage) are stored separately for sorting and aggregations -- the inverted index is for searching, doc values are for everything else.
+</div>
+
+<div class="takeaway">
+  <strong>Takeaway:</strong> Inverted index = mapping from term to (doc IDs + term frequencies + positions). The "index" your DBA thinks about is forward; this one is inverted. Every search query starts here.
+</div>
+</section>
+
+<!-- ============================================================ -->
+<!-- SECTION 2: ANALYZERS                                           -->
+<!-- ============================================================ -->
+<section id="s-analyzers">
+<h2>2. Analyzers -- the Tokenization Story</h2>
+
+<p>The same string can produce wildly different terms depending on the analyzer. The analyzer is a three-stage pipeline.</p>
+
+<div class="pipeline">
+  <div class="pipeline-stage">
+    <div class="stage-name">Char Filters</div>
+    <div class="stage-detail">e.g. HTML strip</div>
+  </div>
+  <span class="pipeline-arrow">-></span>
+  <div class="pipeline-stage">
+    <div class="stage-name">Tokenizer</div>
+    <div class="stage-detail">whitespace, ngram, etc.</div>
+  </div>
+  <span class="pipeline-arrow">-></span>
+  <div class="pipeline-stage">
+    <div class="stage-name">Token Filters</div>
+    <div class="stage-detail">lowercase, stemmer, etc.</div>
+  </div>
+  <span class="pipeline-arrow">-></span>
+  <div class="pipeline-stage">
+    <div class="stage-name">Tokens</div>
+    <div class="stage-detail">stored in inverted index</div>
+  </div>
+</div>
+
+<h3>Compare 4 Analyzers</h3>
+<div style="margin: 12px 0;">
+  <input type="text" id="analyzer-input" value="The Quick Brown Foxes are running quickly!" placeholder="Type a sentence to analyze..." autocomplete="off" style="width: 100%;">
+</div>
+<div class="analyzer-grid" id="analyzer-grid"></div>
+
+<h3>N-gram Tokenizer Demo</h3>
+<p>N-gram tokenizer with <code>min_gram=2</code>, <code>max_gram=3</code>. Useful for autocomplete and fuzzy matching. Caveat: explodes index size.</p>
+<div style="margin: 8px 0;">
+  <input type="text" id="ngram-input" value="quick" placeholder="Type a word for n-gram..." autocomplete="off" style="width: 200px;">
+</div>
+<div class="ngram-grid" id="ngram-output"></div>
+
+<div class="takeaway">
+  <strong>Takeaway:</strong> The analyzer is the most impactful tuning lever.
+  <ul>
+    <li><code>standard</code> -- general text (lowercase + unicode split)</li>
+    <li><code>english</code> (or language-specific) -- English content (stops + Porter stemmer)</li>
+    <li><code>whitespace</code> -- when you need exact case/punctuation preservation</li>
+    <li><code>keyword</code> -- IDs, codes, enums (no tokenization at all)</li>
+  </ul>
+</div>
+</section>
+
+<!-- ============================================================ -->
+<!-- SECTION 3: BM25                                                -->
+<!-- ============================================================ -->
+<section id="s-bm25">
+<h2>3. BM25 -- the Modern Relevance Score</h2>
+
+<p>ES 5.0+ uses BM25 by default (replaced TF-IDF). The formula:</p>
+
+<pre class="code-block">score(D, Q) = sum over query terms t of:
+    IDF(t) * TF_part(t, D)
+
+where:
+    IDF(t) = log( (N - df(t) + 0.5) / (df(t) + 0.5) + 1 )
+    TF_part = (tf * (k1 + 1)) / (tf + k1 * (1 - b + b * (|D| / avgdl)))
+
+Defaults:  k1 = 1.2 (TF saturation)    b = 0.75 (length normalization)</pre>
+
+<h3>Interactive: tune k1 and b</h3>
+<div style="margin: 12px 0;">
+  <input type="text" id="bm25-query-input" value="quick brown" placeholder="Type query terms (space-separated)..." autocomplete="off" style="width: 280px;">
+</div>
+<div class="controls">
+  <div class="slider-group">
+    <span>k1:</span>
+    <input type="range" id="k1-slider" min="0" max="3" step="0.1" value="1.2">
+    <span class="val" id="k1-val">1.2</span>
+  </div>
+  <div class="slider-group">
+    <span>b:</span>
+    <input type="range" id="b-slider" min="0" max="1" step="0.05" value="0.75">
+    <span class="val" id="b-val">0.75</span>
+  </div>
+</div>
+
+<p style="font-size: 13px; color: var(--text-3);">Query: <code id="bm25-query-display">"quick brown"</code> against the 4 docs. Scores update live as you type or adjust sliders.</p>
+
+<div class="score-grid" id="score-grid"></div>
+
+<h3>TF Saturation Curve</h3>
+<p style="font-size: 13px; color: var(--text-3);">How the TF component behaves as term frequency increases. Compare k1 values: the score saturates -- unlike raw TF-IDF where it grows linearly.</p>
+<canvas class="tf-curve" id="tf-canvas"></canvas>
+<div style="font-size: 12px; color: var(--text-3); text-align: center; margin-top: 4px;">
+  <span style="color: var(--accent-blue);">--- k1=1.2 (default)</span> &nbsp;
+  <span style="color: var(--accent-green);">--- k1=3.0</span> &nbsp;
+  <span style="color: var(--accent-red);">--- k1=0 (TF ignored)</span> &nbsp;
+  <span style="color: var(--accent-yellow);">--- raw TF (TF-IDF)</span>
+</div>
+
+<h3>IDF Intuition</h3>
+<div class="commentary">
+  <strong>Rare terms score higher.</strong> With N=4 docs:
+  <code>foxes</code> appears in 1 doc -> IDF = <span id="idf-foxes"></span> &nbsp; | &nbsp;
+  <code>quick</code> appears in 3 docs -> IDF = <span id="idf-quick"></span> &nbsp; | &nbsp;
+  <code>the</code> appears in 2 docs -> IDF = <span id="idf-the"></span>
+  <br>The rarer the term, the more it discriminates. This is why stop-word removal matters less in BM25 than in boolean search -- common words naturally get low IDF.
+</div>
+
+<h3>Length Normalization (b)</h3>
+<div class="commentary">
+  <strong>b controls how much document length penalizes the score.</strong>
+  <br>At <code>b=1</code>: a term in a 100-word doc scores much lower than in a 10-word doc (same TF).
+  <br>At <code>b=0</code>: length is ignored entirely.
+  <br>At <code>b=0.75</code> (default): moderate normalization. Short docs get a mild boost.
+  <br><br>In our corpus: doc1 has 9 words, doc4 has 4 words, avgdl = <span id="avgdl-display"></span>. doc4's shorter length boosts its per-term TF_part.
+</div>
+
+<h3>Worked Example: scoring doc1</h3>
+<div class="commentary" id="worked-example">
+  <div style="color: var(--text-3);">Generating...</div>
+</div>
+<p style="font-size: 13px; color: var(--text-3);">The worked example updates live as you change the query or move the k1 and b sliders. Watch how the TF_part denominator changes with b (length normalization) and the saturation behavior changes with k1. Try <code>fox</code> vs <code>foxes</code> to see IDF differences.</p>
+
+<div class="takeaway">
+  <strong>Takeaway:</strong> BM25 = TF-IDF with TF saturation and length normalization. <code>k1</code> controls "how much repetition matters"; <code>b</code> controls "how much length matters". Defaults are usually fine -- tune only if you have a specific complaint.
+</div>
+</section>
+
+<!-- ============================================================ -->
+<!-- SECTION 4: SEARCH vs FILTER CONTEXT                            -->
+<!-- ============================================================ -->
+<section id="s-context">
+<h2>4. Search Context vs Filter Context</h2>
+
+<p>Two query contexts in a <code>bool</code> query. The distinction is the single biggest performance lever in ES query design.</p>
+
+<pre class="code-block">{
+  "bool": {
+    "must":   [{ "match": { "description": "phone" } }],   // scored (BM25)
+    "filter": [{ "term":  { "category": "electronics" } }, // cached bitset, NOT scored
+               { "range": { "price": { "lte": 1000 } } }]
+  }
+}</pre>
+
+<div class="bool-query">
+  <div class="bq-panel">
+    <h4 style="color: var(--accent-red);">must / should = SCORED</h4>
+    <p style="font-size: 13px; color: var(--text-2);">Goes through analyzers, IDF lookups, BM25 computation. Expensive. Determines ranking.</p>
+    <div class="bq-flow">
+      <div class="bq-box" style="border-color: var(--accent-red);">Query String</div>
+      <span class="bq-arrow">-></span>
+      <div class="bq-box" style="border-color: var(--accent-red);">Analyze</div>
+      <span class="bq-arrow">-></span>
+      <div class="bq-box" style="border-color: var(--accent-red);">IDF Lookup</div>
+      <span class="bq-arrow">-></span>
+      <div class="bq-box" style="border-color: var(--accent-red);">BM25 Score</div>
+    </div>
+  </div>
+  <div class="bq-panel">
+    <h4 style="color: var(--accent-green);">filter / must_not = BOOLEAN</h4>
+    <p style="font-size: 13px; color: var(--text-2);">Yes/no only. NOT scored. Cached as bitsets. Cheap. Narrows the candidate set before scoring.</p>
+    <div class="bq-flow">
+      <div class="bq-box" style="border-color: var(--accent-green);">Exact Value</div>
+      <span class="bq-arrow">-></span>
+      <div class="bq-box" style="border-color: var(--accent-green);">Bitset Match</div>
+      <span class="bq-arrow">-></span>
+      <div class="bq-box" style="border-color: var(--accent-green);">Cache</div>
+    </div>
+  </div>
+</div>
+
+<h3>Performance Impact</h3>
+<div id="filter-demo">
+  <div class="controls">
+    <button onclick="runFilterDemo()" id="filter-demo-btn">Run Demo: 100K docs</button>
+  </div>
+</div>
+<div class="commentary" id="filter-commentary">Click "Run Demo" to see the filtering pipeline in action.</div>
+
+<h3>Filter Caching</h3>
+<div class="commentary">
+  <strong>Bitset caching is automatic.</strong> ES maintains a filter cache (node-level, LRU). When the same filter appears in multiple queries, the cached bitset is reused without re-evaluating the condition.
+  <br><br>
+  <strong>Segment-level granularity.</strong> Filter bitsets are cached per Lucene segment. When segments merge (background process), old bitset cache entries are evicted and new ones are computed lazily.
+  <br><br>
+  <strong>This is why structured filtering belongs in <code>filter</code>, not <code>must</code>.</strong> A <code>must: term</code> clause is scored (wasteful, since the term score is meaningless for a category filter) and NOT cached as a bitset. Moving it to <code>filter</code> gets you both: no scoring AND caching.
+</div>
+
+<div class="takeaway">
+  <strong>Takeaway:</strong> Move every yes/no condition to <code>filter</code>. Score only what needs scoring. This is the 10x perf win for free.
+  <ul>
+    <li><code>must</code> -- "this must match AND affects ranking"</li>
+    <li><code>filter</code> -- "this must match but I don't care about its score"</li>
+    <li><code>should</code> -- "boost if this matches" (in bool with must) or "at least one must match" (in bool without must)</li>
+    <li><code>must_not</code> -- "exclude, never score"</li>
+  </ul>
+</div>
+</section>
+
+<!-- ============================================================ -->
+<!-- SECTION 5: AGGREGATIONS                                        -->
+<!-- ============================================================ -->
+<section id="s-aggregations">
+<h2>5. Aggregations -- Bucket vs Metric</h2>
+
+<p>Two top-level aggregation types:</p>
+<ul style="font-size: 14px; color: var(--text-2);">
+  <li><strong style="color: var(--accent-purple);">Bucket aggregations</strong> -- group docs into buckets (like SQL <code>GROUP BY</code>). Examples: <code>terms</code>, <code>histogram</code>, <code>date_histogram</code>, <code>range</code>.</li>
+  <li><strong style="color: var(--accent-cyan);">Metric aggregations</strong> -- compute a single value over a doc set. Examples: <code>avg</code>, <code>sum</code>, <code>cardinality</code>, <code>percentiles</code>.</li>
+</ul>
+<p style="font-size: 14px; color: var(--text-2);">Bucket aggregations can be <strong>nested</strong> (sub-aggregations) -- bucket per term, then inside each bucket a metric or histogram.</p>
+
+<pre class="code-block">{
+  "aggs": {
+    "by_category": {
+      "terms": { "field": "category" },
+      "aggs": {
+        "avg_price": { "avg": { "field": "price" } },
+        "price_histogram": { "histogram": { "field": "price", "interval": 100 } }
+      }
+    }
+  }
+}</pre>
+
+<h3>Demo: 20 Product Documents</h3>
+<div class="controls">
+  <button onclick="runAggDemo()" id="agg-demo-btn">Run Aggregation</button>
+</div>
+
+<div class="agg-tree" id="agg-tree">
+  <div style="color: var(--text-3);">Click "Run Aggregation" to see docs flow into buckets.</div>
+</div>
+
+<h3>Doc Flow Visualization</h3>
+<div class="commentary" id="agg-flow-desc">
+  <div style="font-family: 'SF Mono', monospace; font-size: 12px; line-height: 1.6;" id="doc-flow-display">
+    <div style="color: var(--text-3);">Run the aggregation above to see how documents flow into buckets.</div>
+  </div>
+</div>
+
+<h3>Precision Caveats</h3>
+<div class="commentary">
+  <strong><code>terms</code> aggregation</strong>: each shard returns its local top-N terms; the coordinator merges. This can miss "long-tail" terms when shard distributions differ. Increase <code>shard_size</code> (default: <code>size * 1.5 + 10</code>) for better accuracy at the cost of memory.
+  <br><br>
+  <strong><code>cardinality</code></strong>: uses HyperLogLog under the hood -- approximate distinct count (same idea as Redis <code>PFCOUNT</code>). Error margin ~0.5-2%.
+  <br><br>
+  <strong><code>percentiles</code></strong>: uses t-digest -- approximate. Accuracy is best at the extremes (p99, p1) and worst in the middle (p50).
+</div>
+
+<div class="takeaway">
+  <strong>Takeaway:</strong> Aggregations = the analytics part of ES. <code>terms</code> is approximate at scale (<code>shard_size</code> matters). <code>cardinality</code> is HyperLogLog (approximate). <code>percentiles</code> is t-digest (approximate). Anything "exact" on a large distributed dataset is suspect.
+</div>
+</section>
+
+<!-- ============================================================ -->
+<!-- SECTION 6: SCORING TUNING LEVERS                               -->
+<!-- ============================================================ -->
+<section id="s-tuning">
+<h2>6. Scoring Tuning Levers</h2>
+
+<p>When defaults aren't enough. In order of "try this first":</p>
+
+<div class="lever-grid">
+  <div class="lever-card">
+    <h4>Field Boosting</h4>
+    <p>Multiply a field's score contribution. Title matches matter more than body matches.</p>
+    <pre class="code-block" style="font-size: 12px; margin: 8px 0;">{ "multi_match": {
+    "query": "phone",
+    "fields": ["title^3", "description"]
+  }
+}
+// title match scores 3x</pre>
+    <p><strong>When:</strong> obvious field-importance hierarchy. Always the first lever to try.</p>
+  </div>
+  <div class="lever-card">
+    <h4>Function Score</h4>
+    <p>Arbitrary scoring function on top of BM25 -- decay by recency, distance, popularity.</p>
+    <pre class="code-block" style="font-size: 12px; margin: 8px 0;">{ "function_score": {
+    "query": { "match": { "title": "phone" } },
+    "functions": [{
+      "gauss": {
+        "date": { "origin": "now", "scale": "30d" }
+      }
+    }],
+    "boost_mode": "multiply"
+  }
+}</pre>
+    <p><strong>When:</strong> relevance needs non-textual signals (freshness, geo-distance, popularity score).</p>
+  </div>
+  <div class="lever-card">
+    <h4>Rescore</h4>
+    <p>Cheap query for top-K, then expensive scorer on those K only. Two-phase ranking.</p>
+    <pre class="code-block" style="font-size: 12px; margin: 8px 0;">{ "query": { "match": { "title": "phone" } },
+  "rescore": {
+    "window_size": 100,
+    "query": {
+      "rescore_query": {
+        "match_phrase": { "title": "smart phone" }
+      },
+      "query_weight": 0.7,
+      "rescore_query_weight": 1.2
+    }
+  }
+}</pre>
+    <p><strong>When:</strong> expensive scoring (phrase, ML re-rank) on the full result set is too slow.</p>
+  </div>
+  <div class="lever-card">
+    <h4>Synonyms</h4>
+    <p>Index-time vs query-time. Query-time is more flexible (no re-index), but slower per query.</p>
+    <pre class="code-block" style="font-size: 12px; margin: 8px 0;">// synonym filter in analyzer config
+"filter": {
+  "my_synonyms": {
+    "type": "synonym",
+    "synonyms": [
+      "phone, mobile, cell",
+      "laptop, notebook"
+    ]
+  }
+}</pre>
+    <p><strong>When:</strong> domain-specific vocabulary. Medical, legal, e-commerce all have synonym needs.</p>
+  </div>
+</div>
+
+<div class="takeaway">
+  <strong>Takeaway:</strong> Most scoring "problems" are analyzer problems in disguise. Fix the analyzer first, then look at boosting / function score. The hierarchy: <strong>analyzer > field boost > function score > rescore > synonyms</strong>.
+</div>
+</section>
+
+<!-- ============================================================ -->
+<!-- SECTION 7: DISTRIBUTED SEARCH EXECUTION (bonus)                -->
+<!-- ============================================================ -->
+<section id="s-distributed">
+<h2>7. Distributed Search Execution</h2>
+
+<p>An ES index is split into <strong>shards</strong>. Each shard is a self-contained Lucene index. A search query hits <em>every</em> shard, and the coordinator merges results.</p>
+
+<h3>Query Phase + Fetch Phase</h3>
+<div style="display: grid; grid-template-columns: 1fr auto 1fr; gap: 12px; margin: 16px 0; align-items: start;">
+  <div class="bq-panel">
+    <h4 style="color: var(--accent-blue);">Phase 1: Query</h4>
+    <p style="font-size: 13px; color: var(--text-2);">Coordinator sends query to all shards. Each shard runs BM25 locally and returns <strong>only doc IDs + scores</strong> (top-K per shard). Coordinator merges into global top-K.</p>
+    <div style="font-family: 'SF Mono', monospace; font-size: 12px; color: var(--text-3); margin-top: 8px;">
+      Shard 0: [(doc_42, 3.2), (doc_17, 2.8)]<br>
+      Shard 1: [(doc_99, 3.5), (doc_55, 2.1)]<br>
+      Shard 2: [(doc_12, 2.9), (doc_78, 2.7)]<br>
+      Coordinator merges -> [doc_99, doc_42, doc_12, ...]
+    </div>
+  </div>
+  <div style="font-size: 24px; color: var(--text-3); padding-top: 40px;">-></div>
+  <div class="bq-panel">
+    <h4 style="color: var(--accent-purple);">Phase 2: Fetch</h4>
+    <p style="font-size: 13px; color: var(--text-2);">Coordinator sends the global top-K doc IDs to the relevant shards. Shards return <strong>full documents</strong> (_source). Coordinator assembles the final response.</p>
+    <div style="font-family: 'SF Mono', monospace; font-size: 12px; color: var(--text-3); margin-top: 8px;">
+      Shard 1: fetch doc_99 -> full _source<br>
+      Shard 0: fetch doc_42 -> full _source<br>
+      Shard 2: fetch doc_12 -> full _source<br>
+      Coordinator returns final results
+    </div>
+  </div>
+</div>
+
+<h3>Why Two Phases?</h3>
+<div class="commentary">
+  <strong>Bandwidth efficiency.</strong> If each shard returned full documents during the query phase, you'd transfer K * num_shards full documents to the coordinator, only to discard most of them. The two-phase approach transfers only IDs+scores first (tiny), then fetches only the final top-K documents (minimal).
+  <br><br>
+  <strong>Deep pagination trap:</strong> requesting page 1000 (from=10000, size=10) means each shard must score and return its local top-10010, and the coordinator merges 10010 * num_shards entries. This is why <code>search_after</code> with a sort tiebreaker (e.g. <code>_shard_doc</code>) exists -- cursor-based, O(1) per page.
+  <br><br>
+  <strong>IDF skew across shards:</strong> each shard computes IDF from its own local doc counts. With small or unevenly distributed shards, the same term can have different IDF on different shards, causing scoring inconsistency. Fix: <code>dfs_query_then_fetch</code> (adds a pre-phase to collect global term stats). Cost: one extra round-trip.
+</div>
+
+<div class="takeaway">
+  <strong>Takeaway:</strong> Search is always 2-phase (query + fetch). This is the reason deep pagination is expensive and why <code>search_after</code> exists.
+  <ul>
+    <li>Query phase: each shard returns IDs+scores. Coordinator merges.</li>
+    <li>Fetch phase: coordinator retrieves full docs for the global top-K only.</li>
+    <li><code>from + size</code> pagination: O(from+size) per shard. Avoid deep pages.</li>
+    <li><code>search_after</code>: cursor-based, O(size) per shard. Use this.</li>
+    <li><code>dfs_query_then_fetch</code>: global IDF. Fixes scoring skew, costs one round-trip.</li>
+  </ul>
+</div>
+</section>
+
+<!-- ============================================================ -->
+<!-- INTERVIEW CHEAT SHEET (bottom summary)                         -->
+<!-- ============================================================ -->
+<section id="s-cheatsheet" style="margin-top: 48px;">
+<h2 style="border-bottom-color: var(--accent-yellow);">Interview Cheat Sheet</h2>
+
+<p style="font-size: 13px; color: var(--text-3);">Quick-reference for the "how does ES actually work?" probe. Say these things, in this order.</p>
+
+<div style="background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 16px; margin: 12px 0; font-size: 13px;">
+  <div style="display: grid; grid-template-columns: auto 1fr; gap: 4px 16px; line-height: 1.8;">
+    <strong style="color: var(--accent-purple);">Storage model</strong>
+    <span>Inverted index: term -> posting list (doc IDs + TF + positions). Column-oriented doc values for sort/agg.</span>
+
+    <strong style="color: var(--accent-purple);">Write path</strong>
+    <span>Doc -> analyzer (char filters -> tokenizer -> token filters) -> terms stored in inverted index. Analyzer choice is the #1 tuning lever.</span>
+
+    <strong style="color: var(--accent-purple);">Read path</strong>
+    <span>Query -> analyze query string with same analyzer -> look up terms in inverted index -> BM25 score -> rank.</span>
+
+    <strong style="color: var(--accent-purple);">BM25</strong>
+    <span>TF-IDF with TF saturation (k1=1.2) and length normalization (b=0.75). Rare terms get high IDF; repetition saturates.</span>
+
+    <strong style="color: var(--accent-purple);">Query types</strong>
+    <span><code>must</code>/<code>should</code> = scored (expensive). <code>filter</code>/<code>must_not</code> = boolean + cached bitset (cheap). Always filter first.</span>
+
+    <strong style="color: var(--accent-purple);">Distribution</strong>
+    <span>Index = N shards (each a Lucene index). Search = query phase (IDs + scores from all shards) + fetch phase (full docs for top-K).</span>
+
+    <strong style="color: var(--accent-purple);">Deep pagination</strong>
+    <span><code>from+size</code> is O(from+size) per shard. Use <code>search_after</code> for cursor-based pagination.</span>
+
+    <strong style="color: var(--accent-purple);">Aggregations</strong>
+    <span>Bucket (GROUP BY) + metric (AVG/SUM). <code>terms</code> is approximate (shard_size). <code>cardinality</code> = HyperLogLog. <code>percentiles</code> = t-digest.</span>
+
+    <strong style="color: var(--accent-purple);">Tuning order</strong>
+    <span>analyzer > field boost > function score > rescore > synonyms. Most scoring problems are analyzer problems.</span>
+  </div>
+</div>
+</section>
+
+<!-- ============================================================ -->
+<!-- JAVASCRIPT                                                     -->
+<!-- ============================================================ -->
+<script>
+(function() {
+  'use strict';
+
+  // ---- CORPUS ----
+  var DOCS = [
+    { id: 'doc1', text: 'the quick brown fox jumps over the lazy dog' },
+    { id: 'doc2', text: 'lazy quick brown dogs sleep' },
+    { id: 'doc3', text: 'foxes are quick brown animals' },
+    { id: 'doc4', text: 'the dog is lazy' }
+  ];
+
+  // ---- SECTION 1: INVERTED INDEX ----
+
+  function standardTokenize(text) {
+    return text.toLowerCase().split(/\s+/).filter(function(t) { return t.length > 0; });
+  }
+
+  function buildInvertedIndex(docs) {
+    var idx = {};
+    docs.forEach(function(doc) {
+      var terms = standardTokenize(doc.text);
+      var freq = {};
+      terms.forEach(function(t) {
+        freq[t] = (freq[t] || 0) + 1;
+      });
+      Object.keys(freq).forEach(function(term) {
+        if (!idx[term]) idx[term] = [];
+        idx[term].push({ doc: doc.id, tf: freq[term] });
+      });
+    });
+    return idx;
+  }
+
+  var invertedIndex = buildInvertedIndex(DOCS);
+
+  function renderInvertedIndex(highlight) {
+    var tbody = document.getElementById('ii-body');
+    var terms = Object.keys(invertedIndex).sort();
+    var html = '';
+    terms.forEach(function(term) {
+      var postings = invertedIndex[term];
+      var isHL = highlight && term === highlight.toLowerCase();
+      var rowClass = isHL ? ' class="highlight"' : '';
+      var postingStr = postings.map(function(p) {
+        return '<span class="posting">' + p.doc + '</span>(<span class="freq">' + p.tf + '</span>)';
+      }).join(', ');
+      html += '<tr' + rowClass + '><td>' + term + '</td><td>' + postingStr + '</td></tr>';
+    });
+    tbody.innerHTML = html;
+  }
+
+  function highlightDocs(term) {
+    var cards = document.querySelectorAll('#doc-grid .doc-card');
+    var postings = invertedIndex[term ? term.toLowerCase() : ''] || [];
+    var matchDocs = {};
+    postings.forEach(function(p) { matchDocs[p.doc] = true; });
+    cards.forEach(function(card) {
+      var docId = card.getAttribute('data-doc');
+      var textEl = card.querySelector('.doc-text');
+      var doc = DOCS.find(function(d) { return d.id === docId; });
+      if (matchDocs[docId]) {
+        card.classList.add('highlight');
+        if (term) {
+          var re = new RegExp('\\b(' + escRe(term.toLowerCase()) + ')\\b', 'gi');
+          textEl.innerHTML = doc.text.replace(re, '<span class="term-hl">$1</span>');
+        }
+      } else {
+        card.classList.remove('highlight');
+        textEl.textContent = doc.text;
+      }
+    });
+  }
+
+  function escRe(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+
+  document.getElementById('ii-search').addEventListener('input', function() {
+    var val = this.value.trim();
+    renderInvertedIndex(val);
+    highlightDocs(val);
+    var commentary = document.getElementById('ii-commentary');
+    if (!val) {
+      commentary.textContent = 'Type a term above to highlight matching documents and their posting list entries.';
+    } else {
+      var postings = invertedIndex[val.toLowerCase()];
+      if (postings) {
+        commentary.innerHTML = '<strong>' + escHtml(val) + '</strong> found in ' + postings.length + ' doc(s): ' +
+          postings.map(function(p) { return p.doc + ' (tf=' + p.tf + ')'; }).join(', ') + '.';
+      } else {
+        commentary.innerHTML = '<strong>' + escHtml(val) + '</strong> -- not found in the index. Try: quick, fox, foxes, lazy, dog, dogs.';
+      }
+    }
+  });
+
+  function escHtml(s) {
+    var d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+  }
+
+  renderInvertedIndex(null);
+
+  // ---- SECTION 2: ANALYZERS ----
+
+  var STOP_WORDS = new Set(['the', 'a', 'an', 'and', 'or', 'but', 'is', 'are', 'was', 'were',
+    'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'it', 'its', 'be', 'as', 'do', 'no',
+    'not', 'this', 'that', 'so', 'if', 'from', 'has', 'had', 'have', 'will', 'would', 'could',
+    'should', 'may', 'might', 'can', 'did', 'does', 'been', 'being', 'am']);
+
+  // Simplified Porter stemmer (covers the demo cases)
+  function porterStem(word) {
+    if (word.length < 3) return word;
+    // Step 1a
+    if (word.endsWith('sses')) word = word.slice(0, -2);
+    else if (word.endsWith('ies')) word = word.slice(0, -2);
+    else if (word.endsWith('ss')) { /* keep */ }
+    else if (word.endsWith('s') && word.length > 3) word = word.slice(0, -1);
+    // Step 1b
+    if (word.endsWith('eed')) {
+      if (word.length > 4) word = word.slice(0, -1);
+    } else if (word.endsWith('ed') && /[aeiou]/.test(word.slice(0, -2))) {
+      word = word.slice(0, -2);
+      if (word.endsWith('at') || word.endsWith('bl') || word.endsWith('iz')) word += 'e';
+    } else if (word.endsWith('ing') && /[aeiou]/.test(word.slice(0, -3))) {
+      word = word.slice(0, -3);
+      if (word.endsWith('at') || word.endsWith('bl') || word.endsWith('iz')) word += 'e';
+    }
+    // Step 1c
+    if (word.endsWith('y') && word.length > 2 && !/[aeiou]/.test(word[word.length - 2])) {
+      word = word.slice(0, -1) + 'i';
+    }
+    // Step 2 - common suffixes
+    var step2 = [['ational', 'ate'], ['tional', 'tion'], ['enci', 'ence'], ['anci', 'ance'],
+      ['izer', 'ize'], ['ousli', 'ous'], ['alli', 'al'], ['entli', 'ent'], ['eli', 'e'],
+      ['ization', 'ize'], ['ation', 'ate'], ['ator', 'ate'], ['alism', 'al'],
+      ['iveness', 'ive'], ['fulness', 'ful'], ['ousness', 'ous'], ['aliti', 'al'],
+      ['iviti', 'ive'], ['biliti', 'ble'], ['logi', 'log']];
+    for (var i = 0; i < step2.length; i++) {
+      if (word.endsWith(step2[i][0])) {
+        var base = word.slice(0, -step2[i][0].length);
+        if (base.length > 1) { word = base + step2[i][1]; }
+        break;
+      }
+    }
+    // Step 3
+    var step3 = [['icate', 'ic'], ['ative', ''], ['alize', 'al'], ['iciti', 'ic'],
+      ['ical', 'ic'], ['ful', ''], ['ness', '']];
+    for (var j = 0; j < step3.length; j++) {
+      if (word.endsWith(step3[j][0])) {
+        var base3 = word.slice(0, -step3[j][0].length);
+        if (base3.length > 1) { word = base3 + step3[j][1]; }
+        break;
+      }
+    }
+    // Simplified step 4: remove trailing 'e' if stem > 1 syllable
+    if (word.endsWith('e') && word.length > 3) {
+      var stem = word.slice(0, -1);
+      var vowels = stem.match(/[aeiou]/g);
+      if (vowels && vowels.length > 0) word = stem;
+    }
+    // Handle double consonants
+    if (/([^aeiou])\1$/.test(word) && !word.endsWith('ll') && !word.endsWith('ss') && !word.endsWith('zz')) {
+      word = word.slice(0, -1);
+    }
+    return word;
+  }
+
+  function analyzeStandard(text) {
+    return text.toLowerCase().replace(/[^\w\s]/g, '').split(/\s+/).filter(function(t) { return t.length > 0; });
+  }
+
+  function analyzeSimple(text) {
+    return text.toLowerCase().split(/[^a-zA-Z]+/).filter(function(t) { return t.length > 0; });
+  }
+
+  function analyzeWhitespace(text) {
+    return text.split(/\s+/).filter(function(t) { return t.length > 0; });
+  }
+
+  function analyzeEnglish(text) {
+    var tokens = text.toLowerCase().replace(/[^\w\s]/g, '').split(/\s+/).filter(function(t) { return t.length > 0; });
+    return tokens.filter(function(t) { return !STOP_WORDS.has(t); }).map(porterStem);
+  }
+
+  function renderAnalyzers() {
+    var input = document.getElementById('analyzer-input').value;
+    var grid = document.getElementById('analyzer-grid');
+    var analyzers = [
+      { name: 'standard', color: 'var(--accent-blue)', fn: analyzeStandard,
+        desc: 'Lowercase, split on whitespace + punctuation' },
+      { name: 'simple', color: 'var(--accent-green)', fn: analyzeSimple,
+        desc: 'Lowercase, split on non-letter chars' },
+      { name: 'whitespace', color: 'var(--accent-yellow)', fn: analyzeWhitespace,
+        desc: 'Split on whitespace only. No lowercase.' },
+      { name: 'english', color: 'var(--accent-orange)', fn: analyzeEnglish,
+        desc: 'Lowercase, remove stop words, Porter stem' }
+    ];
+
+    var stdTokens = analyzeStandard(input);
+    var engTokens = analyzeEnglish(input);
+    var engSet = new Set(engTokens);
+    var origTokens = input.toLowerCase().replace(/[^\w\s]/g, '').split(/\s+/).filter(function(t) { return t.length > 0; });
+
+    var html = '';
+    analyzers.forEach(function(a) {
+      var tokens = a.fn(input);
+      html += '<div class="analyzer-col">';
+      html += '<h4 style="color: ' + a.color + ';">' + a.name + '</h4>';
+      html += '<div style="font-size: 11px; color: var(--text-3); margin-bottom: 8px;">' + a.desc + '</div>';
+      html += '<div class="tokens">';
+      if (a.name === 'english') {
+        // Show removed tokens as struck-through
+        origTokens.forEach(function(ot) {
+          if (STOP_WORDS.has(ot)) {
+            html += '<span class="token-pill removed">' + escHtml(ot) + '</span>';
+          } else {
+            var stemmed = porterStem(ot);
+            var cls = stemmed !== ot ? 'token-pill stemmed' : 'token-pill';
+            html += '<span class="' + cls + '">' + escHtml(stemmed) + '</span>';
+          }
+        });
+      } else {
+        tokens.forEach(function(t) {
+          html += '<span class="token-pill">' + escHtml(t) + '</span>';
+        });
+      }
+      html += '</div>';
+      html += '</div>';
+    });
+    grid.innerHTML = html;
+  }
+
+  document.getElementById('analyzer-input').addEventListener('input', renderAnalyzers);
+  renderAnalyzers();
+
+  // N-gram
+  function computeNgrams(text, min, max) {
+    var result = [];
+    for (var n = min; n <= max; n++) {
+      for (var i = 0; i <= text.length - n; i++) {
+        result.push(text.substring(i, i + n));
+      }
+    }
+    return result;
+  }
+
+  function renderNgrams() {
+    var input = document.getElementById('ngram-input').value.toLowerCase();
+    var ngrams = computeNgrams(input, 2, 3);
+    var html = '';
+    ngrams.forEach(function(ng) {
+      html += '<span class="ngram-pill">' + escHtml(ng) + '</span>';
+    });
+    document.getElementById('ngram-output').innerHTML = html || '<span style="color: var(--text-3);">Enter at least 2 characters.</span>';
+  }
+
+  document.getElementById('ngram-input').addEventListener('input', renderNgrams);
+  renderNgrams();
+
+  // ---- SECTION 3: BM25 ----
+
+  function docLength(doc) {
+    return standardTokenize(doc.text).length;
+  }
+
+  var DOC_LENGTHS = DOCS.map(docLength);
+  var AVGDL = DOC_LENGTHS.reduce(function(a, b) { return a + b; }, 0) / DOC_LENGTHS.length;
+  var N = DOCS.length;
+
+  document.getElementById('avgdl-display').textContent = AVGDL.toFixed(1);
+
+  function df(term) {
+    return (invertedIndex[term] || []).length;
+  }
+
+  function tf(term, docIdx) {
+    var postings = invertedIndex[term] || [];
+    for (var i = 0; i < postings.length; i++) {
+      if (postings[i].doc === DOCS[docIdx].id) return postings[i].tf;
+    }
+    return 0;
+  }
+
+  function idf(term) {
+    var d = df(term);
+    return Math.log(((N - d + 0.5) / (d + 0.5)) + 1);
+  }
+
+  function bm25Score(queryTerms, docIdx, k1, b) {
+    var dl = DOC_LENGTHS[docIdx];
+    var score = 0;
+    queryTerms.forEach(function(t) {
+      var tfVal = tf(t, docIdx);
+      var idfVal = idf(t);
+      var num = tfVal * (k1 + 1);
+      var denom = tfVal + k1 * (1 - b + b * (dl / AVGDL));
+      score += idfVal * (num / denom);
+    });
+    return score;
+  }
+
+  // IDF display
+  document.getElementById('idf-foxes').textContent = idf('foxes').toFixed(3);
+  document.getElementById('idf-quick').textContent = idf('quick').toFixed(3);
+  document.getElementById('idf-the').textContent = idf('the').toFixed(3);
+
+  function renderBM25() {
+    var k1 = parseFloat(document.getElementById('k1-slider').value);
+    var b = parseFloat(document.getElementById('b-slider').value);
+    document.getElementById('k1-val').textContent = k1.toFixed(1);
+    document.getElementById('b-val').textContent = b.toFixed(2);
+
+    var queryInput = document.getElementById('bm25-query-input').value.trim().toLowerCase();
+    var queryTerms = queryInput ? queryInput.split(/\s+/) : ['quick', 'brown'];
+    document.getElementById('bm25-query-display').textContent = '"' + queryTerms.join(' ') + '"';
+    var scores = DOCS.map(function(doc, i) {
+      return { doc: doc.id, score: bm25Score(queryTerms, i, k1, b), idx: i };
+    });
+    scores.sort(function(a, b) { return b.score - a.score; });
+
+    var grid = document.getElementById('score-grid');
+    var html = '';
+    scores.forEach(function(s, rank) {
+      var dl = DOC_LENGTHS[s.idx];
+      var details = queryTerms.map(function(t) {
+        var tfVal = tf(t, s.idx);
+        var idfVal = idf(t);
+        var num = tfVal * (k1 + 1);
+        var denom = tfVal + k1 * (1 - b + b * (dl / AVGDL));
+        var contrib = tfVal > 0 ? (idfVal * num / denom) : 0;
+        return t + ': tf=' + tfVal + ', idf=' + idfVal.toFixed(2) + ', +' + contrib.toFixed(3);
+      }).join('\n');
+      html += '<div class="score-card">';
+      html += '<div class="sc-label">' + s.doc + ' (' + dl + ' terms)</div>';
+      html += '<div class="sc-score">' + s.score.toFixed(3) + '</div>';
+      html += '<div class="sc-rank">#' + (rank + 1) + '</div>';
+      html += '<div class="sc-detail">' + escHtml(details) + '</div>';
+      html += '</div>';
+    });
+    grid.innerHTML = html;
+
+    drawTFCurve(k1);
+    updateWorkedExample(k1, b);
+  }
+
+  function updateWorkedExample(k1, b) {
+    var queryInput = document.getElementById('bm25-query-input').value.trim().toLowerCase();
+    var qTerms = queryInput ? queryInput.split(/\s+/) : ['quick', 'brown'];
+    var dl = DOC_LENGTHS[0]; // doc1
+
+    var el = document.getElementById('worked-example');
+    var html = '<div style="font-family: \'SF Mono\', monospace; font-size: 12px; line-height: 1.8;">';
+    html += '<div>doc1: "the quick brown fox jumps over the lazy dog" &nbsp; (' + dl + ' terms)</div>';
+    html += '<div>avgdl = ' + AVGDL.toFixed(2) + ', k1 = ' + k1.toFixed(1) + ', b = ' + b.toFixed(2) + '</div>';
+
+    var total = 0;
+    qTerms.forEach(function(t) {
+      var tfVal = tf(t, 0);
+      var idfVal = idf(t);
+      var dfVal = df(t);
+      var num = tfVal * (k1 + 1);
+      var denom = tfVal + k1 * (1 - b + b * (dl / AVGDL));
+      var tfPart = tfVal > 0 ? num / denom : 0;
+      var contrib = idfVal * tfPart;
+      total += contrib;
+
+      html += '<div style="margin-top: 8px; color: var(--accent-blue);">--- Term: "' + escHtml(t) + '" ---</div>';
+      html += '<div>&nbsp; tf = ' + tfVal + ', df = ' + dfVal + ', N = ' + N + '</div>';
+      html += '<div>&nbsp; IDF = log((' + N + ' - ' + dfVal + ' + 0.5) / (' + dfVal + ' + 0.5) + 1) = ' + idfVal.toFixed(4) + '</div>';
+      if (tfVal > 0) {
+        html += '<div>&nbsp; TF_part = (' + tfVal + ' * (' + k1.toFixed(1) + ' + 1)) / (' + tfVal + ' + ' + k1.toFixed(1) + ' * (1 - ' + b.toFixed(2) + ' + ' + b.toFixed(2) + ' * (' + dl + ' / ' + AVGDL.toFixed(2) + '))) = ' + tfPart.toFixed(4) + '</div>';
+        html += '<div>&nbsp; contribution = ' + contrib.toFixed(4) + '</div>';
+      } else {
+        html += '<div>&nbsp; <span style="color: var(--accent-red);">Term not in doc1 -- contribution = 0</span></div>';
+      }
+    });
+
+    html += '<div style="margin-top: 8px; color: var(--accent-green); font-weight: 600;">Total BM25 score for doc1 = ' + total.toFixed(4) + '</div>';
+    html += '</div>';
+    el.innerHTML = html;
+  }
+
+  document.getElementById('k1-slider').addEventListener('input', renderBM25);
+  document.getElementById('b-slider').addEventListener('input', renderBM25);
+  document.getElementById('bm25-query-input').addEventListener('input', renderBM25);
+
+  // TF saturation curve
+  function drawTFCurve(currentK1) {
+    var canvas = document.getElementById('tf-canvas');
+    var ctx = canvas.getContext('2d');
+    var dpr = window.devicePixelRatio || 1;
+    var w = canvas.clientWidth;
+    var h = canvas.clientHeight;
+    canvas.width = w * dpr;
+    canvas.height = h * dpr;
+    ctx.scale(dpr, dpr);
+
+    ctx.clearRect(0, 0, w, h);
+
+    var padL = 50, padR = 20, padT = 20, padB = 40;
+    var plotW = w - padL - padR;
+    var plotH = h - padT - padB;
+    var maxTF = 12;
+    var maxY = 3.5;
+
+    // Grid
+    ctx.strokeStyle = '#2a2a35';
+    ctx.lineWidth = 1;
+    for (var gy = 0; gy <= maxY; gy += 0.5) {
+      var py = padT + plotH - (gy / maxY) * plotH;
+      ctx.beginPath(); ctx.moveTo(padL, py); ctx.lineTo(padL + plotW, py); ctx.stroke();
+    }
+    for (var gx = 0; gx <= maxTF; gx += 2) {
+      var px = padL + (gx / maxTF) * plotW;
+      ctx.beginPath(); ctx.moveTo(px, padT); ctx.lineTo(px, padT + plotH); ctx.stroke();
+    }
+
+    // Axes
+    ctx.strokeStyle = '#555';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(padL, padT); ctx.lineTo(padL, padT + plotH); ctx.lineTo(padL + plotW, padT + plotH); ctx.stroke();
+
+    // Labels
+    ctx.fillStyle = '#888';
+    ctx.font = '11px -apple-system, sans-serif';
+    ctx.textAlign = 'center';
+    for (var lx = 0; lx <= maxTF; lx += 2) {
+      ctx.fillText(lx, padL + (lx / maxTF) * plotW, padT + plotH + 16);
+    }
+    ctx.fillText('Term Frequency (tf)', padL + plotW / 2, padT + plotH + 34);
+    ctx.textAlign = 'right';
+    for (var ly = 0; ly <= maxY; ly += 0.5) {
+      ctx.fillText(ly.toFixed(1), padL - 6, padT + plotH - (ly / maxY) * plotH + 4);
+    }
+    ctx.save();
+    ctx.translate(12, padT + plotH / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.textAlign = 'center';
+    ctx.fillText('TF Component', 0, 0);
+    ctx.restore();
+
+    // Draw curves
+    var curves = [
+      { k1: 1.2, color: '#339af0', label: 'k1=1.2' },
+      { k1: 3.0, color: '#51cf66', label: 'k1=3.0' },
+      { k1: 0, color: '#ff6b6b', label: 'k1=0' }
+    ];
+
+    curves.forEach(function(c) {
+      ctx.strokeStyle = c.color;
+      ctx.lineWidth = c.k1 === currentK1 ? 3 : 2;
+      ctx.beginPath();
+      for (var t = 0; t <= maxTF; t += 0.1) {
+        var y;
+        if (c.k1 === 0) {
+          y = t > 0 ? 1 : 0;
+        } else {
+          y = (t * (c.k1 + 1)) / (t + c.k1);
+        }
+        var sx = padL + (t / maxTF) * plotW;
+        var sy = padT + plotH - (y / maxY) * plotH;
+        if (t === 0) ctx.moveTo(sx, sy); else ctx.lineTo(sx, sy);
+      }
+      ctx.stroke();
+    });
+
+    // Raw TF line (linear)
+    ctx.strokeStyle = '#ffd43b';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([6, 4]);
+    ctx.beginPath();
+    for (var t2 = 0; t2 <= maxTF; t2 += 0.1) {
+      var sx2 = padL + (t2 / maxTF) * plotW;
+      var sy2 = padT + plotH - (t2 / maxY) * plotH;
+      if (sy2 < padT) break;
+      if (t2 === 0) ctx.moveTo(sx2, sy2); else ctx.lineTo(sx2, sy2);
+    }
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  renderBM25();
+
+  // ---- SECTION 4: FILTER CONTEXT DEMO ----
+
+  var filterSteps = [
+    { label: 'Total docs', count: 100000, color: 'var(--text-2)' },
+    { label: 'After filter: category=electronics', count: 50000, color: 'var(--accent-green)' },
+    { label: 'After filter: price <= 1000', count: 30000, color: 'var(--accent-green)' },
+    { label: 'BM25 scored: description="phone"', count: 847, color: 'var(--accent-blue)' }
+  ];
+
+  function runFilterDemo() {
+    var container = document.getElementById('filter-demo');
+    var commentary = document.getElementById('filter-commentary');
+    var btn = document.getElementById('filter-demo-btn');
+    btn.disabled = true;
+
+    var html = '<div style="margin: 12px 0;">';
+    filterSteps.forEach(function(s, i) {
+      var pct = (s.count / 100000) * 100;
+      html += '<div style="margin: 8px 0; opacity: 0; transition: opacity 0.5s;" id="filter-step-' + i + '">';
+      html += '<div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 4px;">';
+      html += '<span style="color: ' + s.color + ';">' + s.label + '</span>';
+      html += '<span style="color: var(--accent-cyan); font-family: monospace;">' + s.count.toLocaleString() + '</span>';
+      html += '</div>';
+      html += '<div style="background: var(--surface-2); border-radius: 4px; height: 20px; overflow: hidden;">';
+      html += '<div style="height: 100%; width: 0; background: ' + s.color + '; opacity: 0.4; border-radius: 4px; transition: width 0.8s ease;" id="filter-bar-' + i + '"></div>';
+      html += '</div>';
+      html += '</div>';
+    });
+    html += '</div>';
+    // Add comparison
+    html += '<div style="margin-top: 16px; opacity: 0; transition: opacity 0.5s;" id="filter-compare">';
+    html += '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">';
+    html += '<div style="background: var(--surface); border: 1px solid var(--accent-green); border-radius: 6px; padding: 12px; text-align: center;">';
+    html += '<div style="font-size: 12px; color: var(--text-3);">With filter context</div>';
+    html += '<div style="font-size: 22px; font-weight: 700; color: var(--accent-green);">30K scored</div>';
+    html += '<div style="font-size: 11px; color: var(--text-3);">Filters narrow first (bitset AND), then BM25</div>';
+    html += '</div>';
+    html += '<div style="background: var(--surface); border: 1px solid var(--accent-red); border-radius: 6px; padding: 12px; text-align: center;">';
+    html += '<div style="font-size: 12px; color: var(--text-3);">Everything in must</div>';
+    html += '<div style="font-size: 22px; font-weight: 700; color: var(--accent-red);">100K scored</div>';
+    html += '<div style="font-size: 11px; color: var(--text-3);">All docs run through full BM25. 3.3x more work.</div>';
+    html += '</div>';
+    html += '</div>';
+    html += '</div>';
+
+    container.innerHTML = '<div class="controls"><button onclick="runFilterDemo()" id="filter-demo-btn" disabled>Run Demo: 100K docs</button></div>' + html;
+
+    // Animate steps
+    filterSteps.forEach(function(s, i) {
+      setTimeout(function() {
+        var step = document.getElementById('filter-step-' + i);
+        step.style.opacity = '1';
+        setTimeout(function() {
+          var bar = document.getElementById('filter-bar-' + i);
+          bar.style.width = ((s.count / 100000) * 100) + '%';
+        }, 100);
+
+        var msgs = [
+          'Starting with 100,000 documents in the index...',
+          'Filter: category=electronics. Bitset cached. 50K docs remain. No scoring.',
+          'Filter: price<=1000. Another bitset AND. 30K docs remain. Still no scoring.',
+          'Now BM25 scores only 30K candidates for "phone". 847 docs match with score > 0.'
+        ];
+        commentary.textContent = msgs[i];
+      }, i * 800);
+    });
+
+    setTimeout(function() {
+      var compare = document.getElementById('filter-compare');
+      compare.style.opacity = '1';
+      commentary.innerHTML = '<strong>Result:</strong> filter context reduced BM25 work by 70%. The bitset operations are O(n) with tiny constants and are cached across queries. This is why "move everything to filter" is the #1 ES performance tip.';
+      btn = document.getElementById('filter-demo-btn');
+      if (btn) btn.disabled = false;
+    }, filterSteps.length * 800 + 400);
+  }
+
+  // ---- SECTION 5: AGGREGATIONS ----
+
+  var PRODUCTS = [
+    { name: 'iPhone 15', category: 'electronics', price: 999 },
+    { name: 'MacBook Air', category: 'electronics', price: 1199 },
+    { name: 'AirPods Pro', category: 'electronics', price: 249 },
+    { name: 'Samsung TV 55"', category: 'electronics', price: 549 },
+    { name: 'USB-C Cable', category: 'electronics', price: 12 },
+    { name: 'Webcam HD', category: 'electronics', price: 79 },
+    { name: 'Keyboard', category: 'electronics', price: 149 },
+    { name: 'Mouse Pad', category: 'electronics', price: 25 },
+    { name: 'T-Shirt', category: 'clothing', price: 29 },
+    { name: 'Jeans', category: 'clothing', price: 59 },
+    { name: 'Sneakers', category: 'clothing', price: 89 },
+    { name: 'Hoodie', category: 'clothing', price: 45 },
+    { name: 'Socks Pack', category: 'clothing', price: 12 },
+    { name: 'Clean Code', category: 'books', price: 35 },
+    { name: 'DDIA', category: 'books', price: 42 },
+    { name: 'Algorithms 4th', category: 'books', price: 55 },
+    { name: 'Effective Java', category: 'books', price: 38 },
+    { name: 'The Pragmatic Programmer', category: 'books', price: 40 },
+    { name: 'System Design Interview', category: 'books', price: 30 },
+    { name: 'Java Concurrency', category: 'books', price: 45 }
+  ];
+
+  function runAggDemo() {
+    var btn = document.getElementById('agg-demo-btn');
+    btn.disabled = true;
+    var tree = document.getElementById('agg-tree');
+
+    // Compute aggregation
+    var buckets = {};
+    PRODUCTS.forEach(function(p) {
+      if (!buckets[p.category]) buckets[p.category] = [];
+      buckets[p.category].push(p);
+    });
+
+    var catOrder = Object.keys(buckets).sort(function(a, b) {
+      return buckets[b].length - buckets[a].length;
+    });
+
+    // Build initial "flowing" state
+    tree.innerHTML = '<div style="color: var(--text-3);">Processing ' + PRODUCTS.length + ' documents...</div>';
+
+    setTimeout(function() {
+      var html = '<div style="color: var(--accent-purple); font-weight: 600; margin-bottom: 8px;">agg: by_category (terms)</div>';
+
+      catOrder.forEach(function(cat, ci) {
+        var docs = buckets[cat];
+        var avg = docs.reduce(function(s, d) { return s + d.price; }, 0) / docs.length;
+
+        // Histogram buckets
+        var hist = {};
+        docs.forEach(function(d) {
+          var bucket = Math.floor(d.price / 100) * 100;
+          hist[bucket] = (hist[bucket] || 0) + 1;
+        });
+        var maxHist = Math.max.apply(null, Object.values(hist));
+
+        html += '<div class="agg-bucket" style="opacity: 0; transition: opacity 0.5s;" id="agg-bucket-' + ci + '">';
+        html += '<div class="agg-bucket-header">' + cat + ': <span style="color: var(--accent-cyan);">doc_count=' + docs.length + '</span></div>';
+        html += '<div class="agg-metric">avg_price: $' + avg.toFixed(0) + '</div>';
+        html += '<div class="agg-metric">price_histogram:</div>';
+
+        var histKeys = Object.keys(hist).map(Number).sort(function(a, b) { return a - b; });
+        histKeys.forEach(function(k) {
+          var barW = (hist[k] / maxHist) * 80;
+          html += '<div class="agg-metric" style="padding-left: 24px;">';
+          html += '<span class="agg-hist-bar" style="width: ' + barW + 'px;"></span>';
+          html += '<span style="color: var(--text-3);">$' + k + '-' + (k + 100) + ': </span>';
+          html += '<span style="color: var(--accent-yellow);">' + hist[k] + ' doc(s)</span>';
+          html += ' <span style="color: var(--text-3); font-size: 11px;">[' + docs.filter(function(d) { return Math.floor(d.price / 100) * 100 === k; }).map(function(d) { return d.name; }).join(', ') + ']</span>';
+          html += '</div>';
+        });
+        html += '</div>';
+      });
+      tree.innerHTML = html;
+
+      // Animate buckets appearing
+      catOrder.forEach(function(cat, ci) {
+        setTimeout(function() {
+          var el = document.getElementById('agg-bucket-' + ci);
+          if (el) el.style.opacity = '1';
+        }, ci * 400);
+      });
+
+      setTimeout(function() { btn.disabled = false; }, catOrder.length * 400 + 200);
+
+      // Doc flow display
+      var flowEl = document.getElementById('doc-flow-display');
+      var flowHTML = '';
+      var colorMap = { electronics: 'var(--accent-blue)', clothing: 'var(--accent-green)', books: 'var(--accent-yellow)' };
+      PRODUCTS.forEach(function(p, i) {
+        flowHTML += '<span style="color: ' + (colorMap[p.category] || 'var(--text-2)') + '; opacity: 0; transition: opacity 0.3s; display: inline-block; margin: 2px 4px;" id="flow-doc-' + i + '">';
+        flowHTML += p.name + ' -> ' + p.category;
+        flowHTML += '</span><br>';
+      });
+      flowEl.innerHTML = flowHTML;
+
+      // Animate docs flowing
+      PRODUCTS.forEach(function(p, i) {
+        setTimeout(function() {
+          var el = document.getElementById('flow-doc-' + i);
+          if (el) el.style.opacity = '1';
+        }, 600 + i * 80);
+      });
+    }, 500);
+  }
+
+  // ---- RESIZE HANDLING ----
+  var resizeTimer;
+  window.addEventListener('resize', function() {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(function() { drawTFCurve(parseFloat(document.getElementById('k1-slider').value)); }, 150);
+  });
+
+})();
+</script>
+
+</body>
+</html>

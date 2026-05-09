@@ -1,0 +1,1942 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cassandra Topologies -- Interactive Simulation</title>
+<style>
+:root {
+  --bg: #0f0f15;
+  --surface: #181820;
+  --surface-2: #20202a;
+  --border: #2a2a35;
+  --text: #e6e6ea;
+  --text-2: #cfcfd6;
+  --text-3: #888;
+  --accent-red: #ff6b6b;
+  --accent-green: #51cf66;
+  --accent-blue: #339af0;
+  --accent-yellow: #ffd43b;
+  --accent-purple: #cc5de8;
+  --accent-cyan: #8be9fd;
+  --accent-orange: #ffa94d;
+}
+*, *::before, *::after { box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  padding: 32px 24px;
+  max-width: 1100px;
+  margin: 0 auto;
+  line-height: 1.55;
+}
+h1 { color: #fff; margin-bottom: 4px; }
+h1 + p.sub { color: var(--text-3); font-style: italic; margin-top: 0; margin-bottom: 24px; }
+h2 { color: #fff; margin-top: 32px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+h3 { color: var(--text-2); margin-top: 20px; }
+code {
+  background: var(--surface-2);
+  padding: 2px 6px;
+  border-radius: 3px;
+  color: var(--accent-cyan);
+  font-size: 13px;
+}
+svg {
+  background: var(--surface);
+  border-radius: 8px;
+  display: block;
+  margin: 14px auto;
+  width: 100%;
+  height: auto;
+}
+.tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+.tabs button {
+  padding: 10px 20px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-2);
+  border-radius: 6px;
+  cursor: pointer;
+  min-height: 44px;
+  font-size: 14px;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.tabs button:hover { background: var(--surface); }
+.tabs button.active {
+  border-color: var(--accent-blue);
+  border-bottom: 2px solid var(--accent-blue);
+  color: #fff;
+}
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0;
+  align-items: center;
+}
+.controls button, .btn {
+  padding: 10px 16px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  border-radius: 6px;
+  cursor: pointer;
+  min-height: 44px;
+  font-size: 14px;
+  transition: background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+.controls button:hover, .btn:hover { background: var(--surface); }
+.controls button:disabled, .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.controls button.active-btn { border-color: var(--accent-blue); color: var(--accent-blue); }
+.controls button.danger { border-color: var(--accent-red); color: var(--accent-red); }
+.controls button.danger:hover { background: #2a1520; }
+.slider-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-3);
+  min-width: 180px;
+}
+.slider-group input[type="range"] {
+  flex: 1;
+  min-width: 80px;
+  accent-color: var(--accent-blue);
+}
+.commentary {
+  background: var(--surface-2);
+  padding: 14px;
+  border-radius: 6px;
+  font-size: 14px;
+  color: var(--text-2);
+  margin: 12px 0;
+  min-height: 44px;
+  line-height: 1.5;
+}
+.takeaway {
+  background: #1a1a22;
+  border-left: 3px solid var(--accent-green);
+  padding: 12px 16px;
+  margin: 14px 0;
+  font-size: 14px;
+}
+.takeaway strong { color: var(--accent-green); }
+.takeaway ul { margin: 6px 0 0 0; padding-left: 18px; }
+.takeaway li { margin-bottom: 6px; }
+section[hidden] { display: none !important; }
+.key-input-group {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin: 12px 0;
+  flex-wrap: wrap;
+}
+.key-input-group input[type="text"] {
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  border-radius: 6px;
+  font-size: 14px;
+  min-height: 44px;
+  width: 220px;
+  max-width: 100%;
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+}
+.key-input-group input[type="text"]::placeholder { color: var(--text-3); }
+.hash-display {
+  font-size: 13px;
+  color: var(--text-2);
+  background: var(--surface);
+  padding: 10px 14px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  margin: 8px 0;
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+  line-height: 1.6;
+  min-height: 40px;
+  white-space: pre-wrap;
+}
+.cl-selector {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.cl-selector label {
+  font-size: 13px;
+  color: var(--text-3);
+  margin-right: 4px;
+}
+.cl-selector button {
+  padding: 8px 14px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-2);
+  border-radius: 6px;
+  cursor: pointer;
+  min-height: 44px;
+  font-size: 13px;
+  transition: background 0.15s, border-color 0.15s;
+}
+.cl-selector button:hover { background: var(--surface); }
+.cl-selector button.active-btn { border-color: var(--accent-blue); color: var(--accent-blue); }
+.consistency-verdict {
+  padding: 14px;
+  border-radius: 6px;
+  font-size: 15px;
+  font-weight: 600;
+  margin: 12px 0;
+  text-align: center;
+}
+.verdict-strong {
+  background: #1a2a1a;
+  border: 1px solid var(--accent-green);
+  color: var(--accent-green);
+}
+.verdict-stale {
+  background: #2a1a1a;
+  border: 1px solid var(--accent-red);
+  color: var(--accent-red);
+}
+@media (max-width: 720px) {
+  body { padding: 20px 14px; }
+}
+@media (max-width: 600px) {
+  .tabs { gap: 4px; }
+  .tabs button { padding: 10px 12px; font-size: 13px; flex: 1; min-width: 80px; text-align: center; }
+}
+@media (max-width: 480px) {
+  .controls { flex-direction: column; }
+  .controls button { width: 100%; }
+  .slider-group { width: 100%; min-width: auto; }
+  .key-input-group { flex-direction: column; }
+  .key-input-group input[type="text"] { width: 100%; }
+  .cl-selector { flex-direction: column; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Cassandra topologies</h1>
+  <p class="sub">The ring with vnodes, RF, NetworkTopologyStrategy, R+W>N tunable consistency, multi-DC, gossip + phi accrual. No leader, no master, no single point of anything. Click consistency levels, watch reads return stale or strong.</p>
+</header>
+
+<nav class="tabs">
+  <button class="active" onclick="setActiveTab('ring')">The Ring</button>
+  <button onclick="setActiveTab('replication')">Replication</button>
+  <button onclick="setActiveTab('consistency')">Tunable CL</button>
+  <button onclick="setActiveTab('multidc')">Multi-DC</button>
+  <button onclick="setActiveTab('gossip')">Gossip</button>
+</nav>
+
+<!-- ============================================================ -->
+<!-- TAB 1: THE RING                                               -->
+<!-- ============================================================ -->
+<section data-tab="ring">
+  <h2>The Ring (Single DC, Vnodes)</h2>
+  <p>Cassandra uses the Murmur3 partitioner: <code>hash(partition_key)</code> produces a 64-bit signed token in <code>[-2^63, 2^63 - 1]</code>. Tokens are arranged on a ring. Each vnode owns the range from the previous vnode's token (exclusive) up to its own token (inclusive), walking clockwise. Every node is equal -- there is no leader. The coordinator is whichever node the client happens to connect to for this request.</p>
+
+  <svg id="ring-svg" viewBox="0 0 800 520" preserveAspectRatio="xMidYMid meet">
+    <g id="ring-scene"></g>
+  </svg>
+
+  <h3>Partition key lookup</h3>
+  <div class="key-input-group">
+    <input type="text" id="ring-key-input" placeholder="e.g. user42" value="user42">
+    <button class="btn" onclick="RING.lookup()">Hash + Route</button>
+    <button class="btn" onclick="RING.randomCoordinator()">New Coordinator</button>
+  </div>
+  <div class="hash-display" id="ring-hash-display">Type a partition key and click "Hash + Route" to trace the path: Murmur3 hash -> token -> vnode -> physical node.</div>
+
+  <div class="commentary" id="ring-commentary">No leader. Every node is equal. The coordinator is whoever the client connects to for this request. With TokenAwarePolicy, the driver picks the coordinator that owns the token -- zero network hops to the right node.</div>
+
+  <div class="takeaway">
+    <strong>Takeaways</strong>
+    <ul>
+      <li>Coordinator can be any node -- pick the one closest (TokenAwarePolicy) for fewer hops.</li>
+      <li>Vnodes randomize token placement for balanced load. Default 256 vnodes/node; we show 6 for clarity.</li>
+      <li>Murmur3 distributes evenly because partition keys are usually low-entropy strings -- the hash function compensates.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- TAB 2: REPLICATION                                            -->
+<!-- ============================================================ -->
+<section data-tab="replication" hidden>
+  <h2>Replication (RF + Strategies)</h2>
+  <p>Each token's owner is the primary replica. The next RF-1 distinct physical nodes clockwise hold additional replicas. With RF=3, every partition lives on 3 nodes -- losing one node still leaves 2 copies.</p>
+
+  <svg id="repl-svg" viewBox="0 0 800 520" preserveAspectRatio="xMidYMid meet">
+    <g id="repl-scene"></g>
+  </svg>
+
+  <h3>Partition key -> replicas</h3>
+  <div class="key-input-group">
+    <input type="text" id="repl-key-input" placeholder="e.g. order99" value="order99">
+    <button class="btn" onclick="REPL.lookup()">Show Replicas</button>
+  </div>
+  <div class="hash-display" id="repl-hash-display">Type a partition key to see which 3 nodes hold replicas.</div>
+
+  <div class="controls">
+    <button onclick="REPL.setStrategy('simple')" id="repl-btn-simple" class="active-btn">SimpleStrategy</button>
+    <button onclick="REPL.setStrategy('nts')" id="repl-btn-nts">NetworkTopologyStrategy</button>
+    <button onclick="REPL.killRack()" id="repl-btn-kill" class="danger">Kill Rack 1</button>
+    <button onclick="REPL.restoreRack()" id="repl-btn-restore" disabled>Restore Rack 1</button>
+  </div>
+
+  <div class="commentary" id="repl-commentary">SimpleStrategy picks replicas by walking clockwise to the next distinct physical nodes. NetworkTopologyStrategy does the same but also ensures replicas land in different racks -- so losing a rack costs at most 1 replica per partition, not all of them.</div>
+
+  <div class="takeaway">
+    <strong>Takeaways</strong>
+    <ul>
+      <li>RF=3 with NetworkTopologyStrategy + rack-aware allocation = canonical production setup.</li>
+      <li>Strategy is per-keyspace, not cluster-wide -- different tables can use different strategies.</li>
+      <li>SimpleStrategy is fine for dev/test or single-rack. Production multi-rack always uses NetworkTopologyStrategy.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- TAB 3: TUNABLE CONSISTENCY                                    -->
+<!-- ============================================================ -->
+<section data-tab="consistency" hidden>
+  <h2>Tunable Consistency (R + W > N)</h2>
+  <p>Cassandra's killer feature: per-query consistency level (CL). You choose, per read and per write, how many replicas must acknowledge. The magic formula: if R + W > N (where N = RF), you are guaranteed to read the latest write -- at least one replica participated in both the write and the read.</p>
+
+  <svg id="cl-svg" viewBox="0 0 800 440" preserveAspectRatio="xMidYMid meet">
+    <g id="cl-scene"></g>
+  </svg>
+
+  <div class="controls">
+    <div class="cl-selector">
+      <label>Write CL:</label>
+      <button onclick="CL.setWrite('ONE')" id="cl-w-one">ONE</button>
+      <button onclick="CL.setWrite('QUORUM')" id="cl-w-quorum" class="active-btn">QUORUM</button>
+      <button onclick="CL.setWrite('ALL')" id="cl-w-all">ALL</button>
+    </div>
+    <div class="cl-selector">
+      <label>Read CL:</label>
+      <button onclick="CL.setRead('ONE')" id="cl-r-one">ONE</button>
+      <button onclick="CL.setRead('QUORUM')" id="cl-r-quorum" class="active-btn">QUORUM</button>
+      <button onclick="CL.setRead('ALL')" id="cl-r-all">ALL</button>
+    </div>
+  </div>
+
+  <div class="consistency-verdict" id="cl-verdict"></div>
+
+  <div class="controls">
+    <button onclick="CL.animateWrite()" id="cl-btn-write">Animate Write</button>
+    <button onclick="CL.animateRead()" id="cl-btn-read">Animate Read</button>
+    <button onclick="CL.toggleLag()" id="cl-btn-lag">Toggle: Replica 3 lagging</button>
+    <button onclick="CL.reset()">Reset</button>
+  </div>
+
+  <div class="commentary" id="cl-commentary">QUORUM = ceil(RF/2) + 1 = 2 for RF=3. With W=QUORUM and R=QUORUM, R+W = 4 > 3 = N. Guaranteed strong consistency. This is the standard production setting -- balanced between fast reads and fast writes.</div>
+
+  <div class="takeaway">
+    <strong>Takeaways</strong>
+    <ul>
+      <li>R + W > N = guaranteed read-your-writes. The overlap ensures at least one replica has the latest data.</li>
+      <li>QUORUM + QUORUM = the standard production setting (balanced fast read + fast write + strong).</li>
+      <li>W=ALL + R=ONE = strong but slow writes, fast reads. W=ONE + R=ALL = fast writes, slow reads. Both are R+W=4>3.</li>
+      <li>CL=ANY (write only) = fire and forget -- even hinted handoff counts as ack. Do not use unless you truly mean it.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- TAB 4: MULTI-DC                                               -->
+<!-- ============================================================ -->
+<section data-tab="multidc" hidden>
+  <h2>Multi-DC (NetworkTopologyStrategy + LOCAL_QUORUM)</h2>
+  <p>Two DCs, each with 4 nodes. RF = <code>{DC1: 3, DC2: 3}</code>. Writes to DC1 fan out to local replicas AND async to DC2 replicas. LOCAL_QUORUM requires quorum only within the local DC -- the cross-DC leg is asynchronous, keeping latency low.</p>
+
+  <svg id="mdc-svg" viewBox="0 0 800 520" preserveAspectRatio="xMidYMid meet">
+    <g id="mdc-scene"></g>
+  </svg>
+
+  <div class="controls">
+    <button onclick="MDC.animateWrite()" id="mdc-btn-write">Write (LOCAL_QUORUM)</button>
+    <button onclick="MDC.animateEachQuorum()" id="mdc-btn-each">Write (EACH_QUORUM)</button>
+    <button onclick="MDC.killDC2()" id="mdc-btn-kill" class="danger">Kill DC2</button>
+    <button onclick="MDC.restoreDC2()" id="mdc-btn-restore" disabled>Restore DC2</button>
+    <button onclick="MDC.replayHints()" id="mdc-btn-hints" disabled>Replay Hints</button>
+    <div class="slider-group">
+      <span>Cross-DC delay</span>
+      <input type="range" min="50" max="300" value="120" id="mdc-delay" oninput="MDC.updateDelay()">
+      <span id="mdc-delay-label">120ms</span>
+    </div>
+  </div>
+
+  <div class="commentary" id="mdc-commentary">LOCAL_QUORUM: coordinator waits for quorum in its own DC, then returns success. The cross-DC leg is asynchronous. This is the multi-DC default -- low latency for the client, eventual consistency across DCs.</div>
+
+  <div class="takeaway">
+    <strong>Takeaways</strong>
+    <ul>
+      <li>LOCAL_QUORUM is the multi-DC default. Do not use cross-DC QUORUM in the hot path.</li>
+      <li>Hinted handoff is best-effort, not durable -- it has a TTL (default 3 hours). If a DC is down longer, run <code>nodetool repair</code>.</li>
+      <li>Repair (<code>nodetool repair</code>) is the maintenance task; read repair is the runtime fix. Both are needed.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- TAB 5: GOSSIP                                                 -->
+<!-- ============================================================ -->
+<section data-tab="gossip" hidden>
+  <h2>Gossip + Failure Detection</h2>
+  <p>Every node picks a random peer once per second and exchanges endpoint state (heartbeat generation, schema version, token ownership). There is no master deciding who is up -- it is emergent from gossip. The phi accrual failure detector tracks inter-arrival times of heartbeats; when time-since-last-heartbeat exceeds a phi threshold (default phi=8), the peer is marked DOWN.</p>
+
+  <svg id="gossip-svg" viewBox="0 0 800 520" preserveAspectRatio="xMidYMid meet">
+    <g id="gossip-scene"></g>
+  </svg>
+
+  <div class="controls">
+    <button onclick="GOSSIP.toggleRunning()" id="gossip-btn-toggle">Start Gossip</button>
+    <button onclick="GOSSIP.killNode()" id="gossip-btn-kill" class="danger">Kill N3</button>
+    <button onclick="GOSSIP.bringBack()" id="gossip-btn-back" disabled>Bring N3 Back</button>
+    <button onclick="GOSSIP.slowNode()" id="gossip-btn-slow">Slow N3 (high latency)</button>
+    <button onclick="GOSSIP.reset()">Reset</button>
+  </div>
+
+  <div class="commentary" id="gossip-commentary">Gossip is Cassandra's membership protocol. Every second, each node picks a random peer and exchanges state. No central authority decides who is alive -- every node independently tracks heartbeat inter-arrival times using the phi accrual failure detector.</div>
+
+  <div class="takeaway">
+    <strong>Takeaways</strong>
+    <ul>
+      <li>Gossip = eventually consistent membership view. Convergence in ~1-3 seconds for small clusters.</li>
+      <li>Phi accrual = adaptive failure detector. More robust than simple timeout because it adapts to network conditions -- fewer false positives on transient lag.</li>
+      <li>There is no master deciding who is up -- it is emergent from gossip. Each node independently decides.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- JAVASCRIPT                                                    -->
+<!-- ============================================================ -->
+<script>
+/* ================================================================
+   SHARED UTILITIES
+   ================================================================ */
+function setActiveTab(name) {
+  var btns = document.querySelectorAll('.tabs button');
+  for (var i = 0; i < btns.length; i++) btns[i].classList.remove('active');
+  var sects = document.querySelectorAll('section[data-tab]');
+  for (var i = 0; i < sects.length; i++) {
+    if (sects[i].dataset.tab === name) {
+      sects[i].removeAttribute('hidden');
+      btns[i].classList.add('active');
+    } else {
+      sects[i].setAttribute('hidden', '');
+    }
+  }
+  // Initialize tab visuals on first show
+  if (name === 'ring') RING.init();
+  if (name === 'replication') REPL.init();
+  if (name === 'consistency') CL.init();
+  if (name === 'multidc') MDC.init();
+  if (name === 'gossip') GOSSIP.init();
+}
+
+function svgEl(tag, attrs) {
+  var el = document.createElementNS('http://www.w3.org/2000/svg', tag);
+  for (var k in attrs) el.setAttribute(k, attrs[k]);
+  return el;
+}
+function svgText(x, y, text, attrs) {
+  var el = svgEl('text', Object.assign({ x: x, y: y, 'text-anchor': 'middle', fill: '#e6e6ea', 'font-size': '12' }, attrs || {}));
+  el.textContent = text;
+  return el;
+}
+function delay(ms) { return new Promise(function(r) { setTimeout(r, ms); }); }
+
+/* Approximate Murmur3-like hash: produces a 64-bit-range signed integer from a string.
+   Not a true Murmur3 but consistent and well-distributed for demo purposes. */
+function murmur3Approx(key) {
+  var h1 = 0x971e137b;
+  var h2 = 0x2af72343;
+  for (var i = 0; i < key.length; i++) {
+    var c = key.charCodeAt(i);
+    h1 = ((h1 ^ c) * 0x85ebca6b) >>> 0;
+    h2 = ((h2 ^ c) * 0xc2b2ae35) >>> 0;
+    h1 = ((h1 << 13) | (h1 >>> 19)) >>> 0;
+    h2 = ((h2 << 17) | (h2 >>> 15)) >>> 0;
+  }
+  h1 = ((h1 ^ (h1 >>> 16)) * 0x85ebca6b) >>> 0;
+  h2 = ((h2 ^ (h2 >>> 13)) * 0xc2b2ae35) >>> 0;
+  // Combine into signed 64-bit-like range for display [-2^63, 2^63-1]
+  // We map the 32-bit hash to this range for visualization
+  var fraction = ((h1 ^ h2) >>> 0) / 0xFFFFFFFF;
+  var MIN = -9223372036854775808;
+  var MAX = 9223372036854775807;
+  var token = Math.floor(MIN + fraction * (MAX - MIN));
+  return { token: token, fraction: fraction };
+}
+
+/* Convert a fraction [0,1] to angle in radians (0 = top, clockwise) */
+function fractionToAngle(f) { return f * Math.PI * 2; }
+
+/* Point on circle */
+function circPt(cx, cy, r, angle) {
+  return { x: cx + r * Math.sin(angle), y: cy - r * Math.cos(angle) };
+}
+
+/* Node colors for 5 physical nodes */
+var NODE_COLORS = ['#ff6b6b', '#51cf66', '#339af0', '#ffd43b', '#cc5de8'];
+var NODE_BG     = ['#3a1f1f', '#1f3a23', '#1f2c3a', '#3a341f', '#2c1f3a'];
+var NODE_NAMES  = ['N1', 'N2', 'N3', 'N4', 'N5'];
+
+/* Rack assignments for 5 nodes: N1,N2 = rack1; N3,N4 = rack2; N5 = rack3 */
+var NODE_RACKS = [1, 1, 2, 2, 3];
+var RACK_COLORS = ['#ff6b6b44', '#339af044', '#ffd43b44'];
+var RACK_LABELS = ['Rack 1', 'Rack 2', 'Rack 3'];
+
+/* Generate deterministic vnode positions for 5 physical nodes, 6 vnodes each = 30 vnodes */
+function generateVnodes() {
+  var vnodes = [];
+  // Pre-defined fractions that spread well around the ring
+  var positions = [
+    [0.03, 0.17, 0.38, 0.54, 0.72, 0.89],  // N1
+    [0.07, 0.23, 0.41, 0.58, 0.76, 0.93],  // N2
+    [0.11, 0.28, 0.44, 0.62, 0.79, 0.96],  // N3
+    [0.14, 0.32, 0.48, 0.66, 0.83, 0.99],  // N4
+    [0.01, 0.20, 0.35, 0.51, 0.69, 0.86],  // N5
+  ];
+  for (var n = 0; n < 5; n++) {
+    for (var v = 0; v < 6; v++) {
+      vnodes.push({ node: n, fraction: positions[n][v] });
+    }
+  }
+  vnodes.sort(function(a, b) { return a.fraction - b.fraction; });
+  return vnodes;
+}
+var VNODES = generateVnodes();
+
+/* Find which vnode (and thus physical node) owns a given fraction */
+function findOwner(fraction) {
+  for (var i = 0; i < VNODES.length; i++) {
+    if (fraction <= VNODES[i].fraction) return VNODES[i];
+  }
+  return VNODES[0]; // wrap around
+}
+
+/* Find RF replicas (distinct physical nodes) starting from owning vnode, walking clockwise */
+function findReplicas(fraction, rf, rackAware) {
+  var owner = findOwner(fraction);
+  var startIdx = VNODES.indexOf(owner);
+  var replicas = [];
+  var seenNodes = {};
+  var seenRacks = {};
+
+  if (rackAware) {
+    // NetworkTopologyStrategy: walk clockwise, skip nodes in already-seen racks
+    // First pass: pick one node per unique rack
+    for (var i = 0; i < VNODES.length && replicas.length < rf; i++) {
+      var idx = (startIdx + i) % VNODES.length;
+      var vn = VNODES[idx];
+      var rack = NODE_RACKS[vn.node];
+      if (!seenNodes[vn.node] && !seenRacks[rack]) {
+        replicas.push(vn);
+        seenNodes[vn.node] = true;
+        seenRacks[rack] = true;
+      }
+    }
+    // Second pass: if we haven't filled RF, allow same rack
+    if (replicas.length < rf) {
+      for (var i = 0; i < VNODES.length && replicas.length < rf; i++) {
+        var idx = (startIdx + i) % VNODES.length;
+        var vn = VNODES[idx];
+        if (!seenNodes[vn.node]) {
+          replicas.push(vn);
+          seenNodes[vn.node] = true;
+        }
+      }
+    }
+  } else {
+    // SimpleStrategy: walk clockwise, pick next distinct physical nodes
+    for (var i = 0; i < VNODES.length && replicas.length < rf; i++) {
+      var idx = (startIdx + i) % VNODES.length;
+      var vn = VNODES[idx];
+      if (!seenNodes[vn.node]) {
+        replicas.push(vn);
+        seenNodes[vn.node] = true;
+      }
+    }
+  }
+  return replicas;
+}
+
+
+/* ================================================================
+   TAB 1 -- THE RING
+   ================================================================ */
+var RING = (function() {
+  var CX = 400, CY = 260, R = 180;
+  var coordinatorNode = 0;
+  var lastLookup = null;
+  var initialized = false;
+
+  function draw() {
+    var scene = document.getElementById('ring-scene');
+    scene.innerHTML = '';
+
+    // Defs
+    var defs = svgEl('defs', {});
+    var marker = svgEl('marker', { id: 'ring-arrow', viewBox: '0 0 10 10', refX: '10', refY: '5', markerWidth: '6', markerHeight: '6', orient: 'auto' });
+    marker.appendChild(svgEl('path', { d: 'M0,0 L10,5 L0,10 Z', fill: '#555' }));
+    defs.appendChild(marker);
+    scene.appendChild(defs);
+
+    // Ring circle
+    scene.appendChild(svgEl('circle', { cx: CX, cy: CY, r: R, fill: 'none', stroke: '#2a2a35', 'stroke-width': '2' }));
+
+    // Token range arc segments colored by owning physical node
+    for (var i = 0; i < VNODES.length; i++) {
+      var vn = VNODES[i];
+      var prevIdx = (i - 1 + VNODES.length) % VNODES.length;
+      var prevFrac = VNODES[prevIdx].fraction;
+      var curFrac = vn.fraction;
+
+      var startAngle = fractionToAngle(prevFrac);
+      var endAngle = fractionToAngle(curFrac);
+
+      // Draw arc
+      var p1 = circPt(CX, CY, R, startAngle);
+      var p2 = circPt(CX, CY, R, endAngle);
+      var sweep = (curFrac > prevFrac) ? (curFrac - prevFrac) : (1 - prevFrac + curFrac);
+      var largeArc = sweep > 0.5 ? 1 : 0;
+
+      var arc = svgEl('path', {
+        d: 'M ' + p1.x.toFixed(1) + ' ' + p1.y.toFixed(1) + ' A ' + R + ' ' + R + ' 0 ' + largeArc + ' 1 ' + p2.x.toFixed(1) + ' ' + p2.y.toFixed(1),
+        stroke: NODE_COLORS[vn.node],
+        'stroke-width': '10',
+        fill: 'none',
+        opacity: '0.35'
+      });
+      scene.appendChild(arc);
+    }
+
+    // Vnode dots
+    for (var i = 0; i < VNODES.length; i++) {
+      var vn = VNODES[i];
+      var angle = fractionToAngle(vn.fraction);
+      var pt = circPt(CX, CY, R, angle);
+      scene.appendChild(svgEl('circle', {
+        cx: pt.x.toFixed(1), cy: pt.y.toFixed(1), r: '7',
+        fill: NODE_BG[vn.node], stroke: NODE_COLORS[vn.node], 'stroke-width': '2'
+      }));
+      scene.appendChild(svgText(pt.x, pt.y + 3.5, NODE_NAMES[vn.node], {
+        fill: NODE_COLORS[vn.node], 'font-size': '8', 'font-weight': 'bold'
+      }));
+    }
+
+    // Center labels
+    scene.appendChild(svgText(CX, CY - 12, '5 physical nodes', { fill: '#888', 'font-size': '12' }));
+    scene.appendChild(svgText(CX, CY + 4, '30 vnodes (6 each)', { fill: '#888', 'font-size': '12' }));
+    scene.appendChild(svgText(CX, CY + 22, 'Murmur3 partitioner', { fill: '#666', 'font-size': '10' }));
+
+    // Coordinator indicator
+    var coordAngle = fractionToAngle(VNODES.filter(function(v) { return v.node === coordinatorNode; })[0].fraction);
+    var coordPt = circPt(CX, CY, R + 32, coordAngle);
+    scene.appendChild(svgEl('circle', {
+      cx: coordPt.x.toFixed(1), cy: coordPt.y.toFixed(1), r: '14',
+      fill: 'none', stroke: NODE_COLORS[coordinatorNode], 'stroke-width': '2', 'stroke-dasharray': '4,3'
+    }));
+    scene.appendChild(svgText(coordPt.x, coordPt.y + 4, 'C', {
+      fill: NODE_COLORS[coordinatorNode], 'font-size': '11', 'font-weight': 'bold'
+    }));
+    // Label
+    scene.appendChild(svgText(coordPt.x, coordPt.y - 20, 'Coordinator', {
+      fill: NODE_COLORS[coordinatorNode], 'font-size': '9'
+    }));
+
+    // Legend
+    var lx = 20, ly = 30;
+    var legendBg = svgEl('rect', { x: lx, y: ly, width: '140', height: '145', fill: '#20202a', stroke: '#2a2a35', rx: '6' });
+    scene.appendChild(legendBg);
+    scene.appendChild(svgText(lx + 70, ly + 18, 'Physical Nodes', { fill: '#fff', 'font-size': '12', 'font-weight': 'bold' }));
+    for (var n = 0; n < 5; n++) {
+      scene.appendChild(svgEl('circle', { cx: lx + 16, cy: ly + 38 + n * 22, r: '5', fill: NODE_COLORS[n] }));
+      scene.appendChild(svgText(lx + 80, ly + 42 + n * 22, NODE_NAMES[n] + ' (6 vnodes)', { fill: '#ccc', 'font-size': '11' }));
+    }
+
+    // Draw last lookup if any
+    if (lastLookup) {
+      drawLookupResult(lastLookup.fraction, lastLookup.ownerNode, scene);
+    }
+  }
+
+  function drawLookupResult(fraction, ownerNodeIdx, scene) {
+    var angle = fractionToAngle(fraction);
+    var keyPt = circPt(CX, CY, R - 28, angle);
+
+    // Key marker on ring
+    scene.appendChild(svgEl('circle', {
+      cx: keyPt.x.toFixed(1), cy: keyPt.y.toFixed(1), r: '6',
+      fill: '#fff', stroke: NODE_COLORS[ownerNodeIdx], 'stroke-width': '2'
+    }));
+    scene.appendChild(svgText(keyPt.x, keyPt.y - 12, 'KEY', { fill: '#fff', 'font-size': '9', 'font-weight': 'bold' }));
+
+    // Pointer on ring edge
+    var ringPt = circPt(CX, CY, R, angle);
+    scene.appendChild(svgEl('circle', {
+      cx: ringPt.x.toFixed(1), cy: ringPt.y.toFixed(1), r: '4',
+      fill: '#fff', opacity: '0.8'
+    }));
+
+    // Arrow from coordinator to owner node (if different)
+    var ownerVnode = VNODES.filter(function(v) { return v.node === ownerNodeIdx; })[0];
+    var ownerAngle = fractionToAngle(ownerVnode.fraction);
+    var ownerPt = circPt(CX, CY, R + 28, ownerAngle);
+
+    if (ownerNodeIdx !== coordinatorNode) {
+      var coordVnode = VNODES.filter(function(v) { return v.node === coordinatorNode; })[0];
+      var cAngle = fractionToAngle(coordVnode.fraction);
+      var cPt = circPt(CX, CY, R + 32, cAngle);
+      scene.appendChild(svgEl('line', {
+        x1: cPt.x.toFixed(1), y1: cPt.y.toFixed(1),
+        x2: ownerPt.x.toFixed(1), y2: ownerPt.y.toFixed(1),
+        stroke: '#ffa94d', 'stroke-width': '1.5', 'stroke-dasharray': '6,4',
+        'marker-end': 'url(#ring-arrow)'
+      }));
+      scene.appendChild(svgText((cPt.x + ownerPt.x) / 2, (cPt.y + ownerPt.y) / 2 - 8, 'forward', {
+        fill: '#ffa94d', 'font-size': '9'
+      }));
+    }
+  }
+
+  function lookup() {
+    var key = document.getElementById('ring-key-input').value.trim();
+    if (!key) return;
+    var h = murmur3Approx(key);
+    var owner = findOwner(h.fraction);
+    lastLookup = { fraction: h.fraction, ownerNode: owner.node };
+
+    var display = document.getElementById('ring-hash-display');
+    display.textContent =
+      'Key: "' + key + '"\n' +
+      'Murmur3 token: ' + h.token.toLocaleString() + '  (fraction: ' + h.fraction.toFixed(6) + ')\n' +
+      'Owner vnode at fraction ' + owner.fraction.toFixed(4) + ' -> Physical node: ' + NODE_NAMES[owner.node] + '\n' +
+      (owner.node === coordinatorNode
+        ? 'Coordinator IS the owner -- no forwarding needed (TokenAwarePolicy win).'
+        : 'Coordinator (' + NODE_NAMES[coordinatorNode] + ') forwards to owner (' + NODE_NAMES[owner.node] + ').');
+
+    document.getElementById('ring-commentary').textContent =
+      owner.node === coordinatorNode
+        ? 'The coordinator happens to own this token. With TokenAwarePolicy, the driver routes directly to the owner -- zero extra network hops. This is the optimal case.'
+        : 'Coordinator ' + NODE_NAMES[coordinatorNode] + ' does not own this token. It forwards the request to ' + NODE_NAMES[owner.node] + '. With TokenAwarePolicy, the driver would have picked ' + NODE_NAMES[owner.node] + ' directly, saving one hop.';
+    draw();
+  }
+
+  function randomCoordinator() {
+    coordinatorNode = (coordinatorNode + 1) % 5;
+    document.getElementById('ring-commentary').textContent =
+      'Coordinator changed to ' + NODE_NAMES[coordinatorNode] + '. Any node can be coordinator -- there is no leader election, no primary, no master. The client picks one (round-robin, random, or TokenAwarePolicy).';
+    draw();
+  }
+
+  function init() {
+    if (initialized) return;
+    initialized = true;
+    draw();
+  }
+
+  return { init: init, lookup: lookup, randomCoordinator: randomCoordinator, draw: draw };
+})();
+
+
+/* ================================================================
+   TAB 2 -- REPLICATION
+   ================================================================ */
+var REPL = (function() {
+  var CX = 400, CY = 260, R = 180;
+  var strategy = 'simple';
+  var rack1Dead = false;
+  var lastLookup = null;
+  var initialized = false;
+
+  function draw() {
+    var scene = document.getElementById('repl-scene');
+    scene.innerHTML = '';
+
+    // Ring
+    scene.appendChild(svgEl('circle', { cx: CX, cy: CY, r: R, fill: 'none', stroke: '#2a2a35', 'stroke-width': '2' }));
+
+    // Arc segments
+    for (var i = 0; i < VNODES.length; i++) {
+      var vn = VNODES[i];
+      var prevIdx = (i - 1 + VNODES.length) % VNODES.length;
+      var prevFrac = VNODES[prevIdx].fraction;
+      var curFrac = vn.fraction;
+      var startAngle = fractionToAngle(prevFrac);
+      var endAngle = fractionToAngle(curFrac);
+      var p1 = circPt(CX, CY, R, startAngle);
+      var p2 = circPt(CX, CY, R, endAngle);
+      var sweep = (curFrac > prevFrac) ? (curFrac - prevFrac) : (1 - prevFrac + curFrac);
+      var largeArc = sweep > 0.5 ? 1 : 0;
+      var isDead = rack1Dead && NODE_RACKS[vn.node] === 1;
+      scene.appendChild(svgEl('path', {
+        d: 'M ' + p1.x.toFixed(1) + ' ' + p1.y.toFixed(1) + ' A ' + R + ' ' + R + ' 0 ' + largeArc + ' 1 ' + p2.x.toFixed(1) + ' ' + p2.y.toFixed(1),
+        stroke: isDead ? '#333' : NODE_COLORS[vn.node],
+        'stroke-width': '10',
+        fill: 'none',
+        opacity: isDead ? '0.15' : '0.35'
+      }));
+    }
+
+    // Vnode dots with rack color-coding
+    for (var i = 0; i < VNODES.length; i++) {
+      var vn = VNODES[i];
+      var angle = fractionToAngle(vn.fraction);
+      var pt = circPt(CX, CY, R, angle);
+      var isDead = rack1Dead && NODE_RACKS[vn.node] === 1;
+      var rack = NODE_RACKS[vn.node];
+
+      // Rack background halo
+      if (strategy === 'nts') {
+        scene.appendChild(svgEl('circle', {
+          cx: pt.x.toFixed(1), cy: pt.y.toFixed(1), r: '12',
+          fill: 'none', stroke: RACK_COLORS[rack - 1].replace('44', 'aa'), 'stroke-width': '1.5',
+          'stroke-dasharray': '3,2', opacity: isDead ? '0.2' : '0.6'
+        }));
+      }
+
+      scene.appendChild(svgEl('circle', {
+        cx: pt.x.toFixed(1), cy: pt.y.toFixed(1), r: '7',
+        fill: isDead ? '#1a1a1a' : NODE_BG[vn.node],
+        stroke: isDead ? '#444' : NODE_COLORS[vn.node],
+        'stroke-width': '2',
+        opacity: isDead ? '0.4' : '1'
+      }));
+      scene.appendChild(svgText(pt.x, pt.y + 3.5, NODE_NAMES[vn.node], {
+        fill: isDead ? '#555' : NODE_COLORS[vn.node], 'font-size': '8', 'font-weight': 'bold'
+      }));
+      // X mark on dead nodes
+      if (isDead) {
+        scene.appendChild(svgText(pt.x, pt.y + 3.5, 'X', {
+          fill: '#ff6b6b', 'font-size': '12', 'font-weight': 'bold', opacity: '0.8'
+        }));
+      }
+    }
+
+    // Center
+    scene.appendChild(svgText(CX, CY - 8, 'RF = 3', { fill: '#fff', 'font-size': '14', 'font-weight': 'bold' }));
+    scene.appendChild(svgText(CX, CY + 10, strategy === 'simple' ? 'SimpleStrategy' : 'NetworkTopologyStrategy', {
+      fill: strategy === 'simple' ? '#8be9fd' : '#ffa94d', 'font-size': '11'
+    }));
+
+    // Legend: racks (only for NTS)
+    if (strategy === 'nts') {
+      var lx = 20, ly = 30;
+      scene.appendChild(svgEl('rect', { x: lx, y: ly, width: '130', height: '105', fill: '#20202a', stroke: '#2a2a35', rx: '6' }));
+      scene.appendChild(svgText(lx + 65, ly + 18, 'Rack Layout', { fill: '#fff', 'font-size': '12', 'font-weight': 'bold' }));
+      for (var rk = 0; rk < 3; rk++) {
+        var nodesInRack = [];
+        for (var n = 0; n < 5; n++) { if (NODE_RACKS[n] === rk + 1) nodesInRack.push(NODE_NAMES[n]); }
+        scene.appendChild(svgText(lx + 65, ly + 40 + rk * 24, RACK_LABELS[rk] + ': ' + nodesInRack.join(', '), {
+          fill: '#ccc', 'font-size': '11'
+        }));
+      }
+    }
+
+    // Draw replica highlights if lookup active
+    if (lastLookup) {
+      drawReplicaHighlights(scene);
+    }
+  }
+
+  function drawReplicaHighlights(scene) {
+    var rackAware = strategy === 'nts';
+    var replicas = findReplicas(lastLookup.fraction, 3, rackAware);
+
+    for (var i = 0; i < replicas.length; i++) {
+      var vn = replicas[i];
+      var angle = fractionToAngle(vn.fraction);
+      var pt = circPt(CX, CY, R, angle);
+      var isDead = rack1Dead && NODE_RACKS[vn.node] === 1;
+      var roleLabel = i === 0 ? 'Primary' : 'Replica ' + (i + 1);
+      var roleColor = i === 0 ? '#fff' : '#aaa';
+
+      // Highlight halo
+      scene.appendChild(svgEl('circle', {
+        cx: pt.x.toFixed(1), cy: pt.y.toFixed(1), r: '16',
+        fill: 'none', stroke: isDead ? '#ff6b6b55' : NODE_COLORS[vn.node],
+        'stroke-width': '2.5', 'stroke-dasharray': isDead ? '3,3' : 'none',
+        opacity: isDead ? '0.5' : '0.8'
+      }));
+
+      // Role label
+      var labelPt = circPt(CX, CY, R + 30, angle);
+      scene.appendChild(svgText(labelPt.x, labelPt.y + 4, roleLabel + (isDead ? ' (DOWN)' : ''), {
+        fill: isDead ? '#ff6b6b' : roleColor, 'font-size': '10', 'font-weight': 'bold'
+      }));
+    }
+
+    // Count dead replicas
+    if (rack1Dead) {
+      var deadCount = replicas.filter(function(v) { return NODE_RACKS[v.node] === 1; }).length;
+      var aliveCount = replicas.length - deadCount;
+      scene.appendChild(svgText(CX, CY + 34, deadCount + ' replica(s) in dead rack, ' + aliveCount + ' alive', {
+        fill: deadCount > 0 ? '#ff6b6b' : '#51cf66', 'font-size': '11'
+      }));
+    }
+  }
+
+  function lookup() {
+    var key = document.getElementById('repl-key-input').value.trim();
+    if (!key) return;
+    var h = murmur3Approx(key);
+    lastLookup = { fraction: h.fraction };
+    var rackAware = strategy === 'nts';
+    var replicas = findReplicas(h.fraction, 3, rackAware);
+    var display = document.getElementById('repl-hash-display');
+    var lines = ['Key: "' + key + '"  ->  Token fraction: ' + h.fraction.toFixed(6)];
+    for (var i = 0; i < replicas.length; i++) {
+      var label = i === 0 ? 'Primary' : 'Replica ' + (i + 1);
+      var rack = NODE_RACKS[replicas[i].node];
+      lines.push(label + ': ' + NODE_NAMES[replicas[i].node] + ' (Rack ' + rack + ')' +
+        (rack1Dead && rack === 1 ? ' [DOWN]' : ''));
+    }
+    if (rackAware) {
+      var racks = replicas.map(function(v) { return NODE_RACKS[v.node]; });
+      var uniqueRacks = racks.filter(function(r, i, a) { return a.indexOf(r) === i; });
+      lines.push('Rack diversity: replicas in ' + uniqueRacks.length + ' distinct rack(s)');
+    }
+    display.textContent = lines.join('\n');
+
+    var commentary = document.getElementById('repl-commentary');
+    if (rackAware) {
+      var racks = replicas.map(function(v) { return NODE_RACKS[v.node]; });
+      var uniqueRacks = racks.filter(function(r, i, a) { return a.indexOf(r) === i; });
+      commentary.textContent = uniqueRacks.length >= 3
+        ? 'NetworkTopologyStrategy placed all 3 replicas in different racks. Maximum fault tolerance: losing any single rack costs exactly 1 replica.'
+        : 'NetworkTopologyStrategy spread replicas across ' + uniqueRacks.length + ' racks. With only 3 racks for 5 nodes, some overlap is possible depending on vnode placement.';
+    } else {
+      commentary.textContent = 'SimpleStrategy picks the next 3 distinct physical nodes clockwise. No rack awareness -- two replicas might land in the same rack, so a rack failure could take out 2 of 3 replicas.';
+    }
+    draw();
+  }
+
+  function setStrategy(s) {
+    strategy = s;
+    document.getElementById('repl-btn-simple').className = s === 'simple' ? 'active-btn' : '';
+    document.getElementById('repl-btn-nts').className = s === 'nts' ? 'active-btn' : '';
+    if (lastLookup) lookup();
+    else draw();
+  }
+
+  function killRack() {
+    rack1Dead = true;
+    document.getElementById('repl-btn-kill').disabled = true;
+    document.getElementById('repl-btn-restore').disabled = false;
+    document.getElementById('repl-commentary').textContent =
+      'Rack 1 is down (N1, N2). With NetworkTopologyStrategy and rack-aware placement, each partition loses at most 1 replica from the dead rack. With SimpleStrategy, some partitions may have lost 2 replicas in the same rack.';
+    if (lastLookup) lookup();
+    else draw();
+  }
+
+  function restoreRack() {
+    rack1Dead = false;
+    document.getElementById('repl-btn-kill').disabled = false;
+    document.getElementById('repl-btn-restore').disabled = true;
+    document.getElementById('repl-commentary').textContent =
+      'Rack 1 restored. All replicas healthy.';
+    if (lastLookup) lookup();
+    else draw();
+  }
+
+  function init() {
+    if (initialized) return;
+    initialized = true;
+    draw();
+  }
+
+  return { init: init, lookup: lookup, setStrategy: setStrategy, killRack: killRack, restoreRack: restoreRack };
+})();
+
+
+/* ================================================================
+   TAB 3 -- TUNABLE CONSISTENCY
+   ================================================================ */
+var CL = (function() {
+  var RF = 3;
+  var writeCL = 'QUORUM';
+  var readCL = 'QUORUM';
+  var replica3Lagging = false;
+  var animating = false;
+  var initialized = false;
+
+  var replicaX = [240, 400, 560];
+  var replicaY = 190;
+  var coordX = 400, coordY = 60;
+  var clientX = 400, clientY = 400;
+
+  function clToNum(cl) {
+    if (cl === 'ONE') return 1;
+    if (cl === 'QUORUM') return Math.ceil(RF / 2) + 1; // 2 for RF=3
+    if (cl === 'ALL') return RF;
+    return 1;
+  }
+
+  function updateVerdict() {
+    var W = clToNum(writeCL);
+    var R = clToNum(readCL);
+    var sum = W + R;
+    var el = document.getElementById('cl-verdict');
+    if (sum > RF) {
+      el.className = 'consistency-verdict verdict-strong';
+      el.textContent = 'R + W = ' + R + ' + ' + W + ' = ' + sum + ' > ' + RF + ' (N)  --  GUARANTEED STRONG CONSISTENCY';
+    } else {
+      el.className = 'consistency-verdict verdict-stale';
+      el.textContent = 'R + W = ' + R + ' + ' + W + ' = ' + sum + ' <= ' + RF + ' (N)  --  MAY READ STALE DATA';
+    }
+  }
+
+  function draw() {
+    var scene = document.getElementById('cl-scene');
+    scene.innerHTML = '';
+
+    var defs = svgEl('defs', {});
+    var m1 = svgEl('marker', { id: 'cl-arrow', viewBox: '0 0 10 10', refX: '10', refY: '5', markerWidth: '6', markerHeight: '6', orient: 'auto' });
+    m1.appendChild(svgEl('path', { d: 'M0,0 L10,5 L0,10 Z', fill: '#555' }));
+    defs.appendChild(m1);
+    var m2 = svgEl('marker', { id: 'cl-arrow-green', viewBox: '0 0 10 10', refX: '10', refY: '5', markerWidth: '6', markerHeight: '6', orient: 'auto' });
+    m2.appendChild(svgEl('path', { d: 'M0,0 L10,5 L0,10 Z', fill: '#51cf66' }));
+    defs.appendChild(m2);
+    var m3 = svgEl('marker', { id: 'cl-arrow-orange', viewBox: '0 0 10 10', refX: '10', refY: '5', markerWidth: '6', markerHeight: '6', orient: 'auto' });
+    m3.appendChild(svgEl('path', { d: 'M0,0 L10,5 L0,10 Z', fill: '#ffa94d' }));
+    defs.appendChild(m3);
+    scene.appendChild(defs);
+
+    // Client
+    scene.appendChild(svgEl('rect', { x: clientX - 50, y: clientY - 18, width: 100, height: 36, rx: 6, fill: '#181820', stroke: '#51cf66', 'stroke-width': 2 }));
+    scene.appendChild(svgText(clientX, clientY + 5, 'Client', { fill: '#51cf66', 'font-size': '13', 'font-weight': '600' }));
+
+    // Coordinator
+    scene.appendChild(svgEl('rect', { x: coordX - 60, y: coordY - 18, width: 120, height: 36, rx: 6, fill: '#181820', stroke: '#339af0', 'stroke-width': 2 }));
+    scene.appendChild(svgText(coordX, coordY + 5, 'Coordinator', { fill: '#339af0', 'font-size': '13', 'font-weight': '600' }));
+
+    // Client <-> Coordinator line
+    scene.appendChild(svgEl('line', { x1: clientX, y1: clientY - 18, x2: coordX, y2: coordY + 18, stroke: '#333', 'stroke-width': 1, 'stroke-dasharray': '4,4' }));
+
+    // Replicas
+    var W = clToNum(writeCL);
+    var R_num = clToNum(readCL);
+
+    for (var i = 0; i < 3; i++) {
+      var rx = replicaX[i];
+      var ry = replicaY;
+      var isLagging = i === 2 && replica3Lagging;
+      var color = isLagging ? '#ffa94d' : NODE_COLORS[i];
+      var bgColor = isLagging ? '#2a2010' : NODE_BG[i];
+
+      // Coordinator -> replica lines
+      scene.appendChild(svgEl('line', {
+        x1: coordX, y1: coordY + 18, x2: rx, y2: ry - 30,
+        stroke: '#333', 'stroke-width': 1, 'stroke-dasharray': '4,4'
+      }));
+
+      // Replica box
+      scene.appendChild(svgEl('rect', {
+        x: rx - 55, y: ry - 28, width: 110, height: 56, rx: 6,
+        fill: '#181820', stroke: color, 'stroke-width': 2
+      }));
+      scene.appendChild(svgText(rx, ry - 8, 'Replica ' + (i + 1), { fill: color, 'font-size': '13', 'font-weight': '600' }));
+
+      if (isLagging) {
+        scene.appendChild(svgEl('rect', {
+          x: rx - 30, y: ry + 6, width: 60, height: 16, rx: 3,
+          fill: '#3a2a10', stroke: '#ffa94d', 'stroke-width': 1
+        }));
+        scene.appendChild(svgText(rx, ry + 17, 'LAGGING', { fill: '#ffa94d', 'font-size': '9', 'font-weight': 'bold' }));
+      }
+
+      // W required / R required indicators
+      var wRequired = (i + 1) <= W;
+      var rRequired = (i + 1) <= R_num;
+      // Write indicator
+      scene.appendChild(svgEl('rect', {
+        x: rx - 55, y: ry + 34, width: 52, height: 20, rx: 3,
+        fill: wRequired ? '#1a2a1a' : '#1a1a1a', stroke: wRequired ? '#51cf66' : '#333', 'stroke-width': 1
+      }));
+      scene.appendChild(svgText(rx - 29, ry + 48, 'W:' + (wRequired ? 'req' : 'opt'), {
+        fill: wRequired ? '#51cf66' : '#555', 'font-size': '9', 'font-weight': '600'
+      }));
+      // Read indicator
+      scene.appendChild(svgEl('rect', {
+        x: rx + 3, y: ry + 34, width: 52, height: 20, rx: 3,
+        fill: rRequired ? '#1a1a2a' : '#1a1a1a', stroke: rRequired ? '#339af0' : '#333', 'stroke-width': 1
+      }));
+      scene.appendChild(svgText(rx + 29, ry + 48, 'R:' + (rRequired ? 'req' : 'opt'), {
+        fill: rRequired ? '#339af0' : '#555', 'font-size': '9', 'font-weight': '600'
+      }));
+    }
+
+    // Info box: CL values
+    var infoX = 660, infoY = 320;
+    scene.appendChild(svgEl('rect', { x: infoX, y: infoY, width: 130, height: 100, fill: '#20202a', stroke: '#2a2a35', rx: 6 }));
+    scene.appendChild(svgText(infoX + 65, infoY + 18, 'CL Values', { fill: '#fff', 'font-size': '12', 'font-weight': 'bold' }));
+    scene.appendChild(svgText(infoX + 65, infoY + 38, 'RF (N) = ' + RF, { fill: '#ccc', 'font-size': '11' }));
+    scene.appendChild(svgText(infoX + 65, infoY + 56, 'W = ' + writeCL + ' (' + clToNum(writeCL) + ')', { fill: '#51cf66', 'font-size': '11' }));
+    scene.appendChild(svgText(infoX + 65, infoY + 74, 'R = ' + readCL + ' (' + clToNum(readCL) + ')', { fill: '#339af0', 'font-size': '11' }));
+    scene.appendChild(svgText(infoX + 65, infoY + 92, 'R+W = ' + (clToNum(readCL) + clToNum(writeCL)), {
+      fill: (clToNum(readCL) + clToNum(writeCL)) > RF ? '#51cf66' : '#ff6b6b', 'font-size': '11', 'font-weight': 'bold'
+    }));
+
+    // Animation layer
+    scene.appendChild(svgEl('g', { id: 'cl-anim' }));
+
+    updateVerdict();
+  }
+
+  function setWrite(cl) {
+    writeCL = cl;
+    document.getElementById('cl-w-one').className = cl === 'ONE' ? 'active-btn' : '';
+    document.getElementById('cl-w-quorum').className = cl === 'QUORUM' ? 'active-btn' : '';
+    document.getElementById('cl-w-all').className = cl === 'ALL' ? 'active-btn' : '';
+    updateCommentary();
+    draw();
+  }
+
+  function setRead(cl) {
+    readCL = cl;
+    document.getElementById('cl-r-one').className = cl === 'ONE' ? 'active-btn' : '';
+    document.getElementById('cl-r-quorum').className = cl === 'QUORUM' ? 'active-btn' : '';
+    document.getElementById('cl-r-all').className = cl === 'ALL' ? 'active-btn' : '';
+    updateCommentary();
+    draw();
+  }
+
+  function updateCommentary() {
+    var W = clToNum(writeCL);
+    var R = clToNum(readCL);
+    var sum = W + R;
+    var el = document.getElementById('cl-commentary');
+    if (sum > RF) {
+      if (writeCL === 'QUORUM' && readCL === 'QUORUM') {
+        el.textContent = 'QUORUM = ceil(RF/2) + 1 = 2 for RF=3. With W=QUORUM and R=QUORUM, R+W = 4 > 3 = N. Guaranteed strong consistency. This is the standard production setting -- balanced between fast reads and fast writes.';
+      } else if (writeCL === 'ALL' && readCL === 'ONE') {
+        el.textContent = 'W=ALL + R=ONE = 3+1 = 4 > 3. Strong consistency with slow writes (all replicas must ack) but fast reads (any single replica suffices). Good for write-rarely-read-often workloads.';
+      } else if (writeCL === 'ONE' && readCL === 'ALL') {
+        el.textContent = 'W=ONE + R=ALL = 1+3 = 4 > 3. Strong consistency with fast writes (only 1 ack needed) but slow reads (must query all replicas). Good for write-heavy workloads where you rarely read.';
+      } else {
+        el.textContent = 'R+W = ' + sum + ' > ' + RF + ' (N). Guaranteed strong consistency. At least one replica participated in both the write and the read, so the read always sees the latest data.';
+      }
+    } else {
+      el.textContent = 'R+W = ' + sum + ' <= ' + RF + ' (N). May read stale data. The read and write replica sets might not overlap -- the read could hit a replica that has not yet received the write. ' +
+        (replica3Lagging ? 'With Replica 3 lagging, reads at CL=ONE might return stale data if they hit Replica 3.' : '');
+    }
+  }
+
+  async function animateWrite() {
+    if (animating) return;
+    animating = true;
+    var anim = document.getElementById('cl-anim');
+    anim.innerHTML = '';
+    var W = clToNum(writeCL);
+
+    // Step 1: client -> coordinator
+    var pkt = svgEl('circle', { cx: clientX, cy: clientY - 18, r: 6, fill: '#51cf66' });
+    anim.appendChild(pkt);
+    anim.appendChild(svgText(clientX + 30, clientY - 30, 'WRITE', { fill: '#51cf66', 'font-size': '10', 'font-weight': 'bold', id: 'cl-write-label' }));
+    await animateCircle(pkt, clientX, clientY - 18, coordX, coordY + 18, 400);
+
+    // Step 2: coordinator -> all 3 replicas in parallel
+    var acks = 0;
+    var ackPromises = [];
+    for (var i = 0; i < 3; i++) {
+      (function(idx) {
+        var p = svgEl('circle', { cx: coordX, cy: coordY + 18, r: 5, fill: '#51cf66' });
+        anim.appendChild(p);
+        var lagDelay = (idx === 2 && replica3Lagging) ? 800 : 0;
+        ackPromises.push(
+          delay(lagDelay).then(function() {
+            return animateCircle(p, coordX, coordY + 18, replicaX[idx], replicaY - 30, 350);
+          }).then(function() {
+            // Ack back
+            acks++;
+            var ackColor = acks <= W ? '#51cf66' : '#333';
+            p.setAttribute('fill', ackColor);
+            return animateCircle(p, replicaX[idx], replicaY - 30, coordX, coordY + 18, 300);
+          }).then(function() {
+            if (acks === W) {
+              // Coordinator returns success to client
+              var resp = svgEl('circle', { cx: coordX, cy: coordY + 18, r: 6, fill: '#51cf66' });
+              anim.appendChild(resp);
+              return animateCircle(resp, coordX, coordY + 18, clientX, clientY - 18, 400);
+            }
+          })
+        );
+      })(i);
+    }
+    await Promise.all(ackPromises);
+    await delay(600);
+    // Clean up label
+    var lbl = document.getElementById('cl-write-label');
+    if (lbl) lbl.remove();
+    anim.innerHTML = '';
+    animating = false;
+  }
+
+  async function animateRead() {
+    if (animating) return;
+    animating = true;
+    var anim = document.getElementById('cl-anim');
+    anim.innerHTML = '';
+    var R_num = clToNum(readCL);
+
+    // Step 1: client -> coordinator
+    var pkt = svgEl('circle', { cx: clientX, cy: clientY - 18, r: 6, fill: '#339af0' });
+    anim.appendChild(pkt);
+    await animateCircle(pkt, clientX, clientY - 18, coordX, coordY + 18, 400);
+
+    // Step 2: coordinator -> R replicas
+    var responses = 0;
+    var readPromises = [];
+    for (var i = 0; i < R_num; i++) {
+      (function(idx) {
+        var p = svgEl('circle', { cx: coordX, cy: coordY + 18, r: 5, fill: '#339af0' });
+        anim.appendChild(p);
+        var lagDelay = (idx === 2 && replica3Lagging) ? 600 : 0;
+        readPromises.push(
+          animateCircle(p, coordX, coordY + 18, replicaX[idx], replicaY - 30, 350)
+          .then(function() { return delay(lagDelay); })
+          .then(function() {
+            responses++;
+            var responseColor = (idx === 2 && replica3Lagging) ? '#ffa94d' : '#339af0';
+            p.setAttribute('fill', responseColor);
+            return animateCircle(p, replicaX[idx], replicaY - 30, coordX, coordY + 18, 300);
+          })
+        );
+      })(i);
+    }
+    await Promise.all(readPromises);
+
+    // Read repair if needed (lagging replica was read)
+    if (replica3Lagging && readCL !== 'ONE') {
+      // Show read repair
+      var repairLabel = svgText(replicaX[2], replicaY + 70, 'READ REPAIR', {
+        fill: '#ffa94d', 'font-size': '10', 'font-weight': 'bold'
+      });
+      anim.appendChild(repairLabel);
+      var repairPkt = svgEl('circle', { cx: coordX, cy: coordY + 18, r: 4, fill: '#ffa94d' });
+      anim.appendChild(repairPkt);
+      await animateCircle(repairPkt, coordX, coordY + 18, replicaX[2], replicaY - 30, 500);
+    }
+
+    // Return to client
+    var resp = svgEl('circle', { cx: coordX, cy: coordY + 18, r: 6, fill: '#339af0' });
+    anim.appendChild(resp);
+    await animateCircle(resp, coordX, coordY + 18, clientX, clientY - 18, 400);
+
+    await delay(600);
+    anim.innerHTML = '';
+    animating = false;
+  }
+
+  function animateCircle(el, x1, y1, x2, y2, dur) {
+    return new Promise(function(resolve) {
+      var start = null;
+      function step(ts) {
+        if (!start) start = ts;
+        var t = Math.min((ts - start) / dur, 1);
+        var ease = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+        el.setAttribute('cx', x1 + (x2 - x1) * ease);
+        el.setAttribute('cy', y1 + (y2 - y1) * ease);
+        if (t < 1) requestAnimationFrame(step);
+        else resolve();
+      }
+      requestAnimationFrame(step);
+    });
+  }
+
+  function toggleLag() {
+    replica3Lagging = !replica3Lagging;
+    var btn = document.getElementById('cl-btn-lag');
+    btn.textContent = replica3Lagging ? 'Replica 3: LAGGING (click to fix)' : 'Toggle: Replica 3 lagging';
+    btn.className = replica3Lagging ? 'danger' : '';
+    updateCommentary();
+    draw();
+  }
+
+  function reset() {
+    replica3Lagging = false;
+    animating = false;
+    document.getElementById('cl-btn-lag').textContent = 'Toggle: Replica 3 lagging';
+    document.getElementById('cl-btn-lag').className = '';
+    setWrite('QUORUM');
+    setRead('QUORUM');
+    draw();
+  }
+
+  function init() {
+    if (initialized) return;
+    initialized = true;
+    draw();
+    updateVerdict();
+    updateCommentary();
+  }
+
+  return { init: init, setWrite: setWrite, setRead: setRead, animateWrite: animateWrite, animateRead: animateRead, toggleLag: toggleLag, reset: reset };
+})();
+
+
+/* ================================================================
+   TAB 4 -- MULTI-DC
+   ================================================================ */
+var MDC = (function() {
+  var dc2Down = false;
+  var hintsStored = false;
+  var crossDCDelay = 120;
+  var animating = false;
+  var initialized = false;
+
+  // DC1: 4 nodes at left, DC2: 4 nodes at right
+  var dc1Nodes = [
+    { x: 120, y: 140, label: 'DC1-N1', replica: true },
+    { x: 120, y: 220, label: 'DC1-N2', replica: true },
+    { x: 120, y: 300, label: 'DC1-N3', replica: true },
+    { x: 120, y: 380, label: 'DC1-N4', replica: false }
+  ];
+  var dc2Nodes = [
+    { x: 680, y: 140, label: 'DC2-N1', replica: true },
+    { x: 680, y: 220, label: 'DC2-N2', replica: true },
+    { x: 680, y: 300, label: 'DC2-N3', replica: true },
+    { x: 680, y: 380, label: 'DC2-N4', replica: false }
+  ];
+  var coordX = 120, coordY = 60;
+
+  function draw() {
+    var scene = document.getElementById('mdc-scene');
+    scene.innerHTML = '';
+
+    var defs = svgEl('defs', {});
+    var m1 = svgEl('marker', { id: 'mdc-arrow', viewBox: '0 0 10 10', refX: '10', refY: '5', markerWidth: '6', markerHeight: '6', orient: 'auto' });
+    m1.appendChild(svgEl('path', { d: 'M0,0 L10,5 L0,10 Z', fill: '#555' }));
+    defs.appendChild(m1);
+    var m2 = svgEl('marker', { id: 'mdc-arrow-green', viewBox: '0 0 10 10', refX: '10', refY: '5', markerWidth: '6', markerHeight: '6', orient: 'auto' });
+    m2.appendChild(svgEl('path', { d: 'M0,0 L10,5 L0,10 Z', fill: '#51cf66' }));
+    defs.appendChild(m2);
+    var m3 = svgEl('marker', { id: 'mdc-arrow-orange', viewBox: '0 0 10 10', refX: '10', refY: '5', markerWidth: '6', markerHeight: '6', orient: 'auto' });
+    m3.appendChild(svgEl('path', { d: 'M0,0 L10,5 L0,10 Z', fill: '#ffa94d' }));
+    defs.appendChild(m3);
+    scene.appendChild(defs);
+
+    // DC1 box
+    scene.appendChild(svgEl('rect', {
+      x: 30, y: 90, width: 200, height: 330, rx: 8,
+      fill: 'none', stroke: '#339af0', 'stroke-width': 2, 'stroke-dasharray': '6,4'
+    }));
+    scene.appendChild(svgText(130, 115, 'DC1 (us-east)', { fill: '#339af0', 'font-size': '13', 'font-weight': 'bold' }));
+
+    // DC2 box
+    var dc2Color = dc2Down ? '#ff6b6b' : '#cc5de8';
+    scene.appendChild(svgEl('rect', {
+      x: 580, y: 90, width: 200, height: 330, rx: 8,
+      fill: 'none', stroke: dc2Color, 'stroke-width': 2, 'stroke-dasharray': '6,4',
+      opacity: dc2Down ? '0.4' : '1'
+    }));
+    scene.appendChild(svgText(680, 115, dc2Down ? 'DC2 (eu-west) DOWN' : 'DC2 (eu-west)', {
+      fill: dc2Color, 'font-size': '13', 'font-weight': 'bold', opacity: dc2Down ? '0.5' : '1'
+    }));
+
+    // Cross-DC link
+    scene.appendChild(svgEl('line', {
+      x1: 230, y1: 255, x2: 580, y2: 255,
+      stroke: dc2Down ? '#333' : '#444', 'stroke-width': 2, 'stroke-dasharray': '8,6',
+      opacity: dc2Down ? '0.3' : '0.6'
+    }));
+    scene.appendChild(svgText(400, 248, crossDCDelay + 'ms', { fill: '#888', 'font-size': '11' }));
+    scene.appendChild(svgText(400, 268, 'cross-DC link', { fill: '#555', 'font-size': '10' }));
+
+    // DC1 nodes
+    for (var i = 0; i < dc1Nodes.length; i++) {
+      var n = dc1Nodes[i];
+      var isReplica = n.replica;
+      scene.appendChild(svgEl('rect', {
+        x: n.x - 45, y: n.y - 16, width: 90, height: 32, rx: 6,
+        fill: '#181820', stroke: isReplica ? '#339af0' : '#333', 'stroke-width': isReplica ? 2 : 1
+      }));
+      scene.appendChild(svgText(n.x, n.y + 4, n.label, { fill: isReplica ? '#339af0' : '#555', 'font-size': '11', 'font-weight': '600' }));
+      if (isReplica) {
+        scene.appendChild(svgText(n.x, n.y + 24, 'replica', { fill: '#339af066', 'font-size': '9' }));
+      }
+    }
+
+    // DC2 nodes
+    for (var i = 0; i < dc2Nodes.length; i++) {
+      var n = dc2Nodes[i];
+      var isReplica = n.replica;
+      var nodeColor = dc2Down ? '#444' : (isReplica ? '#cc5de8' : '#333');
+      scene.appendChild(svgEl('rect', {
+        x: n.x - 45, y: n.y - 16, width: 90, height: 32, rx: 6,
+        fill: dc2Down ? '#121218' : '#181820', stroke: nodeColor, 'stroke-width': isReplica ? 2 : 1,
+        opacity: dc2Down ? '0.4' : '1'
+      }));
+      scene.appendChild(svgText(n.x, n.y + 4, n.label, {
+        fill: dc2Down ? '#444' : (isReplica ? '#cc5de8' : '#555'), 'font-size': '11', 'font-weight': '600',
+        opacity: dc2Down ? '0.4' : '1'
+      }));
+      if (isReplica && !dc2Down) {
+        scene.appendChild(svgText(n.x, n.y + 24, 'replica', { fill: '#cc5de866', 'font-size': '9' }));
+      }
+      if (dc2Down) {
+        scene.appendChild(svgText(n.x, n.y + 4, 'X', { fill: '#ff6b6b', 'font-size': '16', 'font-weight': 'bold', opacity: '0.6' }));
+      }
+    }
+
+    // Coordinator marker
+    scene.appendChild(svgEl('rect', {
+      x: coordX - 55, y: coordY - 16, width: 110, height: 32, rx: 6,
+      fill: '#181820', stroke: '#51cf66', 'stroke-width': 2
+    }));
+    scene.appendChild(svgText(coordX, coordY + 4, 'Coordinator', { fill: '#51cf66', 'font-size': '12', 'font-weight': '600' }));
+
+    // Hints indicator
+    if (hintsStored) {
+      scene.appendChild(svgEl('rect', {
+        x: 250, y: 340, width: 150, height: 50, rx: 6,
+        fill: '#2a2010', stroke: '#ffa94d', 'stroke-width': 1.5
+      }));
+      scene.appendChild(svgText(325, 360, 'Hints stored', { fill: '#ffa94d', 'font-size': '12', 'font-weight': '600' }));
+      scene.appendChild(svgText(325, 378, 'for DC2 replicas', { fill: '#ffa94d88', 'font-size': '10' }));
+    }
+
+    // RF info
+    scene.appendChild(svgEl('rect', { x: 320, y: 90, width: 160, height: 50, fill: '#20202a', stroke: '#2a2a35', rx: 6 }));
+    scene.appendChild(svgText(400, 110, 'RF: {DC1:3, DC2:3}', { fill: '#fff', 'font-size': '11', 'font-weight': 'bold' }));
+    scene.appendChild(svgText(400, 128, 'NetworkTopologyStrategy', { fill: '#ffa94d', 'font-size': '10' }));
+
+    // Animation layer
+    scene.appendChild(svgEl('g', { id: 'mdc-anim' }));
+  }
+
+  async function animateWrite() {
+    if (animating) return;
+    animating = true;
+    var anim = document.getElementById('mdc-anim');
+    anim.innerHTML = '';
+
+    var commentary = document.getElementById('mdc-commentary');
+    commentary.textContent = 'LOCAL_QUORUM write: coordinator sends to all 3 DC1 replicas. Waits for 2 acks (quorum of 3). Then returns success to client. DC2 replication is async.';
+
+    // Write to DC1 replicas
+    var acks = 0;
+    var dc1Promises = [];
+    for (var i = 0; i < 3; i++) {
+      (function(idx) {
+        var p = svgEl('circle', { cx: coordX, cy: coordY + 16, r: 5, fill: '#51cf66' });
+        anim.appendChild(p);
+        dc1Promises.push(
+          animateCircleMDC(p, coordX, coordY + 16, dc1Nodes[idx].x, dc1Nodes[idx].y, 350)
+          .then(function() {
+            acks++;
+            return animateCircleMDC(p, dc1Nodes[idx].x, dc1Nodes[idx].y, coordX, coordY + 16, 300);
+          }).then(function() {
+            if (acks === 2) {
+              // Quorum reached
+              commentary.textContent = 'LOCAL_QUORUM met (2 of 3 DC1 replicas acked). Coordinator returns success. DC2 leg is async -- client does not wait for it.';
+            }
+          })
+        );
+      })(i);
+    }
+    await Promise.all(dc1Promises);
+
+    // Async to DC2
+    if (!dc2Down) {
+      commentary.textContent += ' Cross-DC replication in progress...';
+      var dc2Promises = [];
+      for (var i = 0; i < 3; i++) {
+        (function(idx) {
+          var p = svgEl('circle', { cx: 230, cy: dc2Nodes[idx].y, r: 4, fill: '#cc5de888' });
+          anim.appendChild(p);
+          dc2Promises.push(
+            delay(crossDCDelay * 2).then(function() {
+              return animateCircleMDC(p, 230, dc2Nodes[idx].y, dc2Nodes[idx].x, dc2Nodes[idx].y, crossDCDelay * 3);
+            })
+          );
+        })(i);
+      }
+      await Promise.all(dc2Promises);
+      commentary.textContent = 'Write complete. DC1 acked at LOCAL_QUORUM, DC2 replicas caught up async after ' + crossDCDelay + 'ms cross-DC delay.';
+    } else {
+      hintsStored = true;
+      draw();
+      document.getElementById('mdc-btn-hints').disabled = false;
+      commentary.textContent = 'LOCAL_QUORUM write succeeded (DC1 quorum met). DC2 is down -- coordinator stores hints for DC2 replicas. Hints will be replayed when DC2 returns (TTL: 3 hours by default).';
+    }
+
+    await delay(500);
+    anim.innerHTML = '';
+    animating = false;
+  }
+
+  async function animateEachQuorum() {
+    if (animating) return;
+    animating = true;
+    var anim = document.getElementById('mdc-anim');
+    anim.innerHTML = '';
+
+    var commentary = document.getElementById('mdc-commentary');
+
+    if (dc2Down) {
+      commentary.textContent = 'EACH_QUORUM FAILED: DC2 is down. Cannot achieve quorum in every DC. This is why LOCAL_QUORUM is the default -- EACH_QUORUM sacrifices availability for cross-DC strong consistency.';
+      // Flash red
+      var failRect = svgEl('rect', { x: 300, y: 200, width: 200, height: 40, rx: 6, fill: '#2a1515', stroke: '#ff6b6b', 'stroke-width': 2 });
+      anim.appendChild(failRect);
+      anim.appendChild(svgText(400, 225, 'WRITE FAILED', { fill: '#ff6b6b', 'font-size': '14', 'font-weight': 'bold' }));
+      await delay(2000);
+      anim.innerHTML = '';
+      animating = false;
+      return;
+    }
+
+    commentary.textContent = 'EACH_QUORUM: coordinator must get quorum (2 of 3) in EVERY DC before returning success. Slow but strongly consistent across DCs.';
+
+    // DC1 writes
+    var dc1Acks = 0, dc2Acks = 0;
+    var allPromises = [];
+
+    for (var i = 0; i < 3; i++) {
+      (function(idx) {
+        var p = svgEl('circle', { cx: coordX, cy: coordY + 16, r: 5, fill: '#51cf66' });
+        anim.appendChild(p);
+        allPromises.push(
+          animateCircleMDC(p, coordX, coordY + 16, dc1Nodes[idx].x, dc1Nodes[idx].y, 350)
+          .then(function() {
+            dc1Acks++;
+            return animateCircleMDC(p, dc1Nodes[idx].x, dc1Nodes[idx].y, coordX, coordY + 16, 300);
+          })
+        );
+      })(i);
+    }
+
+    // DC2 writes (with cross-DC delay)
+    for (var i = 0; i < 3; i++) {
+      (function(idx) {
+        var p = svgEl('circle', { cx: coordX, cy: coordY + 16, r: 5, fill: '#cc5de8' });
+        anim.appendChild(p);
+        allPromises.push(
+          delay(crossDCDelay).then(function() {
+            return animateCircleMDC(p, coordX, coordY + 16, dc2Nodes[idx].x, dc2Nodes[idx].y, crossDCDelay * 3);
+          }).then(function() {
+            dc2Acks++;
+            return delay(crossDCDelay).then(function() {
+              return animateCircleMDC(p, dc2Nodes[idx].x, dc2Nodes[idx].y, coordX, coordY + 16, crossDCDelay * 3);
+            });
+          })
+        );
+      })(i);
+    }
+
+    await Promise.all(allPromises);
+    commentary.textContent = 'EACH_QUORUM complete. Both DCs reached quorum (2 of 3). Total latency dominated by the cross-DC round trip (' + crossDCDelay + 'ms each way). This is why EACH_QUORUM is not the default -- it adds ' + (crossDCDelay * 2) + 'ms+ to every write.';
+
+    await delay(500);
+    anim.innerHTML = '';
+    animating = false;
+  }
+
+  function animateCircleMDC(el, x1, y1, x2, y2, dur) {
+    return new Promise(function(resolve) {
+      var start = null;
+      function step(ts) {
+        if (!start) start = ts;
+        var t = Math.min((ts - start) / dur, 1);
+        var ease = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+        el.setAttribute('cx', x1 + (x2 - x1) * ease);
+        el.setAttribute('cy', y1 + (y2 - y1) * ease);
+        if (t < 1) requestAnimationFrame(step);
+        else resolve();
+      }
+      requestAnimationFrame(step);
+    });
+  }
+
+  function killDC2() {
+    dc2Down = true;
+    document.getElementById('mdc-btn-kill').disabled = true;
+    document.getElementById('mdc-btn-restore').disabled = false;
+    document.getElementById('mdc-commentary').textContent = 'DC2 is down. LOCAL_QUORUM writes still succeed (DC1 quorum is independent). Hints will be stored for DC2 replicas. EACH_QUORUM writes will FAIL because DC2 cannot contribute a quorum.';
+    draw();
+  }
+
+  function restoreDC2() {
+    dc2Down = false;
+    document.getElementById('mdc-btn-kill').disabled = false;
+    document.getElementById('mdc-btn-restore').disabled = true;
+    if (hintsStored) {
+      document.getElementById('mdc-commentary').textContent = 'DC2 restored. Hints are queued for replay -- click "Replay Hints" to see the catch-up process.';
+    } else {
+      document.getElementById('mdc-commentary').textContent = 'DC2 restored. All replicas healthy across both DCs.';
+    }
+    draw();
+  }
+
+  async function replayHints() {
+    if (animating || !hintsStored) return;
+    animating = true;
+    var anim = document.getElementById('mdc-anim');
+    anim.innerHTML = '';
+
+    document.getElementById('mdc-commentary').textContent = 'Hint replay: DC1 nodes that stored hints for DC2 replicas now forward the missed writes. This is best-effort with a 3-hour TTL by default.';
+
+    // Animate hints from DC1 to DC2
+    var hintPromises = [];
+    for (var i = 0; i < 3; i++) {
+      (function(idx) {
+        var p = svgEl('circle', { cx: dc1Nodes[0].x, cy: dc1Nodes[idx].y, r: 4, fill: '#ffa94d' });
+        anim.appendChild(p);
+        hintPromises.push(
+          delay(idx * 200).then(function() {
+            return animateCircleMDC(p, dc1Nodes[0].x, dc1Nodes[idx].y, dc2Nodes[idx].x, dc2Nodes[idx].y, crossDCDelay * 4);
+          }).then(function() {
+            p.setAttribute('fill', '#51cf66');
+          })
+        );
+      })(i);
+    }
+
+    await Promise.all(hintPromises);
+    hintsStored = false;
+    document.getElementById('mdc-btn-hints').disabled = true;
+    document.getElementById('mdc-commentary').textContent = 'Hints replayed. DC2 replicas are caught up. If hints had expired (>3h TTL), you would need nodetool repair to fully sync.';
+    await delay(500);
+    anim.innerHTML = '';
+    draw();
+    animating = false;
+  }
+
+  function updateDelay() {
+    crossDCDelay = parseInt(document.getElementById('mdc-delay').value);
+    document.getElementById('mdc-delay-label').textContent = crossDCDelay + 'ms';
+  }
+
+  function init() {
+    if (initialized) return;
+    initialized = true;
+    draw();
+  }
+
+  return { init: init, animateWrite: animateWrite, animateEachQuorum: animateEachQuorum, killDC2: killDC2, restoreDC2: restoreDC2, replayHints: replayHints, updateDelay: updateDelay };
+})();
+
+
+/* ================================================================
+   TAB 5 -- GOSSIP + FAILURE DETECTION
+   ================================================================ */
+var GOSSIP = (function() {
+  var running = false;
+  var timer = null;
+  var n3Dead = false;
+  var n3Slow = false;
+  var initialized = false;
+
+  var nodes = [
+    { x: 400, y: 80,  label: 'N1', alive: true, phi: {} },
+    { x: 200, y: 220, label: 'N2', alive: true, phi: {} },
+    { x: 300, y: 400, label: 'N3', alive: true, phi: {} },
+    { x: 500, y: 400, label: 'N4', alive: true, phi: {} },
+    { x: 600, y: 220, label: 'N5', alive: true, phi: {} }
+  ];
+
+  // Track last heartbeat time for phi calculation
+  var lastHeartbeat = {};
+  var gossipHistory = [];
+  var maxHistory = 8;
+
+  function resetPhiState() {
+    for (var i = 0; i < nodes.length; i++) {
+      nodes[i].phi = {};
+      nodes[i].alive = true;
+      for (var j = 0; j < nodes.length; j++) {
+        if (i !== j) {
+          nodes[i].phi[j] = 0;
+        }
+      }
+    }
+    lastHeartbeat = {};
+    for (var i = 0; i < nodes.length; i++) {
+      lastHeartbeat[i] = Date.now();
+    }
+    gossipHistory = [];
+  }
+
+  function draw() {
+    var scene = document.getElementById('gossip-scene');
+    scene.innerHTML = '';
+
+    var defs = svgEl('defs', {});
+    var m1 = svgEl('marker', { id: 'gossip-arrow', viewBox: '0 0 10 10', refX: '10', refY: '5', markerWidth: '5', markerHeight: '5', orient: 'auto' });
+    m1.appendChild(svgEl('path', { d: 'M0,0 L10,5 L0,10 Z', fill: '#51cf6688' }));
+    defs.appendChild(m1);
+    scene.appendChild(defs);
+
+    // Connection mesh (faint lines between all pairs)
+    for (var i = 0; i < nodes.length; i++) {
+      for (var j = i + 1; j < nodes.length; j++) {
+        scene.appendChild(svgEl('line', {
+          x1: nodes[i].x, y1: nodes[i].y, x2: nodes[j].x, y2: nodes[j].y,
+          stroke: '#1a1a22', 'stroke-width': 1
+        }));
+      }
+    }
+
+    // Draw gossip arrows from history
+    for (var h = 0; h < gossipHistory.length; h++) {
+      var g = gossipHistory[h];
+      var age = (Date.now() - g.time) / 1000;
+      if (age > 3) continue;
+      var opacity = Math.max(0, 1 - age / 3);
+      scene.appendChild(svgEl('line', {
+        x1: nodes[g.from].x, y1: nodes[g.from].y,
+        x2: nodes[g.to].x, y2: nodes[g.to].y,
+        stroke: '#51cf66', 'stroke-width': 2, opacity: opacity * 0.6,
+        'marker-end': 'url(#gossip-arrow)'
+      }));
+    }
+
+    // Nodes
+    for (var i = 0; i < nodes.length; i++) {
+      var n = nodes[i];
+      var isDead = (i === 2 && n3Dead);
+      var isSlow = (i === 2 && n3Slow && !n3Dead);
+
+      // Node circle
+      var nodeColor = isDead ? '#ff6b6b' : (isSlow ? '#ffa94d' : '#51cf66');
+      var nodeFill = isDead ? '#2a1515' : (isSlow ? '#2a2010' : '#1a2a1a');
+
+      scene.appendChild(svgEl('circle', {
+        cx: n.x, cy: n.y, r: 28,
+        fill: nodeFill, stroke: nodeColor, 'stroke-width': 2.5,
+        opacity: isDead ? '0.5' : '1'
+      }));
+      scene.appendChild(svgText(n.x, n.y + 5, n.label, {
+        fill: nodeColor, 'font-size': '14', 'font-weight': 'bold',
+        opacity: isDead ? '0.5' : '1'
+      }));
+
+      // Status badge
+      var statusText = isDead ? 'DOWN' : (isSlow ? 'SLOW' : 'UP');
+      var statusColor = isDead ? '#ff6b6b' : (isSlow ? '#ffa94d' : '#51cf66');
+      scene.appendChild(svgEl('rect', {
+        x: n.x - 20, y: n.y + 34, width: 40, height: 16, rx: 3,
+        fill: nodeFill, stroke: statusColor, 'stroke-width': 1
+      }));
+      scene.appendChild(svgText(n.x, n.y + 45, statusText, {
+        fill: statusColor, 'font-size': '9', 'font-weight': 'bold'
+      }));
+    }
+
+    // Phi values table for node N3 as seen by others
+    var tableX = 30, tableY = 30;
+    scene.appendChild(svgEl('rect', { x: tableX, y: tableY, width: 190, height: 145, fill: '#20202a', stroke: '#2a2a35', rx: 6 }));
+    scene.appendChild(svgText(tableX + 95, tableY + 18, 'Phi for N3 (as seen by)', { fill: '#fff', 'font-size': '11', 'font-weight': 'bold' }));
+
+    var phiNodes = [0, 1, 3, 4]; // Nodes that track N3's phi
+    for (var pi = 0; pi < phiNodes.length; pi++) {
+      var nIdx = phiNodes[pi];
+      var phiVal = nodes[nIdx].phi[2] || 0;
+      var phiColor = phiVal >= 8 ? '#ff6b6b' : (phiVal >= 5 ? '#ffa94d' : '#51cf66');
+      var barWidth = Math.min(phiVal / 12, 1) * 80;
+
+      scene.appendChild(svgText(tableX + 35, tableY + 42 + pi * 28, NODE_NAMES[nIdx] + ':', {
+        fill: '#ccc', 'font-size': '11', 'text-anchor': 'end'
+      }));
+      scene.appendChild(svgEl('rect', {
+        x: tableX + 42, y: tableY + 32 + pi * 28, width: barWidth, height: 14, rx: 2,
+        fill: phiColor, opacity: '0.6'
+      }));
+      scene.appendChild(svgText(tableX + 130, tableY + 42 + pi * 28, phiVal.toFixed(1) + (phiVal >= 8 ? ' > 8 DOWN' : ''), {
+        fill: phiColor, 'font-size': '10', 'text-anchor': 'start'
+      }));
+    }
+
+    // Phi threshold line
+    scene.appendChild(svgText(tableX + 95, tableY + 140, 'Threshold: phi = 8 (default)', { fill: '#888', 'font-size': '9' }));
+
+    // Animation layer
+    scene.appendChild(svgEl('g', { id: 'gossip-anim' }));
+  }
+
+  function gossipRound() {
+    var now = Date.now();
+
+    // Each alive node picks a random peer and "gossips"
+    for (var i = 0; i < nodes.length; i++) {
+      if (i === 2 && n3Dead) continue;  // Dead nodes don't gossip
+      if (i === 2 && n3Slow && Math.random() < 0.7) continue; // Slow node skips most rounds
+
+      // Pick random peer
+      var peers = [];
+      for (var j = 0; j < nodes.length; j++) { if (j !== i) peers.push(j); }
+      var target = peers[Math.floor(Math.random() * peers.length)];
+
+      if (target === 2 && n3Dead) {
+        // Trying to gossip with dead node -- no response
+        continue;
+      }
+
+      // Record gossip
+      gossipHistory.push({ from: i, to: target, time: now });
+      if (gossipHistory.length > maxHistory * 5) {
+        gossipHistory = gossipHistory.slice(-maxHistory * 3);
+      }
+
+      // Update heartbeat tracking
+      lastHeartbeat[i] = now;
+      if (!(target === 2 && n3Dead)) {
+        lastHeartbeat[target] = now;
+      }
+    }
+
+    // Update phi values for N3
+    for (var i = 0; i < nodes.length; i++) {
+      if (i === 2) continue;
+      var timeSince = (now - (lastHeartbeat[2] || now)) / 1000;
+
+      if (n3Dead) {
+        // Phi grows when no heartbeat received
+        nodes[i].phi[2] = Math.min(12, (nodes[i].phi[2] || 0) + 1.5 + Math.random());
+      } else if (n3Slow) {
+        // Phi grows slowly for slow node
+        nodes[i].phi[2] = Math.min(7, (nodes[i].phi[2] || 0) + 0.3 + Math.random() * 0.5);
+      } else {
+        // Phi stays low when heartbeats arrive normally
+        nodes[i].phi[2] = Math.max(0, (nodes[i].phi[2] || 0) * 0.3);
+      }
+    }
+
+    // Check if N3 is marked DOWN by consensus
+    var downCount = 0;
+    for (var i = 0; i < nodes.length; i++) {
+      if (i === 2) continue;
+      if ((nodes[i].phi[2] || 0) >= 8) downCount++;
+    }
+
+    var commentary = document.getElementById('gossip-commentary');
+    if (n3Dead && downCount >= 3) {
+      commentary.textContent = 'N3 confirmed DOWN by ' + downCount + '/4 nodes (phi >= 8). Gossip propagates this -- each node independently decided based on its own phi tracker. No coordinator, no vote, no master. Emergent consensus.';
+    } else if (n3Dead && downCount > 0) {
+      commentary.textContent = 'N3 failure detected by ' + downCount + '/4 nodes so far. Phi is climbing -- once phi >= 8 on each node, they independently mark N3 as DOWN. The cluster converges in 2-3 gossip rounds.';
+    } else if (n3Slow) {
+      commentary.textContent = 'N3 is slow (high latency, intermittent heartbeats). Phi is elevated but has not crossed the threshold of 8. This is the phi accrual advantage over simple timeout: it adapts to network conditions and avoids false positives on transient lag.';
+    } else if (running) {
+      commentary.textContent = 'Gossip running: every second, each node picks a random peer and exchanges endpoint state (heartbeat, schema version, token map). All phi values near 0 -- all nodes healthy.';
+    }
+
+    draw();
+  }
+
+  function toggleRunning() {
+    running = !running;
+    var btn = document.getElementById('gossip-btn-toggle');
+    if (running) {
+      btn.textContent = 'Stop Gossip';
+      btn.className = 'active-btn';
+      timer = setInterval(gossipRound, 1000);
+      gossipRound();
+    } else {
+      btn.textContent = 'Start Gossip';
+      btn.className = '';
+      clearInterval(timer);
+      timer = null;
+    }
+  }
+
+  function killNode() {
+    n3Dead = true;
+    n3Slow = false;
+    document.getElementById('gossip-btn-kill').disabled = true;
+    document.getElementById('gossip-btn-back').disabled = false;
+    document.getElementById('gossip-btn-slow').disabled = true;
+    document.getElementById('gossip-commentary').textContent = 'N3 killed. It stops sending heartbeats and stops participating in gossip. Other nodes\' phi values for N3 will climb until they cross the threshold (phi=8), marking N3 as DOWN.';
+    if (!running) {
+      toggleRunning();
+    }
+    draw();
+  }
+
+  function bringBack() {
+    n3Dead = false;
+    n3Slow = false;
+    document.getElementById('gossip-btn-kill').disabled = false;
+    document.getElementById('gossip-btn-back').disabled = true;
+    document.getElementById('gossip-btn-slow').disabled = false;
+    // Reset phi for N3
+    for (var i = 0; i < nodes.length; i++) {
+      if (i !== 2) nodes[i].phi[2] = 0;
+    }
+    lastHeartbeat[2] = Date.now();
+    document.getElementById('gossip-commentary').textContent = 'N3 is back. First heartbeat received -- phi resets to 0. Node marked UP. Gossip propagates the recovery across the cluster.';
+    draw();
+  }
+
+  function slowNode() {
+    n3Slow = !n3Slow;
+    var btn = document.getElementById('gossip-btn-slow');
+    btn.textContent = n3Slow ? 'N3: Slow (click to fix)' : 'Slow N3 (high latency)';
+    btn.className = n3Slow ? 'danger' : '';
+    if (n3Slow) {
+      document.getElementById('gossip-commentary').textContent = 'N3 is now slow -- heartbeats arrive intermittently. Phi will grow but slowly, and may not cross the threshold of 8. This demonstrates the phi accrual advantage: a simple timeout would have already marked this node as dead.';
+    } else {
+      // Reset phi
+      for (var i = 0; i < nodes.length; i++) {
+        if (i !== 2) nodes[i].phi[2] = 0;
+      }
+      document.getElementById('gossip-commentary').textContent = 'N3 latency restored to normal. Phi values dropping back to 0.';
+    }
+    if (!running) {
+      toggleRunning();
+    }
+    draw();
+  }
+
+  function reset() {
+    if (timer) clearInterval(timer);
+    timer = null;
+    running = false;
+    n3Dead = false;
+    n3Slow = false;
+    resetPhiState();
+    document.getElementById('gossip-btn-toggle').textContent = 'Start Gossip';
+    document.getElementById('gossip-btn-toggle').className = '';
+    document.getElementById('gossip-btn-kill').disabled = false;
+    document.getElementById('gossip-btn-back').disabled = true;
+    document.getElementById('gossip-btn-slow').disabled = false;
+    document.getElementById('gossip-btn-slow').textContent = 'Slow N3 (high latency)';
+    document.getElementById('gossip-btn-slow').className = '';
+    document.getElementById('gossip-commentary').textContent = 'Gossip is Cassandra\'s membership protocol. Every second, each node picks a random peer and exchanges state. No central authority decides who is alive -- every node independently tracks heartbeat inter-arrival times using the phi accrual failure detector.';
+    draw();
+  }
+
+  function init() {
+    if (initialized) return;
+    initialized = true;
+    resetPhiState();
+    draw();
+  }
+
+  return { init: init, toggleRunning: toggleRunning, killNode: killNode, bringBack: bringBack, slowNode: slowNode, reset: reset };
+})();
+
+
+/* ================================================================
+   INIT
+   ================================================================ */
+RING.init();
+</script>
+
+</body>
+</html>

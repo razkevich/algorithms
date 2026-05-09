@@ -1,0 +1,1773 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MongoDB Data Modeling -- Interactive Companion</title>
+<style>
+:root {
+  --bg: #0f0f15;
+  --surface: #181820;
+  --surface-2: #20202a;
+  --border: #2a2a35;
+  --text: #e6e6ea;
+  --text-2: #cfcfd6;
+  --text-3: #888;
+  --accent-red: #ff6b6b;
+  --accent-green: #51cf66;
+  --accent-blue: #339af0;
+  --accent-yellow: #ffd43b;
+  --accent-purple: #cc5de8;
+  --accent-cyan: #8be9fd;
+  --accent-orange: #ffa94d;
+}
+*, *::before, *::after { box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  padding: 32px 24px;
+  max-width: 1100px;
+  margin: 0 auto;
+  line-height: 1.55;
+}
+h1 { color: #fff; margin-bottom: 4px; }
+h1 + p.sub { color: var(--text-3); font-style: italic; margin-top: 0; margin-bottom: 24px; }
+h2 { color: #fff; margin-top: 32px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+h3 { color: var(--text-2); margin-top: 20px; }
+code {
+  background: var(--surface-2);
+  padding: 2px 6px;
+  border-radius: 3px;
+  color: var(--accent-cyan);
+  font-size: 13px;
+}
+.commentary {
+  background: var(--surface-2);
+  padding: 14px;
+  border-radius: 6px;
+  font-size: 14px;
+  color: var(--text-2);
+  margin: 12px 0;
+  min-height: 44px;
+  line-height: 1.5;
+}
+.takeaway {
+  background: #1a1a22;
+  border-left: 3px solid var(--accent-green);
+  padding: 12px 16px;
+  margin: 14px 0;
+  font-size: 14px;
+}
+.takeaway strong { color: var(--accent-green); }
+.takeaway ul { margin: 6px 0 0 0; padding-left: 18px; }
+.takeaway li { margin-bottom: 6px; }
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0;
+  align-items: center;
+}
+.controls button, .btn {
+  padding: 10px 16px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  border-radius: 6px;
+  cursor: pointer;
+  min-height: 44px;
+  font-size: 14px;
+  transition: background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+.controls button:hover, .btn:hover { background: var(--surface); }
+.controls button.active-btn { border-color: var(--accent-blue); color: var(--accent-blue); }
+
+/* Toggle controls for decision tree */
+.toggle-group {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 18px;
+  margin: 8px 0;
+}
+.toggle-group label {
+  display: block;
+  font-size: 13px;
+  color: var(--text-3);
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+.toggle-options {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.toggle-options button {
+  padding: 8px 14px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-2);
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: all 0.15s;
+}
+.toggle-options button:hover { background: var(--surface); border-color: var(--text-3); }
+.toggle-options button.selected {
+  border-color: var(--accent-blue);
+  color: var(--accent-blue);
+  background: #1a2030;
+}
+
+/* Recommendation panel */
+.recommendation {
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  padding: 18px;
+  margin: 16px 0;
+  transition: border-color 0.3s;
+}
+.recommendation.embed { border-color: var(--accent-green); }
+.recommendation.reference { border-color: var(--accent-red); }
+.recommendation.hybrid { border-color: var(--accent-yellow); }
+.recommendation .verdict {
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+.recommendation .explanation {
+  font-size: 14px;
+  color: var(--text-2);
+  line-height: 1.5;
+}
+
+/* JSON blocks */
+.bson-block {
+  background: #12121a;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 14px 18px;
+  margin: 10px 0;
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-2);
+  overflow-x: auto;
+  white-space: pre;
+  position: relative;
+}
+.bson-block .bson-label {
+  position: absolute;
+  top: 6px;
+  right: 10px;
+  font-size: 10px;
+  color: var(--text-3);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.bson-key { color: var(--accent-cyan); }
+.bson-string { color: var(--accent-green); }
+.bson-number { color: var(--accent-orange); }
+.bson-comment { color: var(--text-3); font-style: italic; }
+.bson-highlight { background: rgba(51, 154, 240, 0.15); display: inline; padding: 1px 0; }
+
+/* Side by side layout */
+.side-by-side {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin: 12px 0;
+}
+
+/* Section divider */
+section {
+  margin-bottom: 48px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--border);
+}
+section:last-of-type { border-bottom: none; }
+
+/* Pipeline stage */
+.pipeline-container {
+  display: flex;
+  gap: 4px;
+  align-items: stretch;
+  margin: 16px 0;
+  overflow-x: auto;
+  padding-bottom: 8px;
+}
+.pipeline-stage {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 14px;
+  min-width: 140px;
+  text-align: center;
+  flex-shrink: 0;
+  transition: border-color 0.3s, background 0.3s;
+  position: relative;
+}
+.pipeline-stage.active {
+  border-color: var(--accent-blue);
+  background: #1a2030;
+}
+.pipeline-stage .stage-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent-cyan);
+  margin-bottom: 4px;
+}
+.pipeline-stage .stage-count {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--accent-yellow);
+}
+.pipeline-stage .stage-label {
+  font-size: 11px;
+  color: var(--text-3);
+}
+.pipeline-arrow {
+  display: flex;
+  align-items: center;
+  color: var(--text-3);
+  font-size: 18px;
+  flex-shrink: 0;
+  padding: 0 2px;
+}
+
+/* Comparison bars */
+.bar-chart {
+  margin: 14px 0;
+}
+.bar-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+  gap: 10px;
+}
+.bar-label {
+  min-width: 140px;
+  font-size: 13px;
+  color: var(--text-2);
+  text-align: right;
+}
+.bar-track {
+  flex: 1;
+  height: 28px;
+  background: var(--surface);
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+}
+.bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 1s ease;
+  display: flex;
+  align-items: center;
+  padding-left: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #fff;
+}
+
+/* Index visualization */
+.index-demo {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 18px;
+  margin: 10px 0;
+}
+.index-demo .idx-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--accent-cyan);
+  margin-bottom: 8px;
+}
+.query-example {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin: 6px 0;
+  font-size: 13px;
+}
+.query-example .q-badge {
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.q-badge.uses { background: rgba(81, 207, 102, 0.2); color: var(--accent-green); }
+.q-badge.skips { background: rgba(255, 107, 107, 0.2); color: var(--accent-red); }
+.q-badge.covered { background: rgba(204, 93, 232, 0.2); color: var(--accent-purple); }
+.query-example code { font-size: 12px; }
+
+/* Prefix rule visualization */
+.prefix-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 8px;
+  margin: 12px 0;
+}
+.prefix-card {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 14px;
+  font-size: 13px;
+  transition: border-color 0.3s;
+}
+.prefix-card.supported { border-color: var(--accent-green); }
+.prefix-card.unsupported { border-color: var(--accent-red); }
+.prefix-card .pf-query { color: var(--accent-cyan); font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace; font-size: 12px; }
+.prefix-card .pf-status { margin-top: 4px; font-size: 12px; }
+
+/* Schema version viz */
+.schema-docs {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 12px 0;
+}
+.schema-doc {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 14px;
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  min-width: 180px;
+  flex: 1;
+  transition: border-color 0.5s, opacity 0.5s;
+  position: relative;
+}
+.schema-doc .sv-badge {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-family: -apple-system, sans-serif;
+  font-weight: 600;
+}
+.sv-badge.v1 { background: rgba(255, 107, 107, 0.2); color: var(--accent-red); }
+.sv-badge.v2 { background: rgba(81, 207, 102, 0.2); color: var(--accent-green); }
+
+/* Animation for fan-out */
+.fanout-animation {
+  position: relative;
+  height: 200px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin: 12px 0;
+  overflow: hidden;
+}
+
+/* Progress bar for migration */
+.migration-bar {
+  width: 100%;
+  height: 24px;
+  background: var(--surface-2);
+  border-radius: 4px;
+  overflow: hidden;
+  margin: 8px 0;
+}
+.migration-bar .fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent-green), var(--accent-blue));
+  border-radius: 4px;
+  transition: width 0.5s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+}
+
+/* Nav for sections */
+.section-nav {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
+  position: sticky;
+  top: 0;
+  background: var(--bg);
+  padding: 10px 0;
+  z-index: 10;
+  border-bottom: 1px solid var(--border);
+}
+.section-nav a {
+  padding: 8px 14px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-2);
+  border-radius: 5px;
+  text-decoration: none;
+  font-size: 13px;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.section-nav a:hover { background: var(--surface); border-color: var(--text-3); }
+
+/* SVG inside sections */
+svg {
+  background: var(--surface);
+  border-radius: 8px;
+  display: block;
+  margin: 14px auto;
+  width: 100%;
+  height: auto;
+}
+
+@media (max-width: 720px) {
+  body { padding: 20px 14px; }
+  .side-by-side { grid-template-columns: 1fr; }
+  .pipeline-container { flex-direction: column; }
+  .pipeline-arrow { transform: rotate(90deg); justify-content: center; }
+}
+@media (max-width: 600px) {
+  .section-nav a { padding: 8px 10px; font-size: 12px; flex: 1; text-align: center; min-width: 80px; }
+}
+@media (max-width: 480px) {
+  .controls { flex-direction: column; }
+  .controls button { width: 100%; }
+  .toggle-options { flex-direction: column; }
+  .toggle-options button { width: 100%; }
+  .prefix-grid { grid-template-columns: 1fr; }
+  .schema-docs { flex-direction: column; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>MongoDB data modeling</h1>
+  <p class="sub">Embed vs reference -- the decision that owns 80% of MongoDB performance. The bucket pattern, the ESR rule for compound indexes, schema versioning. The interview answer is never "put it in a collection."</p>
+</header>
+
+<nav class="section-nav">
+  <a href="#sec-decision">Decision tree</a>
+  <a href="#sec-patterns">Classic patterns</a>
+  <a href="#sec-bucket">Bucket</a>
+  <a href="#sec-subset">Subset</a>
+  <a href="#sec-indexes">Indexes</a>
+  <a href="#sec-aggregation">Aggregation</a>
+  <a href="#sec-versioning">Versioning</a>
+</nav>
+
+<!-- ============================================================ -->
+<!-- SECTION 1: EMBED vs REFERENCE DECISION TREE                   -->
+<!-- ============================================================ -->
+<section id="sec-decision">
+  <h2>1. Embed vs Reference -- Decision Tree</h2>
+  <p>Four axes determine the modeling choice. Toggle each one and watch the recommendation update.</p>
+
+  <div class="toggle-group">
+    <label>Cardinality</label>
+    <div class="toggle-options" data-axis="cardinality">
+      <button class="selected" data-val="few" onclick="DT.set('cardinality','few',this)">One-to-few (&le;100)</button>
+      <button data-val="many" onclick="DT.set('cardinality','many',this)">One-to-many (&le;thousands)</button>
+      <button data-val="unbounded" onclick="DT.set('cardinality','unbounded',this)">One-to-squillions (unbounded)</button>
+    </div>
+  </div>
+
+  <div class="toggle-group">
+    <label>Access pattern</label>
+    <div class="toggle-options" data-axis="access">
+      <button class="selected" data-val="always" onclick="DT.set('access','always',this)">Always together</button>
+      <button data-val="sometimes" onclick="DT.set('access','sometimes',this)">Sometimes together</button>
+      <button data-val="rarely" onclick="DT.set('access','rarely',this)">Rarely together</button>
+    </div>
+  </div>
+
+  <div class="toggle-group">
+    <label>Update pattern</label>
+    <div class="toggle-options" data-axis="update">
+      <button class="selected" data-val="rare" onclick="DT.set('update','rare',this)">Child rarely updates</button>
+      <button data-val="frequent" onclick="DT.set('update','frequent',this)">Child frequently updates</button>
+      <button data-val="independent" onclick="DT.set('update','independent',this)">Child updates independently</button>
+    </div>
+  </div>
+
+  <div class="toggle-group">
+    <label>Document size near 16MB BSON limit?</label>
+    <div class="toggle-options" data-axis="size">
+      <button class="selected" data-val="no" onclick="DT.set('size','no',this)">No</button>
+      <button data-val="yes" onclick="DT.set('size','yes',this)">Yes</button>
+    </div>
+  </div>
+
+  <div class="recommendation" id="dt-result">
+    <div class="verdict" id="dt-verdict">Embed</div>
+    <div class="explanation" id="dt-explanation">With low cardinality, co-fetched access, rare child updates, and no size concern, embedding is the clear default. One document fetch returns everything -- no joins, no extra round trips. This is MongoDB's strength: model for the read path.</div>
+  </div>
+
+  <h3>Side-by-side: User + Address</h3>
+  <div class="side-by-side">
+    <div>
+      <div style="font-size:13px;color:var(--accent-green);font-weight:700;margin-bottom:4px;">Embedded</div>
+      <div class="bson-block" id="dt-embed-example"><span class="bson-label">users collection</span>{
+  <span class="bson-key">"_id"</span>: <span class="bson-number">1</span>,
+  <span class="bson-key">"name"</span>: <span class="bson-string">"Alice"</span>,
+  <span class="bson-key">"addresses"</span>: [
+    {
+      <span class="bson-key">"type"</span>: <span class="bson-string">"home"</span>,
+      <span class="bson-key">"city"</span>: <span class="bson-string">"Portland"</span>,
+      <span class="bson-key">"zip"</span>: <span class="bson-string">"97201"</span>
+    },
+    {
+      <span class="bson-key">"type"</span>: <span class="bson-string">"work"</span>,
+      <span class="bson-key">"city"</span>: <span class="bson-string">"Seattle"</span>,
+      <span class="bson-key">"zip"</span>: <span class="bson-string">"98101"</span>
+    }
+  ]
+}</div>
+      <div style="font-size:12px;color:var(--text-3);margin-top:4px;">1 query, 1 document fetch</div>
+    </div>
+    <div>
+      <div style="font-size:13px;color:var(--accent-red);font-weight:700;margin-bottom:4px;">Referenced</div>
+      <div class="bson-block"><span class="bson-label">users collection</span>{
+  <span class="bson-key">"_id"</span>: <span class="bson-number">1</span>,
+  <span class="bson-key">"name"</span>: <span class="bson-string">"Alice"</span>
+}
+
+<span class="bson-comment">// addresses collection</span>
+{
+  <span class="bson-key">"_id"</span>: <span class="bson-number">101</span>,
+  <span class="bson-key">"user_id"</span>: <span class="bson-number">1</span>,
+  <span class="bson-key">"type"</span>: <span class="bson-string">"home"</span>,
+  <span class="bson-key">"city"</span>: <span class="bson-string">"Portland"</span>,
+  <span class="bson-key">"zip"</span>: <span class="bson-string">"97201"</span>
+}</div>
+      <div style="font-size:12px;color:var(--text-3);margin-top:4px;">2 queries or $lookup (left-outer join)</div>
+    </div>
+  </div>
+
+  <div class="takeaway">
+    <strong>Takeaway:</strong> The default is embed. Switch to reference only when one of: unbounded growth, access pattern diverges, child update churn would rewrite the parent, or the 16MB cap looms.
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- SECTION 2: THREE CLASSIC PATTERNS                             -->
+<!-- ============================================================ -->
+<section id="sec-patterns">
+  <h2>2. Three Classic Patterns Visualized</h2>
+
+  <!-- 2a: One-to-few -->
+  <h3>2a. One-to-few -- embed (the default)</h3>
+  <p>Domain: User + Phone Numbers (typically 2-5). Phones are always fetched with the user.</p>
+  <div class="bson-block"><span class="bson-label">users collection</span>{
+  <span class="bson-key">"_id"</span>: <span class="bson-number">1</span>,
+  <span class="bson-key">"name"</span>: <span class="bson-string">"Alice"</span>,
+  <span class="bson-key">"phones"</span>: [
+    { <span class="bson-key">"type"</span>: <span class="bson-string">"home"</span>, <span class="bson-key">"number"</span>: <span class="bson-string">"555-1234"</span> },
+    { <span class="bson-key">"type"</span>: <span class="bson-string">"work"</span>, <span class="bson-key">"number"</span>: <span class="bson-string">"555-5678"</span> }
+  ]
+}</div>
+  <div class="commentary">
+    Read user = get phones for free. Single document fetch, zero joins. This is the happy path for MongoDB -- embed small, bounded, co-accessed data directly into the parent document.
+  </div>
+  <div class="commentary" style="border-left: 2px solid var(--accent-red); background: #1a1518;">
+    <strong style="color:var(--accent-red);">Anti-case:</strong> If phones grow unbounded (e.g., a call log instead of contact numbers), embedding fails -- the document grows without bound, approaching the 16MB BSON limit, and every call-log append rewrites the entire user document. Switch to a reference pattern.
+  </div>
+
+  <!-- 2b: One-to-many extended reference -->
+  <h3>2b. One-to-many -- extended reference (denormalized)</h3>
+  <p>Domain: Order + Customer. A customer can have thousands of orders. Each order shows the customer name without a join.</p>
+  <div class="side-by-side">
+    <div>
+      <div class="bson-block"><span class="bson-label">orders collection</span>{
+  <span class="bson-key">"_id"</span>: <span class="bson-number">100</span>,
+  <span class="bson-key">"customer_id"</span>: <span class="bson-number">1</span>,
+  <span class="bson-key">"customer_name"</span>: <span class="bson-string">"Alice"</span>,  <span class="bson-comment">// denormalized</span>
+  <span class="bson-key">"items"</span>: [
+    { <span class="bson-key">"sku"</span>: <span class="bson-string">"WDG-42"</span>, <span class="bson-key">"qty"</span>: <span class="bson-number">2</span> }
+  ],
+  <span class="bson-key">"total"</span>: <span class="bson-number">59.99</span>
+}</div>
+    </div>
+    <div>
+      <div class="bson-block"><span class="bson-label">customers collection</span>{
+  <span class="bson-key">"_id"</span>: <span class="bson-number">1</span>,
+  <span class="bson-key">"name"</span>: <span class="bson-string">"Alice"</span>,
+  <span class="bson-key">"email"</span>: <span class="bson-string">"alice@example.com"</span>
+}</div>
+    </div>
+  </div>
+
+  <div class="commentary">Read order = see customer name without fetching customer doc. Trade-off: when Alice's name changes, you must fan out updates to all her orders.</div>
+
+  <div class="controls">
+    <button onclick="FanOut.run()" id="fanout-btn">Animate: Alice changes name to "Alicia"</button>
+    <button onclick="FanOut.reset()">Reset</button>
+  </div>
+
+  <svg id="fanout-svg" viewBox="0 0 800 240" preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <marker id="fo-arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="#ffa94d"/>
+      </marker>
+    </defs>
+    <!-- Customer box -->
+    <rect x="20" y="80" width="180" height="80" rx="6" fill="#181820" stroke="var(--accent-blue)" stroke-width="2"/>
+    <text x="110" y="108" text-anchor="middle" fill="var(--accent-blue)" font-size="12" font-weight="600">customers</text>
+    <text x="110" y="130" text-anchor="middle" fill="var(--text-2)" font-size="12" id="fo-customer-name">name: "Alice"</text>
+    <text x="110" y="148" text-anchor="middle" fill="var(--text-3)" font-size="11">_id: 1</text>
+
+    <!-- Order boxes -->
+    <rect x="340" y="10" width="160" height="50" rx="5" fill="#181820" stroke="var(--accent-orange)" stroke-width="1.5" id="fo-order-0"/>
+    <text x="420" y="32" text-anchor="middle" fill="var(--text-2)" font-size="11">Order #100</text>
+    <text x="420" y="48" text-anchor="middle" fill="var(--text-3)" font-size="11" id="fo-oname-0">customer_name: "Alice"</text>
+
+    <rect x="340" y="70" width="160" height="50" rx="5" fill="#181820" stroke="var(--accent-orange)" stroke-width="1.5" id="fo-order-1"/>
+    <text x="420" y="92" text-anchor="middle" fill="var(--text-2)" font-size="11">Order #101</text>
+    <text x="420" y="108" text-anchor="middle" fill="var(--text-3)" font-size="11" id="fo-oname-1">customer_name: "Alice"</text>
+
+    <rect x="340" y="130" width="160" height="50" rx="5" fill="#181820" stroke="var(--accent-orange)" stroke-width="1.5" id="fo-order-2"/>
+    <text x="420" y="152" text-anchor="middle" fill="var(--text-2)" font-size="11">Order #102</text>
+    <text x="420" y="168" text-anchor="middle" fill="var(--text-3)" font-size="11" id="fo-oname-2">customer_name: "Alice"</text>
+
+    <rect x="340" y="190" width="160" height="50" rx="5" fill="#181820" stroke="var(--accent-orange)" stroke-width="1.5" id="fo-order-3"/>
+    <text x="420" y="212" text-anchor="middle" fill="var(--text-2)" font-size="11">Order #103</text>
+    <text x="420" y="228" text-anchor="middle" fill="var(--text-3)" font-size="11" id="fo-oname-3">customer_name: "Alice"</text>
+
+    <!-- Update counter -->
+    <text x="600" y="130" text-anchor="start" fill="var(--text-3)" font-size="12" id="fo-counter"></text>
+
+    <!-- Animated arrows group -->
+    <g id="fo-arrows"></g>
+  </svg>
+
+  <!-- 2c: Reference with $lookup -->
+  <h3>2c. One-to-many -- reference (when access patterns diverge)</h3>
+  <p>Domain: Author + Books. Sometimes you want just the author, sometimes author + books. Separate collections, join with <code>$lookup</code> when needed.</p>
+  <div class="side-by-side">
+    <div>
+      <div class="bson-block"><span class="bson-label">authors collection</span>{
+  <span class="bson-key">"_id"</span>: <span class="bson-number">1</span>,
+  <span class="bson-key">"name"</span>: <span class="bson-string">"Alice"</span>,
+  <span class="bson-key">"bio"</span>: <span class="bson-string">"Writer of things."</span>
+}</div>
+    </div>
+    <div>
+      <div class="bson-block"><span class="bson-label">books collection</span>{
+  <span class="bson-key">"_id"</span>: <span class="bson-number">200</span>,
+  <span class="bson-key">"title"</span>: <span class="bson-string">"Distributed Systems"</span>,
+  <span class="bson-key">"author_id"</span>: <span class="bson-number">1</span>
+}</div>
+    </div>
+  </div>
+  <div class="commentary">
+    Read author alone = 1 query. Read author + books = 2 queries (application-side join) or one <code>$lookup</code> aggregation. <code>$lookup</code> is a left-outer join implemented as a cross-collection traversal -- functional but slow under load. On hot paths, prefer application-side joins with caching, or reconsider whether embedding a subset would serve the read path better.
+  </div>
+  <div class="bson-block"><span class="bson-label">$lookup pipeline</span>db.authors.aggregate([
+  { <span class="bson-key">"$match"</span>: { <span class="bson-key">"_id"</span>: <span class="bson-number">1</span> } },
+  { <span class="bson-key">"$lookup"</span>: {
+      <span class="bson-key">"from"</span>: <span class="bson-string">"books"</span>,
+      <span class="bson-key">"localField"</span>: <span class="bson-string">"_id"</span>,
+      <span class="bson-key">"foreignField"</span>: <span class="bson-string">"author_id"</span>,
+      <span class="bson-key">"as"</span>: <span class="bson-string">"books"</span>
+  }}
+])</div>
+  <div class="commentary" style="border-left: 2px solid var(--accent-red); background: #1a1518;">
+    <strong style="color:var(--accent-red);">Anti-pattern warning:</strong> <code>$lookup</code> on hot paths is a red flag. It forces MongoDB to scan the foreign collection for each input document. In interviews, name this trade-off explicitly: "I would avoid <code>$lookup</code> in the critical read path and use application-side caching or denormalization instead."
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- SECTION 3: BUCKET PATTERN                                     -->
+<!-- ============================================================ -->
+<section id="sec-bucket">
+  <h2>3. Bucket Pattern (Time-Series)</h2>
+  <p>Domain: IoT sensor readings, 1 reading per second per sensor. Naive: one document per reading. Better: one document per sensor per hour (bucket).</p>
+
+  <div class="side-by-side">
+    <div>
+      <div style="font-size:13px;color:var(--accent-red);font-weight:700;margin-bottom:4px;">Anti-pattern: 1 doc per reading</div>
+      <div class="bson-block"><span class="bson-label">readings collection</span>{
+  <span class="bson-key">"_id"</span>: ObjectId(),
+  <span class="bson-key">"sensor"</span>: <span class="bson-string">"s42"</span>,
+  <span class="bson-key">"ts"</span>: ISODate(<span class="bson-string">"2026-05-09T17:00:01Z"</span>),
+  <span class="bson-key">"value"</span>: <span class="bson-number">23.4</span>
+}
+<span class="bson-comment">// x 86,400 per sensor per day</span>
+<span class="bson-comment">// x 3,600 per sensor per hour</span></div>
+    </div>
+    <div>
+      <div style="font-size:13px;color:var(--accent-green);font-weight:700;margin-bottom:4px;">Bucket pattern: 1 doc per hour</div>
+      <div class="bson-block"><span class="bson-label">sensor_buckets collection</span>{
+  <span class="bson-key">"_id"</span>: {
+    <span class="bson-key">"sensor"</span>: <span class="bson-string">"s42"</span>,
+    <span class="bson-key">"hour"</span>: <span class="bson-string">"2026-05-09T17"</span>
+  },
+  <span class="bson-key">"count"</span>: <span class="bson-number">3600</span>,
+  <span class="bson-key">"readings"</span>: [
+    { <span class="bson-key">"ts"</span>: <span class="bson-string">"..T17:00:01"</span>, <span class="bson-key">"val"</span>: <span class="bson-number">23.4</span> },
+    { <span class="bson-key">"ts"</span>: <span class="bson-string">"..T17:00:02"</span>, <span class="bson-key">"val"</span>: <span class="bson-number">23.5</span> },
+    <span class="bson-comment">// ... up to 3600 entries</span>
+  ]
+}</div>
+    </div>
+  </div>
+
+  <h3>Impact: document count and index size</h3>
+  <div class="controls">
+    <button class="active-btn" onclick="Bucket.show('hour')" id="bucket-btn-hour">1-hour buckets</button>
+    <button onclick="Bucket.show('day')" id="bucket-btn-day">Show: 24-hour range query</button>
+  </div>
+
+  <div class="bar-chart" id="bucket-bars">
+    <div class="bar-row">
+      <div class="bar-label">Documents</div>
+      <div class="bar-track">
+        <div class="bar-fill" id="bucket-docs-naive" style="width:100%;background:var(--accent-red);">86,400</div>
+      </div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label">Bucketed docs</div>
+      <div class="bar-track">
+        <div class="bar-fill" id="bucket-docs-bucket" style="width:0.028%;background:var(--accent-green);min-width:60px;">24</div>
+      </div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label">Index entries</div>
+      <div class="bar-track">
+        <div class="bar-fill" id="bucket-idx-naive" style="width:100%;background:var(--accent-red);">86,400</div>
+      </div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label">Bucketed index</div>
+      <div class="bar-track">
+        <div class="bar-fill" id="bucket-idx-bucket" style="width:0.028%;background:var(--accent-green);min-width:60px;">24</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="bucket-commentary" class="commentary">
+    A "last 24 hours of sensor s42" range query touches <strong>24 bucket documents</strong> versus <strong>86,400 individual documents</strong>. Index is 3,600x smaller. Each bucket doc leverages MongoDB's document-level locking efficiently -- writes append to the current hour's readings array.
+  </div>
+
+  <div class="commentary">
+    <strong>Trade-off:</strong> The document grows during the hour as readings append. MongoDB pre-allocates space (power-of-2 sizing), but if the bucket exceeds expectations, you hit document moves. Cap bucket size; rotate to a new document when full. For very high-volume sensors, use smaller time windows (per-minute buckets).
+  </div>
+
+  <div class="takeaway">
+    <strong>Takeaway:</strong> Bucket = the time-series pattern. ALWAYS use it for high-volume time-series data. The reduction in document count and index size is usually 100x-3600x, and range queries drop from scanning thousands of documents to reading a handful.
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- SECTION 4: SUBSET PATTERN                                     -->
+<!-- ============================================================ -->
+<section id="sec-subset">
+  <h2>4. Subset Pattern</h2>
+  <p>Domain: User profile with reviews. The profile page shows the top 10 latest reviews. The full review history is rarely accessed.</p>
+
+  <div class="side-by-side">
+    <div>
+      <div style="font-size:13px;color:var(--accent-blue);font-weight:700;margin-bottom:4px;">User doc (hot data embedded)</div>
+      <div class="bson-block"><span class="bson-label">users collection</span>{
+  <span class="bson-key">"_id"</span>: <span class="bson-number">1</span>,
+  <span class="bson-key">"name"</span>: <span class="bson-string">"Alice"</span>,
+  <span class="bson-key">"top_reviews"</span>: [
+    {
+      <span class="bson-key">"_id"</span>: <span class="bson-number">501</span>,
+      <span class="bson-key">"text"</span>: <span class="bson-string">"Great product..."</span>,
+      <span class="bson-key">"rating"</span>: <span class="bson-number">5</span>,
+      <span class="bson-key">"date"</span>: <span class="bson-string">"2026-05-08"</span>
+    },
+    <span class="bson-comment">// ... top 10 only</span>
+  ]
+}</div>
+      <div style="font-size:12px;color:var(--accent-green);margin-top:4px;">Profile fetch: 1 doc, 1 query</div>
+    </div>
+    <div>
+      <div style="font-size:13px;color:var(--accent-orange);font-weight:700;margin-bottom:4px;">Full review history (cold data)</div>
+      <div class="bson-block"><span class="bson-label">reviews collection</span>{
+  <span class="bson-key">"_id"</span>: <span class="bson-number">501</span>,
+  <span class="bson-key">"user_id"</span>: <span class="bson-number">1</span>,
+  <span class="bson-key">"text"</span>: <span class="bson-string">"Great product..."</span>,
+  <span class="bson-key">"rating"</span>: <span class="bson-number">5</span>,
+  <span class="bson-key">"date"</span>: <span class="bson-string">"2026-05-08"</span>,
+  <span class="bson-key">"product_id"</span>: <span class="bson-number">42</span>,
+  <span class="bson-key">"helpful_votes"</span>: <span class="bson-number">17</span>
+}
+<span class="bson-comment">// paginated: db.reviews.find({user_id:1}).sort({date:-1}).skip(10).limit(10)</span></div>
+      <div style="font-size:12px;color:var(--text-3);margin-top:4px;">Full history: separate query, paginated</div>
+    </div>
+  </div>
+
+  <h3>Write path: new review arrives</h3>
+  <div class="controls">
+    <button onclick="Subset.addReview()" id="subset-btn">Add new review</button>
+    <button onclick="Subset.reset()">Reset</button>
+  </div>
+
+  <div id="subset-steps" class="commentary">
+    Click "Add new review" to see the dual-write sequence: insert into the reviews collection, then push onto the user's top_reviews array and trim to 10.
+  </div>
+
+  <div class="bson-block" id="subset-ops" style="min-height:100px;"><span class="bson-label">write operations</span><span class="bson-comment">// click "Add new review" to see the sequence</span></div>
+
+  <div class="takeaway">
+    <strong>Takeaway:</strong> Subset pattern = embed the frequently-accessed subset, store the full dataset separately. Profile page is a single document fetch; full history is paginated from a separate collection. The cost is a dual-write on insert, but the read-path win is enormous for high-traffic pages.
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- SECTION 5: INDEX TYPES + COVERED QUERIES                      -->
+<!-- ============================================================ -->
+<section id="sec-indexes">
+  <h2>5. Index Types and Covered Queries</h2>
+  <p>A <code>users</code> collection with six index types. For each: a query that uses the index and one that does not.</p>
+
+  <!-- Single field -->
+  <div class="index-demo">
+    <div class="idx-name">Single field: <code>{email: 1}</code></div>
+    <div class="query-example">
+      <span class="q-badge uses">USES INDEX</span>
+      <code>db.users.find({email: "alice@example.com"})</code>
+    </div>
+    <div class="query-example">
+      <span class="q-badge skips">COLLECTION SCAN</span>
+      <code>db.users.find({name: "Alice"})</code>
+      <span style="color:var(--text-3);font-size:11px;margin-left:4px;">-- no index on name</span>
+    </div>
+  </div>
+
+  <!-- Compound -->
+  <div class="index-demo">
+    <div class="idx-name">Compound: <code>{tenant_id: 1, status: 1, created_at: -1}</code></div>
+    <div class="query-example">
+      <span class="q-badge uses">USES INDEX</span>
+      <code>db.users.find({tenant_id: 5, status: "active"}).sort({created_at: -1})</code>
+    </div>
+    <div class="query-example">
+      <span class="q-badge skips">COLLECTION SCAN</span>
+      <code>db.users.find({status: "active"})</code>
+      <span style="color:var(--text-3);font-size:11px;margin-left:4px;">-- skips left prefix</span>
+    </div>
+  </div>
+
+  <!-- Compound left-prefix rule -->
+  <h3>Compound left-prefix rule</h3>
+  <p>Index <code>{tenant_id: 1, status: 1, created_at: -1}</code> supports queries on any left prefix of the key sequence, but not arbitrary subsets.</p>
+
+  <div class="prefix-grid">
+    <div class="prefix-card supported">
+      <div class="pf-query">{tenant_id}</div>
+      <div class="pf-status" style="color:var(--accent-green);">Supported (left prefix)</div>
+    </div>
+    <div class="prefix-card supported">
+      <div class="pf-query">{tenant_id, status}</div>
+      <div class="pf-status" style="color:var(--accent-green);">Supported (left prefix)</div>
+    </div>
+    <div class="prefix-card supported">
+      <div class="pf-query">{tenant_id, status, created_at}</div>
+      <div class="pf-status" style="color:var(--accent-green);">Supported (full index)</div>
+    </div>
+    <div class="prefix-card unsupported">
+      <div class="pf-query">{status}</div>
+      <div class="pf-status" style="color:var(--accent-red);">Not supported (skips tenant_id)</div>
+    </div>
+    <div class="prefix-card unsupported">
+      <div class="pf-query">{created_at}</div>
+      <div class="pf-status" style="color:var(--accent-red);">Not supported (skips prefix)</div>
+    </div>
+    <div class="prefix-card unsupported">
+      <div class="pf-query">{status, created_at}</div>
+      <div class="pf-status" style="color:var(--accent-red);">Not supported (skips tenant_id)</div>
+    </div>
+  </div>
+
+  <!-- Covered query -->
+  <h3>Covered query</h3>
+  <p>A covered query is one where the index contains <em>all</em> fields the query reads -- both the filter fields and the projected fields. MongoDB returns results directly from the index without touching the document storage.</p>
+
+  <div class="index-demo">
+    <div class="idx-name">Index: <code>{tenant_id: 1, status: 1}</code></div>
+    <div class="query-example">
+      <span class="q-badge covered">COVERED</span>
+      <code>db.users.find({tenant_id:1, status:"active"}, {tenant_id:1, status:1, _id:0})</code>
+    </div>
+    <div style="font-size:12px;color:var(--text-3);margin:4px 0 0 0;">Projection includes only indexed fields + excludes _id. No document fetch needed.</div>
+    <div class="query-example" style="margin-top:8px;">
+      <span class="q-badge skips">NOT COVERED</span>
+      <code>db.users.find({tenant_id:1, status:"active"}, {tenant_id:1, status:1, email:1, _id:0})</code>
+    </div>
+    <div style="font-size:12px;color:var(--text-3);margin:4px 0 0 0;">email is not in the index -- must fetch the document to return it.</div>
+  </div>
+
+  <!-- Multikey -->
+  <div class="index-demo">
+    <div class="idx-name">Multikey (array field): <code>{tags: 1}</code></div>
+    <div class="query-example">
+      <span class="q-badge uses">USES INDEX</span>
+      <code>db.users.find({tags: "premium"})</code>
+    </div>
+    <div class="query-example">
+      <span class="q-badge uses">USES INDEX</span>
+      <code>db.users.find({tags: {$in: ["premium", "vip"]}})</code>
+    </div>
+    <div style="font-size:12px;color:var(--text-3);margin:4px 0;">MongoDB creates an index entry for each element in the array. Queries on any element use the index.</div>
+  </div>
+
+  <!-- Text -->
+  <div class="index-demo">
+    <div class="idx-name">Text: <code>{name: "text", description: "text"}</code></div>
+    <div class="query-example">
+      <span class="q-badge uses">USES INDEX</span>
+      <code>db.users.find({$text: {$search: "distributed systems"}})</code>
+    </div>
+    <div class="query-example">
+      <span class="q-badge skips">COLLECTION SCAN</span>
+      <code>db.users.find({name: /distributed/})</code>
+      <span style="color:var(--text-3);font-size:11px;margin-left:4px;">-- regex does not use text index</span>
+    </div>
+  </div>
+
+  <!-- 2dsphere -->
+  <div class="index-demo">
+    <div class="idx-name">2dsphere: <code>{loc: "2dsphere"}</code></div>
+    <div class="query-example">
+      <span class="q-badge uses">USES INDEX</span>
+      <code>db.users.find({loc: {$near: {$geometry: {type:"Point", coordinates:[-122,47]}}}})</code>
+    </div>
+    <div class="query-example">
+      <span class="q-badge skips">COLLECTION SCAN</span>
+      <code>db.users.find({"loc.coordinates.0": {$gt: -123}})</code>
+      <span style="color:var(--text-3);font-size:11px;margin-left:4px;">-- raw field access, not geospatial query</span>
+    </div>
+  </div>
+
+  <!-- TTL -->
+  <div class="index-demo">
+    <div class="idx-name">TTL: <code>{created_at: 1}</code> with <code>expireAfterSeconds: 86400</code></div>
+    <div class="query-example">
+      <span class="q-badge uses">AUTO-DELETE</span>
+      <code>Documents older than 24h are automatically removed by a background thread.</code>
+    </div>
+    <div style="font-size:12px;color:var(--text-3);margin:4px 0;">TTL indexes run a background task every 60 seconds. Not instant -- there is up to a 60-second lag. Use for session expiry, audit logs, temporary tokens.</div>
+  </div>
+
+  <!-- ESR Rule -->
+  <h3>ESR Rule for compound index field order</h3>
+  <p><strong>Equality, Sort, Range</strong> -- order fields in that priority for optimal compound index design.</p>
+
+  <div class="side-by-side">
+    <div>
+      <div style="font-size:13px;color:var(--accent-red);font-weight:700;margin-bottom:4px;">Violation: Range before Sort</div>
+      <div class="bson-block"><span class="bson-comment">// Query</span>
+db.orders.find({
+  <span class="bson-key">"status"</span>: <span class="bson-string">"shipped"</span>,       <span class="bson-comment">// equality</span>
+  <span class="bson-key">"total"</span>: { <span class="bson-key">"$gt"</span>: <span class="bson-number">100</span> }       <span class="bson-comment">// range</span>
+}).sort({ <span class="bson-key">"created_at"</span>: <span class="bson-number">-1</span> })  <span class="bson-comment">// sort</span>
+
+<span class="bson-comment">// Bad index: {status:1, total:1, created_at:-1}</span>
+<span class="bson-comment">// Range on total breaks sort optimization</span>
+<span class="bson-comment">// MongoDB must in-memory sort after range scan</span></div>
+    </div>
+    <div>
+      <div style="font-size:13px;color:var(--accent-green);font-weight:700;margin-bottom:4px;">Correct: Equality, Sort, Range</div>
+      <div class="bson-block"><span class="bson-comment">// Same query, better index</span>
+
+<span class="bson-comment">// ESR index: {status:1, created_at:-1, total:1}</span>
+<span class="bson-comment">//   E: status = "shipped"  (equality first)</span>
+<span class="bson-comment">//   S: created_at desc     (sort next)</span>
+<span class="bson-comment">//   R: total > 100         (range last)</span>
+
+<span class="bson-comment">// MongoDB walks the index in sort order,</span>
+<span class="bson-comment">// skipping entries where total &lt;= 100.</span>
+<span class="bson-comment">// No in-memory sort needed.</span></div>
+    </div>
+  </div>
+
+  <div class="takeaway">
+    <strong>Takeaway:</strong> ESR. Equality, Sort, Range -- that is the order. Index on <code>{eq_field: 1, sort_field: 1, range_field: 1}</code>. Putting range before sort forces MongoDB into an in-memory sort, which is bounded by 100MB and will fail on large result sets.
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- SECTION 6: AGGREGATION PIPELINE                               -->
+<!-- ============================================================ -->
+<section id="sec-aggregation">
+  <h2>6. Aggregation Pipeline</h2>
+  <p>Documents flow through stages left to right. Each stage transforms the stream. Watch 10 sample order documents flow through <code>$match -> $group -> $sort -> $project</code>.</p>
+
+  <div class="controls">
+    <button onclick="Agg.run()" id="agg-run-btn">Run pipeline</button>
+    <button onclick="Agg.reset()">Reset</button>
+    <button onclick="Agg.showAntiPattern()" style="border-color:var(--accent-red);color:var(--accent-red);">Show anti-pattern: $match after $group</button>
+  </div>
+
+  <div class="pipeline-container" id="agg-pipeline">
+    <div class="pipeline-stage" id="agg-input">
+      <div class="stage-name">Input</div>
+      <div class="stage-count" id="agg-count-input">10</div>
+      <div class="stage-label">documents</div>
+    </div>
+    <div class="pipeline-arrow">&#x2192;</div>
+    <div class="pipeline-stage" id="agg-stage-match">
+      <div class="stage-name">$match</div>
+      <div class="stage-count" id="agg-count-match">--</div>
+      <div class="stage-label">status: "shipped"</div>
+    </div>
+    <div class="pipeline-arrow">&#x2192;</div>
+    <div class="pipeline-stage" id="agg-stage-group">
+      <div class="stage-name">$group</div>
+      <div class="stage-count" id="agg-count-group">--</div>
+      <div class="stage-label">by customer</div>
+    </div>
+    <div class="pipeline-arrow">&#x2192;</div>
+    <div class="pipeline-stage" id="agg-stage-sort">
+      <div class="stage-name">$sort</div>
+      <div class="stage-count" id="agg-count-sort">--</div>
+      <div class="stage-label">totalSpent desc</div>
+    </div>
+    <div class="pipeline-arrow">&#x2192;</div>
+    <div class="pipeline-stage" id="agg-stage-project">
+      <div class="stage-name">$project</div>
+      <div class="stage-count" id="agg-count-project">--</div>
+      <div class="stage-label">customer, total</div>
+    </div>
+  </div>
+
+  <div class="bson-block" id="agg-data" style="min-height:160px;max-height:320px;overflow-y:auto;"><span class="bson-label">sample data</span><span class="bson-comment">// 10 orders -- click "Run pipeline" to animate</span>
+[
+  { <span class="bson-key">"_id"</span>:<span class="bson-number">1</span>,  <span class="bson-key">"customer"</span>:<span class="bson-string">"Alice"</span>,   <span class="bson-key">"status"</span>:<span class="bson-string">"shipped"</span>,  <span class="bson-key">"total"</span>:<span class="bson-number">120</span> },
+  { <span class="bson-key">"_id"</span>:<span class="bson-number">2</span>,  <span class="bson-key">"customer"</span>:<span class="bson-string">"Bob"</span>,     <span class="bson-key">"status"</span>:<span class="bson-string">"pending"</span>,  <span class="bson-key">"total"</span>:<span class="bson-number">45</span> },
+  { <span class="bson-key">"_id"</span>:<span class="bson-number">3</span>,  <span class="bson-key">"customer"</span>:<span class="bson-string">"Alice"</span>,   <span class="bson-key">"status"</span>:<span class="bson-string">"shipped"</span>,  <span class="bson-key">"total"</span>:<span class="bson-number">80</span> },
+  { <span class="bson-key">"_id"</span>:<span class="bson-number">4</span>,  <span class="bson-key">"customer"</span>:<span class="bson-string">"Charlie"</span>, <span class="bson-key">"status"</span>:<span class="bson-string">"shipped"</span>,  <span class="bson-key">"total"</span>:<span class="bson-number">200</span> },
+  { <span class="bson-key">"_id"</span>:<span class="bson-number">5</span>,  <span class="bson-key">"customer"</span>:<span class="bson-string">"Bob"</span>,     <span class="bson-key">"status"</span>:<span class="bson-string">"shipped"</span>,  <span class="bson-key">"total"</span>:<span class="bson-number">60</span> },
+  { <span class="bson-key">"_id"</span>:<span class="bson-number">6</span>,  <span class="bson-key">"customer"</span>:<span class="bson-string">"Alice"</span>,   <span class="bson-key">"status"</span>:<span class="bson-string">"pending"</span>,  <span class="bson-key">"total"</span>:<span class="bson-number">35</span> },
+  { <span class="bson-key">"_id"</span>:<span class="bson-number">7</span>,  <span class="bson-key">"customer"</span>:<span class="bson-string">"Diana"</span>,   <span class="bson-key">"status"</span>:<span class="bson-string">"shipped"</span>,  <span class="bson-key">"total"</span>:<span class="bson-number">150</span> },
+  { <span class="bson-key">"_id"</span>:<span class="bson-number">8</span>,  <span class="bson-key">"customer"</span>:<span class="bson-string">"Charlie"</span>, <span class="bson-key">"status"</span>:<span class="bson-string">"pending"</span>,  <span class="bson-key">"total"</span>:<span class="bson-number">90</span> },
+  { <span class="bson-key">"_id"</span>:<span class="bson-number">9</span>,  <span class="bson-key">"customer"</span>:<span class="bson-string">"Bob"</span>,     <span class="bson-key">"status"</span>:<span class="bson-string">"shipped"</span>,  <span class="bson-key">"total"</span>:<span class="bson-number">75</span> },
+  { <span class="bson-key">"_id"</span>:<span class="bson-number">10</span>, <span class="bson-key">"customer"</span>:<span class="bson-string">"Diana"</span>,   <span class="bson-key">"status"</span>:<span class="bson-string">"shipped"</span>,  <span class="bson-key">"total"</span>:<span class="bson-number">95</span> }
+]</div>
+
+  <div class="commentary" id="agg-commentary">
+    The pipeline processes documents sequentially through each stage. <code>$match</code> filters early (uses indexes if available), reducing the work for downstream stages. <code>$group</code> aggregates by key. <code>$sort</code> orders the results. <code>$project</code> reshapes the output.
+  </div>
+
+  <h3><code>$lookup</code>: the cross-collection join</h3>
+  <div class="commentary">
+    <code>$lookup</code> performs a left-outer join: for each input document, it queries the foreign collection and attaches matching documents as an array. This is inherently slower than single-collection operations because it forces cross-collection traversal. On sharded clusters, the foreign collection must be unsharded or on the same shard. In interviews, always flag: "I would avoid <code>$lookup</code> on the hot path."
+  </div>
+
+  <h3><code>$facet</code>: parallel sub-pipelines</h3>
+  <div class="commentary">
+    <code>$facet</code> runs multiple aggregation pipelines on the same input set in parallel, returning a single document with named fields for each sub-pipeline's result. Use case: a dashboard that needs total count, top-N, and category breakdown from the same query -- one round trip instead of three.
+  </div>
+
+  <div class="bson-block"><span class="bson-label">$facet example</span>db.orders.aggregate([
+  { <span class="bson-key">"$match"</span>: { <span class="bson-key">"status"</span>: <span class="bson-string">"shipped"</span> } },
+  { <span class="bson-key">"$facet"</span>: {
+    <span class="bson-key">"totalCount"</span>: [{ <span class="bson-key">"$count"</span>: <span class="bson-string">"n"</span> }],
+    <span class="bson-key">"topCustomers"</span>: [
+      { <span class="bson-key">"$group"</span>: { <span class="bson-key">"_id"</span>: <span class="bson-string">"$customer"</span>, <span class="bson-key">"spent"</span>: { <span class="bson-key">"$sum"</span>: <span class="bson-string">"$total"</span> }}},
+      { <span class="bson-key">"$sort"</span>: { <span class="bson-key">"spent"</span>: <span class="bson-number">-1</span> }},
+      { <span class="bson-key">"$limit"</span>: <span class="bson-number">3</span> }
+    ],
+    <span class="bson-key">"byMonth"</span>: [
+      { <span class="bson-key">"$group"</span>: { <span class="bson-key">"_id"</span>: { <span class="bson-key">"$month"</span>: <span class="bson-string">"$date"</span> }, <span class="bson-key">"count"</span>: { <span class="bson-key">"$sum"</span>: <span class="bson-number">1</span> }}}
+    ]
+  }}
+])</div>
+
+  <div class="takeaway">
+    <strong>Takeaway:</strong> Always push <code>$match</code> first. Use indexes that support the <code>$match</code> stage. <code>$lookup</code> is the join you should question -- name the cost explicitly in interviews. <code>$facet</code> is the tool for "I need multiple views of the same data in one query."
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- SECTION 7: SCHEMA VERSIONING                                  -->
+<!-- ============================================================ -->
+<section id="sec-versioning">
+  <h2>7. Schema Versioning</h2>
+  <p>MongoDB does not enforce schema. When your data model evolves, old documents still exist with the old shape. The canonical pattern: <code>schemaVersion</code> field + migrate-on-read + background fixup.</p>
+
+  <h3>Evolution: User schema v1 to v2</h3>
+  <div class="side-by-side">
+    <div>
+      <div style="font-size:13px;color:var(--accent-red);font-weight:700;margin-bottom:4px;">v1 (legacy)</div>
+      <div class="bson-block">{
+  <span class="bson-key">"_id"</span>: <span class="bson-number">1</span>,
+  <span class="bson-key">"name"</span>: <span class="bson-string">"Alice Smith"</span>,
+  <span class="bson-key">"email"</span>: <span class="bson-string">"alice@example.com"</span>
+}
+<span class="bson-comment">// no schemaVersion field</span></div>
+    </div>
+    <div>
+      <div style="font-size:13px;color:var(--accent-green);font-weight:700;margin-bottom:4px;">v2 (current)</div>
+      <div class="bson-block">{
+  <span class="bson-key">"_id"</span>: <span class="bson-number">2</span>,
+  <span class="bson-key">"firstName"</span>: <span class="bson-string">"Bob"</span>,
+  <span class="bson-key">"lastName"</span>: <span class="bson-string">"Jones"</span>,
+  <span class="bson-key">"email"</span>: <span class="bson-string">"bob@example.com"</span>,
+  <span class="bson-key">"schemaVersion"</span>: <span class="bson-number">2</span>
+}</div>
+    </div>
+  </div>
+
+  <h3>Read-path branching</h3>
+  <div class="bson-block"><span class="bson-label">application code</span>function getUser(doc) {
+  if (doc.schemaVersion === 2) {
+    <span class="bson-comment">// v2: use firstName/lastName directly</span>
+    return { first: doc.firstName, last: doc.lastName, email: doc.email };
+  } else {
+    <span class="bson-comment">// v1: split "name" into first/last, migrate on read</span>
+    const [first, ...rest] = doc.name.split(" ");
+    const last = rest.join(" ");
+    <span class="bson-comment">// fire-and-forget update to migrate this doc</span>
+    db.users.updateOne(
+      { _id: doc._id },
+      { $set: { firstName: first, lastName: last, schemaVersion: 2 },
+        $unset: { name: "" } }
+    );
+    return { first, last, email: doc.email };
+  }
+}</div>
+
+  <h3>Background migration</h3>
+  <p>Migrate-on-read handles documents as they are accessed. A background batch job handles the rest -- documents that are never read still need migration for consistency and to allow eventual removal of the v1 code path.</p>
+
+  <div class="controls">
+    <button onclick="Schema.runMigration()" id="schema-btn">Run background migration</button>
+    <button onclick="Schema.reset()">Reset</button>
+  </div>
+
+  <div class="schema-docs" id="schema-docs">
+    <div class="schema-doc" id="sdoc-0">
+      <span class="sv-badge v1">v1</span>
+      name: "Alice Smith"
+      email: "alice@..."
+    </div>
+    <div class="schema-doc" id="sdoc-1">
+      <span class="sv-badge v1">v1</span>
+      name: "Bob Jones"
+      email: "bob@..."
+    </div>
+    <div class="schema-doc" id="sdoc-2">
+      <span class="sv-badge v2">v2</span>
+      firstName: "Charlie"
+      lastName: "Brown"
+      schemaVersion: 2
+    </div>
+    <div class="schema-doc" id="sdoc-3">
+      <span class="sv-badge v1">v1</span>
+      name: "Diana Prince"
+      email: "diana@..."
+    </div>
+    <div class="schema-doc" id="sdoc-4">
+      <span class="sv-badge v2">v2</span>
+      firstName: "Eve"
+      lastName: "Taylor"
+      schemaVersion: 2
+    </div>
+    <div class="schema-doc" id="sdoc-5">
+      <span class="sv-badge v1">v1</span>
+      name: "Frank Castle"
+      email: "frank@..."
+    </div>
+  </div>
+
+  <div style="margin:10px 0;">
+    <div style="font-size:13px;color:var(--text-3);margin-bottom:4px;">Migration progress: <span id="schema-progress-text">2 / 6 migrated</span></div>
+    <div class="migration-bar">
+      <div class="fill" id="schema-bar" style="width:33%;">33%</div>
+    </div>
+  </div>
+
+  <div class="commentary" id="schema-commentary">
+    Background migration runs in batches: <code>db.users.find({schemaVersion: {$ne: 2}}).limit(100)</code>. For each batch, split name, set firstName/lastName, set schemaVersion: 2, unset name. Process in small batches to avoid lock contention.
+  </div>
+
+  <div class="takeaway">
+    <strong>Takeaway:</strong> MongoDB does not enforce schema, so you must. <code>schemaVersion</code> field + migrate-on-read + background fixup is the canonical pattern. The code path must handle all active schema versions until migration is complete. Only after 100% migration can you remove the v1 branch.
+  </div>
+</section>
+
+<script>
+// ============================================================
+// SECTION 1: Decision Tree logic
+// ============================================================
+const DT = (() => {
+  const state = { cardinality: 'few', access: 'always', update: 'rare', size: 'no' };
+
+  function set(axis, val, btn) {
+    state[axis] = val;
+    const group = btn.closest('.toggle-options');
+    group.querySelectorAll('button').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+    evaluate();
+  }
+
+  function evaluate() {
+    const panel = document.getElementById('dt-result');
+    const verdict = document.getElementById('dt-verdict');
+    const explanation = document.getElementById('dt-explanation');
+
+    let result, cls, text;
+
+    // Hard rules: size near limit or unbounded cardinality -> reference
+    if (state.size === 'yes') {
+      result = 'Reference (separate collection)';
+      cls = 'reference';
+      text = 'The document is approaching the 16MB BSON limit. Embedding more data risks hitting the cap. Move the child data to a separate collection and reference by ID. This is a hard constraint -- BSON size is not negotiable.';
+    } else if (state.cardinality === 'unbounded') {
+      result = 'Reference (separate collection)';
+      cls = 'reference';
+      text = 'Unbounded cardinality means the embedded array can grow without limit. Every append rewrites the parent document, and eventually you hit the 16MB cap. The only safe model is a separate collection with a foreign key back to the parent.';
+    } else if (state.cardinality === 'many' && state.update === 'independent') {
+      result = 'Reference (separate collection)';
+      cls = 'reference';
+      text = 'With thousands of children that update independently of the parent, embedding forces a parent rewrite on every child update. This creates write amplification and lock contention. Reference by ID; let children live in their own collection with their own write path.';
+    } else if (state.access === 'rarely' && state.cardinality === 'many') {
+      result = 'Reference (separate collection)';
+      cls = 'reference';
+      text = 'The child data is rarely accessed with the parent and there are thousands of them. Embedding bloats every parent read with data the application usually discards. Separate collections, joined only when the rare access pattern requires it.';
+    } else if (state.access === 'rarely') {
+      result = 'Reference (separate collection)';
+      cls = 'reference';
+      text = 'The child data is rarely accessed with the parent. Embedding it means every parent read loads unnecessary data into the working set, wasting memory. Keep them separate and join on demand.';
+    } else if (state.cardinality === 'many' && state.access === 'sometimes') {
+      result = 'Hybrid (extended reference)';
+      cls = 'hybrid';
+      text = 'Thousands of children, sometimes co-accessed. The hybrid approach denormalizes the most frequently needed child fields into the parent (or vice versa) while keeping the full child in a separate collection. This avoids joins on the common path but accepts update fan-out when denormalized fields change.';
+    } else if (state.cardinality === 'many' && state.update === 'frequent') {
+      result = 'Hybrid (extended reference)';
+      cls = 'hybrid';
+      text = 'Thousands of children with frequent updates. Full embedding would cause constant parent rewrites. The hybrid approach stores a read-optimized subset (extended reference) in the parent and the full mutable data in a separate collection. Updates to the denormalized subset require fan-out, but this is an acceptable trade-off for read performance.';
+    } else if (state.update === 'independent') {
+      result = 'Reference (separate collection)';
+      cls = 'reference';
+      text = 'Children update independently of the parent. Even with low cardinality, independent update cycles suggest separate lifecycle management. A reference avoids coupling parent and child write paths.';
+    } else if (state.update === 'frequent' && state.cardinality === 'few') {
+      result = 'Embed';
+      cls = 'embed';
+      text = 'Few children that update frequently but are always co-accessed. Embedding still works here because the array is small -- the rewrite cost on each update is low (a few KB), and the read path benefits from single-document fetch. If update frequency becomes extreme, consider the hybrid approach.';
+    } else {
+      // Default: embed
+      result = 'Embed';
+      cls = 'embed';
+      text = 'With low cardinality, co-fetched access, rare child updates, and no size concern, embedding is the clear default. One document fetch returns everything -- no joins, no extra round trips. This is MongoDB\'s strength: model for the read path.';
+    }
+
+    panel.className = 'recommendation ' + cls;
+    verdict.textContent = result;
+    explanation.textContent = text;
+  }
+
+  return { set, evaluate };
+})();
+
+// ============================================================
+// SECTION 2b: Fan-out animation
+// ============================================================
+const FanOut = (() => {
+  let running = false;
+  const orderCount = 4;
+
+  function run() {
+    if (running) return;
+    running = true;
+    document.getElementById('fanout-btn').disabled = true;
+
+    // Step 1: Update customer doc
+    const custName = document.getElementById('fo-customer-name');
+    custName.textContent = 'name: "Alicia"';
+    custName.setAttribute('fill', 'var(--accent-green)');
+
+    // Step 2: Fan out to orders one by one
+    let i = 0;
+    const arrowsGroup = document.getElementById('fo-arrows');
+    const counter = document.getElementById('fo-counter');
+
+    function updateNext() {
+      if (i >= orderCount) {
+        counter.textContent = 'Fan-out complete: ' + orderCount + ' updates';
+        counter.setAttribute('fill', 'var(--accent-green)');
+        running = false;
+        document.getElementById('fanout-btn').disabled = false;
+        return;
+      }
+
+      counter.textContent = 'Updating order ' + (i + 1) + ' / ' + orderCount + '...';
+      counter.setAttribute('fill', 'var(--accent-orange)');
+
+      // Draw arrow
+      const yTarget = 35 + i * 60;
+      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      line.setAttribute('x1', '200');
+      line.setAttribute('y1', '120');
+      line.setAttribute('x2', '340');
+      line.setAttribute('y2', String(yTarget));
+      line.setAttribute('stroke', 'var(--accent-orange)');
+      line.setAttribute('stroke-width', '2');
+      line.setAttribute('marker-end', 'url(#fo-arrow)');
+      line.setAttribute('opacity', '0');
+      arrowsGroup.appendChild(line);
+
+      // Animate arrow appearance
+      requestAnimationFrame(() => {
+        line.setAttribute('opacity', '1');
+        line.style.transition = 'opacity 0.3s';
+      });
+
+      // Update order text
+      setTimeout(() => {
+        const oname = document.getElementById('fo-oname-' + i);
+        oname.textContent = 'customer_name: "Alicia"';
+        oname.setAttribute('fill', 'var(--accent-green)');
+        const orderRect = document.getElementById('fo-order-' + i);
+        orderRect.setAttribute('stroke', 'var(--accent-green)');
+        i++;
+        setTimeout(updateNext, 400);
+      }, 300);
+    }
+
+    setTimeout(updateNext, 500);
+  }
+
+  function reset() {
+    running = false;
+    document.getElementById('fanout-btn').disabled = false;
+    document.getElementById('fo-customer-name').textContent = 'name: "Alice"';
+    document.getElementById('fo-customer-name').setAttribute('fill', 'var(--text-2)');
+    document.getElementById('fo-counter').textContent = '';
+    document.getElementById('fo-arrows').innerHTML = '';
+    for (let i = 0; i < orderCount; i++) {
+      document.getElementById('fo-oname-' + i).textContent = 'customer_name: "Alice"';
+      document.getElementById('fo-oname-' + i).setAttribute('fill', 'var(--text-3)');
+      document.getElementById('fo-order-' + i).setAttribute('stroke', 'var(--accent-orange)');
+    }
+  }
+
+  return { run, reset };
+})();
+
+// ============================================================
+// SECTION 3: Bucket pattern bars
+// ============================================================
+const Bucket = (() => {
+  function show(mode) {
+    document.getElementById('bucket-btn-hour').classList.toggle('active-btn', mode === 'hour');
+    document.getElementById('bucket-btn-day').classList.toggle('active-btn', mode === 'day');
+
+    const commentary = document.getElementById('bucket-commentary');
+    const naiveDocs = document.getElementById('bucket-docs-naive');
+    const bucketDocs = document.getElementById('bucket-docs-bucket');
+    const naiveIdx = document.getElementById('bucket-idx-naive');
+    const bucketIdx = document.getElementById('bucket-idx-bucket');
+
+    if (mode === 'hour') {
+      naiveDocs.textContent = '86,400';
+      naiveDocs.style.width = '100%';
+      bucketDocs.textContent = '24';
+      bucketDocs.style.width = '3%';
+      bucketDocs.style.minWidth = '60px';
+      naiveIdx.textContent = '86,400';
+      naiveIdx.style.width = '100%';
+      bucketIdx.textContent = '24';
+      bucketIdx.style.width = '3%';
+      bucketIdx.style.minWidth = '60px';
+      commentary.innerHTML = 'A "last 24 hours of sensor s42" range query touches <strong>24 bucket documents</strong> versus <strong>86,400 individual documents</strong>. Index is 3,600x smaller. Each bucket doc leverages MongoDB\'s document-level locking efficiently -- writes append to the current hour\'s readings array.';
+    } else {
+      naiveDocs.textContent = '604,800';
+      naiveDocs.style.width = '100%';
+      bucketDocs.textContent = '168';
+      bucketDocs.style.width = '3%';
+      bucketDocs.style.minWidth = '60px';
+      naiveIdx.textContent = '604,800';
+      naiveIdx.style.width = '100%';
+      bucketIdx.textContent = '168';
+      bucketIdx.style.width = '3%';
+      bucketIdx.style.minWidth = '60px';
+      commentary.innerHTML = 'A "last 7 days of sensor s42" range query: <strong>168 bucket documents</strong> versus <strong>604,800 individual documents</strong>. The ratio holds at scale: each additional time range is just more buckets, not more index pressure. At 1,000 sensors, the naive approach has 604M documents per week. Bucketed: 168K.';
+    }
+  }
+
+  return { show };
+})();
+
+// ============================================================
+// SECTION 4: Subset pattern
+// ============================================================
+const Subset = (() => {
+  let reviewCount = 0;
+
+  function addReview() {
+    reviewCount++;
+    const ops = document.getElementById('subset-ops');
+    const steps = document.getElementById('subset-steps');
+
+    const rid = 500 + reviewCount;
+    const html = `<span class="bson-label">write operations</span><span class="bson-comment">// Step 1: Insert into reviews collection</span>
+db.reviews.insertOne({
+  <span class="bson-key">"_id"</span>: <span class="bson-number">${rid}</span>,
+  <span class="bson-key">"user_id"</span>: <span class="bson-number">1</span>,
+  <span class="bson-key">"text"</span>: <span class="bson-string">"Review #${reviewCount}..."</span>,
+  <span class="bson-key">"rating"</span>: <span class="bson-number">${Math.ceil(Math.random() * 5)}</span>,
+  <span class="bson-key">"date"</span>: <span class="bson-string">"2026-05-09"</span>
+})
+
+<span class="bson-comment">// Step 2: Push onto user's top_reviews and trim to 10</span>
+db.users.updateOne(
+  { <span class="bson-key">"_id"</span>: <span class="bson-number">1</span> },
+  {
+    <span class="bson-key">"$push"</span>: {
+      <span class="bson-key">"top_reviews"</span>: {
+        <span class="bson-key">"$each"</span>: [{ <span class="bson-key">"_id"</span>: <span class="bson-number">${rid}</span>, <span class="bson-key">"text"</span>: <span class="bson-string">"Review #${reviewCount}..."</span>, <span class="bson-key">"rating"</span>: <span class="bson-number">${Math.ceil(Math.random() * 5)}</span>, <span class="bson-key">"date"</span>: <span class="bson-string">"2026-05-09"</span> }],
+        <span class="bson-key">"$sort"</span>: { <span class="bson-key">"date"</span>: <span class="bson-number">-1</span> },
+        <span class="bson-key">"$slice"</span>: <span class="bson-number">10</span>
+      }
+    }
+  }
+)`;
+
+    ops.innerHTML = html;
+    steps.innerHTML = `<strong>Review #${reviewCount} added.</strong> Two writes: (1) insert full review into <code>reviews</code> collection, (2) push + trim into <code>user.top_reviews</code>. The profile read path remains a single document fetch. Total reviews written: ${reviewCount}.`;
+  }
+
+  function reset() {
+    reviewCount = 0;
+    document.getElementById('subset-ops').innerHTML = '<span class="bson-label">write operations</span><span class="bson-comment">// click "Add new review" to see the sequence</span>';
+    document.getElementById('subset-steps').innerHTML = 'Click "Add new review" to see the dual-write sequence: insert into the reviews collection, then push onto the user\'s top_reviews array and trim to 10.';
+  }
+
+  return { addReview, reset };
+})();
+
+// ============================================================
+// SECTION 6: Aggregation pipeline animation
+// ============================================================
+const Agg = (() => {
+  const data = [
+    { _id: 1,  customer: 'Alice',   status: 'shipped', total: 120 },
+    { _id: 2,  customer: 'Bob',     status: 'pending', total: 45 },
+    { _id: 3,  customer: 'Alice',   status: 'shipped', total: 80 },
+    { _id: 4,  customer: 'Charlie', status: 'shipped', total: 200 },
+    { _id: 5,  customer: 'Bob',     status: 'shipped', total: 60 },
+    { _id: 6,  customer: 'Alice',   status: 'pending', total: 35 },
+    { _id: 7,  customer: 'Diana',   status: 'shipped', total: 150 },
+    { _id: 8,  customer: 'Charlie', status: 'pending', total: 90 },
+    { _id: 9,  customer: 'Bob',     status: 'shipped', total: 75 },
+    { _id: 10, customer: 'Diana',   status: 'shipped', total: 95 },
+  ];
+
+  let isAntiPattern = false;
+
+  function setStageLabels(anti) {
+    const stages = ['match', 'group', 'sort', 'project'];
+    const normalLabels = ['status: "shipped"', 'by customer', 'totalSpent desc', 'customer, total'];
+    const antiLabels = ['by customer', 'totalSpent desc', 'total > 100', 'customer, total'];
+    const antiNames = ['$group', '$sort', '$match', '$project'];
+    const normalNames = ['$match', '$group', '$sort', '$project'];
+
+    stages.forEach((s, i) => {
+      const stage = document.getElementById('agg-stage-' + s);
+      stage.querySelector('.stage-name').textContent = anti ? antiNames[i] : normalNames[i];
+      stage.querySelector('.stage-label').textContent = anti ? antiLabels[i] : normalLabels[i];
+    });
+  }
+
+  function run() {
+    document.getElementById('agg-run-btn').disabled = true;
+    const stages = ['match', 'group', 'sort', 'project'];
+    const commentary = document.getElementById('agg-commentary');
+    const dataBlock = document.getElementById('agg-data');
+
+    // Reset counts
+    stages.forEach(s => {
+      document.getElementById('agg-count-' + s).textContent = '--';
+      document.getElementById('agg-stage-' + s).classList.remove('active');
+    });
+    document.getElementById('agg-count-input').textContent = '10';
+    document.getElementById('agg-input').classList.add('active');
+
+    if (isAntiPattern) {
+      runAntiPatternPipeline(stages, commentary, dataBlock);
+    } else {
+      runNormalPipeline(stages, commentary, dataBlock);
+    }
+  }
+
+  function runNormalPipeline(stages, commentary, dataBlock) {
+    // Stage 1: $match
+    setTimeout(() => {
+      document.getElementById('agg-input').classList.remove('active');
+      document.getElementById('agg-stage-match').classList.add('active');
+      const matched = data.filter(d => d.status === 'shipped');
+      document.getElementById('agg-count-match').textContent = matched.length;
+      commentary.innerHTML = '<strong>$match</strong> filters to status="shipped": ' + matched.length + ' of 10 documents pass. Early filtering reduces work for all downstream stages.';
+      showDocs(dataBlock, matched, 'After $match');
+
+      // Stage 2: $group
+      setTimeout(() => {
+        document.getElementById('agg-stage-match').classList.remove('active');
+        document.getElementById('agg-stage-group').classList.add('active');
+        const groups = {};
+        matched.forEach(d => {
+          if (!groups[d.customer]) groups[d.customer] = { customer: d.customer, totalSpent: 0, count: 0 };
+          groups[d.customer].totalSpent += d.total;
+          groups[d.customer].count++;
+        });
+        const grouped = Object.values(groups);
+        document.getElementById('agg-count-group').textContent = grouped.length;
+        commentary.innerHTML = '<strong>$group</strong> aggregates by customer: ' + matched.length + ' docs collapse into ' + grouped.length + ' groups. Each group accumulates totalSpent.';
+        showGrouped(dataBlock, grouped, 'After $group');
+
+        // Stage 3: $sort
+        setTimeout(() => {
+          document.getElementById('agg-stage-group').classList.remove('active');
+          document.getElementById('agg-stage-sort').classList.add('active');
+          grouped.sort((a, b) => b.totalSpent - a.totalSpent);
+          document.getElementById('agg-count-sort').textContent = grouped.length;
+          commentary.innerHTML = '<strong>$sort</strong> orders by totalSpent descending. Document count unchanged (' + grouped.length + '), but order is now deterministic.';
+          showGrouped(dataBlock, grouped, 'After $sort');
+
+          // Stage 4: $project
+          setTimeout(() => {
+            document.getElementById('agg-stage-sort').classList.remove('active');
+            document.getElementById('agg-stage-project').classList.add('active');
+            document.getElementById('agg-count-project').textContent = grouped.length;
+            commentary.innerHTML = '<strong>$project</strong> reshapes output to only customer + totalSpent. Document count unchanged (' + grouped.length + '). Pipeline complete.';
+            showProjected(dataBlock, grouped, 'Final output');
+            document.getElementById('agg-run-btn').disabled = false;
+          }, 800);
+        }, 800);
+      }, 800);
+    }, 600);
+  }
+
+  function runAntiPatternPipeline(stages, commentary, dataBlock) {
+    // Anti-pattern: $group first (no $match), then $sort, then $match
+
+    // Stage 1: $group (everything)
+    setTimeout(() => {
+      document.getElementById('agg-input').classList.remove('active');
+      document.getElementById('agg-stage-match').classList.add('active');  // reused as first stage
+      const groups = {};
+      data.forEach(d => {
+        if (!groups[d.customer]) groups[d.customer] = { customer: d.customer, totalSpent: 0, count: 0 };
+        groups[d.customer].totalSpent += d.total;
+        groups[d.customer].count++;
+      });
+      const grouped = Object.values(groups);
+      document.getElementById('agg-count-match').textContent = grouped.length;
+      commentary.innerHTML = '<strong style="color:var(--accent-red);">Anti-pattern: $group FIRST</strong> -- groups ALL 10 documents (including pending orders) into ' + grouped.length + ' groups. Wasted work: we grouped orders we will later filter out.';
+      showGrouped(dataBlock, grouped, 'After $group (all docs)');
+
+      // Stage 2: $sort
+      setTimeout(() => {
+        document.getElementById('agg-stage-match').classList.remove('active');
+        document.getElementById('agg-stage-group').classList.add('active');
+        grouped.sort((a, b) => b.totalSpent - a.totalSpent);
+        document.getElementById('agg-count-group').textContent = grouped.length;
+        commentary.innerHTML = '<strong>$sort</strong> orders by totalSpent descending. Still ' + grouped.length + ' groups -- the pending-order totals inflated every customer\'s spend.';
+        showGrouped(dataBlock, grouped, 'After $sort');
+
+        // Stage 3: $match (too late)
+        setTimeout(() => {
+          document.getElementById('agg-stage-group').classList.remove('active');
+          document.getElementById('agg-stage-sort').classList.add('active');
+          const filtered = grouped.filter(g => g.totalSpent > 100);
+          document.getElementById('agg-count-sort').textContent = filtered.length;
+          commentary.innerHTML = '<strong style="color:var(--accent-red);">$match after $group</strong> -- filtering on totalSpent > 100 only removes groups now, after we already aggregated all documents. With $match first, we would have processed fewer documents and gotten correct "shipped-only" totals.';
+          showGrouped(dataBlock, filtered, 'After late $match (totalSpent > 100)');
+
+          // Stage 4: $project
+          setTimeout(() => {
+            document.getElementById('agg-stage-sort').classList.remove('active');
+            document.getElementById('agg-stage-project').classList.add('active');
+            document.getElementById('agg-count-project').textContent = filtered.length;
+            commentary.innerHTML = '<strong style="color:var(--accent-red);">Result is wrong and slow.</strong> The totals include pending orders because $match came after $group. Always push $match to the front of the pipeline.';
+            showProjected(dataBlock, filtered, 'Final output (INCORRECT totals)');
+            document.getElementById('agg-run-btn').disabled = false;
+          }, 800);
+        }, 800);
+      }, 800);
+    }, 600);
+  }
+
+  function showAntiPattern() {
+    isAntiPattern = !isAntiPattern;
+    setStageLabels(isAntiPattern);
+    const btn = document.querySelector('[onclick="Agg.showAntiPattern()"]');
+    if (isAntiPattern) {
+      btn.textContent = 'Switch back: $match first (correct)';
+      btn.style.borderColor = 'var(--accent-green)';
+      btn.style.color = 'var(--accent-green)';
+    } else {
+      btn.textContent = 'Show anti-pattern: $match after $group';
+      btn.style.borderColor = 'var(--accent-red)';
+      btn.style.color = 'var(--accent-red)';
+    }
+    reset();
+  }
+
+  function showDocs(block, docs, label) {
+    let html = '<span class="bson-label">' + label + '</span>';
+    html += '[\n';
+    docs.forEach((d, i) => {
+      html += '  { <span class="bson-key">"_id"</span>:<span class="bson-number">' + d._id + '</span>, <span class="bson-key">"customer"</span>:<span class="bson-string">"' + d.customer + '"</span>, <span class="bson-key">"status"</span>:<span class="bson-string">"' + d.status + '"</span>, <span class="bson-key">"total"</span>:<span class="bson-number">' + d.total + '</span> }' + (i < docs.length - 1 ? ',' : '') + '\n';
+    });
+    html += ']';
+    block.innerHTML = html;
+  }
+
+  function showGrouped(block, groups, label) {
+    let html = '<span class="bson-label">' + label + '</span>';
+    html += '[\n';
+    groups.forEach((g, i) => {
+      html += '  { <span class="bson-key">"_id"</span>:<span class="bson-string">"' + g.customer + '"</span>, <span class="bson-key">"totalSpent"</span>:<span class="bson-number">' + g.totalSpent + '</span>, <span class="bson-key">"count"</span>:<span class="bson-number">' + g.count + '</span> }' + (i < groups.length - 1 ? ',' : '') + '\n';
+    });
+    html += ']';
+    block.innerHTML = html;
+  }
+
+  function showProjected(block, groups, label) {
+    let html = '<span class="bson-label">' + label + '</span>';
+    html += '[\n';
+    groups.forEach((g, i) => {
+      html += '  { <span class="bson-key">"customer"</span>:<span class="bson-string">"' + g.customer + '"</span>, <span class="bson-key">"totalSpent"</span>:<span class="bson-number">' + g.totalSpent + '</span> }' + (i < groups.length - 1 ? ',' : '') + '\n';
+    });
+    html += ']';
+    block.innerHTML = html;
+  }
+
+  function reset() {
+    const stages = ['match', 'group', 'sort', 'project'];
+    stages.forEach(s => {
+      document.getElementById('agg-count-' + s).textContent = '--';
+      document.getElementById('agg-stage-' + s).classList.remove('active');
+    });
+    document.getElementById('agg-count-input').textContent = '10';
+    document.getElementById('agg-input').classList.remove('active');
+    document.getElementById('agg-run-btn').disabled = false;
+
+    // Reset data display
+    const dataBlock = document.getElementById('agg-data');
+    let html = '<span class="bson-label">sample data</span><span class="bson-comment">// 10 orders -- click "Run pipeline" to animate</span>\n[\n';
+    data.forEach((d, i) => {
+      const pad = d._id < 10 ? ' ' : '';
+      html += '  { <span class="bson-key">"_id"</span>:<span class="bson-number">' + d._id + '</span>,' + pad + ' <span class="bson-key">"customer"</span>:<span class="bson-string">"' + d.customer + '"</span>, <span class="bson-key">"status"</span>:<span class="bson-string">"' + d.status + '"</span>, <span class="bson-key">"total"</span>:<span class="bson-number">' + d.total + '</span> }' + (i < data.length - 1 ? ',' : '') + '\n';
+    });
+    html += ']';
+    dataBlock.innerHTML = html;
+
+    document.getElementById('agg-commentary').innerHTML = 'The pipeline processes documents sequentially through each stage. <code>$match</code> filters early (uses indexes if available), reducing the work for downstream stages. <code>$group</code> aggregates by key. <code>$sort</code> orders the results. <code>$project</code> reshapes the output.';
+  }
+
+  return { run, reset, showAntiPattern };
+})();
+
+// ============================================================
+// SECTION 7: Schema versioning migration
+// ============================================================
+const Schema = (() => {
+  const docs = [
+    { id: 0, version: 1, name: 'Alice Smith' },
+    { id: 1, version: 1, name: 'Bob Jones' },
+    { id: 2, version: 2, firstName: 'Charlie', lastName: 'Brown' },
+    { id: 3, version: 1, name: 'Diana Prince' },
+    { id: 4, version: 2, firstName: 'Eve', lastName: 'Taylor' },
+    { id: 5, version: 1, name: 'Frank Castle' },
+  ];
+
+  let state = docs.map(d => ({ ...d }));
+
+  function runMigration() {
+    document.getElementById('schema-btn').disabled = true;
+    const commentary = document.getElementById('schema-commentary');
+    const v1Docs = state.filter(d => d.version === 1);
+
+    if (v1Docs.length === 0) {
+      commentary.innerHTML = 'All documents are already at v2. Migration complete -- the v1 code branch can now be safely removed.';
+      document.getElementById('schema-btn').disabled = false;
+      return;
+    }
+
+    let i = 0;
+    function migrateNext() {
+      if (i >= v1Docs.length) {
+        commentary.innerHTML = 'Background migration complete. All documents are now at schemaVersion 2. The v1 read-path branch can be removed from application code.';
+        document.getElementById('schema-btn').disabled = false;
+        return;
+      }
+
+      const doc = v1Docs[i];
+      const el = document.getElementById('sdoc-' + doc.id);
+      const badge = el.querySelector('.sv-badge');
+
+      // Animate migration
+      el.style.borderColor = 'var(--accent-yellow)';
+      commentary.innerHTML = 'Migrating doc _id:' + (doc.id + 1) + ' -- splitting "' + doc.name + '" into firstName/lastName, setting schemaVersion: 2...';
+
+      setTimeout(() => {
+        const parts = doc.name.split(' ');
+        doc.version = 2;
+        doc.firstName = parts[0];
+        doc.lastName = parts.slice(1).join(' ');
+        delete doc.name;
+
+        badge.textContent = 'v2';
+        badge.className = 'sv-badge v2';
+        el.innerHTML = '<span class="sv-badge v2">v2</span>firstName: "' + doc.firstName + '"\nlastName: "' + doc.lastName + '"\nschemaVersion: 2';
+        el.style.borderColor = 'var(--accent-green)';
+
+        // Update progress
+        const migrated = state.filter(d => d.version === 2).length;
+        const total = state.length;
+        const pct = Math.round((migrated / total) * 100);
+        document.getElementById('schema-progress-text').textContent = migrated + ' / ' + total + ' migrated';
+        document.getElementById('schema-bar').style.width = pct + '%';
+        document.getElementById('schema-bar').textContent = pct + '%';
+
+        i++;
+        setTimeout(migrateNext, 600);
+      }, 500);
+    }
+
+    migrateNext();
+  }
+
+  function reset() {
+    state = docs.map(d => ({ ...d }));
+    document.getElementById('schema-btn').disabled = false;
+
+    state.forEach(d => {
+      const el = document.getElementById('sdoc-' + d.id);
+      el.style.borderColor = '';
+      if (d.version === 1) {
+        el.innerHTML = '<span class="sv-badge v1">v1</span>name: "' + d.name + '"\nemail: "' + d.name.split(' ')[0].toLowerCase() + '@..."';
+      } else {
+        el.innerHTML = '<span class="sv-badge v2">v2</span>firstName: "' + d.firstName + '"\nlastName: "' + d.lastName + '"\nschemaVersion: 2';
+      }
+    });
+
+    document.getElementById('schema-progress-text').textContent = '2 / 6 migrated';
+    document.getElementById('schema-bar').style.width = '33%';
+    document.getElementById('schema-bar').textContent = '33%';
+    document.getElementById('schema-commentary').innerHTML = 'Background migration runs in batches: <code>db.users.find({schemaVersion: {$ne: 2}}).limit(100)</code>. For each batch, split name, set firstName/lastName, set schemaVersion: 2, unset name. Process in small batches to avoid lock contention.';
+  }
+
+  return { runMigration, reset };
+})();
+</script>
+
+</body>
+</html>

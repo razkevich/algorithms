@@ -87,13 +87,14 @@ Hard pace: 1 mock/day Mon–Sat, calibration mocks on Days 9–10. Tier 1 proble
 
 Curated set — master these, decision-tree to one. See [`concepts/db-toolbox.md`](concepts/db-toolbox.md) for the decision tree + per-DB mastery target.
 
-- [ ] **PostgreSQL** — relational OLTP default. Drill: indexes (B-tree/GIN/BRIN), MVCC, isolation levels, replication, partitioning, sharding strategies.
-- [ ] **DynamoDB** _(or Cassandra OSS sibling)_ — scale-out KV/wide-column. Drill: partition key design, GSI/LSI, hot partitions, single-table pattern.
-- [ ] **Redis** — cache + ephemeral state. Drill: eviction, persistence, Cluster mode, sorted sets, streams, distributed lock caveats.
-- [ ] **Elasticsearch** — search + log analytics. Drill: inverted index, sharding, refresh interval, mapping, aggregations, ILM tiers. NOT system of record.
+- [x] **PostgreSQL** — relational OLTP default. Drill: indexes (B-tree/GIN/BRIN), MVCC, isolation levels, replication, partitioning, sharding strategies. _(✅ Visualizations: [`postgres-topologies.html`](visualizations/postgres-topologies.html) — single → streaming → Patroni HA → logical → Citus sharding. [`postgres-mvcc.html`](visualizations/postgres-mvcc.html) — isolation level anomaly walkthroughs.)_
+- [x] **DynamoDB** _(or Cassandra OSS sibling)_ — scale-out KV/wide-column. Drill: partition key design, GSI/LSI, hot partitions, single-table pattern. _(✅ Cassandra visualizations: [`cassandra-topologies.html`](visualizations/cassandra-topologies.html) — vnode ring, R+W>N, multi-DC, gossip. [`cassandra-modeling.html`](visualizations/cassandra-modeling.html) — partition keys, hot partitions, denormalize-by-query, TWCS.)_
+- [x] **Redis** — cache + ephemeral state. Drill: eviction, persistence, Cluster mode, sorted sets, streams, distributed lock caveats. _(✅ [`concepts/redis.html`](concepts/redis.html) cheat sheet + [`redis-topologies.html`](visualizations/redis-topologies.html) — failover/gossip/resharding sims + [`redis-caching-flows.html`](visualizations/redis-caching-flows.html) — cache-aside / write-through / write-back / refresh-ahead flows.)_
+- [x] **Elasticsearch** — search + log analytics. Drill: inverted index, sharding, refresh interval, mapping, aggregations, ILM tiers. NOT system of record. _(✅ Visualizations: [`elasticsearch-topologies.html`](visualizations/elasticsearch-topologies.html) — voting config / shard routing / query+fetch / cluster recovery. [`elasticsearch-search.html`](visualizations/elasticsearch-search.html) — inverted index, BM25 sliders, filter-vs-search context, aggregations.)_
 - [ ] **Kafka** — durable event log. Drill: partition+offset, acks/idempotent/transactional producer, consumer groups, ISR, retention/compaction.
 - [ ] **S3 / object storage** — blob/archival/data lake. Drill: storage classes, lifecycle, pre-signed URLs, multipart, consistency model.
 - [ ] **Spanner / CockroachDB** _(stretch)_ — global ACID. One-line answer + trade-off; don't deep-dive unless asked.
+- [x] **MongoDB** _(bonus deep-dive, not in curated 7)_ — document store. _(✅ Visualizations: [`mongodb-topologies.html`](visualizations/mongodb-topologies.html) — replica set elections, sharded clusters, read concerns. [`mongodb-data-modeling.html`](visualizations/mongodb-data-modeling.html) — embed vs reference, bucket pattern, ESR rule.)_
 
 ---
 

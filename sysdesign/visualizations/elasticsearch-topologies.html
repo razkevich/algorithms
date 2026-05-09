@@ -1,0 +1,1707 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Elasticsearch Topologies -- Interactive Simulation</title>
+<style>
+:root {
+  --bg: #0f0f15;
+  --surface: #181820;
+  --surface-2: #20202a;
+  --border: #2a2a35;
+  --text: #e6e6ea;
+  --text-2: #cfcfd6;
+  --text-3: #888;
+  --accent-red: #ff6b6b;
+  --accent-green: #51cf66;
+  --accent-blue: #339af0;
+  --accent-yellow: #ffd43b;
+  --accent-purple: #cc5de8;
+  --accent-cyan: #8be9fd;
+  --accent-orange: #ffa94d;
+}
+*, *::before, *::after { box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  padding: 32px 24px;
+  max-width: 1100px;
+  margin: 0 auto;
+  line-height: 1.55;
+}
+h1 { color: #fff; margin-bottom: 4px; }
+h1 + p.sub { color: var(--text-3); font-style: italic; margin-top: 0; margin-bottom: 24px; }
+h2 { color: #fff; margin-top: 32px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+h3 { color: var(--text-2); margin-top: 20px; }
+code {
+  background: var(--surface-2);
+  padding: 2px 6px;
+  border-radius: 3px;
+  color: var(--accent-cyan);
+  font-size: 13px;
+}
+svg {
+  background: var(--surface);
+  border-radius: 8px;
+  display: block;
+  margin: 14px auto;
+  width: 100%;
+  height: auto;
+}
+.tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+.tabs button {
+  padding: 10px 20px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-2);
+  border-radius: 6px;
+  cursor: pointer;
+  min-height: 44px;
+  font-size: 14px;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.tabs button:hover { background: var(--surface); }
+.tabs button.active {
+  border-color: var(--accent-blue);
+  border-bottom: 2px solid var(--accent-blue);
+  color: #fff;
+}
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0;
+  align-items: center;
+}
+.controls button, .btn {
+  padding: 10px 16px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  border-radius: 6px;
+  cursor: pointer;
+  min-height: 44px;
+  font-size: 14px;
+  transition: background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+.controls button:hover, .btn:hover { background: var(--surface); }
+.controls button:disabled, .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.controls button.active-btn { border-color: var(--accent-blue); color: var(--accent-blue); }
+.controls button.danger { border-color: var(--accent-red); color: var(--accent-red); }
+.controls button.danger:hover { background: #2a1520; }
+.slider-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-3);
+  min-width: 180px;
+}
+.slider-group input[type="range"] {
+  flex: 1;
+  min-width: 80px;
+  accent-color: var(--accent-blue);
+}
+.commentary {
+  background: var(--surface-2);
+  padding: 14px;
+  border-radius: 6px;
+  font-size: 14px;
+  color: var(--text-2);
+  margin: 12px 0;
+  min-height: 44px;
+  line-height: 1.5;
+}
+.takeaway {
+  background: #1a1a22;
+  border-left: 3px solid var(--accent-green);
+  padding: 12px 16px;
+  margin: 14px 0;
+  font-size: 14px;
+}
+.takeaway strong { color: var(--accent-green); }
+.takeaway ul { margin: 6px 0 0 0; padding-left: 18px; }
+.takeaway li { margin-bottom: 6px; }
+section[hidden] { display: none !important; }
+.key-input-group {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin: 12px 0;
+  flex-wrap: wrap;
+}
+.key-input-group input[type="text"] {
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  border-radius: 6px;
+  font-size: 14px;
+  min-height: 44px;
+  width: 220px;
+  max-width: 100%;
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+}
+.key-input-group input[type="text"]::placeholder { color: var(--text-3); }
+.hash-display {
+  font-size: 13px;
+  color: var(--text-2);
+  background: var(--surface);
+  padding: 10px 14px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  margin: 8px 0;
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+  line-height: 1.6;
+  min-height: 40px;
+  white-space: pre-wrap;
+}
+.health-bar {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 700;
+  margin: 4px 0;
+}
+.health-green { background: #1a3a1a; color: var(--accent-green); border: 1px solid #2a5a2a; }
+.health-yellow { background: #3a3a1a; color: var(--accent-yellow); border: 1px solid #5a5a2a; }
+.health-red { background: #3a1a1a; color: var(--accent-red); border: 1px solid #5a2a2a; }
+@media (max-width: 720px) {
+  body { padding: 20px 14px; }
+}
+@media (max-width: 600px) {
+  .tabs { gap: 4px; }
+  .tabs button { padding: 10px 12px; font-size: 13px; flex: 1; min-width: 70px; text-align: center; }
+}
+@media (max-width: 480px) {
+  .controls { flex-direction: column; }
+  .controls button { width: 100%; }
+  .slider-group { width: 100%; min-width: auto; }
+  .key-input-group { flex-direction: column; }
+  .key-input-group input[type="text"] { width: 100%; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Elasticsearch topologies</h1>
+  <p class="sub">Master election (voting config), shard routing, query/fetch phases, cluster state recovery. The 7.x changes fixed split-brain. The shard count you set at index creation is the one you have to live with -- pick wisely.</p>
+</header>
+
+<nav class="tabs">
+  <button class="active" onclick="setActiveTab('single')">Single Node</button>
+  <button onclick="setActiveTab('election')">Master Election</button>
+  <button onclick="setActiveTab('sharding')">Indexing + Sharding</button>
+  <button onclick="setActiveTab('search')">Search Routing</button>
+  <button onclick="setActiveTab('recovery')">Cluster Recovery</button>
+</nav>
+
+<!-- ============================================================ -->
+<!-- TAB 1: SINGLE NODE                                            -->
+<!-- ============================================================ -->
+<section data-tab="single">
+  <h2>Single Node -- Write Path and Refresh Cycle</h2>
+  <p>A single ES node holds 5 primary shards (0 replicas). Writes go through the coordinating role, route to the correct shard via <code>hash(_routing || _id) % num_primary_shards</code>, append to the translog (durable), and sit in an in-memory buffer until the next refresh makes them searchable.</p>
+
+  <svg id="sn-svg" viewBox="0 0 900 420" preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <marker id="sn-arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="#555"/>
+      </marker>
+    </defs>
+    <g id="sn-scene"></g>
+  </svg>
+
+  <div class="controls">
+    <button onclick="SN.sendWrite()">Send Write</button>
+    <button onclick="SN.triggerRefresh()">Force Refresh</button>
+    <div class="slider-group">
+      <span>refresh_interval</span>
+      <input type="range" min="0" max="2" step="1" value="1" id="sn-refresh-slider" oninput="SN.updateRefreshLabel()">
+      <span id="sn-refresh-label">1s</span>
+    </div>
+    <button onclick="SN.reset()">Reset</button>
+  </div>
+
+  <div class="commentary" id="sn-commentary">Writes are appended to the translog immediately (durable on disk). They sit in an in-memory buffer until the next refresh cycle creates a new Lucene segment, making them searchable. Refresh is expensive -- it creates a new segment.</div>
+
+  <div class="takeaway">
+    <strong>Takeaways</strong>
+    <ul>
+      <li>ES is near-real-time, not real-time. The default 1s refresh_interval means a write is not searchable for up to 1 second.</li>
+      <li>Increase <code>refresh_interval</code> for high-throughput indexing (bulk loads). Refresh is expensive -- it creates a new in-memory segment and triggers segment merges.</li>
+      <li>Refresh is not flush. Refresh makes searchable (segment in memory); flush persists segments to disk and clears the translog.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- TAB 2: MASTER ELECTION                                        -->
+<!-- ============================================================ -->
+<section data-tab="election" hidden>
+  <h2>Cluster + Master Election (Voting Config in 7.x+)</h2>
+  <p>5 nodes: 3 master-eligible (M1, M2, M3) + 2 data-only (D1, D2). The voting configuration determines which nodes' votes count. Quorum = majority of voting config. Since 7.0, ES uses a Raft-like protocol and auto-manages the voting config -- no more <code>minimum_master_nodes</code>.</p>
+
+  <svg id="el-svg" viewBox="0 0 900 480" preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <marker id="el-arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="#555"/>
+      </marker>
+      <marker id="el-arrow-blue" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="#339af0"/>
+      </marker>
+      <marker id="el-arrow-green" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="#51cf66"/>
+      </marker>
+    </defs>
+    <g id="el-scene"></g>
+  </svg>
+
+  <div class="controls">
+    <button onclick="EL.killMaster()" id="el-btn-kill" class="danger">Kill Master M1</button>
+    <button onclick="EL.addM4()" id="el-btn-add">Add M4</button>
+    <button onclick="EL.togglePartition()" id="el-btn-partition">Network Partition</button>
+    <button onclick="EL.reset()">Reset</button>
+  </div>
+
+  <div class="commentary" id="el-commentary">M1 is the elected master. Voting configuration: {M1, M2, M3}. Quorum requires 2 of 3 votes. The master maintains cluster state and broadcasts changes to all nodes via 2-phase commit (publish + commit).</div>
+
+  <div class="takeaway">
+    <strong>Takeaways</strong>
+    <ul>
+      <li>Always odd number of master-eligible nodes. 3 is the production minimum.</li>
+      <li>Voting-only nodes are the cheap tiebreaker -- they vote but never become master. Useful for even-count clusters.</li>
+      <li>7.x voting config auto-management solved the split-brain that plagued 6.x and earlier. Removed <code>minimum_master_nodes</code> (operator footgun -- misconfigure it and you get split-brain).</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- TAB 3: INDEXING + SHARDING                                    -->
+<!-- ============================================================ -->
+<section data-tab="sharding" hidden>
+  <h2>Indexing + Sharding</h2>
+  <p>Index <code>products</code>: <code>number_of_shards: 4</code>, <code>number_of_replicas: 2</code>. Total physical shards = 4 x (1+2) = 12. ES distributes them across 5 data nodes, keeping primary + replicas of the same shard on different nodes.</p>
+
+  <h3>Doc ID to Shard Assignment</h3>
+  <div class="key-input-group">
+    <input type="text" id="sh-doc-input" placeholder="e.g. product-42" value="product-42">
+    <button class="btn" onclick="SH.lookupDoc()">Route</button>
+    <button class="btn" onclick="document.getElementById('sh-doc-input').value='product-'+Math.floor(Math.random()*1000);SH.lookupDoc();" style="font-size:12px;">Random doc</button>
+  </div>
+  <div class="hash-display" id="sh-hash-display">Enter a doc ID and click Route to see hash(_id) % 4 shard routing.</div>
+
+  <svg id="sh-svg" viewBox="0 0 900 500" preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <marker id="sh-arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="#555"/>
+      </marker>
+    </defs>
+    <g id="sh-scene"></g>
+  </svg>
+
+  <div class="controls">
+    <button onclick="SH.animateWrite()">Animate Write Path</button>
+    <button onclick="SH.killReplica()" class="danger" id="sh-btn-killr">Kill Replica R0a</button>
+    <button onclick="SH.killPrimary()" class="danger" id="sh-btn-killp">Kill Primary P0</button>
+    <button onclick="SH.addNode()" id="sh-btn-add">Add Node N6</button>
+    <button onclick="SH.reset()">Reset</button>
+  </div>
+
+  <div class="commentary" id="sh-commentary">4 primary shards (P0-P3) each with 2 replicas = 12 physical shards distributed across 5 data nodes. Shard routing: hash(_routing or _id) % number_of_shards. Primary shard count is fixed at index creation -- cannot change without reindex.</div>
+
+  <div class="takeaway">
+    <strong>Takeaways</strong>
+    <ul>
+      <li><code>number_of_shards</code> is fixed at index creation time. Cannot change without reindex. Pick based on target shard size (~10-50GB each), data volume, and node count.</li>
+      <li>Replicas serve reads in parallel -- replicas are the read scaling lever.</li>
+      <li><code>wait_for_active_shards</code>: <code>1</code> (default) = primary only, <code>all</code> = all in-sync replicas. Trade-off durability vs availability.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- TAB 4: SEARCH ROUTING                                         -->
+<!-- ============================================================ -->
+<section data-tab="search" hidden>
+  <h2>Search Routing -- Query Phase + Fetch Phase</h2>
+  <p>A search fans out to one copy of each shard (primary or replica). The two-phase protocol keeps network transfer minimal: query phase returns only doc IDs + scores; fetch phase retrieves full documents for the final top-K.</p>
+
+  <svg id="sr-svg" viewBox="0 0 900 520" preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <marker id="sr-arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="#555"/>
+      </marker>
+      <marker id="sr-arrow-blue" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="#339af0"/>
+      </marker>
+      <marker id="sr-arrow-green" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="#51cf66"/>
+      </marker>
+      <marker id="sr-arrow-orange" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="#ffa94d"/>
+      </marker>
+    </defs>
+    <g id="sr-scene"></g>
+  </svg>
+
+  <div class="controls">
+    <button onclick="SR.runSearch()" id="sr-btn-search">Run Search (size=10)</button>
+    <button onclick="SR.runDeepPagination()" class="danger" id="sr-btn-deep">Deep Pagination (from=9990)</button>
+    <button onclick="SR.showARS()" id="sr-btn-ars">Show ARS Selection</button>
+    <button onclick="SR.reset()">Reset</button>
+  </div>
+
+  <div class="commentary" id="sr-commentary">Search uses a scatter-gather pattern. Phase 1 (query): coordinating node fans out to one copy of each shard, each returns top-K doc IDs + scores (lightweight). Phase 2 (fetch): coordinating node requests full _source for only the final top-K docs. Adaptive Replica Selection (ARS) picks the fastest copy.</div>
+
+  <div class="takeaway">
+    <strong>Takeaways</strong>
+    <ul>
+      <li>Search latency = max(per-shard query) + max(per-shard fetch) + merge overhead.</li>
+      <li>Deep pagination is anti-shard: <code>from: 9990, size: 10</code> requires every shard to compute top-10000, sort and merge. Use <code>search_after</code> or scroll API instead.</li>
+      <li>ARS removes hot replicas from the rotation automatically -- it uses EWMA of past response times to pick the most responsive copy.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- TAB 5: CLUSTER STATE + RECOVERY                               -->
+<!-- ============================================================ -->
+<section data-tab="recovery" hidden>
+  <h2>Cluster State + Recovery</h2>
+  <p>The cluster state (index metadata, shard routing table, node list) is held by master and broadcast to all nodes. Shard states: <code>INITIALIZING</code> | <code>STARTED</code> | <code>RELOCATING</code> | <code>UNASSIGNED</code>. Cluster health = function of shard state.</p>
+
+  <svg id="rc-svg" viewBox="0 0 900 500" preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <marker id="rc-arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="#555"/>
+      </marker>
+    </defs>
+    <g id="rc-scene"></g>
+  </svg>
+
+  <div class="controls">
+    <button onclick="RC.killNode()" id="rc-btn-kill" class="danger">Kill Node N3</button>
+    <button onclick="RC.disableAllocation()" id="rc-btn-alloc">Disable Allocation</button>
+    <button onclick="RC.showZoneAwareness()" id="rc-btn-zone">Zone Awareness</button>
+    <button onclick="RC.reset()">Reset</button>
+  </div>
+
+  <div id="rc-health" style="margin:8px 0;">
+    Cluster health: <span class="health-bar health-green" id="rc-health-badge">GREEN</span>
+  </div>
+
+  <div class="commentary" id="rc-commentary">All primaries and replicas assigned. Cluster state is maintained by the master node and broadcast to all nodes via 2-phase commit. On node failure, master detects via heartbeat, promotes replicas, and schedules new replica creation to restore replication factor.</div>
+
+  <div class="takeaway">
+    <strong>Takeaways</strong>
+    <ul>
+      <li>YELLOW = working but at-risk (some replicas unassigned). RED = data unavailable (some primaries unassigned). Yellow during rolling upgrade is expected and acceptable.</li>
+      <li>Disable shard allocation during rolling upgrades (<code>cluster.routing.allocation.enable: none</code>) to prevent unnecessary shard movement. Re-enable after.</li>
+      <li>Shard awareness (zone allocation) keeps primaries and replicas in different availability zones -- this is the multi-zone HA story.</li>
+    </ul>
+  </div>
+</section>
+
+<script>
+/* ================================================================
+   SHARED UTILITIES
+   ================================================================ */
+function delay(ms) { return new Promise(function(r) { setTimeout(r, ms); }); }
+
+function setActiveTab(name) {
+  var tabNames = ['single', 'election', 'sharding', 'search', 'recovery'];
+  var btns = document.querySelectorAll('nav.tabs button');
+  btns.forEach(function(b, i) { b.classList.toggle('active', tabNames[i] === name); });
+  document.querySelectorAll('section[data-tab]').forEach(function(s) {
+    s.hidden = s.getAttribute('data-tab') !== name;
+  });
+}
+
+function svgEl(tag, attrs) {
+  var el = document.createElementNS('http://www.w3.org/2000/svg', tag);
+  if (attrs) { for (var k in attrs) { el.setAttribute(k, attrs[k]); } }
+  return el;
+}
+
+function svgText(x, y, text, opts) {
+  var t = svgEl('text', Object.assign({
+    x: x, y: y, 'text-anchor': 'middle', fill: '#888', 'font-size': '11'
+  }, opts || {}));
+  t.textContent = text;
+  return t;
+}
+
+function svgRect(x, y, w, h, opts) {
+  return svgEl('rect', Object.assign({
+    x: x, y: y, width: w, height: h, rx: '6', fill: 'var(--surface)', stroke: 'var(--border)', 'stroke-width': '1.5'
+  }, opts || {}));
+}
+
+function svgLine(x1, y1, x2, y2, opts) {
+  return svgEl('line', Object.assign({
+    x1: x1, y1: y1, x2: x2, y2: y2, stroke: '#444', 'stroke-width': '1'
+  }, opts || {}));
+}
+
+function murmurHash(str) {
+  var hash = 0;
+  for (var i = 0; i < str.length; i++) {
+    var c = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + c;
+    hash = hash & hash;
+  }
+  return Math.abs(hash);
+}
+
+function animatePulse(el, color, durMs) {
+  el.style.transition = 'none';
+  el.setAttribute('stroke', color);
+  el.setAttribute('stroke-width', '3');
+  setTimeout(function() {
+    el.style.transition = 'stroke ' + durMs + 'ms ease, stroke-width ' + durMs + 'ms ease';
+    el.setAttribute('stroke', el.dataset.origStroke || 'var(--border)');
+    el.setAttribute('stroke-width', el.dataset.origStrokeWidth || '1.5');
+  }, 50);
+  return delay(durMs);
+}
+
+/* ================================================================
+   TAB 1 -- SINGLE NODE
+   ================================================================ */
+var SN = (function() {
+  var scene = null;
+  var writeId = 0;
+  var refreshIntervals = [100, 1000, 30000];
+  var refreshLabels = ['100ms', '1s', '30s'];
+  var refreshTimer = null;
+  var bufferDocs = [];
+  var searchableDocs = [];
+  var translogDocs = [];
+  var animating = false;
+
+  function getRefreshMs() {
+    var idx = parseInt(document.getElementById('sn-refresh-slider').value);
+    return refreshIntervals[idx];
+  }
+
+  function init() {
+    scene = document.getElementById('sn-scene');
+    scene.innerHTML = '';
+    bufferDocs = [];
+    searchableDocs = [];
+    translogDocs = [];
+    writeId = 0;
+    draw();
+    startRefreshTimer();
+  }
+
+  function draw() {
+    scene.innerHTML = '';
+    var colors = ['#ff6b6b', '#51cf66', '#ffd43b'];
+    var clientNames = ['Client 1', 'Client 2', 'Client 3'];
+    // Clients
+    for (var i = 0; i < 3; i++) {
+      var cy = 80 + i * 90;
+      scene.appendChild(svgRect(20, cy - 25, 110, 50, { stroke: colors[i], fill: '#181820' }));
+      scene.appendChild(svgText(75, cy + 5, clientNames[i], { fill: colors[i], 'font-weight': '600', 'font-size': '12' }));
+      scene.appendChild(svgLine(130, cy, 220, 200, { 'stroke-dasharray': '4,4', stroke: '#333' }));
+    }
+
+    // ES Node container
+    scene.appendChild(svgRect(200, 30, 680, 370, { stroke: 'var(--accent-blue)', fill: 'none', 'stroke-width': '2' }));
+    scene.appendChild(svgText(540, 58, 'Elasticsearch Node (all roles)', { fill: 'var(--accent-blue)', 'font-weight': '700', 'font-size': '14' }));
+
+    // Coordinating role
+    scene.appendChild(svgRect(220, 75, 140, 40, { stroke: 'var(--accent-purple)', fill: '#1a1528' }));
+    scene.appendChild(svgText(290, 100, 'Coordinating', { fill: 'var(--accent-purple)', 'font-size': '12', 'font-weight': '600' }));
+
+    // Routing arrow
+    scene.appendChild(svgText(370, 100, 'hash(_id) % 5', { fill: 'var(--text-3)', 'font-size': '10', 'text-anchor': 'start' }));
+    scene.appendChild(svgLine(360, 95, 490, 95, { stroke: '#555', 'stroke-dasharray': '3,3', 'marker-end': 'url(#sn-arrow)' }));
+
+    // 5 Primary shards
+    var shardColors = ['#ff6b6b', '#51cf66', '#339af0', '#ffd43b', '#cc5de8'];
+    var shardX = 510;
+    for (var s = 0; s < 5; s++) {
+      var sy = 75 + s * 60;
+      scene.appendChild(svgRect(shardX, sy, 70, 45, { stroke: shardColors[s], fill: '#12121a' }));
+      scene.appendChild(svgText(shardX + 35, sy + 18, 'P' + s, { fill: shardColors[s], 'font-weight': '700', 'font-size': '13' }));
+      // Buffer indicator
+      var bufCount = bufferDocs.filter(function(d) { return d.shard === s; }).length;
+      scene.appendChild(svgText(shardX + 35, sy + 35, 'buf: ' + bufCount, { fill: 'var(--text-3)', 'font-size': '9' }));
+    }
+
+    // Translog
+    scene.appendChild(svgRect(620, 75, 120, 100, { stroke: 'var(--accent-orange)', fill: '#1a1810' }));
+    scene.appendChild(svgText(680, 95, 'Translog', { fill: 'var(--accent-orange)', 'font-weight': '600', 'font-size': '12' }));
+    scene.appendChild(svgText(680, 115, '(durable on disk)', { fill: 'var(--text-3)', 'font-size': '9' }));
+    scene.appendChild(svgText(680, 140, translogDocs.length + ' entries', { fill: 'var(--accent-orange)', 'font-size': '11' }));
+    // Arrow from shards to translog
+    scene.appendChild(svgLine(580, 120, 618, 120, { stroke: 'var(--accent-orange)', 'stroke-dasharray': '3,3', 'marker-end': 'url(#sn-arrow)' }));
+
+    // In-memory buffer
+    scene.appendChild(svgRect(620, 195, 120, 80, { stroke: 'var(--accent-yellow)', fill: '#1a1a10' }));
+    scene.appendChild(svgText(680, 215, 'Buffer', { fill: 'var(--accent-yellow)', 'font-weight': '600', 'font-size': '12' }));
+    scene.appendChild(svgText(680, 235, '(in-memory)', { fill: 'var(--text-3)', 'font-size': '9' }));
+    scene.appendChild(svgText(680, 258, bufferDocs.length + ' docs', { fill: 'var(--accent-yellow)', 'font-size': '11' }));
+
+    // Refresh arrow
+    scene.appendChild(svgLine(680, 278, 680, 310, { stroke: 'var(--accent-green)', 'stroke-width': '2', 'marker-end': 'url(#sn-arrow)' }));
+    scene.appendChild(svgText(720, 298, 'refresh', { fill: 'var(--accent-green)', 'font-size': '10', 'text-anchor': 'start' }));
+
+    // Searchable segments
+    scene.appendChild(svgRect(620, 315, 120, 70, { stroke: 'var(--accent-green)', fill: '#0a1a0a' }));
+    scene.appendChild(svgText(680, 338, 'Searchable', { fill: 'var(--accent-green)', 'font-weight': '600', 'font-size': '12' }));
+    scene.appendChild(svgText(680, 355, '(Lucene segments)', { fill: 'var(--text-3)', 'font-size': '9' }));
+    scene.appendChild(svgText(680, 375, searchableDocs.length + ' docs', { fill: 'var(--accent-green)', 'font-size': '11' }));
+
+    // Refresh interval display
+    var refreshMs = getRefreshMs();
+    var refreshLabel = refreshMs < 1000 ? refreshMs + 'ms' : (refreshMs / 1000) + 's';
+    scene.appendChild(svgRect(220, 320, 180, 55, { stroke: 'var(--border)', fill: '#12121a' }));
+    scene.appendChild(svgText(310, 343, 'refresh_interval: ' + refreshLabel, { fill: 'var(--text-2)', 'font-size': '11' }));
+    scene.appendChild(svgText(310, 362, 'next refresh in ' + Math.ceil(getTimeToNextRefresh() / 100) / 10 + 's', { fill: 'var(--text-3)', 'font-size': '10' }));
+  }
+
+  var lastRefreshTime = Date.now();
+  function getTimeToNextRefresh() {
+    var elapsed = Date.now() - lastRefreshTime;
+    var interval = getRefreshMs();
+    return Math.max(0, interval - elapsed);
+  }
+
+  function startRefreshTimer() {
+    if (refreshTimer) clearInterval(refreshTimer);
+    lastRefreshTime = Date.now();
+    refreshTimer = setInterval(function() {
+      if (getTimeToNextRefresh() <= 0) {
+        doRefresh();
+      }
+      draw();
+    }, 200);
+  }
+
+  function doRefresh() {
+    if (bufferDocs.length > 0) {
+      var moved = bufferDocs.splice(0);
+      searchableDocs = searchableDocs.concat(moved);
+      var cmt = document.getElementById('sn-commentary');
+      cmt.textContent = 'Refresh completed. ' + moved.length + ' doc(s) moved from in-memory buffer to searchable Lucene segment. Total searchable: ' + searchableDocs.length + '. Translog retained until flush.';
+    }
+    lastRefreshTime = Date.now();
+    draw();
+  }
+
+  function updateRefreshLabel() {
+    var idx = parseInt(document.getElementById('sn-refresh-slider').value);
+    document.getElementById('sn-refresh-label').textContent = refreshLabels[idx];
+    startRefreshTimer();
+    draw();
+  }
+
+  async function sendWrite() {
+    if (animating) return;
+    animating = true;
+    writeId++;
+    var docId = 'doc-' + writeId;
+    var shard = murmurHash(docId) % 5;
+    var cmt = document.getElementById('sn-commentary');
+
+    cmt.textContent = 'Write "' + docId + '": routing via hash("' + docId + '") % 5 = shard P' + shard + '. Appending to translog first (durable)...';
+    draw();
+    await delay(600);
+
+    translogDocs.push({ id: docId, shard: shard });
+    cmt.textContent = 'Translog append complete (durable on disk). Now buffering in memory. Doc is NOT yet searchable.';
+    draw();
+    await delay(500);
+
+    bufferDocs.push({ id: docId, shard: shard });
+    cmt.textContent = 'Doc "' + docId + '" in buffer on shard P' + shard + '. Will become searchable on next refresh (' + document.getElementById('sn-refresh-label').textContent + '). Translog entry retained until flush.';
+    draw();
+    animating = false;
+  }
+
+  function triggerRefresh() {
+    doRefresh();
+  }
+
+  function reset() {
+    if (refreshTimer) clearInterval(refreshTimer);
+    animating = false;
+    init();
+    document.getElementById('sn-commentary').textContent = 'Writes are appended to the translog immediately (durable on disk). They sit in an in-memory buffer until the next refresh cycle creates a new Lucene segment, making them searchable. Refresh is expensive -- it creates a new segment.';
+  }
+
+  return { init: init, sendWrite: sendWrite, triggerRefresh: triggerRefresh, updateRefreshLabel: updateRefreshLabel, reset: reset };
+})();
+
+/* ================================================================
+   TAB 2 -- MASTER ELECTION
+   ================================================================ */
+var EL = (function() {
+  var scene = null;
+  var nodes = [];
+  var votingConfig = [];
+  var master = null;
+  var partitioned = false;
+  var m4Added = false;
+  var animating = false;
+
+  var nodePositions = {
+    M1: { x: 180, y: 100 }, M2: { x: 450, y: 100 }, M3: { x: 720, y: 100 },
+    D1: { x: 280, y: 320 }, D2: { x: 600, y: 320 }, M4: { x: 450, y: 210 }
+  };
+
+  function init() {
+    scene = document.getElementById('el-scene');
+    nodes = [
+      { id: 'M1', role: 'master-eligible', alive: true, inPartition: 'left' },
+      { id: 'M2', role: 'master-eligible', alive: true, inPartition: 'right' },
+      { id: 'M3', role: 'master-eligible', alive: true, inPartition: 'right' },
+      { id: 'D1', role: 'data', alive: true, inPartition: 'left' },
+      { id: 'D2', role: 'data', alive: true, inPartition: 'right' }
+    ];
+    votingConfig = ['M1', 'M2', 'M3'];
+    master = 'M1';
+    partitioned = false;
+    m4Added = false;
+    animating = false;
+    document.getElementById('el-btn-kill').disabled = false;
+    document.getElementById('el-btn-kill').textContent = 'Kill Master M1';
+    document.getElementById('el-btn-add').disabled = false;
+    document.getElementById('el-btn-add').textContent = 'Add M4';
+    document.getElementById('el-btn-partition').textContent = 'Network Partition';
+    draw();
+  }
+
+  function getNode(id) {
+    return nodes.find(function(n) { return n.id === id; });
+  }
+
+  function draw() {
+    scene.innerHTML = '';
+    var quorum = Math.floor(votingConfig.length / 2) + 1;
+
+    // Voting config display
+    scene.appendChild(svgRect(30, 10, 840, 42, { fill: '#12121a', stroke: 'var(--border)' }));
+    scene.appendChild(svgText(450, 28, 'Voting Config: {' + votingConfig.join(', ') + '}    Quorum: ' + quorum + ' of ' + votingConfig.length, {
+      fill: 'var(--accent-cyan)', 'font-size': '13', 'font-weight': '600'
+    }));
+
+    // Partition line
+    if (partitioned) {
+      scene.appendChild(svgLine(340, 60, 340, 450, { stroke: 'var(--accent-red)', 'stroke-width': '3', 'stroke-dasharray': '8,6' }));
+      scene.appendChild(svgText(340, 460, 'NETWORK PARTITION', { fill: 'var(--accent-red)', 'font-weight': '700', 'font-size': '12' }));
+
+      // Left side label
+      scene.appendChild(svgText(170, 78, 'Minority side', { fill: 'var(--accent-red)', 'font-size': '10' }));
+      // Right side label
+      scene.appendChild(svgText(570, 78, 'Majority side (has quorum)', { fill: 'var(--accent-green)', 'font-size': '10' }));
+    }
+
+    // Draw connections between master-eligible nodes
+    var meNodes = nodes.filter(function(n) { return n.role === 'master-eligible' && n.alive; });
+    for (var i = 0; i < meNodes.length; i++) {
+      for (var j = i + 1; j < meNodes.length; j++) {
+        var n1 = meNodes[i], n2 = meNodes[j];
+        var p1 = nodePositions[n1.id], p2 = nodePositions[n2.id];
+        var blocked = partitioned && n1.inPartition !== n2.inPartition;
+        scene.appendChild(svgLine(p1.x, p1.y, p2.x, p2.y, {
+          stroke: blocked ? '#3a1a1a' : '#2a2a35',
+          'stroke-dasharray': blocked ? '4,8' : '4,4',
+          'stroke-width': blocked ? '1' : '1'
+        }));
+        if (blocked) {
+          var mx = (p1.x + p2.x) / 2, my = (p1.y + p2.y) / 2;
+          scene.appendChild(svgText(mx, my - 8, 'X', { fill: 'var(--accent-red)', 'font-size': '14', 'font-weight': '700' }));
+        }
+      }
+    }
+
+    // Connections master -> data
+    nodes.forEach(function(n) {
+      if (n.role === 'data' && n.alive && master) {
+        var masterNode = getNode(master);
+        if (masterNode && masterNode.alive) {
+          var mp = nodePositions[master], dp = nodePositions[n.id];
+          var blocked = partitioned && masterNode.inPartition !== n.inPartition;
+          scene.appendChild(svgLine(mp.x, mp.y + 40, dp.x, dp.y - 40, {
+            stroke: blocked ? '#3a1a1a' : '#333',
+            'stroke-dasharray': '4,4'
+          }));
+        }
+      }
+    });
+
+    // Draw nodes
+    nodes.forEach(function(n) {
+      var pos = nodePositions[n.id];
+      if (!pos) return;
+      var isMaster = n.id === master && n.alive;
+      var isVoter = votingConfig.indexOf(n.id) !== -1;
+      var nodeColor = !n.alive ? '#444' :
+        isMaster ? 'var(--accent-green)' :
+        n.role === 'master-eligible' ? 'var(--accent-blue)' : 'var(--accent-yellow)';
+      var fillColor = !n.alive ? '#1a1a1a' : '#181820';
+
+      scene.appendChild(svgRect(pos.x - 60, pos.y - 35, 120, 70, {
+        stroke: nodeColor, fill: fillColor, 'stroke-width': isMaster ? '2.5' : '1.5'
+      }));
+      scene.appendChild(svgText(pos.x, pos.y - 12, n.id, {
+        fill: nodeColor, 'font-weight': '700', 'font-size': '15'
+      }));
+
+      var roleLabel = n.role === 'master-eligible' ? 'master-eligible' : 'data-only';
+      if (isMaster) roleLabel = 'MASTER (elected)';
+      if (!n.alive) roleLabel = 'DOWN';
+      scene.appendChild(svgText(pos.x, pos.y + 8, roleLabel, {
+        fill: !n.alive ? '#666' : 'var(--text-3)', 'font-size': '10'
+      }));
+
+      if (isVoter && n.alive) {
+        scene.appendChild(svgText(pos.x, pos.y + 24, 'voter', {
+          fill: 'var(--accent-cyan)', 'font-size': '9', 'font-weight': '600'
+        }));
+      }
+      if (!n.alive) {
+        // X mark
+        scene.appendChild(svgLine(pos.x - 30, pos.y - 20, pos.x + 30, pos.y + 20, { stroke: 'var(--accent-red)', 'stroke-width': '2' }));
+        scene.appendChild(svgLine(pos.x + 30, pos.y - 20, pos.x - 30, pos.y + 20, { stroke: 'var(--accent-red)', 'stroke-width': '2' }));
+      }
+    });
+
+    // Cluster state broadcast arrows from master
+    if (master && getNode(master) && getNode(master).alive) {
+      var mp = nodePositions[master];
+      scene.appendChild(svgText(mp.x, mp.y + 50, 'broadcasts cluster state', {
+        fill: 'var(--text-3)', 'font-size': '9'
+      }));
+    }
+  }
+
+  async function killMaster() {
+    if (animating || !master) return;
+    animating = true;
+    var btn = document.getElementById('el-btn-kill');
+    btn.disabled = true;
+    var cmt = document.getElementById('el-commentary');
+    var killedMaster = master;
+    var killedNode = getNode(killedMaster);
+
+    // Step 1: Kill
+    cmt.textContent = killedMaster + ' goes down. Heartbeats lapse...';
+    killedNode.alive = false;
+    master = null;
+    draw();
+    await delay(1000);
+
+    // Step 2: Detection
+    cmt.textContent = 'Other master-eligible nodes detect ' + killedMaster + ' is down (heartbeat timeout). Starting election...';
+    draw();
+    await delay(1000);
+
+    // Step 3: Vote requests
+    var candidates = nodes.filter(function(n) { return n.role === 'master-eligible' && n.alive; });
+    var candidate = candidates[0];
+    cmt.textContent = candidate.id + ' sends VOTE_REQUEST to all voters. Raft-like protocol (since 7.0)...';
+
+    // Animate vote request arrows
+    var arrows = [];
+    candidates.forEach(function(c) {
+      if (c.id !== candidate.id) {
+        var p1 = nodePositions[candidate.id], p2 = nodePositions[c.id];
+        var arrow = svgLine(p1.x, p1.y, p2.x, p2.y, {
+          stroke: 'var(--accent-blue)', 'stroke-width': '2', 'marker-end': 'url(#el-arrow-blue)'
+        });
+        scene.appendChild(arrow);
+        arrows.push(arrow);
+        var mx = (p1.x + p2.x) / 2, my = (p1.y + p2.y) / 2 - 12;
+        var label = svgText(mx, my, 'VOTE_REQUEST', { fill: 'var(--accent-blue)', 'font-size': '10', 'font-weight': '600' });
+        scene.appendChild(label);
+        arrows.push(label);
+      }
+    });
+    await delay(1200);
+
+    // Step 4: Votes received
+    arrows.forEach(function(a) { if (a.parentNode) a.parentNode.removeChild(a); });
+    var voteCount = candidates.length; // All alive voters vote for the candidate
+    var quorum = Math.floor(votingConfig.length / 2) + 1;
+    cmt.textContent = candidate.id + ' receives ' + voteCount + ' votes (including self). Quorum = ' + quorum + ' of ' + votingConfig.length + '. Election won.';
+
+    // Animate vote arrows back
+    var voteArrows = [];
+    candidates.forEach(function(c) {
+      if (c.id !== candidate.id) {
+        var p1 = nodePositions[c.id], p2 = nodePositions[candidate.id];
+        var arrow = svgLine(p1.x, p1.y, p2.x, p2.y, {
+          stroke: 'var(--accent-green)', 'stroke-width': '2', 'marker-end': 'url(#el-arrow-green)'
+        });
+        scene.appendChild(arrow);
+        voteArrows.push(arrow);
+        var mx = (p1.x + p2.x) / 2, my = (p1.y + p2.y) / 2 + 12;
+        var label = svgText(mx, my, 'VOTE_GRANTED', { fill: 'var(--accent-green)', 'font-size': '10', 'font-weight': '600' });
+        scene.appendChild(label);
+        voteArrows.push(label);
+      }
+    });
+    await delay(1200);
+    voteArrows.forEach(function(a) { if (a.parentNode) a.parentNode.removeChild(a); });
+
+    // Step 5: New master
+    master = candidate.id;
+    cmt.textContent = candidate.id + ' is the new master. Broadcasting updated cluster state to all nodes...';
+    draw();
+    await delay(1000);
+
+    // Step 6: Auto-shrink voting config
+    votingConfig = votingConfig.filter(function(v) { return getNode(v) && getNode(v).alive; });
+    var newQuorum = Math.floor(votingConfig.length / 2) + 1;
+    cmt.textContent = 'Voting config auto-shrinks to {' + votingConfig.join(', ') + '} (7.x feature). New quorum: ' + newQuorum + ' of ' + votingConfig.length + '. This replaces the old minimum_master_nodes config that caused split-brain when misconfigured.';
+    draw();
+
+    btn.textContent = 'Kill Master ' + master;
+    btn.disabled = false;
+    animating = false;
+  }
+
+  async function addM4() {
+    if (animating || m4Added) return;
+    animating = true;
+    m4Added = true;
+    var btn = document.getElementById('el-btn-add');
+    btn.disabled = true;
+    var cmt = document.getElementById('el-commentary');
+
+    nodes.push({ id: 'M4', role: 'master-eligible', alive: true, inPartition: 'right' });
+    cmt.textContent = 'M4 joins the cluster as a master-eligible node...';
+    draw();
+    await delay(1000);
+
+    votingConfig.push('M4');
+    var quorum = Math.floor(votingConfig.length / 2) + 1;
+    cmt.textContent = 'Voting config auto-grows to {' + votingConfig.join(', ') + '}. Quorum: ' + quorum + ' of ' + votingConfig.length + '. Master broadcasts updated cluster state.';
+    draw();
+
+    btn.textContent = 'M4 Added';
+    animating = false;
+  }
+
+  async function togglePartition() {
+    if (animating) return;
+    animating = true;
+    var btn = document.getElementById('el-btn-partition');
+    var cmt = document.getElementById('el-commentary');
+
+    if (!partitioned) {
+      partitioned = true;
+      btn.textContent = 'Heal Partition';
+
+      // Count voters on each side
+      var leftVoters = votingConfig.filter(function(v) {
+        var n = getNode(v);
+        return n && n.alive && n.inPartition === 'left';
+      });
+      var rightVoters = votingConfig.filter(function(v) {
+        var n = getNode(v);
+        return n && n.alive && n.inPartition === 'right';
+      });
+      var quorum = Math.floor(votingConfig.length / 2) + 1;
+
+      cmt.textContent = 'Network partition! Left side has ' + leftVoters.length + ' voter(s) (' + leftVoters.join(', ') + '), right side has ' + rightVoters.length + ' voter(s) (' + rightVoters.join(', ') + '). Quorum requires ' + quorum + '.';
+      draw();
+      await delay(1200);
+
+      var masterNode = master ? getNode(master) : null;
+      if (masterNode && masterNode.inPartition === 'left' && leftVoters.length < quorum) {
+        // Master is on minority side
+        cmt.textContent = 'Master ' + master + ' is on the minority side (cannot reach quorum). It steps down. Right side (' + rightVoters.join(', ') + ') elects a new master. Left side becomes read-only with stale cluster state. This is split-brain PREVENTION.';
+        master = rightVoters.length >= quorum ? rightVoters[0] : null;
+        draw();
+      } else if (masterNode && masterNode.inPartition === 'right' && rightVoters.length >= quorum) {
+        cmt.textContent = 'Master ' + master + ' is on the majority side (has quorum). It continues operating. Left side nodes cannot elect a new master and become read-only. Split-brain prevented.';
+        draw();
+      } else {
+        cmt.textContent = 'Partition established. Side without quorum cannot elect a master and loses cluster state update ability.';
+        draw();
+      }
+    } else {
+      partitioned = false;
+      btn.textContent = 'Network Partition';
+      cmt.textContent = 'Partition healed. All nodes rejoin and sync cluster state from the current master (' + (master || 'none') + '). Voting configuration intact.';
+      draw();
+    }
+    animating = false;
+  }
+
+  function reset() {
+    animating = false;
+    init();
+    document.getElementById('el-commentary').textContent = 'M1 is the elected master. Voting configuration: {M1, M2, M3}. Quorum requires 2 of 3 votes. The master maintains cluster state and broadcasts changes to all nodes via 2-phase commit (publish + commit).';
+  }
+
+  return { init: init, killMaster: killMaster, addM4: addM4, togglePartition: togglePartition, reset: reset };
+})();
+
+/* ================================================================
+   TAB 3 -- INDEXING + SHARDING
+   ================================================================ */
+var SH = (function() {
+  var scene = null;
+  var animating = false;
+  var nodeCount = 5;
+  var addedNode6 = false;
+
+  // Shard placement: 4 primaries, 2 replicas each = 12 shards on 5 nodes
+  var shardPlacement = null;
+
+  function defaultPlacement() {
+    return {
+      N1: [{ type: 'P', idx: 0 }, { type: 'R', idx: 2, rep: 'b' }, { type: 'R', idx: 3, rep: 'a' }],
+      N2: [{ type: 'P', idx: 1 }, { type: 'R', idx: 0, rep: 'a' }, { type: 'R', idx: 3, rep: 'b' }],
+      N3: [{ type: 'P', idx: 2 }, { type: 'R', idx: 1, rep: 'a' }, { type: 'R', idx: 0, rep: 'b' }],
+      N4: [{ type: 'P', idx: 3 }, { type: 'R', idx: 1, rep: 'b' }, { type: 'R', idx: 2, rep: 'a' }],
+      N5: [{ type: 'R', idx: 0, rep: 'a_extra' }, { type: 'R', idx: 2, rep: 'a_extra' }, { type: 'R', idx: 3, rep: 'a_extra' }]
+    };
+  }
+
+  function init() {
+    scene = document.getElementById('sh-scene');
+    shardPlacement = defaultPlacement();
+    addedNode6 = false;
+    nodeCount = 5;
+    animating = false;
+    document.getElementById('sh-btn-killr').textContent = 'Kill Replica R0a';
+    document.getElementById('sh-btn-killr').disabled = false;
+    document.getElementById('sh-btn-killp').textContent = 'Kill Primary P0';
+    document.getElementById('sh-btn-killp').disabled = false;
+    document.getElementById('sh-btn-add').textContent = 'Add Node N6';
+    document.getElementById('sh-btn-add').disabled = false;
+    draw();
+  }
+
+  var shardColors = ['#ff6b6b', '#51cf66', '#339af0', '#ffd43b'];
+
+  function shardLabel(s) {
+    if (s.type === 'P') return 'P' + s.idx;
+    return 'R' + s.idx + (s.rep ? s.rep.charAt(0) : '');
+  }
+
+  function shardColor(s) {
+    return shardColors[s.idx];
+  }
+
+  function draw() {
+    scene.innerHTML = '';
+    var nodeIds = Object.keys(shardPlacement);
+    var totalNodes = nodeIds.length;
+    var nodeW = 140;
+    var gap = (880 - totalNodes * nodeW) / (totalNodes + 1);
+
+    // Client
+    scene.appendChild(svgRect(20, 20, 100, 40, { stroke: 'var(--accent-purple)', fill: '#1a1528' }));
+    scene.appendChild(svgText(70, 45, 'Client', { fill: 'var(--accent-purple)', 'font-weight': '600', 'font-size': '12' }));
+
+    // Coordinating node label
+    scene.appendChild(svgLine(120, 40, 200, 40, { stroke: '#444', 'stroke-dasharray': '3,3', 'marker-end': 'url(#sh-arrow)' }));
+    scene.appendChild(svgText(160, 32, 'request', { fill: 'var(--text-3)', 'font-size': '9' }));
+
+    scene.appendChild(svgRect(200, 20, 130, 40, { stroke: 'var(--accent-cyan)', fill: '#0a1a2a' }));
+    scene.appendChild(svgText(265, 45, 'Coordinating', { fill: 'var(--accent-cyan)', 'font-weight': '600', 'font-size': '12' }));
+
+    // Draw data nodes
+    for (var ni = 0; ni < totalNodes; ni++) {
+      var nodeId = nodeIds[ni];
+      var nx = gap + ni * (nodeW + gap);
+      var ny = 100;
+      var shards = shardPlacement[nodeId];
+      var nodeH = 70 + Math.max(shards.length, 1) * 38;
+
+      // Node box
+      scene.appendChild(svgRect(nx, ny, nodeW, nodeH, { stroke: 'var(--accent-blue)', fill: '#12121a' }));
+      scene.appendChild(svgText(nx + nodeW / 2, ny + 18, nodeId, { fill: 'var(--accent-blue)', 'font-weight': '700', 'font-size': '13' }));
+      scene.appendChild(svgText(nx + nodeW / 2, ny + 34, 'data node', { fill: 'var(--text-3)', 'font-size': '9' }));
+
+      // Draw shards on this node
+      for (var si = 0; si < shards.length; si++) {
+        var s = shards[si];
+        var sx = nx + 10;
+        var sy = ny + 45 + si * 38;
+        var sw = nodeW - 20;
+        var sh = 30;
+        var isPrimary = s.type === 'P';
+        var col = shardColor(s);
+
+        scene.appendChild(svgRect(sx, sy, sw, sh, {
+          stroke: col, fill: isPrimary ? '#12121a' : '#0a0a12',
+          'stroke-width': isPrimary ? '2' : '1',
+          'stroke-dasharray': isPrimary ? '' : '4,3'
+        }));
+        scene.appendChild(svgText(sx + sw / 2, sy + 19, shardLabel(s), {
+          fill: col, 'font-weight': isPrimary ? '700' : '400', 'font-size': '12'
+        }));
+
+        if (s.state) {
+          scene.appendChild(svgText(sx + sw - 5, sy + 12, s.state, {
+            fill: s.state === 'INITIALIZING' ? 'var(--accent-yellow)' : 'var(--accent-red)',
+            'font-size': '8', 'text-anchor': 'end'
+          }));
+        }
+      }
+
+      // Arrow from coordinating node to data node
+      scene.appendChild(svgLine(265, 60, nx + nodeW / 2, ny, { stroke: '#333', 'stroke-dasharray': '3,3' }));
+    }
+
+    // Legend
+    scene.appendChild(svgRect(650, 20, 230, 50, { fill: '#12121a', stroke: 'var(--border)' }));
+    scene.appendChild(svgText(695, 38, 'P = Primary', { fill: 'var(--text-2)', 'font-size': '10', 'text-anchor': 'start' }));
+    scene.appendChild(svgText(695, 55, 'R = Replica (dashed border)', { fill: 'var(--text-3)', 'font-size': '10', 'text-anchor': 'start' }));
+  }
+
+  function lookupDoc() {
+    var docId = document.getElementById('sh-doc-input').value.trim();
+    if (!docId) return;
+    var hash = murmurHash(docId);
+    var shard = hash % 4;
+    var display = document.getElementById('sh-hash-display');
+    display.textContent = 'hash("' + docId + '") = ' + hash + '\n' +
+      hash + ' % 4 (num_primary_shards) = ' + shard + '\n' +
+      'Routed to: P' + shard;
+
+    // Find which node has P<shard>
+    var nodeIds = Object.keys(shardPlacement);
+    for (var ni = 0; ni < nodeIds.length; ni++) {
+      var nid = nodeIds[ni];
+      var shards = shardPlacement[nid];
+      for (var si = 0; si < shards.length; si++) {
+        if (shards[si].type === 'P' && shards[si].idx === shard) {
+          display.textContent += ' on ' + nid;
+        }
+      }
+    }
+    draw();
+  }
+
+  async function animateWrite() {
+    if (animating) return;
+    animating = true;
+    var cmt = document.getElementById('sh-commentary');
+    var docId = document.getElementById('sh-doc-input').value.trim() || 'product-42';
+    var shard = murmurHash(docId) % 4;
+
+    cmt.textContent = '1/5: Client sends write for "' + docId + '" to coordinating node (any node can coordinate).';
+    await delay(1000);
+
+    cmt.textContent = '2/5: Coordinating node routes to primary shard P' + shard + ' via hash("' + docId + '") % 4 = ' + shard + '.';
+    await delay(1000);
+
+    cmt.textContent = '3/5: Primary shard P' + shard + ' writes the document locally (translog + in-memory buffer).';
+    await delay(1000);
+
+    cmt.textContent = '4/5: Primary P' + shard + ' forwards write IN PARALLEL to ALL in-sync replicas (R' + shard + 'a, R' + shard + 'b). Waits for all acks.';
+    await delay(1200);
+
+    cmt.textContent = '5/5: All in-sync replicas ack. Primary acks coordinating node. Coordinating node acks client. Write complete.';
+    await delay(800);
+
+    cmt.textContent = 'Write path complete. wait_for_active_shards controls how many shard copies must ack: "1" (default) = primary only, "all" = all in-sync replicas. Trade-off: durability vs availability.';
+    animating = false;
+  }
+
+  async function killReplica() {
+    if (animating) return;
+    animating = true;
+    var cmt = document.getElementById('sh-commentary');
+    var btn = document.getElementById('sh-btn-killr');
+
+    // Find and remove R0a from N2
+    var nodeIds = Object.keys(shardPlacement);
+    var removed = false;
+    for (var ni = 0; ni < nodeIds.length && !removed; ni++) {
+      var shards = shardPlacement[nodeIds[ni]];
+      for (var si = 0; si < shards.length; si++) {
+        if (shards[si].type === 'R' && shards[si].idx === 0 && !removed) {
+          var removedFrom = nodeIds[ni];
+          shards.splice(si, 1);
+          removed = true;
+          cmt.textContent = 'Replica R0a on ' + removedFrom + ' goes down. Primary P0 marks it "failed". Master removes R0a from in-sync set. Subsequent writes to P0 no longer wait for R0a ack.';
+          draw();
+          break;
+        }
+      }
+    }
+    btn.disabled = true;
+    btn.textContent = 'R0a Killed';
+    await delay(500);
+    animating = false;
+  }
+
+  async function killPrimary() {
+    if (animating) return;
+    animating = true;
+    var cmt = document.getElementById('sh-commentary');
+    var btn = document.getElementById('sh-btn-killp');
+
+    cmt.textContent = 'Primary P0 goes down. Master detects via heartbeat...';
+    draw();
+    await delay(1000);
+
+    // Find P0 and remove it
+    var nodeIds = Object.keys(shardPlacement);
+    var removedFrom = null;
+    for (var ni = 0; ni < nodeIds.length && !removedFrom; ni++) {
+      var shards = shardPlacement[nodeIds[ni]];
+      for (var si = 0; si < shards.length; si++) {
+        if (shards[si].type === 'P' && shards[si].idx === 0) {
+          removedFrom = nodeIds[ni];
+          shards.splice(si, 1);
+          break;
+        }
+      }
+    }
+
+    cmt.textContent = 'P0 removed from ' + removedFrom + '. Master searches for an in-sync replica of shard 0 to promote...';
+    draw();
+    await delay(1000);
+
+    // Find a replica of shard 0 and promote it
+    var promoted = false;
+    for (var ni2 = 0; ni2 < nodeIds.length && !promoted; ni2++) {
+      var shards2 = shardPlacement[nodeIds[ni2]];
+      for (var si2 = 0; si2 < shards2.length; si2++) {
+        if (shards2[si2].type === 'R' && shards2[si2].idx === 0) {
+          var promotedNode = nodeIds[ni2];
+          shards2[si2].type = 'P';
+          delete shards2[si2].rep;
+          promoted = true;
+          cmt.textContent = 'Replica on ' + promotedNode + ' promoted to Primary P0. Master coordinates promotion and broadcasts new cluster state. A new replica will be scheduled to restore replication factor.';
+          draw();
+          break;
+        }
+      }
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'P0 Killed';
+    animating = false;
+  }
+
+  async function addNode() {
+    if (animating || addedNode6) return;
+    animating = true;
+    addedNode6 = true;
+    var cmt = document.getElementById('sh-commentary');
+    var btn = document.getElementById('sh-btn-add');
+
+    shardPlacement['N6'] = [];
+    cmt.textContent = 'N6 joins the cluster. Master assigns shards to balance the cluster...';
+    draw();
+    await delay(1000);
+
+    // Move some shards to N6 with INITIALIZING state
+    shardPlacement['N6'].push({ type: 'R', idx: 1, rep: 'c', state: 'INITIALIZING' });
+    shardPlacement['N6'].push({ type: 'R', idx: 3, rep: 'c', state: 'INITIALIZING' });
+    cmt.textContent = 'Master schedules shard relocation. Replicas R1c, R3c being initialized on N6 (data copying from primaries)...';
+    draw();
+    await delay(1500);
+
+    // Mark as started
+    shardPlacement['N6'].forEach(function(s) { delete s.state; });
+    cmt.textContent = 'Shard relocation complete. R1c and R3c now STARTED on N6. Cluster rebalanced across 6 nodes.';
+    draw();
+
+    btn.disabled = true;
+    btn.textContent = 'N6 Added';
+    animating = false;
+  }
+
+  function reset() {
+    animating = false;
+    init();
+    document.getElementById('sh-hash-display').textContent = 'Enter a doc ID and click Route to see hash(_id) % 4 shard routing.';
+    document.getElementById('sh-commentary').textContent = '4 primary shards (P0-P3) each with 2 replicas = 12 physical shards distributed across 5 data nodes. Shard routing: hash(_routing or _id) % number_of_shards. Primary shard count is fixed at index creation -- cannot change without reindex.';
+  }
+
+  return { init: init, lookupDoc: lookupDoc, animateWrite: animateWrite, killReplica: killReplica, killPrimary: killPrimary, addNode: addNode, reset: reset };
+})();
+
+/* ================================================================
+   TAB 4 -- SEARCH ROUTING
+   ================================================================ */
+var SR = (function() {
+  var scene = null;
+  var animating = false;
+
+  // 5 data nodes, 4 primary shards x 2 replicas = 12 physical shards
+  // Shard groups: each shard has 1 primary + 2 replicas = 3 copies
+  var shardGroups = [
+    { id: 0, copies: [{ node: 'N1', type: 'P', latency: 12 }, { node: 'N3', type: 'R', latency: 8 }, { node: 'N5', type: 'R', latency: 22 }] },
+    { id: 1, copies: [{ node: 'N2', type: 'P', latency: 15 }, { node: 'N4', type: 'R', latency: 5 }, { node: 'N1', type: 'R', latency: 18 }] },
+    { id: 2, copies: [{ node: 'N3', type: 'P', latency: 10 }, { node: 'N5', type: 'R', latency: 25 }, { node: 'N2', type: 'R', latency: 9 }] },
+    { id: 3, copies: [{ node: 'N4', type: 'P', latency: 7 }, { node: 'N1', type: 'R', latency: 14 }, { node: 'N3', type: 'R', latency: 20 }] }
+  ];
+
+  var nodePositions = {
+    N1: { x: 200, y: 200 }, N2: { x: 350, y: 200 }, N3: { x: 500, y: 200 },
+    N4: { x: 650, y: 200 }, N5: { x: 800, y: 200 }
+  };
+
+  var arsSelected = [null, null, null, null]; // Which copy ARS picked for each shard
+  var phase = 'idle'; // idle, query, fetch, done
+  var isDeepPagination = false;
+
+  function init() {
+    scene = document.getElementById('sr-scene');
+    arsSelected = [null, null, null, null];
+    phase = 'idle';
+    isDeepPagination = false;
+    animating = false;
+    draw();
+  }
+
+  function draw() {
+    scene.innerHTML = '';
+
+    // Client
+    scene.appendChild(svgRect(20, 20, 90, 40, { stroke: 'var(--accent-purple)', fill: '#1a1528' }));
+    scene.appendChild(svgText(65, 45, 'Client', { fill: 'var(--accent-purple)', 'font-weight': '600', 'font-size': '12' }));
+    scene.appendChild(svgLine(110, 40, 170, 40, { stroke: '#444', 'stroke-dasharray': '3,3', 'marker-end': 'url(#sr-arrow)' }));
+
+    // Coordinating node
+    scene.appendChild(svgRect(170, 15, 150, 50, { stroke: 'var(--accent-cyan)', fill: '#0a1a2a', 'stroke-width': '2' }));
+    scene.appendChild(svgText(245, 35, 'Coordinating', { fill: 'var(--accent-cyan)', 'font-weight': '700', 'font-size': '13' }));
+    scene.appendChild(svgText(245, 52, 'Node (any)', { fill: 'var(--text-3)', 'font-size': '10' }));
+
+    // Phase labels
+    if (phase === 'query') {
+      scene.appendChild(svgRect(350, 15, 200, 30, { fill: '#0a1a3a', stroke: 'var(--accent-blue)' }));
+      scene.appendChild(svgText(450, 35, 'PHASE 1: QUERY (IDs + scores)', { fill: 'var(--accent-blue)', 'font-weight': '700', 'font-size': '11' }));
+    } else if (phase === 'fetch') {
+      scene.appendChild(svgRect(350, 15, 200, 30, { fill: '#1a2a0a', stroke: 'var(--accent-orange)' }));
+      scene.appendChild(svgText(450, 35, 'PHASE 2: FETCH (full _source)', { fill: 'var(--accent-orange)', 'font-weight': '700', 'font-size': '11' }));
+    }
+
+    // Data nodes
+    var nodeIds = ['N1', 'N2', 'N3', 'N4', 'N5'];
+    for (var ni = 0; ni < nodeIds.length; ni++) {
+      var nid = nodeIds[ni];
+      var pos = nodePositions[nid];
+      scene.appendChild(svgRect(pos.x - 55, pos.y - 20, 110, 300, { stroke: 'var(--accent-blue)', fill: '#12121a' }));
+      scene.appendChild(svgText(pos.x, pos.y, nid, { fill: 'var(--accent-blue)', 'font-weight': '700', 'font-size': '13' }));
+
+      // Draw shards on this node
+      var shardY = pos.y + 20;
+      for (var gi = 0; gi < shardGroups.length; gi++) {
+        var group = shardGroups[gi];
+        for (var ci = 0; ci < group.copies.length; ci++) {
+          var copy = group.copies[ci];
+          if (copy.node === nid) {
+            var isPrimary = copy.type === 'P';
+            var isSelected = arsSelected[gi] !== null && arsSelected[gi].node === nid;
+            var col = ['#ff6b6b', '#51cf66', '#339af0', '#ffd43b'][gi];
+            scene.appendChild(svgRect(pos.x - 45, shardY, 90, 28, {
+              stroke: isSelected ? '#fff' : col,
+              fill: isSelected ? '#1a2a3a' : '#0a0a12',
+              'stroke-width': isSelected ? '2.5' : (isPrimary ? '2' : '1'),
+              'stroke-dasharray': isPrimary ? '' : '4,3'
+            }));
+            var label = (isPrimary ? 'P' : 'R') + gi;
+            scene.appendChild(svgText(pos.x - 15, shardY + 18, label, {
+              fill: col, 'font-weight': isPrimary ? '700' : '400', 'font-size': '11', 'text-anchor': 'start'
+            }));
+            // Latency
+            scene.appendChild(svgText(pos.x + 35, shardY + 18, copy.latency + 'ms', {
+              fill: 'var(--text-3)', 'font-size': '9', 'text-anchor': 'end'
+            }));
+            if (isSelected) {
+              scene.appendChild(svgText(pos.x + 42, shardY + 18, 'ARS', {
+                fill: 'var(--accent-green)', 'font-size': '8', 'font-weight': '700', 'text-anchor': 'start'
+              }));
+            }
+            shardY += 34;
+          }
+        }
+      }
+
+      // Connection from coordinating to node
+      scene.appendChild(svgLine(245, 65, pos.x, pos.y - 20, { stroke: '#333', 'stroke-dasharray': '3,3' }));
+    }
+
+    // Merge/result area
+    scene.appendChild(svgRect(580, 15, 180, 50, { fill: '#12121a', stroke: 'var(--border)' }));
+    scene.appendChild(svgText(670, 35, 'Merge: sort by score', { fill: 'var(--text-2)', 'font-size': '11' }));
+    scene.appendChild(svgText(670, 52, 'pick top-K globally', { fill: 'var(--text-3)', 'font-size': '10' }));
+  }
+
+  async function runSearch() {
+    if (animating) return;
+    animating = true;
+    isDeepPagination = false;
+    var cmt = document.getElementById('sr-commentary');
+
+    // ARS selection
+    arsSelected = shardGroups.map(function(g) {
+      var best = g.copies[0];
+      g.copies.forEach(function(c) { if (c.latency < best.latency) best = c; });
+      return best;
+    });
+
+    // Phase 1: Query
+    phase = 'query';
+    cmt.textContent = 'PHASE 1 (Query): Coordinating node fans out to ONE copy of each of 4 shards (picked by ARS -- lowest latency). Each shard runs the query locally and returns top-10 doc IDs + scores only (no full documents).';
+    draw();
+    await delay(2000);
+
+    cmt.textContent = 'Query phase complete. 4 shards each returned 10 IDs + scores = 40 candidate IDs. Coordinating node merges, sorts by score, picks global top-10. This is lightweight -- only IDs and float scores crossed the wire.';
+    await delay(2000);
+
+    // Phase 2: Fetch
+    phase = 'fetch';
+    cmt.textContent = 'PHASE 2 (Fetch): Coordinating node sends fetch requests to the specific shards holding the top-10 doc IDs. Each shard returns the full _source document. Heavier than query phase but only for K documents.';
+    draw();
+    await delay(2000);
+
+    phase = 'done';
+    cmt.textContent = 'Search complete. Latency = max(per-shard query) + max(per-shard fetch) + merge overhead. ARS ensured we hit the fastest copy of each shard. Total docs transferred in fetch phase: only 10 (the final result set).';
+    draw();
+    animating = false;
+  }
+
+  async function runDeepPagination() {
+    if (animating) return;
+    animating = true;
+    isDeepPagination = true;
+    var cmt = document.getElementById('sr-commentary');
+
+    arsSelected = shardGroups.map(function(g) {
+      var best = g.copies[0];
+      g.copies.forEach(function(c) { if (c.latency < best.latency) best = c; });
+      return best;
+    });
+
+    phase = 'query';
+    cmt.textContent = 'DEEP PAGINATION: GET /products/_search?q=phone&from=9990&size=10. Each shard must compute top-10000 (from + size), not just top-10. 4 shards x 10000 = 40000 IDs + scores to merge. Terrible.';
+    draw();
+    await delay(2500);
+
+    cmt.textContent = 'Each shard had to score and sort 10000 documents instead of 10. Memory usage and CPU time scale linearly with (from + size). At from=9990, you are paying for 10000 docs per shard just to discard 9990 of them.';
+    await delay(2500);
+
+    phase = 'fetch';
+    cmt.textContent = 'Fetch phase is the same (only 10 docs), but the query phase killed you. Anti-pattern. Use search_after (cursor-based, no per-shard overhead) or scroll API (for bulk export) instead.';
+    draw();
+    await delay(2000);
+
+    phase = 'done';
+    draw();
+    animating = false;
+  }
+
+  async function showARS() {
+    if (animating) return;
+    animating = true;
+    var cmt = document.getElementById('sr-commentary');
+
+    cmt.textContent = 'Adaptive Replica Selection (ARS): ES tracks an EWMA of past response times for each shard copy. For each shard group, it picks the copy with the lowest measured latency. This removes hot replicas from rotation automatically.';
+
+    arsSelected = shardGroups.map(function(g) {
+      var best = g.copies[0];
+      g.copies.forEach(function(c) { if (c.latency < best.latency) best = c; });
+      return best;
+    });
+    phase = 'idle';
+    draw();
+
+    await delay(2000);
+    var details = arsSelected.map(function(sel, i) {
+      return 'Shard ' + i + ': ' + sel.type + i + ' on ' + sel.node + ' (' + sel.latency + 'ms)';
+    });
+    cmt.textContent = 'ARS picked: ' + details.join(' | ') + '. Note: ARS picks primary OR replica -- whichever is fastest. Replicas are not second-class citizens for reads.';
+    animating = false;
+  }
+
+  function reset() {
+    animating = false;
+    arsSelected = [null, null, null, null];
+    phase = 'idle';
+    init();
+    document.getElementById('sr-commentary').textContent = 'Search uses a scatter-gather pattern. Phase 1 (query): coordinating node fans out to one copy of each shard, each returns top-K doc IDs + scores (lightweight). Phase 2 (fetch): coordinating node requests full _source for only the final top-K docs. Adaptive Replica Selection (ARS) picks the fastest copy.';
+  }
+
+  return { init: init, runSearch: runSearch, runDeepPagination: runDeepPagination, showARS: showARS, reset: reset };
+})();
+
+/* ================================================================
+   TAB 5 -- CLUSTER STATE + RECOVERY
+   ================================================================ */
+var RC = (function() {
+  var scene = null;
+  var animating = false;
+  var allocationDisabled = false;
+  var showZones = false;
+
+  // 5 nodes with shard placement
+  var nodes = null;
+  var health = 'GREEN';
+
+  function defaultNodes() {
+    return {
+      N1: { alive: true, master: true, zone: 'zone-a', shards: [
+        { id: 'P0', type: 'P', idx: 0, state: 'STARTED' },
+        { id: 'R2a', type: 'R', idx: 2, state: 'STARTED' }
+      ]},
+      N2: { alive: true, master: false, zone: 'zone-a', shards: [
+        { id: 'P3', type: 'P', idx: 3, state: 'STARTED' },
+        { id: 'R1a', type: 'R', idx: 1, state: 'STARTED' }
+      ]},
+      N3: { alive: true, master: false, zone: 'zone-b', shards: [
+        { id: 'P1', type: 'P', idx: 1, state: 'STARTED' },
+        { id: 'R0b', type: 'R', idx: 0, state: 'STARTED' },
+        { id: 'R2b', type: 'R', idx: 2, state: 'STARTED' }
+      ]},
+      N4: { alive: true, master: false, zone: 'zone-b', shards: [
+        { id: 'P2', type: 'P', idx: 2, state: 'STARTED' },
+        { id: 'R0a', type: 'R', idx: 0, state: 'STARTED' },
+        { id: 'R3a', type: 'R', idx: 3, state: 'STARTED' }
+      ]},
+      N5: { alive: true, master: false, zone: 'zone-c', shards: [
+        { id: 'R1b', type: 'R', idx: 1, state: 'STARTED' },
+        { id: 'R2c', type: 'R', idx: 2, state: 'STARTED' },
+        { id: 'R3b', type: 'R', idx: 3, state: 'STARTED' }
+      ]}
+    };
+  }
+
+  var shardColors = ['#ff6b6b', '#51cf66', '#339af0', '#ffd43b'];
+
+  function init() {
+    scene = document.getElementById('rc-scene');
+    nodes = defaultNodes();
+    health = 'GREEN';
+    allocationDisabled = false;
+    showZones = false;
+    animating = false;
+    document.getElementById('rc-btn-kill').disabled = false;
+    document.getElementById('rc-btn-kill').textContent = 'Kill Node N3';
+    document.getElementById('rc-btn-alloc').textContent = 'Disable Allocation';
+    document.getElementById('rc-btn-zone').textContent = 'Zone Awareness';
+    updateHealthBadge();
+    draw();
+  }
+
+  function updateHealthBadge() {
+    var badge = document.getElementById('rc-health-badge');
+    badge.textContent = health;
+    badge.className = 'health-bar health-' + health.toLowerCase();
+  }
+
+  function draw() {
+    scene.innerHTML = '';
+    var nodeIds = Object.keys(nodes);
+    var nodeW = 150;
+    var totalNodes = nodeIds.length;
+    var gap = (880 - totalNodes * nodeW) / (totalNodes + 1);
+
+    // Cluster state header
+    scene.appendChild(svgRect(30, 10, 840, 45, { fill: '#12121a', stroke: 'var(--border)' }));
+    scene.appendChild(svgText(450, 28, 'Cluster State (held by master, broadcast to all)', {
+      fill: 'var(--accent-cyan)', 'font-weight': '600', 'font-size': '12'
+    }));
+    scene.appendChild(svgText(450, 45, 'Index metadata | Shard routing table | Node list', {
+      fill: 'var(--text-3)', 'font-size': '10'
+    }));
+
+    for (var ni = 0; ni < totalNodes; ni++) {
+      var nid = nodeIds[ni];
+      var node = nodes[nid];
+      var nx = gap + ni * (nodeW + gap);
+      var ny = 80;
+      var shards = node.shards;
+      var nodeH = 80 + Math.max(shards.length, 1) * 40;
+      var nodeColor = !node.alive ? '#444' : (node.master ? 'var(--accent-green)' : 'var(--accent-blue)');
+      var fillColor = !node.alive ? '#0e0e0e' : '#12121a';
+
+      // Zone background
+      if (showZones) {
+        var zoneColors = { 'zone-a': '#1a1520', 'zone-b': '#15201a', 'zone-c': '#151a20' };
+        scene.appendChild(svgRect(nx - 5, ny - 25, nodeW + 10, nodeH + 35, {
+          fill: zoneColors[node.zone] || '#12121a', stroke: 'none', rx: '10'
+        }));
+        scene.appendChild(svgText(nx + nodeW / 2, ny - 8, node.zone, {
+          fill: 'var(--text-3)', 'font-size': '9', 'font-weight': '600'
+        }));
+      }
+
+      // Node box
+      scene.appendChild(svgRect(nx, ny, nodeW, nodeH, {
+        stroke: nodeColor, fill: fillColor,
+        'stroke-width': node.master ? '2.5' : '1.5'
+      }));
+      scene.appendChild(svgText(nx + nodeW / 2, ny + 20, nid, {
+        fill: nodeColor, 'font-weight': '700', 'font-size': '14'
+      }));
+      var roleText = node.master ? 'MASTER' : 'data';
+      if (!node.alive) roleText = 'DOWN';
+      scene.appendChild(svgText(nx + nodeW / 2, ny + 38, roleText, {
+        fill: !node.alive ? '#666' : 'var(--text-3)', 'font-size': '10'
+      }));
+
+      if (!node.alive) {
+        scene.appendChild(svgLine(nx + 20, ny + 10, nx + nodeW - 20, ny + nodeH - 10, { stroke: 'var(--accent-red)', 'stroke-width': '2' }));
+        scene.appendChild(svgLine(nx + nodeW - 20, ny + 10, nx + 20, ny + nodeH - 10, { stroke: 'var(--accent-red)', 'stroke-width': '2' }));
+      }
+
+      // Shards
+      for (var si = 0; si < shards.length; si++) {
+        var s = shards[si];
+        var sx = nx + 8;
+        var sy = ny + 50 + si * 40;
+        var sw = nodeW - 16;
+        var sh = 32;
+        var isPrimary = s.type === 'P';
+        var col = shardColors[s.idx];
+        var stateColor = s.state === 'STARTED' ? col :
+          s.state === 'INITIALIZING' ? 'var(--accent-yellow)' :
+          s.state === 'RELOCATING' ? 'var(--accent-purple)' : 'var(--accent-red)';
+
+        scene.appendChild(svgRect(sx, sy, sw, sh, {
+          stroke: stateColor, fill: '#0a0a12',
+          'stroke-width': isPrimary ? '2' : '1',
+          'stroke-dasharray': isPrimary ? '' : '4,3'
+        }));
+        scene.appendChild(svgText(sx + 30, sy + 20, s.id, {
+          fill: col, 'font-weight': isPrimary ? '700' : '400', 'font-size': '11', 'text-anchor': 'start'
+        }));
+        scene.appendChild(svgText(sx + sw - 5, sy + 20, s.state, {
+          fill: stateColor, 'font-size': '8', 'text-anchor': 'end'
+        }));
+      }
+    }
+
+    // Allocation status
+    if (allocationDisabled) {
+      scene.appendChild(svgRect(300, 460, 300, 28, { fill: '#2a1a10', stroke: 'var(--accent-orange)' }));
+      scene.appendChild(svgText(450, 479, 'allocation.enable: NONE (disabled)', {
+        fill: 'var(--accent-orange)', 'font-weight': '700', 'font-size': '11'
+      }));
+    }
+  }
+
+  async function killNode() {
+    if (animating) return;
+    animating = true;
+    var btn = document.getElementById('rc-btn-kill');
+    btn.disabled = true;
+    var cmt = document.getElementById('rc-commentary');
+
+    // Kill N3 which has P1, R0b, R2b
+    cmt.textContent = '1/5: N3 goes down (heartbeat timeout). N3 carried P1, R0b, R2b.';
+    nodes.N3.alive = false;
+    nodes.N3.shards = [];
+    health = 'RED';
+    updateHealthBadge();
+    draw();
+    await delay(1500);
+
+    cmt.textContent = '2/5: Master (N1) detects N3 failure. Removes N3 from cluster state. Health: RED (primary P1 is UNASSIGNED -- data for shard 1 is unavailable).';
+    draw();
+    await delay(1500);
+
+    // Promote R1a on N2 to P1
+    cmt.textContent = '3/5: Master finds replica R1a on N2 (in-sync). Promoting R1a to primary P1...';
+    var r1a = nodes.N2.shards.find(function(s) { return s.id === 'R1a'; });
+    if (r1a) {
+      r1a.id = 'P1';
+      r1a.type = 'P';
+    }
+    health = 'YELLOW';
+    updateHealthBadge();
+    draw();
+    await delay(1500);
+
+    cmt.textContent = '4/5: P1 promoted. Health: YELLOW (primaries OK, but replicas R0b, R2b, and now missing R1 replicas are unassigned). Scheduling new replica creation to restore replication factor...';
+    draw();
+    await delay(1500);
+
+    if (!allocationDisabled) {
+      // Create new replicas on remaining nodes
+      nodes.N1.shards.push({ id: 'R0b_new', type: 'R', idx: 0, state: 'INITIALIZING' });
+      nodes.N5.shards.push({ id: 'R2b_new', type: 'R', idx: 2, state: 'INITIALIZING' });
+      cmt.textContent = '5/5: New replicas being initialized on available nodes (data copying from primaries). Cluster state broadcast to all nodes...';
+      draw();
+      await delay(2000);
+
+      // Mark as STARTED
+      nodes.N1.shards.forEach(function(s) { if (s.state === 'INITIALIZING') s.state = 'STARTED'; });
+      nodes.N5.shards.forEach(function(s) { if (s.state === 'INITIALIZING') s.state = 'STARTED'; });
+      health = 'GREEN';
+      updateHealthBadge();
+      cmt.textContent = 'Recovery complete. All replicas restored. Health: GREEN. Cluster state updated and broadcast.';
+      draw();
+    } else {
+      cmt.textContent = '5/5: Allocation is DISABLED -- no new replicas will be created. Health stays YELLOW. This is the expected state during a rolling upgrade. Re-enable allocation after the upgrade.';
+    }
+
+    btn.textContent = 'N3 Killed';
+    animating = false;
+  }
+
+  function disableAllocation() {
+    allocationDisabled = !allocationDisabled;
+    var btn = document.getElementById('rc-btn-alloc');
+    btn.textContent = allocationDisabled ? 'Enable Allocation' : 'Disable Allocation';
+    var cmt = document.getElementById('rc-commentary');
+    if (allocationDisabled) {
+      cmt.textContent = 'Allocation disabled (cluster.routing.allocation.enable: none). Prevents unnecessary shard movement during rolling upgrades. Existing shards stay where they are; no new replicas will be assigned.';
+    } else {
+      cmt.textContent = 'Allocation re-enabled. Master will now schedule shard assignments to restore replication factor and balance the cluster.';
+    }
+    draw();
+  }
+
+  function showZoneAwareness() {
+    showZones = !showZones;
+    var btn = document.getElementById('rc-btn-zone');
+    btn.textContent = showZones ? 'Hide Zones' : 'Zone Awareness';
+    var cmt = document.getElementById('rc-commentary');
+    if (showZones) {
+      cmt.textContent = 'Zone/rack awareness: ES can be configured to keep primaries and replicas of the same shard in different zones (via allocation.awareness.attributes). If zone-b goes down, every shard still has a copy in zone-a or zone-c. This is the multi-zone HA story.';
+    } else {
+      cmt.textContent = 'Zone awareness hidden. Cluster state is maintained by the master node and broadcast to all nodes via 2-phase commit.';
+    }
+    draw();
+  }
+
+  function reset() {
+    animating = false;
+    init();
+    document.getElementById('rc-commentary').textContent = 'All primaries and replicas assigned. Cluster state is maintained by the master node and broadcast to all nodes via 2-phase commit. On node failure, master detects via heartbeat, promotes replicas, and schedules new replica creation to restore replication factor.';
+  }
+
+  return { init: init, killNode: killNode, disableAllocation: disableAllocation, showZoneAwareness: showZoneAwareness, reset: reset };
+})();
+
+/* ================================================================
+   INIT ALL TABS
+   ================================================================ */
+SN.init();
+EL.init();
+SH.init();
+SR.init();
+RC.init();
+</script>
+</body>
+</html>

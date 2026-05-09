@@ -1,0 +1,1935 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Postgres Topologies -- Interactive Simulation</title>
+<style>
+:root {
+  --bg: #0f0f15;
+  --surface: #181820;
+  --surface-2: #20202a;
+  --border: #2a2a35;
+  --text: #e6e6ea;
+  --text-2: #cfcfd6;
+  --text-3: #888;
+  --accent-red: #ff6b6b;
+  --accent-green: #51cf66;
+  --accent-blue: #339af0;
+  --accent-yellow: #ffd43b;
+  --accent-purple: #cc5de8;
+  --accent-cyan: #8be9fd;
+  --accent-orange: #ffa94d;
+}
+*, *::before, *::after { box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  padding: 32px 24px;
+  max-width: 1100px;
+  margin: 0 auto;
+  line-height: 1.55;
+}
+h1 { color: #fff; margin-bottom: 4px; }
+h1 + p.sub { color: var(--text-3); font-style: italic; margin-top: 0; margin-bottom: 24px; }
+h2 { color: #fff; margin-top: 32px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+h3 { color: var(--text-2); margin-top: 20px; }
+code {
+  background: var(--surface-2);
+  padding: 2px 6px;
+  border-radius: 3px;
+  color: var(--accent-cyan);
+  font-size: 13px;
+}
+svg {
+  background: var(--surface);
+  border-radius: 8px;
+  display: block;
+  margin: 14px auto;
+  width: 100%;
+  height: auto;
+}
+.tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+.tabs button {
+  padding: 10px 20px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-2);
+  border-radius: 6px;
+  cursor: pointer;
+  min-height: 44px;
+  font-size: 14px;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.tabs button:hover { background: var(--surface); }
+.tabs button.active {
+  border-color: var(--accent-blue);
+  border-bottom: 2px solid var(--accent-blue);
+  color: #fff;
+}
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0;
+  align-items: center;
+}
+.controls button, .btn {
+  padding: 10px 16px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  border-radius: 6px;
+  cursor: pointer;
+  min-height: 44px;
+  font-size: 14px;
+  transition: background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+.controls button:hover, .btn:hover { background: var(--surface); }
+.controls button:disabled, .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.controls button.active-btn { border-color: var(--accent-blue); color: var(--accent-blue); }
+.controls button.danger { border-color: var(--accent-red); color: var(--accent-red); }
+.controls button.danger:hover { background: #2a1520; }
+.slider-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-3);
+  min-width: 180px;
+}
+.slider-group input[type="range"] {
+  flex: 1;
+  min-width: 80px;
+  accent-color: var(--accent-blue);
+}
+.commentary {
+  background: var(--surface-2);
+  padding: 14px;
+  border-radius: 6px;
+  font-size: 14px;
+  color: var(--text-2);
+  margin: 12px 0;
+  min-height: 44px;
+  line-height: 1.5;
+}
+.takeaway {
+  background: #1a1a22;
+  border-left: 3px solid var(--accent-green);
+  padding: 12px 16px;
+  margin: 14px 0;
+  font-size: 14px;
+}
+.takeaway strong { color: var(--accent-green); }
+.takeaway ul { margin: 6px 0 0 0; padding-left: 18px; }
+.takeaway li { margin-bottom: 6px; }
+section[hidden] { display: none !important; }
+.mode-select {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+  min-height: 44px;
+}
+.mode-select button {
+  padding: 10px 14px;
+  border: none;
+  background: var(--surface-2);
+  color: var(--text-3);
+  cursor: pointer;
+  font-size: 13px;
+  transition: background 0.15s, color 0.15s;
+  min-height: 44px;
+  border-right: 1px solid var(--border);
+}
+.mode-select button:last-child { border-right: none; }
+.mode-select button:hover { background: var(--surface); }
+.mode-select button.active { background: var(--accent-blue); color: #fff; }
+.tenant-input-group {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin: 12px 0;
+  flex-wrap: wrap;
+}
+.tenant-input-group input[type="text"] {
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  border-radius: 6px;
+  font-size: 14px;
+  min-height: 44px;
+  width: 180px;
+  max-width: 100%;
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+}
+.tenant-input-group input[type="text"]::placeholder { color: var(--text-3); }
+.hash-display {
+  font-size: 13px;
+  color: var(--text-2);
+  background: var(--surface);
+  padding: 10px 14px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  margin: 8px 0;
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+  line-height: 1.6;
+  min-height: 40px;
+  white-space: pre-wrap;
+}
+@media (max-width: 720px) {
+  body { padding: 20px 14px; }
+}
+@media (max-width: 600px) {
+  .tabs { gap: 4px; }
+  .tabs button { padding: 10px 12px; font-size: 13px; flex: 1; min-width: 90px; text-align: center; }
+}
+@media (max-width: 480px) {
+  .controls { flex-direction: column; }
+  .controls button { width: 100%; }
+  .slider-group { width: 100%; min-width: auto; }
+  .tenant-input-group { flex-direction: column; }
+  .tenant-input-group input[type="text"] { width: 100%; }
+  .mode-select { flex-wrap: wrap; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Postgres topologies</h1>
+  <p class="sub">From single primary to Patroni HA to Citus sharding. Click "kill primary," watch failover. Toggle sync_commit, see the latency trade. Build the intuition for system design rounds.</p>
+</header>
+
+<nav class="tabs">
+  <button class="active" onclick="setActiveTab('single')">Single Primary</button>
+  <button onclick="setActiveTab('streaming')">Streaming Replication</button>
+  <button onclick="setActiveTab('patroni')">Patroni HA</button>
+  <button onclick="setActiveTab('logical')">Logical Replication</button>
+  <button onclick="setActiveTab('citus')">Sharded (Citus)</button>
+</nav>
+
+<!-- ============================================================ -->
+<!-- TAB 1: SINGLE PRIMARY                                         -->
+<!-- ============================================================ -->
+<section data-tab="single">
+  <h2>Single Primary -- WAL and Durability</h2>
+  <p>Postgres durability comes from the Write-Ahead Log (WAL). Every change is written to WAL <em>before</em> the data files. Crash recovery replays WAL forward from the last checkpoint. Multi-process architecture means queries never head-of-line-block writes.</p>
+
+  <svg id="sp-svg" viewBox="0 0 860 400" preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <marker id="sp-arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="#444"/>
+      </marker>
+    </defs>
+    <!-- Clients -->
+    <rect x="20" y="40" width="120" height="44" rx="6" fill="#181820" stroke="#ff6b6b" stroke-width="2"/>
+    <text x="80" y="67" text-anchor="middle" fill="#ff6b6b" font-size="13" font-weight="600">Client A</text>
+    <rect x="20" y="130" width="120" height="44" rx="6" fill="#181820" stroke="#51cf66" stroke-width="2"/>
+    <text x="80" y="157" text-anchor="middle" fill="#51cf66" font-size="13" font-weight="600">Client B</text>
+    <rect x="20" y="220" width="120" height="44" rx="6" fill="#181820" stroke="#ffd43b" stroke-width="2"/>
+    <text x="80" y="247" text-anchor="middle" fill="#ffd43b" font-size="13" font-weight="600">Client C</text>
+
+    <!-- Connection lines -->
+    <line x1="140" y1="62" x2="260" y2="120" stroke="#333" stroke-width="1" stroke-dasharray="4,4"/>
+    <line x1="140" y1="152" x2="260" y2="150" stroke="#333" stroke-width="1" stroke-dasharray="4,4"/>
+    <line x1="140" y1="242" x2="260" y2="180" stroke="#333" stroke-width="1" stroke-dasharray="4,4"/>
+
+    <!-- Primary container -->
+    <rect x="250" y="30" width="580" height="320" rx="8" fill="none" stroke="var(--accent-blue)" stroke-width="2"/>
+    <text x="540" y="58" text-anchor="middle" fill="var(--accent-blue)" font-size="14" font-weight="700">Postgres Primary (multi-process)</text>
+
+    <!-- Backend processes indicator -->
+    <rect x="270" y="75" width="140" height="36" rx="4" fill="#0f0f15" stroke="#333" stroke-width="1"/>
+    <text x="340" y="98" text-anchor="middle" fill="var(--text-3)" font-size="11">Backend processes</text>
+    <text x="340" y="130" text-anchor="middle" fill="var(--accent-cyan)" font-size="12" font-weight="600" id="sp-backends">3 active</text>
+
+    <!-- WAL log box -->
+    <rect x="450" y="75" width="360" height="80" rx="4" fill="#0f0f15" stroke="var(--accent-orange)" stroke-width="1.5"/>
+    <text x="470" y="95" fill="var(--accent-orange)" font-size="12" font-weight="600">WAL (Write-Ahead Log)</text>
+    <g id="sp-wal-entries"></g>
+    <!-- WAL slots -->
+    <line x1="510" y1="105" x2="510" y2="150" stroke="#222" stroke-width="1" stroke-dasharray="2,3"/>
+    <line x1="570" y1="105" x2="570" y2="150" stroke="#222" stroke-width="1" stroke-dasharray="2,3"/>
+    <line x1="630" y1="105" x2="630" y2="150" stroke="#222" stroke-width="1" stroke-dasharray="2,3"/>
+    <line x1="690" y1="105" x2="690" y2="150" stroke="#222" stroke-width="1" stroke-dasharray="2,3"/>
+    <line x1="750" y1="105" x2="750" y2="150" stroke="#222" stroke-width="1" stroke-dasharray="2,3"/>
+
+    <!-- fsync badge -->
+    <rect x="460" y="160" width="80" height="28" rx="4" fill="#12121a" stroke="var(--accent-green)" stroke-width="1" id="sp-fsync-box"/>
+    <text x="500" y="179" text-anchor="middle" fill="var(--accent-green)" font-size="11" font-weight="600" id="sp-fsync-label">fsynced</text>
+
+    <!-- Arrow WAL -> Data files -->
+    <line x1="630" y1="160" x2="630" y2="195" stroke="#444" stroke-width="1" marker-end="url(#sp-arrow)"/>
+    <text x="650" y="185" fill="var(--text-3)" font-size="9">checkpoint</text>
+
+    <!-- Data files box -->
+    <rect x="550" y="200" width="160" height="50" rx="4" fill="#0f0f15" stroke="var(--accent-blue)" stroke-width="1"/>
+    <text x="630" y="230" text-anchor="middle" fill="var(--accent-blue)" font-size="12" font-weight="500">Data Files (heap)</text>
+
+    <!-- Disk icon -->
+    <rect x="590" y="270" width="80" height="40" rx="6" fill="#12121a" stroke="#555" stroke-width="1"/>
+    <text x="630" y="295" text-anchor="middle" fill="#555" font-size="11">Disk</text>
+    <line x1="630" y1="250" x2="630" y2="270" stroke="#444" stroke-width="1" marker-end="url(#sp-arrow)"/>
+
+    <!-- Slow query indicator -->
+    <rect x="270" y="200" width="160" height="50" rx="4" fill="#12121a" stroke="#333" stroke-width="1" id="sp-slowq-box" opacity="0"/>
+    <text x="350" y="220" text-anchor="middle" fill="var(--accent-yellow)" font-size="11" font-weight="600" id="sp-slowq-label" opacity="0">Seq Scan running...</text>
+    <text x="350" y="238" text-anchor="middle" fill="var(--text-3)" font-size="10" id="sp-slowq-sub" opacity="0">1 backend busy</text>
+
+    <!-- Animated packets layer -->
+    <g id="sp-packets"></g>
+  </svg>
+
+  <div class="controls">
+    <button onclick="SP.write('A','INSERT row','#ff6b6b')">Client A: INSERT</button>
+    <button onclick="SP.write('B','UPDATE row','#51cf66')">Client B: UPDATE</button>
+    <button onclick="SP.write('C','DELETE row','#ffd43b')">Client C: DELETE</button>
+    <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text-3);cursor:pointer;min-height:44px;">
+      <input type="checkbox" id="sp-async-commit" style="width:18px;height:18px;accent-color:var(--accent-orange);"> synchronous_commit = off
+    </label>
+    <button onclick="SP.toggleSlowQuery()" id="sp-btn-slow">Slow Query (full table scan)</button>
+  </div>
+
+  <div class="commentary" id="sp-commentary">Every write follows the same path: client sends SQL, backend process appends the change to WAL, WAL is fsynced to disk (durability guarantee), then acknowledgment returns to client. Data files are updated lazily at checkpoints.</div>
+
+  <div class="takeaway">
+    <strong>Takeaways</strong>
+    <ul>
+      <li>WAL is the durability story -- replication is just shipping WAL. Crash recovery = replay WAL forward from last checkpoint.</li>
+      <li><code>synchronous_commit = off</code> returns ack before fsync -- faster but risks losing the last few ms of commits on crash (not corruption, just loss).</li>
+      <li>Postgres is multi-process: a long-running <code>SELECT</code> (seq scan) consumes one backend but does not block writes on other backends. No head-of-line blocking like single-threaded Redis.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- TAB 2: STREAMING REPLICATION                                   -->
+<!-- ============================================================ -->
+<section data-tab="streaming" hidden>
+  <h2>Streaming Replication -- Sync vs Async</h2>
+  <p>Primary ships WAL to hot standbys over a persistent TCP connection. Each node tracks its position in the WAL stream via a Log Sequence Number (LSN). Replication slots guarantee the primary retains WAL until the standby consumes it.</p>
+
+  <svg id="sr-svg" viewBox="0 0 860 420" preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <marker id="sr-arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="#555"/>
+      </marker>
+    </defs>
+    <g id="sr-scene"></g>
+  </svg>
+
+  <div class="controls">
+    <button onclick="SR.clientWrite()">Client Write</button>
+    <button onclick="SR.toggleContinuous()" id="sr-btn-cont">Continuous writes</button>
+    <div class="mode-select" id="sr-sync-mode">
+      <button class="active" onclick="SR.setSyncMode('off')">off</button>
+      <button onclick="SR.setSyncMode('local')">local</button>
+      <button onclick="SR.setSyncMode('on')">on</button>
+      <button onclick="SR.setSyncMode('remote_apply')">remote_apply</button>
+    </div>
+    <span style="font-size:12px;color:var(--text-3);">sync_commit</span>
+  </div>
+  <div class="controls">
+    <div class="slider-group">
+      <span>S1 delay</span>
+      <input type="range" min="0" max="2000" value="200" id="sr-delay-s1" oninput="SR.updateDelay()">
+      <span id="sr-delay-s1-label">200ms</span>
+    </div>
+    <div class="slider-group">
+      <span>S2 delay</span>
+      <input type="range" min="0" max="2000" value="500" id="sr-delay-s2" oninput="SR.updateDelay()">
+      <span id="sr-delay-s2-label">500ms</span>
+    </div>
+    <button onclick="SR.killStandby()" id="sr-btn-kill" class="danger">Kill S1</button>
+    <button onclick="SR.reviveStandby()" id="sr-btn-revive" disabled>Revive S1</button>
+    <button onclick="SR.dropSlot()" id="sr-btn-drop" disabled class="danger">Drop repl. slot</button>
+    <button onclick="SR.readOnStandby()">Read on standby</button>
+    <button onclick="SR.reset()">Reset</button>
+  </div>
+
+  <div class="commentary" id="sr-commentary">Primary streams WAL entries to standbys in real time. Each standby replays the WAL to maintain an eventually-consistent copy. The LSN counter tracks how far each node has progressed through the WAL stream.</div>
+
+  <div class="takeaway">
+    <strong>Takeaways</strong>
+    <ul>
+      <li>Synchronous = at least 1 standby ack required before commit returns, not all. The primary blocks the committing transaction, not the whole server.</li>
+      <li>Replication slot prevents WAL deletion but can fill primary disk if a standby is gone too long. Always monitor <code>pg_replication_slots</code>.</li>
+      <li>Hot standby = serves reads, but data is eventually consistent. A read might return stale data if the standby has not yet replayed the latest WAL.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- TAB 3: PATRONI HA                                              -->
+<!-- ============================================================ -->
+<section data-tab="patroni" hidden>
+  <h2>Patroni HA -- Automated Failover with etcd DCS</h2>
+  <p>Patroni runs as a sidecar on each Postgres node. It holds a leader lease in etcd (a distributed config store). When the leader lease expires, standbys race to claim it and promote themselves. Self-fencing on network partition prevents split-brain.</p>
+
+  <svg id="pa-svg" viewBox="0 0 900 500" preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <marker id="pa-arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="#555"/>
+      </marker>
+    </defs>
+    <g id="pa-scene"></g>
+  </svg>
+
+  <div class="controls">
+    <button onclick="PA.killPrimary()" id="pa-btn-kill" class="danger">Kill Primary</button>
+    <button onclick="PA.partitionPrimary()" id="pa-btn-partition">Partition from etcd</button>
+    <button onclick="PA.reset()">Reset</button>
+  </div>
+
+  <div class="commentary" id="pa-commentary">Patroni manages Postgres HA using a distributed consensus store (etcd). The primary's Patroni holds a leader lease with a TTL of ~30s, renewing it every ~10s. If renewal stops, standbys detect the expired lease and race to claim leadership.</div>
+
+  <div class="takeaway">
+    <strong>Takeaways</strong>
+    <ul>
+      <li>Quorum is in etcd, not Postgres. Patroni delegates split-brain prevention to the DCS -- it does not implement its own consensus.</li>
+      <li>Self-fence on partition = the senior detail. If the primary is alive but partitioned from etcd, Patroni demotes it to read-only. This prevents zombie writes that would diverge from the new primary.</li>
+      <li>RPO/RTO trade depends on <code>synchronous_commit</code> and lease TTL. Sync replication = RPO 0 but higher write latency. Shorter TTL = faster failover (lower RTO) but more false positives.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- TAB 4: LOGICAL REPLICATION                                     -->
+<!-- ============================================================ -->
+<section data-tab="logical" hidden>
+  <h2>Logical Replication -- Decoded Changes</h2>
+  <p>Unlike streaming replication (which ships raw WAL bytes), logical replication decodes WAL into row-level changes (INSERT/UPDATE/DELETE tuples) and publishes them per-table. The subscriber applies changes independently -- it can have its own schema, indexes, even local writes.</p>
+
+  <svg id="lr-svg" viewBox="0 0 860 420" preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <marker id="lr-arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="#555"/>
+      </marker>
+    </defs>
+    <g id="lr-scene"></g>
+  </svg>
+
+  <div class="controls">
+    <button onclick="LR.writeToTable('orders')">Write to orders</button>
+    <button onclick="LR.writeToTable('users')">Write to users</button>
+    <button onclick="LR.writeToTable('products')">Write to products</button>
+    <button onclick="LR.triggerConflict()" class="danger">Conflict: same PK</button>
+    <button onclick="LR.toggleAllTables()" id="lr-btn-all">FOR ALL TABLES</button>
+    <button onclick="LR.alterTable()" id="lr-btn-alter">ALTER TABLE (add col)</button>
+    <button onclick="LR.reset()">Reset</button>
+  </div>
+
+  <div class="commentary" id="lr-commentary">The publisher decodes WAL entries into logical tuple changes and streams them through a publication. Only tables included in the publication are replicated. The subscriber applies changes via its own subscription -- it can lag, conflict, or fail independently.</div>
+
+  <div class="takeaway">
+    <strong>Takeaways</strong>
+    <ul>
+      <li>Logical = ETL with WAL as the source. It decodes physical WAL into row-level changes that any consumer (even a different Postgres major version) can apply.</li>
+      <li>Use for: cross-version upgrades, multi-master patterns, selective replication to analytics databases. Don't use for HA -- physical streaming is the HA path.</li>
+      <li>Conflicts (same PK written on both sides) pause the subscription. Resolution is manual or requires custom conflict handlers. This is why logical replication is not transparent multi-master.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- TAB 5: SHARDED (CITUS)                                         -->
+<!-- ============================================================ -->
+<section data-tab="citus" hidden>
+  <h2>Sharded (Citus) -- Distributed Postgres</h2>
+  <p>Citus extends Postgres with a coordinator that routes queries to worker nodes. Distributed tables are hash-sharded by a distribution column (typically <code>tenant_id</code>). Co-located joins are local; cross-shard joins require network shuffles.</p>
+
+  <h3>Tenant -> Shard -> Worker</h3>
+  <div class="tenant-input-group">
+    <input type="text" id="ci-tenant-input" placeholder="e.g. 42" value="42">
+    <button class="btn" onclick="CI.lookupTenant()">Lookup tenant</button>
+  </div>
+  <div class="hash-display" id="ci-hash-display">Enter a tenant_id and click Lookup to see hash -> shard -> worker mapping.</div>
+
+  <svg id="ci-svg" viewBox="0 0 860 400" preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <marker id="ci-arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="#555"/>
+      </marker>
+    </defs>
+    <g id="ci-scene"></g>
+  </svg>
+
+  <div class="controls">
+    <button onclick="CI.demoColocated()">Co-located JOIN</button>
+    <button onclick="CI.demoCrossShard()">Cross-shard query</button>
+    <button onclick="CI.demoNonColocated()" class="danger">Non-co-located JOIN</button>
+    <button onclick="CI.addWorker()" id="ci-btn-add">Add Worker W5</button>
+    <button onclick="CI.reset()">Reset</button>
+  </div>
+
+  <div class="commentary" id="ci-commentary">Citus distributes tables across workers by hashing the distribution column. The coordinator rewrites SQL into per-shard fragments, pushes them to workers, and aggregates results. Co-located tables (same distribution column) can join locally on each worker.</div>
+
+  <div class="takeaway">
+    <strong>Takeaways</strong>
+    <ul>
+      <li>The right distribution column makes 90% of queries co-located. For multi-tenant SaaS, <code>tenant_id</code> is almost always the answer.</li>
+      <li>Reference tables are the escape hatch for joins on small dimension tables -- they are replicated to every worker so any shard can join against them locally.</li>
+      <li>Citus is row-store sharded Postgres, not a separate engine. Standard Postgres features (transactions, indexes, extensions) work per-shard. Global UNIQUE constraints require the distribution column in the key.</li>
+    </ul>
+  </div>
+</section>
+
+<script>
+/* ================================================================
+   SHARED UTILITIES
+   ================================================================ */
+function delay(ms) { return new Promise(function(r) { setTimeout(r, ms); }); }
+
+function setActiveTab(name) {
+  var tabNames = ['single', 'streaming', 'patroni', 'logical', 'citus'];
+  var btns = document.querySelectorAll('nav.tabs button');
+  btns.forEach(function(b, i) { b.classList.toggle('active', tabNames[i] === name); });
+  document.querySelectorAll('section[data-tab]').forEach(function(s) {
+    s.hidden = s.getAttribute('data-tab') !== name;
+  });
+}
+
+function svgEl(tag, attrs) {
+  var el = document.createElementNS('http://www.w3.org/2000/svg', tag);
+  if (attrs) { for (var k in attrs) { el.setAttribute(k, attrs[k]); } }
+  return el;
+}
+
+function svgText(x, y, text, opts) {
+  var t = svgEl('text', Object.assign({
+    x: x, y: y, 'text-anchor': 'middle', fill: '#888', 'font-size': '11'
+  }, opts || {}));
+  t.textContent = text;
+  return t;
+}
+
+function animPkt(container, fx, fy, tx, ty, color, label, ms) {
+  return new Promise(function(resolve) {
+    var g = svgEl('g', {});
+    g.appendChild(svgEl('circle', { cx: fx, cy: fy, r: 6, fill: color, opacity: '0.9' }));
+    if (label) {
+      g.appendChild(svgText(fx, fy - 12, label, { fill: color, 'font-size': '9', 'font-weight': '600' }));
+    }
+    container.appendChild(g);
+    requestAnimationFrame(function() {
+      var ch = g.children;
+      for (var i = 0; i < ch.length; i++) {
+        ch[i].style.transition = 'all ' + ms + 'ms ease';
+        if (ch[i].tagName === 'circle') {
+          ch[i].setAttribute('cx', tx);
+          ch[i].setAttribute('cy', ty);
+        } else {
+          ch[i].setAttribute('x', tx);
+          ch[i].setAttribute('y', ty - 12);
+        }
+      }
+    });
+    setTimeout(function() {
+      if (g.parentNode) g.parentNode.removeChild(g);
+      resolve();
+    }, ms + 30);
+  });
+}
+
+
+/* ================================================================
+   TAB 1 -- SINGLE PRIMARY
+   ================================================================ */
+var SP = (function() {
+  var walEntries = [];
+  var walMax = 5;
+  var walId = 0;
+  var slowQueryActive = false;
+  var packetsG = null;
+
+  function getPackets() {
+    if (!packetsG) packetsG = document.getElementById('sp-packets');
+    return packetsG;
+  }
+
+  var clientCy = { A: 62, B: 152, C: 242 };
+
+  function isAsyncCommit() {
+    return document.getElementById('sp-async-commit').checked;
+  }
+
+  function addWalEntry(label, color) {
+    walId++;
+    walEntries.push({ id: walId, label: label, color: color });
+    if (walEntries.length > walMax) walEntries.shift();
+    renderWal();
+  }
+
+  function renderWal() {
+    var g = document.getElementById('sp-wal-entries');
+    g.innerHTML = '';
+    for (var i = 0; i < walEntries.length; i++) {
+      var x = 470 + i * 60;
+      var entry = walEntries[i];
+      var r = svgEl('rect', {
+        x: x, y: 108, width: 55, height: 36, rx: 3,
+        fill: entry.color, opacity: '0.2',
+        stroke: entry.color, 'stroke-width': 1
+      });
+      r.style.transition = 'all 0.3s ease';
+      g.appendChild(r);
+      var t = svgEl('text', {
+        x: x + 27, y: 130, 'text-anchor': 'middle',
+        fill: entry.color, 'font-size': '9', 'font-weight': '600'
+      });
+      t.textContent = entry.label.length > 8 ? entry.label.substring(0, 7) + '..' : entry.label;
+      g.appendChild(t);
+    }
+  }
+
+  function flashFsync() {
+    var box = document.getElementById('sp-fsync-box');
+    var label = document.getElementById('sp-fsync-label');
+    box.setAttribute('stroke', '#51cf66');
+    box.setAttribute('stroke-width', '2');
+    label.textContent = 'FSYNCING...';
+    label.setAttribute('fill', '#51cf66');
+    return delay(300).then(function() {
+      box.setAttribute('stroke', 'var(--accent-green)');
+      box.setAttribute('stroke-width', '1');
+      label.textContent = 'fsynced';
+      label.setAttribute('fill', 'var(--accent-green)');
+    });
+  }
+
+  function commentary(text) {
+    document.getElementById('sp-commentary').textContent = text;
+  }
+
+  async function write(client, label, color) {
+    var pkg = getPackets();
+    var cy = clientCy[client];
+
+    commentary('Client ' + client + ' sends ' + label + '. Backend process receives the command and begins WAL append.');
+
+    // Animate client -> primary
+    await animPkt(pkg, 140, cy, 460, 125, color, label, 500);
+
+    // Add WAL entry
+    addWalEntry(label, color);
+    commentary('WAL entry appended for "' + label + '". ' + (isAsyncCommit()
+      ? 'synchronous_commit=off: ack returns BEFORE fsync. Faster, but the last few ms of commits can be lost on crash.'
+      : 'Waiting for fsync to guarantee durability on disk...'));
+
+    if (isAsyncCommit()) {
+      // Return ack immediately, fsync happens in background
+      animPkt(pkg, 460, 125, 140, cy, '#51cf66', 'ACK', 400);
+      commentary('Ack returned before fsync. If the server crashes in the next few milliseconds, this commit could be lost. The data is in the OS page cache but not yet guaranteed on disk.');
+
+      // Fsync in background (visual only)
+      await delay(400);
+      await flashFsync();
+      var pendingLabel = svgText(540, 178, 'fsynced (delayed)', {
+        fill: 'var(--accent-orange)', 'font-size': '9'
+      });
+      pkg.appendChild(pendingLabel);
+      await delay(600);
+      if (pendingLabel.parentNode) pendingLabel.parentNode.removeChild(pendingLabel);
+    } else {
+      // Synchronous: fsync first, then ack
+      await flashFsync();
+      commentary('WAL fsynced to disk. Durability guaranteed -- even a power failure cannot lose this commit. Returning ack to client.');
+      await animPkt(pkg, 460, 125, 140, cy, 'ACK', '#51cf66', 400);
+    }
+
+    commentary('Write complete. The data file (heap) will be updated at the next checkpoint. Until then, the WAL entry is the authoritative record of this change.');
+  }
+
+  function toggleSlowQuery() {
+    slowQueryActive = !slowQueryActive;
+    var btn = document.getElementById('sp-btn-slow');
+    var box = document.getElementById('sp-slowq-box');
+    var label = document.getElementById('sp-slowq-label');
+    var sub = document.getElementById('sp-slowq-sub');
+    var backends = document.getElementById('sp-backends');
+
+    if (slowQueryActive) {
+      btn.classList.add('active-btn');
+      box.setAttribute('opacity', '1');
+      box.setAttribute('stroke', 'var(--accent-yellow)');
+      label.setAttribute('opacity', '1');
+      sub.setAttribute('opacity', '1');
+      backends.textContent = '3 active + 1 seq scan';
+      commentary('A full table scan is running on one backend process. Unlike single-threaded Redis, this does NOT block other clients. Writes continue on separate backend processes. Postgres forks a new process per connection -- expensive to create, but no HOL blocking.');
+    } else {
+      btn.classList.remove('active-btn');
+      box.setAttribute('opacity', '0');
+      label.setAttribute('opacity', '0');
+      sub.setAttribute('opacity', '0');
+      backends.textContent = '3 active';
+      commentary('Slow query completed. Backend process released. Postgres multi-process architecture: each connection gets its own OS process. Contrast with Redis where a slow KEYS * blocks the entire event loop.');
+    }
+  }
+
+  return { write: write, toggleSlowQuery: toggleSlowQuery };
+})();
+
+
+/* ================================================================
+   TAB 2 -- STREAMING REPLICATION
+   ================================================================ */
+var SR = (function() {
+  var state = {
+    primaryLSN: 0,
+    s1LSN: 0,
+    s2LSN: 0,
+    s1Alive: true,
+    s2Alive: true,
+    s1Delay: 200,
+    s2Delay: 500,
+    syncMode: 'off',
+    contWrites: false,
+    contTimer: null,
+    slotActive: true,
+    slotDropped: false,
+    walBacklog: 0
+  };
+
+  var scene;
+
+  var N = {
+    primary: { x: 430, y: 70, label: 'Primary' },
+    s1:      { x: 230, y: 310, label: 'Standby S1' },
+    s2:      { x: 630, y: 310, label: 'Standby S2' },
+    client:  { x: 430, y: 400, label: 'Client' }
+  };
+
+  function draw() {
+    scene = document.getElementById('sr-scene');
+    scene.innerHTML = '';
+
+    // WAL stream arrows
+    if (state.s1Alive) {
+      scene.appendChild(svgEl('line', {
+        x1: N.primary.x - 30, y1: N.primary.y + 35,
+        x2: N.s1.x + 20, y2: N.s1.y - 35,
+        stroke: '#339af033', 'stroke-width': 2,
+        'marker-end': 'url(#sr-arrow)'
+      }));
+      scene.appendChild(svgText(310, 190, 'WAL stream', {
+        fill: '#339af044', 'font-size': '9', 'font-style': 'italic'
+      }));
+    }
+    scene.appendChild(svgEl('line', {
+      x1: N.primary.x + 30, y1: N.primary.y + 35,
+      x2: N.s2.x - 20, y2: N.s2.y - 35,
+      stroke: '#339af033', 'stroke-width': 2,
+      'marker-end': 'url(#sr-arrow)'
+    }));
+    scene.appendChild(svgText(550, 190, 'WAL stream', {
+      fill: '#339af044', 'font-size': '9', 'font-style': 'italic'
+    }));
+
+    // Client -> Primary
+    scene.appendChild(svgEl('line', {
+      x1: N.client.x, y1: N.client.y - 18,
+      x2: N.primary.x, y2: N.primary.y + 35,
+      stroke: '#51cf6618', 'stroke-width': 1, 'stroke-dasharray': '4,4'
+    }));
+
+    // Primary node
+    scene.appendChild(svgEl('rect', {
+      x: N.primary.x - 70, y: N.primary.y - 30,
+      width: 140, height: 60, rx: 8,
+      fill: '#181820', stroke: 'var(--accent-blue)', 'stroke-width': 2
+    }));
+    scene.appendChild(svgText(N.primary.x, N.primary.y - 8, 'Primary', {
+      fill: 'var(--accent-blue)', 'font-size': '13', 'font-weight': '700'
+    }));
+    scene.appendChild(svgText(N.primary.x, N.primary.y + 12, 'LSN: ' + state.primaryLSN, {
+      fill: 'var(--accent-cyan)', 'font-size': '11', 'font-weight': '600'
+    }));
+
+    // Sync mode badge
+    var syncColor = state.syncMode === 'off' ? '#666' :
+                    state.syncMode === 'local' ? 'var(--accent-orange)' :
+                    state.syncMode === 'on' ? 'var(--accent-green)' : 'var(--accent-purple)';
+    scene.appendChild(svgEl('rect', {
+      x: N.primary.x + 75, y: N.primary.y - 20,
+      width: 120, height: 22, rx: 4,
+      fill: '#12121a', stroke: syncColor, 'stroke-width': 1
+    }));
+    scene.appendChild(svgText(N.primary.x + 135, N.primary.y - 5, 'sync=' + state.syncMode, {
+      fill: syncColor, 'font-size': '10', 'font-weight': '600'
+    }));
+
+    // Replication slot indicator (on primary)
+    if (!state.s1Alive && state.slotActive && !state.slotDropped) {
+      var backlogW = Math.min(state.walBacklog * 12, 120);
+      scene.appendChild(svgEl('rect', {
+        x: N.primary.x - 70, y: N.primary.y + 38,
+        width: 140, height: 30, rx: 4,
+        fill: '#1a1520', stroke: 'var(--accent-orange)', 'stroke-width': 1
+      }));
+      scene.appendChild(svgEl('rect', {
+        x: N.primary.x - 65, y: N.primary.y + 43,
+        width: backlogW, height: 20, rx: 3,
+        fill: state.walBacklog > 8 ? 'var(--accent-red)' : 'var(--accent-orange)',
+        opacity: '0.5'
+      }));
+      scene.appendChild(svgText(N.primary.x, N.primary.y + 57, 'Slot: ' + state.walBacklog + ' WAL retained', {
+        fill: 'var(--accent-orange)', 'font-size': '9', 'font-weight': '600'
+      }));
+    }
+
+    // Standbys
+    drawStandby(N.s1, 'S1', state.s1LSN, state.s1Alive, state.s1Delay, state.primaryLSN);
+    drawStandby(N.s2, 'S2', state.s2LSN, state.s2Alive, state.s2Delay, state.primaryLSN);
+
+    // Client node
+    scene.appendChild(svgEl('rect', {
+      x: N.client.x - 50, y: N.client.y - 18,
+      width: 100, height: 36, rx: 6,
+      fill: '#181820', stroke: 'var(--accent-green)', 'stroke-width': 1.5
+    }));
+    scene.appendChild(svgText(N.client.x, N.client.y + 4, 'Client', {
+      fill: 'var(--accent-green)', 'font-size': '12', 'font-weight': '600'
+    }));
+  }
+
+  function drawStandby(pos, label, lsn, alive, delayMs, primaryLSN) {
+    var lag = primaryLSN - lsn;
+    var strokeColor = alive ? 'var(--accent-cyan)' : 'var(--accent-red)';
+    var fillBg = alive ? '#181820' : '#1f1015';
+
+    scene.appendChild(svgEl('rect', {
+      x: pos.x - 70, y: pos.y - 30,
+      width: 140, height: 60, rx: 8,
+      fill: fillBg, stroke: strokeColor, 'stroke-width': 2
+    }));
+    scene.appendChild(svgText(pos.x, pos.y - 8, (alive ? 'Hot Standby ' : 'DEAD ') + label, {
+      fill: strokeColor, 'font-size': '12', 'font-weight': '700'
+    }));
+    scene.appendChild(svgText(pos.x, pos.y + 10, 'LSN: ' + lsn, {
+      fill: alive ? 'var(--accent-cyan)' : '#666', 'font-size': '11', 'font-weight': '600'
+    }));
+
+    if (alive && lag > 0) {
+      scene.appendChild(svgText(pos.x, pos.y + 40, 'lag: ' + lag + ' entries (~' + (lag * delayMs / 1000).toFixed(1) + 's)', {
+        fill: lag > 3 ? 'var(--accent-red)' : 'var(--accent-yellow)', 'font-size': '10', 'font-weight': '600'
+      }));
+    }
+
+    if (!alive) {
+      scene.appendChild(svgEl('line', {
+        x1: pos.x - 18, y1: pos.y - 18, x2: pos.x + 18, y2: pos.y + 18,
+        stroke: 'var(--accent-red)', 'stroke-width': 3
+      }));
+      scene.appendChild(svgEl('line', {
+        x1: pos.x + 18, y1: pos.y - 18, x2: pos.x - 18, y2: pos.y + 18,
+        stroke: 'var(--accent-red)', 'stroke-width': 3
+      }));
+    }
+  }
+
+  draw();
+
+  function commentary(text) {
+    document.getElementById('sr-commentary').textContent = text;
+  }
+
+  function updateDelay() {
+    state.s1Delay = parseInt(document.getElementById('sr-delay-s1').value);
+    state.s2Delay = parseInt(document.getElementById('sr-delay-s2').value);
+    document.getElementById('sr-delay-s1-label').textContent = state.s1Delay + 'ms';
+    document.getElementById('sr-delay-s2-label').textContent = state.s2Delay + 'ms';
+  }
+
+  function setSyncMode(mode) {
+    state.syncMode = mode;
+    var btns = document.querySelectorAll('#sr-sync-mode button');
+    var modes = ['off', 'local', 'on', 'remote_apply'];
+    btns.forEach(function(b, i) { b.classList.toggle('active', modes[i] === mode); });
+    draw();
+
+    var explanations = {
+      'off': 'synchronous_commit=off: WAL is written to OS buffer but NOT fsynced before ack. Fastest, but last few ms of commits lost on crash.',
+      'local': 'synchronous_commit=local: WAL is fsynced to primary disk before ack. Durable on primary crash, but standbys may lag.',
+      'on': 'synchronous_commit=on: Primary waits for at least 1 standby to write WAL to its disk before ack. If the standby is slow, write latency increases. This is the RPO=0 mode for failover.',
+      'remote_apply': 'synchronous_commit=remote_apply: Primary waits for at least 1 standby to APPLY the WAL (not just write it). Reads on that standby see the committed data immediately. Strongest consistency, highest latency.'
+    };
+    commentary(explanations[mode]);
+  }
+
+  async function clientWrite() {
+    state.primaryLSN++;
+    draw();
+
+    var syncNeedsAck = state.syncMode === 'on' || state.syncMode === 'remote_apply';
+
+    commentary('Client write -> Primary. LSN advances to ' + state.primaryLSN + '.' +
+      (syncNeedsAck ? ' Primary blocks commit, waiting for standby ack...' : ''));
+
+    // Animate write to primary
+    await animPkt(scene, N.client.x, N.client.y - 18, N.primary.x, N.primary.y, 'var(--accent-green)', 'WRITE', 400);
+
+    if (!state.s1Alive) {
+      state.walBacklog++;
+    }
+
+    // Stream WAL to standbys
+    var replicationPromises = [];
+
+    if (state.s1Alive) {
+      replicationPromises.push(delay(state.s1Delay).then(function() {
+        state.s1LSN = state.primaryLSN;
+        draw();
+        return animPkt(scene, N.primary.x - 30, N.primary.y + 30, N.s1.x, N.s1.y, '#339af0', 'WAL', 300);
+      }));
+    }
+
+    replicationPromises.push(delay(state.s2Delay).then(function() {
+      state.s2LSN = state.primaryLSN;
+      draw();
+      return animPkt(scene, N.primary.x + 30, N.primary.y + 30, N.s2.x, N.s2.y, '#339af0', 'WAL', 300);
+    }));
+
+    if (syncNeedsAck) {
+      // Wait for at least one standby
+      var firstStandbyDelay = state.s1Alive
+        ? Math.min(state.s1Delay, state.s2Delay)
+        : state.s2Delay;
+      await delay(firstStandbyDelay);
+      commentary('Standby ack received. Primary can now return commit confirmation to client. sync_commit=' + state.syncMode + ' ensures at least 1 standby has the data.');
+      draw();
+    }
+
+    // Ack to client
+    await animPkt(scene, N.primary.x, N.primary.y + 30, N.client.x, N.client.y - 18, '#51cf66', 'ACK', 300);
+
+    // Let remaining replication finish
+    await Promise.all(replicationPromises);
+    draw();
+  }
+
+  function toggleContinuous() {
+    state.contWrites = !state.contWrites;
+    var btn = document.getElementById('sr-btn-cont');
+    btn.classList.toggle('active-btn', state.contWrites);
+    btn.textContent = state.contWrites ? 'Stop writes' : 'Continuous writes';
+    if (state.contWrites) {
+      state.contTimer = setInterval(clientWrite, 1200);
+    } else {
+      clearInterval(state.contTimer);
+    }
+  }
+
+  async function killStandby() {
+    if (!state.s1Alive) return;
+    state.s1Alive = false;
+    state.walBacklog = 0;
+    document.getElementById('sr-btn-kill').disabled = true;
+    document.getElementById('sr-btn-revive').disabled = false;
+    document.getElementById('sr-btn-drop').disabled = false;
+    draw();
+    commentary('Standby S1 is down. The replication slot on the primary guarantees WAL retention for S1 -- primary will NOT delete WAL segments that S1 has not consumed. Watch the WAL backlog grow as writes continue.');
+  }
+
+  async function reviveStandby() {
+    if (state.s1Alive) return;
+
+    if (state.slotDropped) {
+      commentary('S1 returns but its replication slot was dropped. The primary has already recycled WAL that S1 needs. S1 cannot catch up incrementally -- it requires a fresh pg_basebackup (full copy). This is why dropping replication slots is dangerous.');
+      state.s1Alive = true;
+      state.s1LSN = 0;
+      document.getElementById('sr-btn-revive').disabled = true;
+      draw();
+
+      // Show base backup animation
+      await delay(800);
+      scene.appendChild(svgText(N.s1.x, N.s1.y - 50, 'NEEDS FULL BACKUP', {
+        fill: 'var(--accent-red)', 'font-size': '11', 'font-weight': '700'
+      }));
+      await delay(2000);
+      commentary('S1 must do pg_basebackup: copy all data files from primary, then replay WAL from that point forward. This can take hours for large databases.');
+      draw();
+      return;
+    }
+
+    state.s1Alive = true;
+    document.getElementById('sr-btn-revive').disabled = true;
+    document.getElementById('sr-btn-kill').disabled = false;
+    draw();
+
+    commentary('S1 is back. Catching up from the replication slot -- the primary retained ' + state.walBacklog + ' WAL entries. Replaying...');
+
+    // Catch-up animation
+    var catchupCount = state.primaryLSN - state.s1LSN;
+    for (var i = 0; i < Math.min(catchupCount, 6); i++) {
+      state.s1LSN++;
+      state.walBacklog = Math.max(0, state.walBacklog - 1);
+      draw();
+      await animPkt(scene, N.primary.x - 30, N.primary.y + 30, N.s1.x, N.s1.y, '#339af0', 'WAL', 200);
+    }
+    state.s1LSN = state.primaryLSN;
+    state.walBacklog = 0;
+    draw();
+
+    commentary('S1 caught up. LSN matches primary. Replication slot worked as designed: it held WAL on the primary until S1 could consume it. The cost: disk space on the primary for retained WAL.');
+  }
+
+  function dropSlot() {
+    state.slotDropped = true;
+    state.slotActive = false;
+    state.walBacklog = 0;
+    document.getElementById('sr-btn-drop').disabled = true;
+    draw();
+    commentary('Replication slot for S1 dropped. Primary will now recycle WAL freely -- the disk pressure is relieved, but if S1 comes back, it will find its required WAL is gone. It will need a fresh pg_basebackup.');
+  }
+
+  async function readOnStandby() {
+    var target = state.s1Alive ? N.s1 : N.s2;
+    var targetLabel = state.s1Alive ? 'S1' : 'S2';
+    var targetLSN = state.s1Alive ? state.s1LSN : state.s2LSN;
+    var lag = state.primaryLSN - targetLSN;
+
+    await animPkt(scene, N.client.x, N.client.y - 18, target.x, target.y, 'var(--accent-green)', 'SELECT', 400);
+
+    if (lag > 0) {
+      var staleBadge = svgText(target.x, target.y - 50, 'stale-by-' + lag + '-entries', {
+        fill: 'var(--accent-yellow)', 'font-size': '11', 'font-weight': '700'
+      });
+      scene.appendChild(staleBadge);
+      commentary('Read on ' + targetLabel + ' returned data that is ' + lag + ' WAL entries behind the primary. The standby has not yet replayed the latest writes. This is the eventual consistency trade-off of reading from standbys.');
+      await delay(2000);
+      if (staleBadge.parentNode) staleBadge.parentNode.removeChild(staleBadge);
+    } else {
+      commentary('Read on ' + targetLabel + ' -- data is up to date (LSN matches primary). No staleness. This is the ideal case, but not guaranteed under load.');
+    }
+
+    await animPkt(scene, target.x, target.y, N.client.x, N.client.y - 18, '#51cf66', 'ROWS', 400);
+  }
+
+  function reset() {
+    clearInterval(state.contTimer);
+    state = {
+      primaryLSN: 0, s1LSN: 0, s2LSN: 0,
+      s1Alive: true, s2Alive: true,
+      s1Delay: 200, s2Delay: 500,
+      syncMode: 'off', contWrites: false, contTimer: null,
+      slotActive: true, slotDropped: false, walBacklog: 0
+    };
+    document.getElementById('sr-btn-kill').disabled = false;
+    document.getElementById('sr-btn-revive').disabled = true;
+    document.getElementById('sr-btn-drop').disabled = true;
+    document.getElementById('sr-btn-cont').textContent = 'Continuous writes';
+    document.getElementById('sr-btn-cont').classList.remove('active-btn');
+    var btns = document.querySelectorAll('#sr-sync-mode button');
+    btns.forEach(function(b, i) { b.classList.toggle('active', i === 0); });
+    draw();
+    commentary('Primary streams WAL entries to standbys in real time. Each standby replays the WAL to maintain an eventually-consistent copy. The LSN counter tracks how far each node has progressed through the WAL stream.');
+  }
+
+  return {
+    clientWrite: clientWrite,
+    toggleContinuous: toggleContinuous,
+    setSyncMode: setSyncMode,
+    updateDelay: updateDelay,
+    killStandby: killStandby,
+    reviveStandby: reviveStandby,
+    dropSlot: dropSlot,
+    readOnStandby: readOnStandby,
+    reset: reset
+  };
+})();
+
+
+/* ================================================================
+   TAB 3 -- PATRONI HA
+   ================================================================ */
+var PA = (function() {
+  var state = {
+    primaryId: 'pg1',
+    pg1Alive: true,
+    pg2Alive: true,
+    pg3Alive: true,
+    leaseTTL: 30,
+    leaseRemaining: 30,
+    renewInterval: null,
+    failoverRunning: false,
+    partitioned: false
+  };
+
+  var scene;
+
+  var N = {
+    pg1: { x: 200, y: 140, label: 'PG1' },
+    pg2: { x: 450, y: 140, label: 'PG2' },
+    pg3: { x: 700, y: 140, label: 'PG3' },
+    etcd1: { x: 250, y: 400, label: 'etcd-1' },
+    etcd2: { x: 450, y: 400, label: 'etcd-2' },
+    etcd3: { x: 650, y: 400, label: 'etcd-3' }
+  };
+
+  function draw() {
+    scene = document.getElementById('pa-scene');
+    scene.innerHTML = '';
+
+    // etcd cluster connections
+    var etcdNodes = ['etcd1', 'etcd2', 'etcd3'];
+    for (var i = 0; i < etcdNodes.length; i++) {
+      for (var j = i + 1; j < etcdNodes.length; j++) {
+        scene.appendChild(svgEl('line', {
+          x1: N[etcdNodes[i]].x, y1: N[etcdNodes[i]].y,
+          x2: N[etcdNodes[j]].x, y2: N[etcdNodes[j]].y,
+          stroke: '#cc5de815', 'stroke-width': 1, 'stroke-dasharray': '3,5'
+        }));
+      }
+    }
+
+    // Patroni -> etcd lines
+    var pgNodes = ['pg1', 'pg2', 'pg3'];
+    pgNodes.forEach(function(pgId) {
+      var pg = N[pgId];
+      var isPartitioned = state.partitioned && pgId === state.primaryId;
+      var lineColor = isPartitioned ? 'var(--accent-red)' : '#cc5de815';
+      var dash = isPartitioned ? '6,4' : '3,5';
+      etcdNodes.forEach(function(etcdId) {
+        var etcd = N[etcdId];
+        scene.appendChild(svgEl('line', {
+          x1: pg.x, y1: pg.y + 55,
+          x2: etcd.x, y2: etcd.y - 30,
+          stroke: lineColor, 'stroke-width': 1, 'stroke-dasharray': dash
+        }));
+      });
+    });
+
+    // Partition visual
+    if (state.partitioned) {
+      var primNode = N[state.primaryId];
+      scene.appendChild(svgEl('rect', {
+        x: primNode.x - 85, y: primNode.y + 60,
+        width: 170, height: 30, rx: 4,
+        fill: '#1a1520', stroke: 'var(--accent-red)', 'stroke-width': 1,
+        'stroke-dasharray': '4,3'
+      }));
+      scene.appendChild(svgText(primNode.x, primNode.y + 80, 'PARTITIONED FROM ETCD', {
+        fill: 'var(--accent-red)', 'font-size': '10', 'font-weight': '700'
+      }));
+    }
+
+    // Draw PG nodes
+    pgNodes.forEach(function(pgId) {
+      var pg = N[pgId];
+      var isPrimary = pgId === state.primaryId;
+      var isAlive = state[pgId + 'Alive'];
+      var isDemoted = state.partitioned && isPrimary;
+
+      // Postgres box
+      var stroke = isPrimary ? (isDemoted ? 'var(--accent-red)' : 'var(--accent-blue)') : 'var(--accent-cyan)';
+      if (!isAlive) stroke = 'var(--accent-red)';
+      var fill = isAlive ? '#181820' : '#1f1015';
+
+      scene.appendChild(svgEl('rect', {
+        x: pg.x - 65, y: pg.y - 40,
+        width: 130, height: 80, rx: 8,
+        fill: fill, stroke: stroke, 'stroke-width': 2
+      }));
+
+      // Role label
+      var role = isPrimary ? (isDemoted ? 'DEMOTED (r/o)' : 'PRIMARY') : 'Standby';
+      if (!isAlive) role = 'DEAD';
+      scene.appendChild(svgText(pg.x, pg.y - 15, pg.label, {
+        fill: stroke, 'font-size': '14', 'font-weight': '700'
+      }));
+      scene.appendChild(svgText(pg.x, pg.y + 5, role, {
+        fill: stroke, 'font-size': '10', 'font-weight': '500'
+      }));
+
+      // Patroni sidecar
+      scene.appendChild(svgEl('rect', {
+        x: pg.x - 40, y: pg.y + 42,
+        width: 80, height: 22, rx: 4,
+        fill: '#12121a', stroke: 'var(--accent-purple)', 'stroke-width': 1,
+        opacity: isAlive ? '1' : '0.3'
+      }));
+      scene.appendChild(svgText(pg.x, pg.y + 57, 'Patroni', {
+        fill: 'var(--accent-purple)', 'font-size': '9', 'font-weight': '600',
+        opacity: isAlive ? '1' : '0.3'
+      }));
+
+      // Dead X
+      if (!isAlive) {
+        scene.appendChild(svgEl('line', {
+          x1: pg.x - 20, y1: pg.y - 20, x2: pg.x + 20, y2: pg.y + 20,
+          stroke: 'var(--accent-red)', 'stroke-width': 3
+        }));
+        scene.appendChild(svgEl('line', {
+          x1: pg.x + 20, y1: pg.y - 20, x2: pg.x - 20, y2: pg.y + 20,
+          stroke: 'var(--accent-red)', 'stroke-width': 3
+        }));
+      }
+    });
+
+    // etcd nodes
+    etcdNodes.forEach(function(etcdId) {
+      var etcd = N[etcdId];
+      scene.appendChild(svgEl('rect', {
+        x: etcd.x - 50, y: etcd.y - 25,
+        width: 100, height: 50, rx: 6,
+        fill: '#181820', stroke: 'var(--accent-purple)', 'stroke-width': 1.5
+      }));
+      scene.appendChild(svgText(etcd.x, etcd.y + 4, etcd.label, {
+        fill: 'var(--accent-purple)', 'font-size': '12', 'font-weight': '600'
+      }));
+    });
+
+    // Leader lease in etcd
+    var leaseInfo = state.primaryId.toUpperCase() + ' | TTL: ' + state.leaseRemaining + 's';
+    if (!state[state.primaryId + 'Alive'] || state.partitioned) {
+      leaseInfo = (state.partitioned ? 'EXPIRING' : 'EXPIRED') + ' | TTL: ' + state.leaseRemaining + 's';
+    }
+    scene.appendChild(svgEl('rect', {
+      x: N.etcd2.x - 90, y: N.etcd2.y - 60,
+      width: 180, height: 25, rx: 4,
+      fill: '#12121a', stroke: 'var(--accent-yellow)', 'stroke-width': 1
+    }));
+    scene.appendChild(svgText(N.etcd2.x, N.etcd2.y - 44, 'Lease: ' + leaseInfo, {
+      fill: 'var(--accent-yellow)', 'font-size': '10', 'font-weight': '600'
+    }));
+
+    // Replication arrows between PG nodes
+    var aliveStandbys = pgNodes.filter(function(id) { return id !== state.primaryId && state[id + 'Alive']; });
+    if (state[state.primaryId + 'Alive'] && !state.partitioned) {
+      aliveStandbys.forEach(function(sId) {
+        var from = N[state.primaryId];
+        var to = N[sId];
+        scene.appendChild(svgEl('line', {
+          x1: from.x + (to.x > from.x ? 65 : -65), y1: from.y,
+          x2: to.x + (to.x > from.x ? -65 : 65), y2: to.y,
+          stroke: '#339af022', 'stroke-width': 1.5,
+          'marker-end': 'url(#pa-arrow)'
+        }));
+      });
+    }
+  }
+
+  function commentary(text) {
+    document.getElementById('pa-commentary').textContent = text;
+  }
+
+  function startLeaseRenewal() {
+    clearInterval(state.renewInterval);
+    state.leaseRemaining = state.leaseTTL;
+    state.renewInterval = setInterval(function() {
+      if (state.failoverRunning || state.partitioned) return;
+      if (!state[state.primaryId + 'Alive']) return;
+      state.leaseRemaining = state.leaseTTL;
+      draw();
+    }, 2000);
+  }
+
+  draw();
+  startLeaseRenewal();
+
+  async function killPrimary() {
+    if (state.failoverRunning || !state[state.primaryId + 'Alive']) return;
+    state.failoverRunning = true;
+    document.getElementById('pa-btn-kill').disabled = true;
+    document.getElementById('pa-btn-partition').disabled = true;
+
+    var deadId = state.primaryId;
+    state[deadId + 'Alive'] = false;
+    clearInterval(state.renewInterval);
+    draw();
+
+    commentary('Primary ' + deadId.toUpperCase() + ' is dead. Patroni stops renewing the leader lease in etcd. Lease TTL begins counting down...');
+    await delay(1000);
+
+    // TTL countdown
+    for (var t = state.leaseRemaining; t >= 0; t -= 5) {
+      state.leaseRemaining = Math.max(t, 0);
+      draw();
+      await delay(400);
+    }
+    state.leaseRemaining = 0;
+    draw();
+
+    commentary('Leader lease expired in etcd. Standby Patroni daemons detect the vacancy and race to claim the lease.');
+    await delay(800);
+
+    // Standbys race
+    var candidates = ['pg1', 'pg2', 'pg3'].filter(function(id) { return id !== deadId && state[id + 'Alive']; });
+    var winner = candidates[0];
+
+    // STONITH animation
+    commentary('Step 1: STONITH (fencing). Winner must ensure the old primary cannot write. Patroni attempts to shut down the old primary (even though it is already dead, the fencing step is mandatory to prevent zombie writes).');
+    await animPkt(scene, N[winner].x, N[winner].y + 55, N[deadId].x, N[deadId].y, 'var(--accent-red)', 'FENCE', 500);
+    await delay(600);
+
+    // Show fence indicator on dead node
+    scene.appendChild(svgEl('rect', {
+      x: N[deadId].x - 45, y: N[deadId].y + 25,
+      width: 90, height: 20, rx: 3,
+      fill: '#1a1520', stroke: 'var(--accent-red)', 'stroke-width': 1
+    }));
+    scene.appendChild(svgText(N[deadId].x, N[deadId].y + 39, 'FENCED', {
+      fill: 'var(--accent-red)', 'font-size': '9', 'font-weight': '700'
+    }));
+
+    // Promote
+    commentary('Step 2: Promote standby. ' + winner.toUpperCase() + ' runs pg_promote() to become the new primary.');
+    await delay(600);
+    state.primaryId = winner;
+    state.leaseRemaining = state.leaseTTL;
+    draw();
+    commentary('Step 3: Update etcd with new primary identity. ' + winner.toUpperCase() + ' acquires the leader lease.');
+    await animPkt(scene, N[winner].x, N[winner].y + 55, N.etcd2.x, N.etcd2.y, 'var(--accent-purple)', 'CLAIM', 500);
+    await delay(600);
+
+    // Reconfigure remaining standby
+    var other = candidates.filter(function(id) { return id !== winner; });
+    if (other.length > 0) {
+      commentary('Step 4: Reconfigure remaining standby. ' + other[0].toUpperCase() + ' updates primary_conninfo to follow new primary ' + winner.toUpperCase() + '.');
+      await animPkt(scene, N[winner].x, N[winner].y + 55, N[other[0]].x, N[other[0]].y + 55, 'var(--accent-purple)', 'FOLLOW ME', 500);
+    }
+
+    draw();
+    startLeaseRenewal();
+    state.failoverRunning = false;
+
+    commentary('Failover complete. ' + winner.toUpperCase() + ' is the new primary. Old primary ' + deadId.toUpperCase() + ' is fenced. When it comes back, Patroni will automatically configure it as a standby of the new primary -- it never auto-reclaims leadership.');
+  }
+
+  async function partitionPrimary() {
+    if (state.failoverRunning || state.partitioned) return;
+    state.partitioned = true;
+    state.failoverRunning = true;
+    document.getElementById('pa-btn-partition').disabled = true;
+    document.getElementById('pa-btn-kill').disabled = true;
+    clearInterval(state.renewInterval);
+    draw();
+
+    commentary('Primary ' + state.primaryId.toUpperCase() + ' is partitioned from etcd. It is alive and processing queries, but cannot renew its leader lease. This is the split-brain danger zone.');
+    await delay(1200);
+
+    // TTL countdown
+    for (var t = state.leaseRemaining; t >= 0; t -= 5) {
+      state.leaseRemaining = Math.max(t, 0);
+      draw();
+      await delay(400);
+    }
+    state.leaseRemaining = 0;
+    draw();
+
+    commentary('Lease expired. The partitioned primary\'s Patroni detects it cannot reach etcd. SELF-FENCE: Patroni demotes Postgres to read-only mode. This is the senior detail -- the primary voluntarily gives up writes because it cannot prove it is still the leader.');
+    await delay(1500);
+
+    // Show self-demotion
+    draw();
+    await delay(800);
+
+    // Other standbys claim
+    var candidates = ['pg1', 'pg2', 'pg3'].filter(function(id) { return id !== state.primaryId && state[id + 'Alive']; });
+    var winner = candidates[0];
+
+    commentary('Meanwhile, standbys detect the expired lease in etcd. ' + winner.toUpperCase() + ' promotes itself as the new primary. Two Postgres instances existed briefly, but the old one self-fenced to read-only -- no split-brain writes occurred.');
+
+    var oldPrimary = state.primaryId;
+    state.primaryId = winner;
+    state.leaseRemaining = state.leaseTTL;
+    state.partitioned = false;
+    state.failoverRunning = false;
+    draw();
+    startLeaseRenewal();
+
+    commentary('Partition resolved. ' + winner.toUpperCase() + ' is the new primary. ' + oldPrimary.toUpperCase() + ' self-demoted to read-only the moment it lost contact with etcd. When the partition heals, ' + oldPrimary.toUpperCase() + '\'s Patroni will rejoin as a standby automatically. Zero split-brain writes.');
+  }
+
+  function reset() {
+    clearInterval(state.renewInterval);
+    state = {
+      primaryId: 'pg1', pg1Alive: true, pg2Alive: true, pg3Alive: true,
+      leaseTTL: 30, leaseRemaining: 30, renewInterval: null,
+      failoverRunning: false, partitioned: false
+    };
+    document.getElementById('pa-btn-kill').disabled = false;
+    document.getElementById('pa-btn-partition').disabled = false;
+    draw();
+    startLeaseRenewal();
+    commentary('Patroni manages Postgres HA using a distributed consensus store (etcd). The primary\'s Patroni holds a leader lease with a TTL of ~30s, renewing it every ~10s. If renewal stops, standbys detect the expired lease and race to claim leadership.');
+  }
+
+  return {
+    killPrimary: killPrimary,
+    partitionPrimary: partitionPrimary,
+    reset: reset
+  };
+})();
+
+
+/* ================================================================
+   TAB 4 -- LOGICAL REPLICATION
+   ================================================================ */
+var LR = (function() {
+  var state = {
+    publishedTables: { orders: true, users: false, products: false },
+    allTables: false,
+    conflict: false,
+    schemaChanged: false
+  };
+
+  var scene;
+
+  var tables = ['orders', 'users', 'products'];
+  var tableColors = { orders: 'var(--accent-blue)', users: 'var(--accent-green)', products: 'var(--accent-orange)' };
+
+  function draw() {
+    scene = document.getElementById('lr-scene');
+    scene.innerHTML = '';
+
+    // Publisher (left side)
+    scene.appendChild(svgEl('rect', {
+      x: 30, y: 30, width: 300, height: 360, rx: 8,
+      fill: 'none', stroke: 'var(--accent-blue)', 'stroke-width': 2
+    }));
+    scene.appendChild(svgText(180, 55, 'Publisher (Primary)', {
+      fill: 'var(--accent-blue)', 'font-size': '14', 'font-weight': '700'
+    }));
+
+    // Tables on publisher
+    tables.forEach(function(tbl, i) {
+      var y = 80 + i * 65;
+      var published = state.publishedTables[tbl];
+      var stroke = published ? tableColors[tbl] : '#333';
+      scene.appendChild(svgEl('rect', {
+        x: 50, y: y, width: 120, height: 45, rx: 4,
+        fill: '#12121a', stroke: stroke, 'stroke-width': published ? 1.5 : 1
+      }));
+      scene.appendChild(svgText(110, y + 28, tbl, {
+        fill: published ? tableColors[tbl] : '#555', 'font-size': '12', 'font-weight': '600'
+      }));
+
+      if (published) {
+        scene.appendChild(svgText(110, y + 14, 'published', {
+          fill: tableColors[tbl], 'font-size': '8', 'font-weight': '500', opacity: '0.6'
+        }));
+      }
+    });
+
+    // Schema change indicator
+    if (state.schemaChanged) {
+      scene.appendChild(svgEl('rect', {
+        x: 50, y: 80, width: 120, height: 45, rx: 4,
+        fill: 'none', stroke: 'var(--accent-yellow)', 'stroke-width': 2,
+        'stroke-dasharray': '4,3'
+      }));
+      scene.appendChild(svgText(110, 136, '+new_col', {
+        fill: 'var(--accent-yellow)', 'font-size': '9', 'font-weight': '700'
+      }));
+    }
+
+    // WAL -> Logical decoder
+    scene.appendChild(svgEl('rect', {
+      x: 190, y: 100, width: 120, height: 40, rx: 4,
+      fill: '#12121a', stroke: 'var(--accent-orange)', 'stroke-width': 1
+    }));
+    scene.appendChild(svgText(250, 115, 'WAL', { fill: 'var(--accent-orange)', 'font-size': '10', 'font-weight': '600' }));
+    scene.appendChild(svgText(250, 132, 'Logical Decoder', { fill: 'var(--accent-orange)', 'font-size': '9' }));
+
+    // Decoder -> Publication
+    scene.appendChild(svgEl('line', {
+      x1: 250, y1: 145, x2: 250, y2: 170,
+      stroke: '#444', 'stroke-width': 1, 'marker-end': 'url(#lr-arrow)'
+    }));
+
+    // Publication box
+    scene.appendChild(svgEl('rect', {
+      x: 190, y: 175, width: 120, height: 35, rx: 4,
+      fill: '#12121a', stroke: 'var(--accent-purple)', 'stroke-width': 1.5
+    }));
+    scene.appendChild(svgText(250, 197, 'Publication', {
+      fill: 'var(--accent-purple)', 'font-size': '11', 'font-weight': '600'
+    }));
+
+    // Publication -> Subscriber arrow
+    scene.appendChild(svgEl('line', {
+      x1: 310, y1: 192, x2: 500, y2: 192,
+      stroke: 'var(--accent-purple)', 'stroke-width': 1.5,
+      'stroke-dasharray': '6,3', 'marker-end': 'url(#lr-arrow)'
+    }));
+    scene.appendChild(svgText(405, 183, 'decoded tuples', {
+      fill: 'var(--accent-purple)', 'font-size': '9', 'font-style': 'italic'
+    }));
+    scene.appendChild(svgText(405, 206, 'INSERT / UPDATE / DELETE', {
+      fill: '#555', 'font-size': '8'
+    }));
+
+    // Subscriber (right side)
+    scene.appendChild(svgEl('rect', {
+      x: 490, y: 30, width: 340, height: 360, rx: 8,
+      fill: 'none', stroke: 'var(--accent-cyan)', 'stroke-width': 2
+    }));
+    scene.appendChild(svgText(660, 55, 'Subscriber', {
+      fill: 'var(--accent-cyan)', 'font-size': '14', 'font-weight': '700'
+    }));
+
+    // Subscription box
+    scene.appendChild(svgEl('rect', {
+      x: 510, y: 175, width: 120, height: 35, rx: 4,
+      fill: '#12121a', stroke: 'var(--accent-cyan)', 'stroke-width': 1.5
+    }));
+    scene.appendChild(svgText(570, 197, 'Subscription', {
+      fill: 'var(--accent-cyan)', 'font-size': '11', 'font-weight': '600'
+    }));
+
+    // Subscription status
+    if (state.conflict) {
+      scene.appendChild(svgEl('rect', {
+        x: 510, y: 220, width: 120, height: 25, rx: 4,
+        fill: '#1a1520', stroke: 'var(--accent-red)', 'stroke-width': 1
+      }));
+      scene.appendChild(svgText(570, 237, 'ERROR: conflict', {
+        fill: 'var(--accent-red)', 'font-size': '9', 'font-weight': '700'
+      }));
+    }
+
+    // Tables on subscriber
+    tables.forEach(function(tbl, i) {
+      var y = 80 + i * 65;
+      var subscribed = state.publishedTables[tbl];
+      var stroke = subscribed ? tableColors[tbl] : '#333';
+      scene.appendChild(svgEl('rect', {
+        x: 670, y: y, width: 120, height: 45, rx: 4,
+        fill: '#12121a', stroke: stroke, 'stroke-width': subscribed ? 1.5 : 1
+      }));
+      scene.appendChild(svgText(730, y + 28, tbl, {
+        fill: subscribed ? tableColors[tbl] : '#555', 'font-size': '12', 'font-weight': '600'
+      }));
+
+      if (subscribed) {
+        scene.appendChild(svgText(730, y + 14, 'replicated', {
+          fill: tableColors[tbl], 'font-size': '8', 'font-weight': '500', opacity: '0.6'
+        }));
+      }
+    });
+
+    // Schema mismatch indicator on subscriber
+    if (state.schemaChanged) {
+      scene.appendChild(svgEl('rect', {
+        x: 670, y: 80, width: 120, height: 45, rx: 4,
+        fill: 'none', stroke: 'var(--accent-red)', 'stroke-width': 2,
+        'stroke-dasharray': '4,3'
+      }));
+      scene.appendChild(svgText(730, 136, 'no new_col!', {
+        fill: 'var(--accent-red)', 'font-size': '9', 'font-weight': '700'
+      }));
+    }
+
+    // Local writes indicator on subscriber
+    scene.appendChild(svgText(660, 340, 'Subscriber has its own writes', {
+      fill: '#555', 'font-size': '10', 'font-style': 'italic'
+    }));
+    scene.appendChild(svgText(660, 356, '(independent Postgres instance)', {
+      fill: '#444', 'font-size': '9'
+    }));
+  }
+
+  function commentary(text) {
+    document.getElementById('lr-commentary').textContent = text;
+  }
+
+  draw();
+
+  async function writeToTable(tbl) {
+    var published = state.publishedTables[tbl];
+    var color = tableColors[tbl];
+    var tblIdx = tables.indexOf(tbl);
+    var srcY = 102 + tblIdx * 65;
+
+    // Animate write on publisher
+    await animPkt(scene, 50, srcY, 110, srcY, color, 'INSERT', 300);
+
+    if (!published) {
+      commentary('Write to "' + tbl + '" on publisher. This table is NOT in the publication -- the change is NOT replicated. Only published tables flow to the subscriber.');
+      return;
+    }
+
+    commentary('Write to "' + tbl + '" on publisher. WAL entry is decoded into a logical tuple change and streamed through the publication to the subscriber.');
+
+    // WAL -> Decoder -> Publication -> Subscription -> Subscriber table
+    await animPkt(scene, 170, srcY, 250, 115, 'var(--accent-orange)', 'WAL', 300);
+    await animPkt(scene, 250, 145, 250, 192, 'var(--accent-purple)', 'decode', 200);
+    await animPkt(scene, 310, 192, 570, 192, 'var(--accent-purple)', 'INSERT row', 500);
+    await animPkt(scene, 570, 192, 730, srcY, color, 'APPLY', 300);
+
+    if (state.schemaChanged && tbl === 'orders') {
+      commentary('Schema mismatch: the publisher has a new column that the subscriber does not. Logical replication does NOT auto-propagate DDL (ALTER TABLE). The subscriber will either drop the extra column data or error, depending on the change.');
+    } else {
+      commentary('Row replicated to subscriber. Logical replication decoded the WAL entry into a tuple-level INSERT and applied it on the subscriber. The subscriber can have different indexes, permissions, or even a different Postgres major version.');
+    }
+  }
+
+  async function triggerConflict() {
+    state.conflict = true;
+    draw();
+    commentary('Conflict: both publisher and subscriber wrote to the same primary key in "orders". The subscriber\'s apply worker encounters a duplicate key violation and PAUSES replication. All subsequent changes queue up until the conflict is manually resolved.');
+
+    var srcY = 102;
+    // Show conflicting writes on both sides
+    await animPkt(scene, 110, srcY, 250, 115, 'var(--accent-red)', 'PK=100', 300);
+    await animPkt(scene, 730, srcY, 570, 197, 'var(--accent-red)', 'PK=100', 300);
+
+    await delay(800);
+    draw();
+
+    commentary('Subscription paused. To resolve: DELETE the conflicting row on the subscriber, then ALTER SUBSCRIPTION ... ENABLE. This is why logical replication is not transparent multi-master -- conflicts require manual intervention or custom conflict handlers.');
+  }
+
+  function toggleAllTables() {
+    state.allTables = !state.allTables;
+    var btn = document.getElementById('lr-btn-all');
+    btn.classList.toggle('active-btn', state.allTables);
+
+    if (state.allTables) {
+      state.publishedTables = { orders: true, users: true, products: true };
+      commentary('Publication changed to FOR ALL TABLES. Every table on the publisher is now included. New tables created in the future will also be automatically published.');
+    } else {
+      state.publishedTables = { orders: true, users: false, products: false };
+      commentary('Publication reverted to explicit table list (orders only). Only explicitly listed tables are replicated. This gives fine-grained control over what flows to the subscriber.');
+    }
+    draw();
+  }
+
+  async function alterTable() {
+    state.schemaChanged = true;
+    document.getElementById('lr-btn-alter').disabled = true;
+    draw();
+    commentary('ALTER TABLE orders ADD COLUMN new_col on the publisher. DDL is NOT replicated by logical replication -- the subscriber\'s schema is unchanged. If the new column has a NOT NULL default, inserts will succeed on the subscriber (extra column silently dropped). But if the subscriber expects the column, it will fail.');
+  }
+
+  function reset() {
+    state = {
+      publishedTables: { orders: true, users: false, products: false },
+      allTables: false,
+      conflict: false,
+      schemaChanged: false
+    };
+    document.getElementById('lr-btn-all').classList.remove('active-btn');
+    document.getElementById('lr-btn-alter').disabled = false;
+    draw();
+    commentary('The publisher decodes WAL entries into logical tuple changes and streams them through a publication. Only tables included in the publication are replicated. The subscriber applies changes via its own subscription -- it can lag, conflict, or fail independently.');
+  }
+
+  return {
+    writeToTable: writeToTable,
+    triggerConflict: triggerConflict,
+    toggleAllTables: toggleAllTables,
+    alterTable: alterTable,
+    reset: reset
+  };
+})();
+
+
+/* ================================================================
+   TAB 5 -- SHARDED (CITUS)
+   ================================================================ */
+var CI = (function() {
+  var scene;
+
+  var workers = [
+    { id: 'W1', color: '#ff6b6b', shards: [0, 1], x: 0, y: 0 },
+    { id: 'W2', color: '#51cf66', shards: [2, 3], x: 0, y: 0 },
+    { id: 'W3', color: '#339af0', shards: [4, 5], x: 0, y: 0 },
+    { id: 'W4', color: '#ffa94d', shards: [6, 7], x: 0, y: 0 }
+  ];
+  var coordinator = { x: 430, y: 60 };
+  var totalShards = 8;
+  var w5Added = false;
+
+  function layout() {
+    var n = workers.length;
+    var spacing = 760 / (n + 1);
+    for (var i = 0; i < n; i++) {
+      workers[i].x = 50 + spacing * (i + 1);
+      workers[i].y = 290;
+    }
+  }
+
+  function hashTenant(id) {
+    var h = 0;
+    var s = String(id);
+    for (var i = 0; i < s.length; i++) {
+      h = ((h << 5) - h + s.charCodeAt(i)) | 0;
+    }
+    return Math.abs(h) % totalShards;
+  }
+
+  function findWorker(shard) {
+    for (var i = 0; i < workers.length; i++) {
+      if (workers[i].shards.indexOf(shard) !== -1) return workers[i];
+    }
+    return null;
+  }
+
+  function draw() {
+    scene = document.getElementById('ci-scene');
+    scene.innerHTML = '';
+    layout();
+
+    // Coordinator
+    scene.appendChild(svgEl('rect', {
+      x: coordinator.x - 90, y: coordinator.y - 30,
+      width: 180, height: 60, rx: 8,
+      fill: '#181820', stroke: 'var(--accent-purple)', 'stroke-width': 2
+    }));
+    scene.appendChild(svgText(coordinator.x, coordinator.y - 5, 'Coordinator', {
+      fill: 'var(--accent-purple)', 'font-size': '14', 'font-weight': '700'
+    }));
+    scene.appendChild(svgText(coordinator.x, coordinator.y + 14, 'query router', {
+      fill: '#666', 'font-size': '10'
+    }));
+
+    // Workers
+    workers.forEach(function(w) {
+      // Connection line
+      scene.appendChild(svgEl('line', {
+        x1: coordinator.x, y1: coordinator.y + 30,
+        x2: w.x, y2: w.y - 55,
+        stroke: w.color + '22', 'stroke-width': 1.5,
+        'stroke-dasharray': '4,4'
+      }));
+
+      // Worker box
+      scene.appendChild(svgEl('rect', {
+        x: w.x - 70, y: w.y - 50,
+        width: 140, height: 100, rx: 8,
+        fill: '#181820', stroke: w.color, 'stroke-width': 2
+      }));
+      scene.appendChild(svgText(w.x, w.y - 28, w.id + ' (Postgres)', {
+        fill: w.color, 'font-size': '12', 'font-weight': '700'
+      }));
+
+      // Shard boxes inside worker
+      var shardCount = w.shards.length;
+      var shardW = 55;
+      var startX = w.x - (shardCount * shardW + (shardCount - 1) * 5) / 2;
+      w.shards.forEach(function(s, i) {
+        var sx = startX + i * (shardW + 5);
+        scene.appendChild(svgEl('rect', {
+          x: sx, y: w.y - 5,
+          width: shardW, height: 30, rx: 3,
+          fill: w.color, opacity: '0.15',
+          stroke: w.color, 'stroke-width': 1
+        }));
+        scene.appendChild(svgText(sx + shardW / 2, w.y + 15, 'shard ' + s, {
+          fill: w.color, 'font-size': '9', 'font-weight': '600'
+        }));
+      });
+
+      // Reference table indicator
+      scene.appendChild(svgText(w.x, w.y + 42, 'ref: countries, currencies', {
+        fill: '#555', 'font-size': '8', 'font-style': 'italic'
+      }));
+    });
+  }
+
+  function commentary(text) {
+    document.getElementById('ci-commentary').textContent = text;
+  }
+
+  layout();
+  draw();
+
+  function lookupTenant() {
+    var raw = document.getElementById('ci-tenant-input').value.trim();
+    if (!raw) return;
+    var shard = hashTenant(raw);
+    var worker = findWorker(shard);
+    var display = document.getElementById('ci-hash-display');
+
+    var lines = [];
+    lines.push('tenant_id:  ' + raw);
+    lines.push('hash:       hash(' + raw + ') mod ' + totalShards + ' = shard ' + shard);
+    lines.push('worker:     ' + (worker ? worker.id : 'unknown'));
+    lines.push('');
+    lines.push('All data for tenant ' + raw + ' lives on ' + (worker ? worker.id : '?') + '.');
+    lines.push('Co-located tables (orders, customers with same tenant_id) join locally.');
+    display.textContent = lines.join('\n');
+
+    // Pulse the worker
+    if (worker) {
+      draw();
+      var pulse = svgEl('rect', {
+        x: worker.x - 70, y: worker.y - 50,
+        width: 140, height: 100, rx: 8,
+        fill: 'none', stroke: worker.color, 'stroke-width': 3, opacity: '0.9'
+      });
+      pulse.style.transition = 'all 0.8s ease';
+      scene.appendChild(pulse);
+      requestAnimationFrame(function() {
+        pulse.setAttribute('opacity', '0');
+        pulse.setAttribute('x', String(worker.x - 80));
+        pulse.setAttribute('y', String(worker.y - 60));
+        pulse.setAttribute('width', '160');
+        pulse.setAttribute('height', '120');
+      });
+      setTimeout(function() {
+        if (pulse.parentNode) pulse.parentNode.removeChild(pulse);
+      }, 900);
+
+      commentary('tenant_id=' + raw + ' hashes to shard ' + shard + ' on ' + worker.id + '. A query WHERE tenant_id=' + raw + ' is routed directly to ' + worker.id + ' -- no other workers are touched.');
+    }
+  }
+
+  document.getElementById('ci-tenant-input').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') lookupTenant();
+  });
+
+  async function demoColocated() {
+    draw();
+    commentary('Co-located JOIN: SELECT * FROM orders JOIN customers USING (tenant_id) WHERE tenant_id=42. Both tables share the same distribution column, so the join executes locally on a single worker.');
+
+    var shard = hashTenant('42');
+    var worker = findWorker(shard);
+    if (!worker) return;
+
+    // Query to coordinator
+    await animPkt(scene, coordinator.x, coordinator.y + 30, coordinator.x, coordinator.y + 30, 'var(--accent-green)', 'JOIN query', 200);
+    // Coordinator routes to single worker
+    await animPkt(scene, coordinator.x, coordinator.y + 30, worker.x, worker.y - 50, 'var(--accent-green)', 'local JOIN', 500);
+
+    // Show local join on worker
+    scene.appendChild(svgEl('rect', {
+      x: worker.x - 60, y: worker.y - 85,
+      width: 120, height: 22, rx: 3,
+      fill: '#12221a', stroke: 'var(--accent-green)', 'stroke-width': 1
+    }));
+    scene.appendChild(svgText(worker.x, worker.y - 70, 'JOIN local', {
+      fill: 'var(--accent-green)', 'font-size': '10', 'font-weight': '700'
+    }));
+
+    await delay(800);
+
+    // Return result
+    await animPkt(scene, worker.x, worker.y - 50, coordinator.x, coordinator.y + 30, '#51cf66', 'ROWS', 400);
+
+    commentary('Co-located join completed on ' + worker.id + ' alone. No network shuffle. No cross-worker coordination. This is the 90% case when the distribution column is chosen correctly (tenant_id for multi-tenant SaaS).');
+  }
+
+  async function demoCrossShard() {
+    draw();
+    commentary('Cross-shard query: SELECT count(*) FROM orders. The coordinator pushes per-shard fragments to ALL workers in parallel. Each worker returns a partial count. Coordinator aggregates.');
+
+    // Push fragments to all workers
+    var promises = workers.map(function(w) {
+      return animPkt(scene, coordinator.x, coordinator.y + 30, w.x, w.y - 50, 'var(--accent-blue)', 'COUNT(*)', 400);
+    });
+    await Promise.all(promises);
+
+    await delay(400);
+
+    // Partial results back
+    var returnPromises = workers.map(function(w, i) {
+      return delay(i * 100).then(function() {
+        return animPkt(scene, w.x, w.y - 50, coordinator.x, coordinator.y + 30, '#51cf66', String(1000 + i * 250), 400);
+      });
+    });
+    await Promise.all(returnPromises);
+
+    commentary('Coordinator received partial counts from all ' + workers.length + ' workers and summed them: ' + (workers.length * 1000 + (workers.length * (workers.length - 1) / 2) * 250) + ' total rows. Cross-shard aggregations work but require all workers to participate. Push-down optimization: each worker computes its partial aggregate locally.');
+  }
+
+  async function demoNonColocated() {
+    draw();
+    commentary('Non-co-located JOIN: SELECT * FROM orders JOIN products ON orders.product_id = products.id. "products" is distributed by product_id, "orders" by tenant_id -- different distribution columns. Coordinator must shuffle data between workers.');
+
+    // Show shuffle arrows between all worker pairs
+    for (var i = 0; i < workers.length; i++) {
+      for (var j = i + 1; j < workers.length; j++) {
+        scene.appendChild(svgEl('line', {
+          x1: workers[i].x, y1: workers[i].y,
+          x2: workers[j].x, y2: workers[j].y,
+          stroke: 'var(--accent-red)', 'stroke-width': 1.5,
+          'stroke-dasharray': '4,3', opacity: '0.6'
+        }));
+      }
+    }
+
+    // Animate shuffles
+    for (var k = 0; k < Math.min(workers.length, 3); k++) {
+      var from = workers[k];
+      var to = workers[(k + 1) % workers.length];
+      await animPkt(scene, from.x, from.y, to.x, to.y, 'var(--accent-red)', 'SHUFFLE', 400);
+    }
+
+    scene.appendChild(svgText(coordinator.x, coordinator.y + 115, 'network shuffle required', {
+      fill: 'var(--accent-red)', 'font-size': '11', 'font-weight': '700'
+    }));
+
+    await delay(500);
+
+    commentary('Non-co-located join requires a network shuffle (redistribution). Each worker sends matching rows to the worker that can complete the join. This is expensive and slow. Fix: make "products" a reference table (small dimension table replicated to every worker) so the join is always local.');
+  }
+
+  async function addWorker() {
+    if (w5Added) return;
+    w5Added = true;
+    document.getElementById('ci-btn-add').disabled = true;
+
+    workers.push({
+      id: 'W5', color: 'var(--accent-cyan)', shards: [], x: 0, y: 0
+    });
+    layout();
+    draw();
+    commentary('Worker W5 added to the cluster. Citus will rebalance shards by migrating some shards from existing workers to W5.');
+    await delay(1200);
+
+    // Rebalance: move one shard from W1 and one from W4 to W5
+    commentary('Rebalancing: migrating shard 1 from W1 and shard 7 from W4 to W5...');
+
+    await animPkt(scene, workers[0].x, workers[0].y, workers[4].x, workers[4].y, '#ff6b6b', 'shard 1', 600);
+    workers[0].shards = [0];
+    workers[4].shards.push(1);
+    draw();
+    await delay(400);
+
+    await animPkt(scene, workers[3].x, workers[3].y, workers[4].x, workers[4].y, '#ffa94d', 'shard 7', 600);
+    workers[3].shards = [6];
+    workers[4].shards.push(7);
+    draw();
+
+    commentary('Rebalance complete. W5 now holds shards 1 and 7. During migration, Citus uses a "shard move" operation: logical replication copies data, then the coordinator updates its metadata. Queries during migration are briefly redirected. Zero downtime.');
+  }
+
+  function reset() {
+    workers = [
+      { id: 'W1', color: '#ff6b6b', shards: [0, 1], x: 0, y: 0 },
+      { id: 'W2', color: '#51cf66', shards: [2, 3], x: 0, y: 0 },
+      { id: 'W3', color: '#339af0', shards: [4, 5], x: 0, y: 0 },
+      { id: 'W4', color: '#ffa94d', shards: [6, 7], x: 0, y: 0 }
+    ];
+    w5Added = false;
+    document.getElementById('ci-btn-add').disabled = false;
+    document.getElementById('ci-hash-display').textContent = 'Enter a tenant_id and click Lookup to see hash -> shard -> worker mapping.';
+    layout();
+    draw();
+    commentary('Citus distributes tables across workers by hashing the distribution column. The coordinator rewrites SQL into per-shard fragments, pushes them to workers, and aggregates results. Co-located tables (same distribution column) can join locally on each worker.');
+  }
+
+  return {
+    lookupTenant: lookupTenant,
+    demoColocated: demoColocated,
+    demoCrossShard: demoCrossShard,
+    demoNonColocated: demoNonColocated,
+    addWorker: addWorker,
+    reset: reset
+  };
+})();
+</script>
+</body>
+</html>

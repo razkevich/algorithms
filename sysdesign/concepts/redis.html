@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Redis interview cheat sheet -- topologies, data types, persistence, eviction, gotchas, and system-design pattern transfer for senior engineers.">
+<title>Redis — interview cheat sheet (topologies, data types, persistence, gotchas)</title>
+<style>
+  :root {
+    --bg: #0f0f15;
+    --surface: #181820;
+    --surface-2: #20202a;
+    --border: #2a2a35;
+    --text: #e6e6ea;
+    --text-2: #cfcfd6;
+    --text-3: #888;
+    --accent-red: #ff6b6b;
+    --accent-green: #51cf66;
+    --accent-blue: #339af0;
+    --accent-yellow: #ffd43b;
+    --accent-purple: #cc5de8;
+    --accent-cyan: #8be9fd;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 32px 24px;
+    max-width: 980px;
+    margin: 0 auto;
+    line-height: 1.55;
+  }
+
+  @media (max-width: 720px) {
+    body { padding: 20px 14px; }
+  }
+
+  h1 { color: #fff; margin-bottom: 4px; }
+  h1 + p.sub { color: var(--text-3); font-style: italic; margin-top: 0; margin-bottom: 30px; }
+
+  h2 {
+    color: #fff;
+    margin-top: 50px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 8px;
+  }
+
+  h3 { color: var(--text-2); margin-top: 28px; }
+
+  p { margin: 14px 0; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 18px 0;
+    font-size: 14px;
+  }
+
+  th, td {
+    border: 1px solid var(--border);
+    padding: 8px 12px;
+    text-align: left;
+    vertical-align: top;
+  }
+
+  th { background: var(--surface-2); color: #fff; }
+
+  code {
+    background: var(--surface-2);
+    padding: 2px 6px;
+    border-radius: 3px;
+    color: var(--accent-cyan);
+    font-size: 13px;
+    font-family: 'SF Mono', 'Menlo', 'Consolas', monospace;
+  }
+
+  .takeaway {
+    background: var(--surface);
+    border-left: 3px solid var(--accent-green);
+    padding: 12px 16px;
+    margin: 18px 0;
+    font-size: 14px;
+  }
+
+  .takeaway strong { color: var(--accent-green); }
+
+  .note {
+    color: var(--text-3);
+    font-size: 13px;
+    font-style: italic;
+    text-align: center;
+    margin: 4px 0 18px;
+  }
+
+  .table-wrap { overflow-x: auto; }
+
+  blockquote {
+    border-left: 3px solid var(--border);
+    margin: 14px 0;
+    padding: 8px 16px;
+    color: var(--text-2);
+    font-size: 14px;
+  }
+
+  footer {
+    margin-top: 50px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+    font-size: 13px;
+    color: var(--text-3);
+  }
+</style>
+</head>
+<body>
+
+<h1>Redis — interview kit</h1>
+<p class="sub">Topologies, data types, persistence, eviction, the gotchas that trip senior candidates, and the system-design patterns Redis lets you transfer.</p>
+
+<!-- ================================================================ -->
+<section>
+<h2>1. TL;DR</h2>
+
+<p>
+Redis is a single-threaded, in-memory K/V server with a rich type system (~9 data structures).
+One instance does ~100k ops/sec at sub-ms p99 with a typical workload.
+Persistence is optional (RDB snapshots, AOF log, or hybrid).
+Scale by adding read replicas (Sentinel) or by sharding across many primaries (Cluster).
+Default reach: cache + session store + leaderboard + rate limiter + distributed lock + pub-sub bus + lightweight stream/queue.
+</p>
+
+<div class="takeaway">
+<strong>The 30-second framing.</strong>
+"Redis fits when the working set fits in RAM, the access pattern is K/V or one of the rich types (sorted set, stream), and the consistency model — async replication, lossy on failover — is acceptable. If I need durability of every write under failover I reach for Postgres or DynamoDB instead."
+</div>
+
+<h3>When NOT to use Redis</h3>
+<p>
+Knowing when to reach for Redis is only half the signal; knowing when to <em>not</em> reach for it is the other half.
+Do not propose Redis when:
+</p>
+<ul>
+  <li><strong>Working set exceeds available RAM.</strong> Redis is memory-bound. If the dataset is 500 GB and growing, you need a disk-backed store (Postgres, DynamoDB, Cassandra) — not a bigger EC2 instance.</li>
+  <li><strong>Durability on every write is a hard requirement.</strong> Async replication means a failover can lose the last second(s) of writes. For financial transactions, order placements, or anything where a single lost write is a business-critical incident, use a database with synchronous WAL (Postgres) or a managed durable store (DynamoDB).</li>
+  <li><strong>Complex queries (joins, aggregations, full-text search).</strong> Redis is a key-access store. If the access pattern requires ad-hoc SQL, use Postgres. If it requires full-text search, use Elasticsearch.</li>
+  <li><strong>Multi-key transactions across shards.</strong> Redis Cluster has no cross-shard atomicity. If the domain requires ACID across entities that can't be colocated by hash tag, Redis is the wrong primary store.</li>
+</ul>
+</section>
+
+<!-- ================================================================ -->
+<section>
+<h2>2. Topologies — pick by failure model and scale ceiling</h2>
+
+<div class="table-wrap" style="overflow-x:auto;">
+<table>
+  <thead>
+    <tr>
+      <th>Mode</th>
+      <th>Read scale</th>
+      <th>Write scale</th>
+      <th>HA</th>
+      <th>Consistency on failover</th>
+      <th>Ops cost</th>
+      <th>Pick when</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Standalone</strong></td>
+      <td>1 instance</td>
+      <td>1 instance</td>
+      <td>none — single point of failure</td>
+      <td>n/a (no failover)</td>
+      <td>lowest</td>
+      <td>dev, batch jobs, throwaway cache</td>
+    </tr>
+    <tr>
+      <td><strong>Sentinel</strong> (master + replicas + sentinels)</td>
+      <td>replicas serve reads</td>
+      <td>1 master</td>
+      <td>auto failover ~10-30s</td>
+      <td>async repl — may lose unacked writes</td>
+      <td>medium</td>
+      <td>HA needed, dataset still fits one node, single primary throughput is enough</td>
+    </tr>
+    <tr>
+      <td><strong>Cluster</strong> (multi-shard, each shard has its own replica)</td>
+      <td>per-shard horizontal</td>
+      <td>per-shard horizontal (sharded by hash slot)</td>
+      <td>replica per primary, gossip-detected failover</td>
+      <td>async repl per shard, no cross-shard transactions</td>
+      <td>highest</td>
+      <td>dataset &gt; one node's RAM, or write throughput &gt; one primary</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<div class="takeaway">
+<strong>The slot count is fixed.</strong>
+Redis Cluster always has 16384 hash slots. <code>CRC16(key) % 16384</code> maps to slot maps to primary. This is <em>not</em> consistent hashing — adding/removing a primary triggers explicit slot migration with <code>MIGRATE</code>. The trade-off is simpler tooling at the cost of manual rebalancing.
+</div>
+
+<h3>Sentinel vs Cluster — the fork in the decision tree</h3>
+<p>
+The most common topology mistake in interviews is jumping straight to Cluster when Sentinel suffices.
+The decision tree is simple: can the entire dataset fit in one node's RAM (typically 25-100 GB usable)?
+If yes, Sentinel gives you HA with much lower operational complexity — no hash slots, no <code>MOVED</code>/<code>ASK</code>
+redirects, no cross-slot restrictions on <code>MULTI</code> or Lua. The write ceiling of a single primary
+(~100k ops/sec) is enough for the vast majority of workloads.
+</p>
+<p>
+Cluster is the answer when you need to shard <em>writes</em> across primaries (write throughput > one node)
+or the dataset genuinely exceeds one node's RAM. State that trade-off explicitly in the interview:
+"I'd start with Sentinel because our dataset is ~20 GB and a single primary handles our write QPS;
+if we outgrow that, we migrate to Cluster and accept the cross-slot constraints."
+</p>
+
+<p>Transfers to:</p>
+<ul>
+  <li><strong>Standalone</strong> generalizes to any single-writer, single-reader embedded store (SQLite, BoltDB).</li>
+  <li><strong>Sentinel</strong> generalizes to leader-follower with external election (Postgres + Patroni, MySQL + Orchestrator).</li>
+  <li><strong>Cluster</strong> generalizes to static-shard architectures (Vitess, MongoDB sharded cluster, DynamoDB partitions).</li>
+</ul>
+</section>
+
+<!-- ================================================================ -->
+<section>
+<h2>3. Data structures — pick by access pattern</h2>
+
+<div class="table-wrap" style="overflow-x:auto;">
+<table>
+  <thead>
+    <tr>
+      <th>Type</th>
+      <th>Big-O common ops</th>
+      <th>Use when</th>
+      <th>Canonical example</th>
+      <th>Key commands</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>String</strong></td>
+      <td>O(1) GET/SET, O(1) INCR</td>
+      <td>simple K/V, counters, tokens</td>
+      <td>session store, atomic rate counter</td>
+      <td><code>GET</code> / <code>SET</code> / <code>SETEX</code> / <code>INCR</code> / <code>INCRBY</code> / <code>EXPIRE</code></td>
+    </tr>
+    <tr>
+      <td><strong>Hash</strong></td>
+      <td>O(1) per field</td>
+      <td>object with addressable fields</td>
+      <td>user profile (<code>HSET user:42 name ... email ...</code>)</td>
+      <td><code>HGET</code> / <code>HSET</code> / <code>HMGET</code> / <code>HINCRBY</code> / <code>HGETALL</code></td>
+    </tr>
+    <tr>
+      <td><strong>List</strong></td>
+      <td>O(1) ends, O(N) middle</td>
+      <td>queue, recent items, undo stack</td>
+      <td>timeline buffer (<code>LPUSH news:42 ... LTRIM 0 99</code>)</td>
+      <td><code>LPUSH</code> / <code>RPUSH</code> / <code>LPOP</code> / <code>LRANGE</code> / <code>LTRIM</code> / <code>BLPOP</code></td>
+    </tr>
+    <tr>
+      <td><strong>Set</strong></td>
+      <td>O(1) add/remove/check</td>
+      <td>uniqueness, membership tests, set algebra</td>
+      <td>tags, distinct visitor IDs, follow graph</td>
+      <td><code>SADD</code> / <code>SREM</code> / <code>SISMEMBER</code> / <code>SUNION</code> / <code>SINTER</code></td>
+    </tr>
+    <tr>
+      <td><strong>Sorted Set (ZSET)</strong></td>
+      <td>O(log N)</td>
+      <td>score-ordered ranked data</td>
+      <td>leaderboard, priority queue, sliding-window rate limiter</td>
+      <td><code>ZADD</code> / <code>ZRANGE</code> / <code>ZRANGEBYSCORE</code> / <code>ZINCRBY</code> / <code>ZRANGEBYLEX</code></td>
+    </tr>
+    <tr>
+      <td><strong>Stream</strong></td>
+      <td>O(1) append, O(log N) range</td>
+      <td>append-only log with consumer groups</td>
+      <td>event log, persistent queue with at-least-once, "Kafka-lite"</td>
+      <td><code>XADD</code> / <code>XREAD</code> / <code>XREADGROUP</code> / <code>XACK</code> / <code>XPENDING</code></td>
+    </tr>
+    <tr>
+      <td><strong>HyperLogLog</strong></td>
+      <td>O(1), ~12 KB constant</td>
+      <td>approximate cardinality at scale</td>
+      <td>unique users today, distinct IPs</td>
+      <td><code>PFADD</code> / <code>PFCOUNT</code> / <code>PFMERGE</code></td>
+    </tr>
+    <tr>
+      <td><strong>Bitmap</strong></td>
+      <td>O(1) bit ops</td>
+      <td>dense flags, binary state</td>
+      <td>user-active-day bitmap (<code>SETBIT user:42:active &lt;dayN&gt; 1</code>), feature flags</td>
+      <td><code>SETBIT</code> / <code>GETBIT</code> / <code>BITCOUNT</code> / <code>BITOP</code></td>
+    </tr>
+    <tr>
+      <td><strong>GEO</strong></td>
+      <td>O(log N)</td>
+      <td>radius queries, nearest-N</td>
+      <td>nearby drivers, store locator</td>
+      <td><code>GEOADD</code> / <code>GEOSEARCH</code> / <code>GEORADIUS</code></td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<div class="takeaway">
+<strong>The interview tell.</strong>
+When the interviewer says "leaderboard," "rate limiter," "trending," or "nearby" — the right opening move is naming the Redis structure (sorted set / sorted set / sorted set / GEO) before reaching for SQL. It signals you know the toolbox.
+</div>
+</section>
+
+<!-- ================================================================ -->
+<section>
+<h2>4. Persistence — durability vs restart speed</h2>
+
+<div class="table-wrap" style="overflow-x:auto;">
+<table>
+  <thead>
+    <tr>
+      <th>Mode</th>
+      <th>What it writes</th>
+      <th>Durability window</th>
+      <th>Recovery time</th>
+      <th>Memory cost during snapshot</th>
+      <th>Pick when</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>None</strong></td>
+      <td>nothing</td>
+      <td>0 (everything lost on restart)</td>
+      <td>instant</td>
+      <td>none</td>
+      <td>pure cache, can rebuild from authoritative source</td>
+    </tr>
+    <tr>
+      <td><strong>RDB</strong></td>
+      <td>periodic point-in-time snapshot (BGSAVE forks)</td>
+      <td>last snapshot — minutes</td>
+      <td>fast (load file)</td>
+      <td>2x during fork (copy-on-write)</td>
+      <td>OK to lose minutes; care about fast restart</td>
+    </tr>
+    <tr>
+      <td><strong>AOF</strong></td>
+      <td>every command (fsync configurable: every-second by default)</td>
+      <td>&lt;1s with default fsync</td>
+      <td>slow (replay log)</td>
+      <td>low</td>
+      <td>need durability; restart time is secondary</td>
+    </tr>
+    <tr>
+      <td><strong>Hybrid (RDB+AOF)</strong></td>
+      <td>RDB base + AOF tail</td>
+      <td>&lt;1s</td>
+      <td>medium (load RDB then replay tail)</td>
+      <td>2x during fork</td>
+      <td>production default</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<h3>Eviction policies</h3>
+
+<div class="table-wrap" style="overflow-x:auto;">
+<table>
+  <thead>
+    <tr>
+      <th>Policy</th>
+      <th>What it evicts</th>
+      <th>Pick when</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>noeviction</code></td>
+      <td>nothing — writes fail when maxmemory hit</td>
+      <td>persistent store, can't lose data (default if you're using Redis as primary store)</td>
+    </tr>
+    <tr>
+      <td><code>allkeys-lru</code></td>
+      <td>least-recently-used from any key</td>
+      <td>general-purpose cache, mixed access patterns</td>
+    </tr>
+    <tr>
+      <td><code>allkeys-lfu</code></td>
+      <td>least-frequently-used from any key</td>
+      <td>cache where access is heavily skewed (a few hot keys, long tail)</td>
+    </tr>
+    <tr>
+      <td><code>volatile-lru</code></td>
+      <td>LRU among keys with a TTL</td>
+      <td>mixed: some keys are cache (TTL set), some are durable (no TTL) — only the cache portion evicts</td>
+    </tr>
+    <tr>
+      <td><code>volatile-lfu</code></td>
+      <td>LFU among TTL'd keys</td>
+      <td>same as above with skewed access</td>
+    </tr>
+    <tr>
+      <td><code>volatile-ttl</code></td>
+      <td>shortest-remaining-TTL first</td>
+      <td>TTL is your priority signal (shorter = less important)</td>
+    </tr>
+    <tr>
+      <td><code>allkeys-random</code></td>
+      <td>random</td>
+      <td>rarely useful — only when access is uniform</td>
+    </tr>
+    <tr>
+      <td><code>volatile-random</code></td>
+      <td>random among TTL'd</td>
+      <td>same — rare</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<div class="takeaway">
+<strong>The default is wrong for caches.</strong>
+Out-of-the-box Redis uses <code>noeviction</code>, which is correct for "primary store" mode and dangerous for "cache" mode (writes start failing when memory fills). Always set <code>maxmemory-policy</code> explicitly. For most caches: <code>allkeys-lru</code>.
+</div>
+
+<h3>Caching patterns — which to name in the interview</h3>
+
+<div class="table-wrap" style="overflow-x:auto;">
+<table>
+  <thead>
+    <tr>
+      <th>Pattern</th>
+      <th>Flow</th>
+      <th>Consistency</th>
+      <th>Pick when</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Cache-aside (lazy load)</strong></td>
+      <td>App checks cache; on miss, reads DB, writes cache</td>
+      <td>stale until TTL expires or explicit invalidation</td>
+      <td>default for most read-heavy workloads; simplest to implement</td>
+    </tr>
+    <tr>
+      <td><strong>Write-through</strong></td>
+      <td>App writes cache and DB together (or cache writes through to DB)</td>
+      <td>cache always fresh after write</td>
+      <td>reads must be fresh immediately after writes; willing to accept write latency increase</td>
+    </tr>
+    <tr>
+      <td><strong>Write-behind (write-back)</strong></td>
+      <td>App writes cache; cache async-flushes to DB</td>
+      <td>risk of data loss if cache node dies before flush</td>
+      <td>write-heavy; DB can't keep up with write rate; acceptable risk of loss</td>
+    </tr>
+    <tr>
+      <td><strong>Refresh-ahead</strong></td>
+      <td>Cache proactively refreshes keys before TTL expires</td>
+      <td>near-zero stale reads for hot keys</td>
+      <td>hot keys with predictable access; eliminates cache-miss latency spikes</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<div class="takeaway">
+<strong>The safe default.</strong>
+In an interview, start with cache-aside. It is the simplest, has no data-loss risk, and works for 90% of read-heavy patterns. Mention write-through or refresh-ahead only when the interviewer's scenario specifically demands fresher data or lower tail latency on cache misses.
+</div>
+</section>
+
+<!-- ================================================================ -->
+<section>
+<h2>5. Gotchas — what trips senior candidates</h2>
+
+<h3>Single-threaded means one slow command blocks everything</h3>
+<p>
+<code>KEYS *</code>, <code>SUNIONSTORE</code> on huge sets, <code>FLUSHALL</code>, large <code>LRANGE 0 -1</code> all block the event loop. Use <code>SCAN</code>, <code>UNLINK</code> (async delete), and bound result sizes. In interviews, always mention this when proposing Redis for anything — it shows you understand the execution model, not just the API.
+</p>
+
+<h3>Hot keys</h3>
+<p>
+One key getting 90% of traffic concentrates load on one shard. Mitigations: client-side caching of hot reads, key splitting (<code>like:post:123:{0..9}</code> and pick a random suffix), hash tags to colocate related keys, or read replicas for read-heavy hot keys. In Cluster mode, a hot key on shard 5 doesn't help if shard 5's primary is pegged — the hot key is the bottleneck, not "Redis."
+</p>
+
+<h3>Big keys</h3>
+<p>
+A 100 MB value blocks the event loop during serialization, slows replication, and stalls expiration. Cap value sizes; for blobs, store in object storage (S3) and put the URL in Redis. Use <code>redis-cli --bigkeys</code> to audit. The rule of thumb: keep values under 10 KB for normal keys; if you need larger, use Hashes with partial reads (<code>HGET</code>) instead of one giant String.
+</p>
+
+<h3>Expiration jitter / cache stampede</h3>
+<p>
+Many keys expiring at the same instant triggers a thundering herd of cache misses, which hammers the database behind the cache. Add +/-10% random jitter to TTLs. For very hot keys, refresh proactively (refresh-ahead) or use a "request coalescer" lock — one request rebuilds the cache, others wait on a short-lived lock key rather than all hitting the DB.
+</p>
+
+<h3>MULTI vs pipeline</h3>
+<p>
+They look similar; they are not. Pipelining is just network batching — the commands are not atomic and other clients interleave. <code>MULTI</code>/<code>EXEC</code> is atomic but blocks the server for the duration. For multi-key atomicity in Cluster mode, use Lua scripts on a hash-tagged key group. Do not confuse "pipeline = transaction" — it is one of the most common Redis misconceptions in interviews.
+</p>
+
+<h3>Replication is async</h3>
+<p>
+A write acked by master can be lost on failover if the replica hadn't caught up. <code>WAIT N timeout</code> lets you require N replicas to ack — but it is optimistic, not synchronous, and adds latency. Treat replicas as eventually consistent for reads. If you need every write durable under failover, Redis is the wrong primary store — use Postgres or DynamoDB with synchronous replication / WAL.
+</p>
+
+<h3>Cluster: multi-key ops must hit one slot</h3>
+<p>
+<code>MGET k1 k2</code>, <code>MSET</code>, transactions, Lua — all require keys to be on the same slot. Use hash tags: <code>{user:42}:profile</code>, <code>{user:42}:sessions</code> colocate via the <code>{...}</code> portion only. The <code>CRC16</code> hash is computed only on the substring inside the first <code>{...}</code>, so all keys sharing that tag land on the same shard.
+</p>
+
+<h3>Resharding redirects</h3>
+<p>
+During slot migration, in-flight requests get <code>ASK</code> (one-shot redirect for this request) and after migration completes, <code>MOVED</code> (permanent — update your client routing table). Smart clients (<code>redis-cli</code> with <code>-c</code>, Lettuce, Jedis) handle automatically. In interviews, mention this when discussing Cluster topology changes to show you understand the operational mechanics.
+</p>
+
+<h3><code>SAVE</code> vs <code>BGSAVE</code></h3>
+<p>
+<code>SAVE</code> is synchronous and freezes the server. <code>BGSAVE</code> forks. Never run <code>SAVE</code> in production. Even <code>BGSAVE</code> has a cost: the fork doubles memory briefly (copy-on-write pages) and can pause the event loop for hundreds of milliseconds on large datasets. Size your instances so that RSS + fork overhead stays well under available RAM.
+</p>
+
+<h3>Distributed locks (Redlock)</h3>
+<p>
+Redis is commonly proposed for distributed locks (<code>SET key val NX EX 30</code>). A single-instance lock works for leader election or distributed rate limiting where occasional double-acquisition is tolerable. The Redlock algorithm (acquire on N/2+1 independent Redis instances) attempts stronger guarantees but is controversial — Martin Kleppmann's critique shows it can fail under clock skew and process pauses. In interviews, the safe framing: "I'll use a Redis lock for distributed coordination where brief double-holding is acceptable; if I need a strict mutual-exclusion lease, I'll use etcd or ZooKeeper which have consensus-backed sessions."
+</p>
+
+<h3>Memory sizing</h3>
+<p>
+Redis overhead per key is non-trivial: a simple String key-value pair with a short key costs ~90 bytes of overhead (dict entry, SDS header, robj). A million keys at 100 bytes each does not use 100 MB — it uses ~190 MB. Hashes with <code>ziplist</code> encoding (small hashes, <code>hash-max-ziplist-entries 128</code>) are significantly more memory-efficient than individual String keys. In interviews, mention this when the interviewer probes memory — "I'd use Hashes to batch small objects and cut per-key overhead."
+</p>
+</section>
+
+<!-- ================================================================ -->
+<section>
+<h2>6. Pattern transfer — Redis ideas you can reuse in any system design round</h2>
+
+<div class="table-wrap" style="overflow-x:auto;">
+<table>
+  <thead>
+    <tr>
+      <th>Redis concept</th>
+      <th>Generalized pattern</th>
+      <th>Where it shows up elsewhere</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>16384 fixed hash slots</td>
+      <td>static / pre-sharding</td>
+      <td>Vitess, MongoDB chunks, Postgres logical sharding</td>
+    </tr>
+    <tr>
+      <td>Cluster gossip (PING/PONG, FAIL flags)</td>
+      <td>failure detection (SWIM-family)</td>
+      <td>Cassandra, Consul, Akka cluster, Hashicorp Serf</td>
+    </tr>
+    <tr>
+      <td>Sentinel quorum + leader election</td>
+      <td>Raft-like control plane for failover</td>
+      <td>etcd, ZooKeeper, Consul, Kafka controller</td>
+    </tr>
+    <tr>
+      <td>Master to replica replication (async log shipping)</td>
+      <td>leader-follower replication</td>
+      <td>Postgres streaming replication, MySQL binlog, Kafka follower replicas</td>
+    </tr>
+    <tr>
+      <td>Sorted set (score-ordered)</td>
+      <td>ordered index on a numeric key</td>
+      <td>DB B-tree indexes, priority queues, Kafka offsets</td>
+    </tr>
+    <tr>
+      <td>Streams + consumer groups</td>
+      <td>append-only log with consumer offsets</td>
+      <td>Kafka topics + groups, Kinesis, AWS MSK, Pulsar</td>
+    </tr>
+    <tr>
+      <td>HyperLogLog</td>
+      <td>probabilistic data structure (sketch)</td>
+      <td>Bloom filter, Count-Min Sketch, t-digest</td>
+    </tr>
+    <tr>
+      <td>TTL on keys</td>
+      <td>time-bound state</td>
+      <td>DDB TTL attribute, ElastiCache, CDN cache-control, JWT exp</td>
+    </tr>
+    <tr>
+      <td>Cache-aside</td>
+      <td>read-through pattern</td>
+      <td>every caching layer ever, including CDNs</td>
+    </tr>
+    <tr>
+      <td>Pub/Sub</td>
+      <td>topic fanout (in-memory, lossy)</td>
+      <td>Kafka topics, NATS subjects, SNS topics, Postgres NOTIFY</td>
+    </tr>
+    <tr>
+      <td>Pipelining</td>
+      <td>request batching</td>
+      <td>gRPC streaming, GraphQL batching, HTTP/2 multiplexing</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<div class="takeaway">
+<strong>The transfer test.</strong>
+When you mention a Redis feature in an interview, immediately follow with "this is the same shape as X in system Y" — that is the senior signal. "Use sorted sets for the leaderboard" is a junior answer. "Sorted sets give us a B-tree-ish ordered index in memory; the same shape as a Postgres BTREE on score, but with O(log N) updates and no disk write" is the senior answer.
+</div>
+</section>
+
+<!-- ================================================================ -->
+<footer>
+Companion visualizations — <code>redis-topologies.html</code> (failover, gossip, resharding), <code>redis-caching-flows.html</code> (cache-aside, write-through, refresh-ahead).
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,1537 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Caching Patterns — Flow Animations</title>
+<style>
+  :root {
+    --bg: #0f0f15;
+    --surface: #181820;
+    --surface-2: #20202a;
+    --border: #2a2a35;
+    --text: #e6e6ea;
+    --text-2: #cfcfd6;
+    --text-3: #888;
+    --accent-red: #ff6b6b;
+    --accent-green: #51cf66;
+    --accent-blue: #339af0;
+    --accent-yellow: #ffd43b;
+    --accent-purple: #cc5de8;
+    --accent-cyan: #8be9fd;
+    --accent-orange: #ffa94d;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 32px 24px;
+    max-width: 1080px;
+    margin: 0 auto;
+    line-height: 1.55;
+  }
+  h1 { color: #fff; margin-bottom: 4px; }
+  h1 + p.sub { color: var(--text-3); font-style: italic; margin-top: 0; margin-bottom: 30px; }
+  h2 { color: #fff; margin-top: 50px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+  h3 { color: var(--text-2); margin-top: 28px; }
+  p { margin: 12px 0; }
+  code {
+    background: var(--surface-2);
+    padding: 2px 6px;
+    border-radius: 3px;
+    color: var(--accent-cyan);
+    font-size: 13px;
+  }
+  .tabs {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin: 24px 0 20px;
+  }
+  .tabs button {
+    padding: 10px 16px;
+    border: 1px solid var(--border);
+    background: var(--surface-2);
+    color: var(--text);
+    border-radius: 6px;
+    cursor: pointer;
+    min-height: 44px;
+    font-size: 14px;
+    font-family: inherit;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .tabs button:hover { background: var(--surface); }
+  .tabs button.active { border-color: var(--accent-blue); color: #fff; }
+  .pattern-section { margin-top: 10px; }
+  .pattern-section[hidden] { display: none; }
+  .shape {
+    color: var(--text-2);
+    font-size: 14px;
+    font-style: italic;
+    margin: 4px 0 16px;
+  }
+  svg.flow-canvas {
+    width: 100%;
+    height: auto;
+    background: var(--surface);
+    border-radius: 8px;
+    display: block;
+    margin: 18px auto;
+  }
+  .controls {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin: 14px 0;
+  }
+  .controls button, .controls label {
+    padding: 10px 16px;
+    border: 1px solid var(--border);
+    background: var(--surface-2);
+    color: var(--text);
+    border-radius: 6px;
+    cursor: pointer;
+    min-height: 44px;
+    font-size: 14px;
+    font-family: inherit;
+    transition: background 0.15s, border-color 0.15s;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    user-select: none;
+  }
+  .controls button:hover, .controls label:hover { background: var(--surface); }
+  .controls button:disabled { opacity: 0.4; cursor: not-allowed; }
+  .controls label.toggled-on {
+    border-color: var(--accent-red);
+    color: var(--accent-red);
+  }
+  .controls label input { display: none; }
+  .commentary {
+    background: var(--surface-2);
+    padding: 14px;
+    border-radius: 6px;
+    font-size: 14px;
+    color: var(--text-2);
+    min-height: 48px;
+    margin: 14px 0;
+    line-height: 1.5;
+  }
+  .commentary strong { color: var(--text); }
+  .tradeoff-card {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 14px 16px;
+    margin: 14px 0 30px;
+    font-size: 13px;
+  }
+  .tradeoff-card h4 {
+    color: #fff;
+    margin-bottom: 8px;
+    font-size: 14px;
+  }
+  .tradeoff-card dl {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 4px 12px;
+  }
+  .tradeoff-card dt { color: var(--text-3); white-space: nowrap; }
+  .tradeoff-card dd { color: var(--text-2); margin: 0; }
+  .table-wrap { overflow-x: auto; margin: 18px 0; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+  }
+  th, td {
+    border: 1px solid var(--border);
+    padding: 8px 12px;
+    text-align: left;
+  }
+  th { background: #1a1a22; color: #fff; white-space: nowrap; }
+  td { color: var(--text-2); }
+  .takeaway {
+    background: #1a1a22;
+    border-left: 3px solid var(--accent-green);
+    padding: 12px 16px;
+    margin: 18px 0;
+    font-size: 14px;
+  }
+  .takeaway strong { color: var(--accent-green); }
+  .transfer-list {
+    list-style: none;
+    padding: 0;
+  }
+  .transfer-list li {
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 14px;
+    color: var(--text-2);
+  }
+  .transfer-list li:last-child { border-bottom: none; }
+  .transfer-list strong { color: var(--text); }
+
+  @media (max-width: 720px) {
+    body { padding: 20px 14px; }
+  }
+  @media (max-width: 480px) {
+    .controls { flex-direction: column; }
+    .controls button, .controls label { width: 100%; justify-content: center; }
+    .tabs { flex-direction: column; }
+    .tabs button { width: 100%; }
+  }
+</style>
+</head>
+<body>
+
+<h1>Caching patterns -- flow animations</h1>
+<p class="sub">Five patterns side-by-side, controllable. Trigger reads/writes, kill the cache or DB, watch what each pattern actually does. Then transfer to CDNs, outboxes, service workers.</p>
+
+<nav class="tabs" id="tabs">
+  <button class="active" data-target="cache-aside">Cache-aside</button>
+  <button data-target="read-through">Read-through</button>
+  <button data-target="write-through">Write-through</button>
+  <button data-target="write-back">Write-back</button>
+  <button data-target="refresh-ahead">Refresh-ahead</button>
+</nav>
+
+<!-- ================================================================ -->
+<!-- CACHE-ASIDE -->
+<!-- ================================================================ -->
+<section class="pattern-section" data-pattern="cache-aside">
+  <h2>Cache-aside (lazy load)</h2>
+  <p class="shape">App talks to both. Cache misses fall through to DB; app writes both.</p>
+
+  <svg class="flow-canvas" id="svg-cache-aside" viewBox="0 0 800 340" preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <marker id="arr-blue" viewBox="0 0 10 8" refX="9" refY="4" markerWidth="8" markerHeight="6" orient="auto"><path d="M0,0 L10,4 L0,8Z" fill="var(--accent-blue)"/></marker>
+      <marker id="arr-yellow" viewBox="0 0 10 8" refX="9" refY="4" markerWidth="8" markerHeight="6" orient="auto"><path d="M0,0 L10,4 L0,8Z" fill="var(--accent-yellow)"/></marker>
+      <marker id="arr-green" viewBox="0 0 10 8" refX="9" refY="4" markerWidth="8" markerHeight="6" orient="auto"><path d="M0,0 L10,4 L0,8Z" fill="var(--accent-green)"/></marker>
+      <marker id="arr-red" viewBox="0 0 10 8" refX="9" refY="4" markerWidth="8" markerHeight="6" orient="auto"><path d="M0,0 L10,4 L0,8Z" fill="var(--accent-red)"/></marker>
+      <marker id="arr-gray" viewBox="0 0 10 8" refX="9" refY="4" markerWidth="8" markerHeight="6" orient="auto"><path d="M0,0 L10,4 L0,8Z" fill="#666"/></marker>
+    </defs>
+
+    <!-- App box -->
+    <rect id="ca-app" x="60" y="120" width="120" height="100" rx="8" fill="#1a2a3a" stroke="var(--accent-blue)" stroke-width="2"/>
+    <text x="120" y="165" text-anchor="middle" fill="#fff" font-weight="bold" font-size="16">App</text>
+    <text x="120" y="185" text-anchor="middle" fill="var(--accent-blue)" font-size="11">your code</text>
+
+    <!-- Cache box -->
+    <rect id="ca-cache" x="340" y="40" width="120" height="100" rx="8" fill="#2a2a1a" stroke="var(--accent-yellow)" stroke-width="2"/>
+    <text x="400" y="82" text-anchor="middle" fill="#fff" font-weight="bold" font-size="16">Cache</text>
+    <text x="400" y="102" text-anchor="middle" fill="var(--accent-yellow)" font-size="11">Redis</text>
+    <text id="ca-cache-status" x="400" y="125" text-anchor="middle" fill="var(--accent-red)" font-size="11" opacity="0"></text>
+
+    <!-- DB box -->
+    <rect id="ca-db" x="340" y="200" width="120" height="100" rx="8" fill="#1a2a1f" stroke="var(--accent-green)" stroke-width="2"/>
+    <text x="400" y="245" text-anchor="middle" fill="#fff" font-weight="bold" font-size="16">DB</text>
+    <text x="400" y="265" text-anchor="middle" fill="var(--accent-green)" font-size="11">Postgres</text>
+    <text id="ca-db-status" x="400" y="288" text-anchor="middle" fill="var(--accent-red)" font-size="11" opacity="0"></text>
+
+    <!-- Static connector lines -->
+    <line x1="180" y1="150" x2="340" y2="90" stroke="#333" stroke-width="1" stroke-dasharray="4,4"/>
+    <line x1="180" y1="190" x2="340" y2="250" stroke="#333" stroke-width="1" stroke-dasharray="4,4"/>
+
+    <!-- Step label area -->
+    <text id="ca-step" x="620" y="170" text-anchor="middle" fill="var(--text-3)" font-size="13" opacity="0"></text>
+
+    <!-- Animated packets will be appended here -->
+  </svg>
+
+  <div class="controls">
+    <button onclick="CA.readHit()">Trigger read (cache hit)</button>
+    <button onclick="CA.readMiss()">Trigger read (cache miss)</button>
+    <button onclick="CA.write()">Trigger write</button>
+    <label class="cache-toggle"><input type="checkbox" onchange="CA.toggleCache(this.checked)"> Cache down</label>
+    <label class="db-toggle"><input type="checkbox" onchange="CA.toggleDB(this.checked)"> DB down</label>
+  </div>
+
+  <div class="commentary" id="ca-commentary">
+    Most common pattern. App is responsible for both lookups. The cache does not know about the DB. Race window between DB write and cache invalidate is the canonical bug -- order DB-write first, invalidate second.
+  </div>
+
+  <div class="tradeoff-card">
+    <h4>Tradeoffs</h4>
+    <dl>
+      <dt>Read latency:</dt><dd>Cache hit in microseconds; miss = DB round-trip + cache write</dd>
+      <dt>Write latency:</dt><dd>DB write + cache invalidate (two round-trips)</dd>
+      <dt>Consistency:</dt><dd>Eventually consistent; race-prone unless careful invalidation order</dd>
+      <dt>Durability if cache dies:</dt><dd>Strong -- cache rebuilt from DB on next miss</dd>
+      <dt>Common bug:</dt><dd>Stale cache after concurrent write/read interleaves wrong invalidation order</dd>
+    </dl>
+  </div>
+</section>
+
+<!-- ================================================================ -->
+<!-- READ-THROUGH -->
+<!-- ================================================================ -->
+<section class="pattern-section" data-pattern="read-through" hidden>
+  <h2>Read-through</h2>
+  <p class="shape">App talks only to cache. Cache fetches from DB on miss.</p>
+
+  <svg class="flow-canvas" id="svg-read-through" viewBox="0 0 800 340" preserveAspectRatio="xMidYMid meet">
+    <rect id="rt-app" x="60" y="120" width="120" height="100" rx="8" fill="#1a2a3a" stroke="var(--accent-blue)" stroke-width="2"/>
+    <text x="120" y="165" text-anchor="middle" fill="#fff" font-weight="bold" font-size="16">App</text>
+    <text x="120" y="185" text-anchor="middle" fill="var(--accent-blue)" font-size="11">your code</text>
+
+    <rect id="rt-cache" x="320" y="120" width="140" height="100" rx="8" fill="#2a2a1a" stroke="var(--accent-yellow)" stroke-width="2"/>
+    <text x="390" y="162" text-anchor="middle" fill="#fff" font-weight="bold" font-size="16">Cache</text>
+    <text x="390" y="182" text-anchor="middle" fill="var(--accent-yellow)" font-size="11">read-through layer</text>
+    <text id="rt-cache-status" x="390" y="205" text-anchor="middle" fill="var(--accent-red)" font-size="11" opacity="0"></text>
+
+    <rect id="rt-db" x="600" y="120" width="120" height="100" rx="8" fill="#1a2a1f" stroke="var(--accent-green)" stroke-width="2"/>
+    <text x="660" y="165" text-anchor="middle" fill="#fff" font-weight="bold" font-size="16">DB</text>
+    <text x="660" y="185" text-anchor="middle" fill="var(--accent-green)" font-size="11">Postgres</text>
+    <text id="rt-db-status" x="660" y="208" text-anchor="middle" fill="var(--accent-red)" font-size="11" opacity="0"></text>
+
+    <line x1="180" y1="170" x2="320" y2="170" stroke="#333" stroke-width="1" stroke-dasharray="4,4"/>
+    <line x1="460" y1="170" x2="600" y2="170" stroke="#333" stroke-width="1" stroke-dasharray="4,4"/>
+
+    <text id="rt-step" x="390" y="56" text-anchor="middle" fill="var(--text-3)" font-size="13" opacity="0"></text>
+  </svg>
+
+  <div class="controls">
+    <button onclick="RT.readHit()">Trigger read (cache hit)</button>
+    <button onclick="RT.readMiss()">Trigger read (cache miss)</button>
+    <button onclick="RT.write()">Trigger write (not handled)</button>
+    <label class="cache-toggle"><input type="checkbox" onchange="RT.toggleCache(this.checked)"> Cache down</label>
+    <label class="db-toggle"><input type="checkbox" onchange="RT.toggleDB(this.checked)"> DB down</label>
+  </div>
+
+  <div class="commentary" id="rt-commentary">
+    The cache <em>is</em> the data interface. App is decoupled from the DB at read time. Common in CDNs and ORMs (e.g., Hibernate L2 cache, EhCache). Read-through alone is incomplete -- pair with write-through or cache-aside writes.
+  </div>
+
+  <div class="tradeoff-card">
+    <h4>Tradeoffs</h4>
+    <dl>
+      <dt>Read latency:</dt><dd>Cache hit in microseconds; miss = DB round-trip + cache write (same as cache-aside)</dd>
+      <dt>Write latency:</dt><dd>Depends on paired write strategy</dd>
+      <dt>Consistency:</dt><dd>Depends on the paired write strategy</dd>
+      <dt>Durability if cache dies:</dt><dd>Strong -- data lives in DB; cache rebuilds on miss</dd>
+      <dt>Common bug:</dt><dd>Forgetting to handle writes -- read-through alone causes silent data loss on write</dd>
+    </dl>
+  </div>
+</section>
+
+<!-- ================================================================ -->
+<!-- WRITE-THROUGH -->
+<!-- ================================================================ -->
+<section class="pattern-section" data-pattern="write-through" hidden>
+  <h2>Write-through</h2>
+  <p class="shape">Writes go to cache, cache writes through to DB synchronously.</p>
+
+  <svg class="flow-canvas" id="svg-write-through" viewBox="0 0 800 340" preserveAspectRatio="xMidYMid meet">
+    <rect id="wt-app" x="60" y="120" width="120" height="100" rx="8" fill="#1a2a3a" stroke="var(--accent-blue)" stroke-width="2"/>
+    <text x="120" y="165" text-anchor="middle" fill="#fff" font-weight="bold" font-size="16">App</text>
+    <text x="120" y="185" text-anchor="middle" fill="var(--accent-blue)" font-size="11">your code</text>
+
+    <rect id="wt-cache" x="320" y="120" width="140" height="100" rx="8" fill="#2a2a1a" stroke="var(--accent-yellow)" stroke-width="2"/>
+    <text x="390" y="162" text-anchor="middle" fill="#fff" font-weight="bold" font-size="16">Cache</text>
+    <text x="390" y="182" text-anchor="middle" fill="var(--accent-yellow)" font-size="11">write-through layer</text>
+    <text id="wt-cache-status" x="390" y="205" text-anchor="middle" fill="var(--accent-red)" font-size="11" opacity="0"></text>
+
+    <rect id="wt-db" x="600" y="120" width="120" height="100" rx="8" fill="#1a2a1f" stroke="var(--accent-green)" stroke-width="2"/>
+    <text x="660" y="165" text-anchor="middle" fill="#fff" font-weight="bold" font-size="16">DB</text>
+    <text x="660" y="185" text-anchor="middle" fill="var(--accent-green)" font-size="11">Postgres</text>
+    <text id="wt-db-status" x="660" y="208" text-anchor="middle" fill="var(--accent-red)" font-size="11" opacity="0"></text>
+
+    <line x1="180" y1="170" x2="320" y2="170" stroke="#333" stroke-width="1" stroke-dasharray="4,4"/>
+    <line x1="460" y1="170" x2="600" y2="170" stroke="#333" stroke-width="1" stroke-dasharray="4,4"/>
+
+    <text id="wt-step" x="390" y="56" text-anchor="middle" fill="var(--text-3)" font-size="13" opacity="0"></text>
+  </svg>
+
+  <div class="controls">
+    <button onclick="WT.readHit()">Trigger read (cache hit)</button>
+    <button onclick="WT.readMiss()">Trigger read (cache miss)</button>
+    <button onclick="WT.write()">Trigger write</button>
+    <label class="cache-toggle"><input type="checkbox" onchange="WT.toggleCache(this.checked)"> Cache down</label>
+    <label class="db-toggle"><input type="checkbox" onchange="WT.toggleDB(this.checked)"> DB down</label>
+  </div>
+
+  <div class="commentary" id="wt-commentary">
+    Strong consistency at the cost of write latency. Cache and DB are always in sync -- no stale-cache bug. Pay for it on every write. Use when reads heavily dominate writes and consistency matters.
+  </div>
+
+  <div class="tradeoff-card">
+    <h4>Tradeoffs</h4>
+    <dl>
+      <dt>Read latency:</dt><dd>Cache hit in microseconds; miss fills from DB like read-through</dd>
+      <dt>Write latency:</dt><dd>Cache write + synchronous DB write (slower than cache-aside, but no race)</dd>
+      <dt>Consistency:</dt><dd>Strong -- cache always reflects DB state</dd>
+      <dt>Durability if cache dies:</dt><dd>Strong -- every write already persisted to DB</dd>
+      <dt>Common bug:</dt><dd>Write throughput becomes DB throughput -- no buffering benefit</dd>
+    </dl>
+  </div>
+</section>
+
+<!-- ================================================================ -->
+<!-- WRITE-BACK -->
+<!-- ================================================================ -->
+<section class="pattern-section" data-pattern="write-back" hidden>
+  <h2>Write-back (write-behind)</h2>
+  <p class="shape">Writes go to cache, cache flushes to DB asynchronously.</p>
+
+  <svg class="flow-canvas" id="svg-write-back" viewBox="0 0 800 380" preserveAspectRatio="xMidYMid meet">
+    <rect id="wb-app" x="60" y="120" width="120" height="100" rx="8" fill="#1a2a3a" stroke="var(--accent-blue)" stroke-width="2"/>
+    <text x="120" y="165" text-anchor="middle" fill="#fff" font-weight="bold" font-size="16">App</text>
+    <text x="120" y="185" text-anchor="middle" fill="var(--accent-blue)" font-size="11">your code</text>
+
+    <rect id="wb-cache" x="300" y="100" width="180" height="140" rx="8" fill="#2a2a1a" stroke="var(--accent-yellow)" stroke-width="2"/>
+    <text x="390" y="140" text-anchor="middle" fill="#fff" font-weight="bold" font-size="16">Cache</text>
+    <text x="390" y="158" text-anchor="middle" fill="var(--accent-yellow)" font-size="11">write-back layer</text>
+    <!-- Dirty buffer indicator -->
+    <rect x="320" y="170" width="140" height="50" rx="4" fill="#1a1a10" stroke="var(--accent-orange)" stroke-width="1" stroke-dasharray="3,2"/>
+    <text x="390" y="188" text-anchor="middle" fill="var(--accent-orange)" font-size="11">dirty buffer</text>
+    <text id="wb-dirty-count" x="390" y="210" text-anchor="middle" fill="var(--accent-orange)" font-size="14" font-weight="bold">0 entries</text>
+    <text id="wb-cache-status" x="390" y="232" text-anchor="middle" fill="var(--accent-red)" font-size="11" opacity="0"></text>
+
+    <rect id="wb-db" x="620" y="140" width="120" height="100" rx="8" fill="#1a2a1f" stroke="var(--accent-green)" stroke-width="2"/>
+    <text x="680" y="185" text-anchor="middle" fill="#fff" font-weight="bold" font-size="16">DB</text>
+    <text x="680" y="205" text-anchor="middle" fill="var(--accent-green)" font-size="11">Postgres</text>
+    <text id="wb-db-status" x="680" y="228" text-anchor="middle" fill="var(--accent-red)" font-size="11" opacity="0"></text>
+
+    <line x1="180" y1="170" x2="300" y2="170" stroke="#333" stroke-width="1" stroke-dasharray="4,4"/>
+    <line x1="480" y1="190" x2="620" y2="190" stroke="#333" stroke-width="1" stroke-dasharray="4,4"/>
+
+    <text id="wb-step" x="390" y="50" text-anchor="middle" fill="var(--text-3)" font-size="13" opacity="0"></text>
+  </svg>
+
+  <div class="controls">
+    <button onclick="WB.readHit()">Trigger read (cache hit)</button>
+    <button onclick="WB.readMiss()">Trigger read (cache miss)</button>
+    <button onclick="WB.write()">Trigger write</button>
+    <button onclick="WB.flush()">Trigger flush</button>
+    <label class="cache-toggle"><input type="checkbox" onchange="WB.toggleCache(this.checked)"> Cache down</label>
+    <label class="db-toggle"><input type="checkbox" onchange="WB.toggleDB(this.checked)"> DB down</label>
+  </div>
+
+  <div class="commentary" id="wb-commentary">
+    Fastest writes (cache-only on the hot path). DB writes are batched async -- efficient but lossy if the cache dies before flush. Used in Twitter timeline writes, log buffers, and OS page cache. The "outbox pattern" is the durable cousin: dirty buffer is on the durable side instead of in volatile cache.
+  </div>
+
+  <div class="tradeoff-card">
+    <h4>Tradeoffs</h4>
+    <dl>
+      <dt>Read latency:</dt><dd>Cache hit in microseconds</dd>
+      <dt>Write latency:</dt><dd>Microseconds (cache only -- DB write deferred)</dd>
+      <dt>Consistency:</dt><dd>Eventually consistent; DB lags by flush interval</dd>
+      <dt>Durability if cache dies:</dt><dd><strong>Weak</strong> -- pre-flush writes are permanently lost</dd>
+      <dt>Common bug:</dt><dd>Dirty buffer overflow if writes outpace flush rate; mitigated by back-pressure</dd>
+    </dl>
+  </div>
+</section>
+
+<!-- ================================================================ -->
+<!-- REFRESH-AHEAD -->
+<!-- ================================================================ -->
+<section class="pattern-section" data-pattern="refresh-ahead" hidden>
+  <h2>Refresh-ahead</h2>
+  <p class="shape">Cache pre-emptively reloads hot keys before TTL expiry.</p>
+
+  <svg class="flow-canvas" id="svg-refresh-ahead" viewBox="0 0 800 380" preserveAspectRatio="xMidYMid meet">
+    <rect id="ra-app" x="60" y="140" width="120" height="100" rx="8" fill="#1a2a3a" stroke="var(--accent-blue)" stroke-width="2"/>
+    <text x="120" y="185" text-anchor="middle" fill="#fff" font-weight="bold" font-size="16">App</text>
+    <text x="120" y="205" text-anchor="middle" fill="var(--accent-blue)" font-size="11">your code</text>
+
+    <rect id="ra-cache" x="300" y="100" width="180" height="180" rx="8" fill="#2a2a1a" stroke="var(--accent-yellow)" stroke-width="2"/>
+    <text x="390" y="140" text-anchor="middle" fill="#fff" font-weight="bold" font-size="16">Cache</text>
+    <text x="390" y="158" text-anchor="middle" fill="var(--accent-yellow)" font-size="11">refresh-ahead layer</text>
+    <!-- TTL indicator -->
+    <rect x="320" y="170" width="140" height="90" rx="4" fill="#1a1a10" stroke="var(--accent-purple)" stroke-width="1" stroke-dasharray="3,2"/>
+    <text x="390" y="190" text-anchor="middle" fill="var(--accent-purple)" font-size="11">key TTL</text>
+    <!-- TTL bar background -->
+    <rect x="335" y="200" width="110" height="14" rx="3" fill="#111"/>
+    <!-- TTL bar fill -->
+    <rect id="ra-ttl-bar" x="335" y="200" width="110" height="14" rx="3" fill="var(--accent-green)"/>
+    <text id="ra-ttl-text" x="390" y="211" text-anchor="middle" fill="#fff" font-size="10" font-weight="bold">100%</text>
+    <!-- Refresh threshold line -->
+    <line x1="357" y1="198" x2="357" y2="216" stroke="var(--accent-red)" stroke-width="2"/>
+    <text x="357" y="232" text-anchor="middle" fill="var(--accent-red)" font-size="9">20% threshold</text>
+    <text id="ra-refresh-label" x="390" y="252" text-anchor="middle" fill="var(--accent-cyan)" font-size="11" opacity="0">refreshing...</text>
+    <text id="ra-cache-status" x="390" y="270" text-anchor="middle" fill="var(--accent-red)" font-size="11" opacity="0"></text>
+
+    <rect id="ra-db" x="620" y="140" width="120" height="100" rx="8" fill="#1a2a1f" stroke="var(--accent-green)" stroke-width="2"/>
+    <text x="680" y="185" text-anchor="middle" fill="#fff" font-weight="bold" font-size="16">DB</text>
+    <text x="680" y="205" text-anchor="middle" fill="var(--accent-green)" font-size="11">Postgres</text>
+    <text id="ra-db-status" x="680" y="228" text-anchor="middle" fill="var(--accent-red)" font-size="11" opacity="0"></text>
+
+    <line x1="180" y1="190" x2="300" y2="190" stroke="#333" stroke-width="1" stroke-dasharray="4,4"/>
+    <line x1="480" y1="190" x2="620" y2="190" stroke="#333" stroke-width="1" stroke-dasharray="4,4"/>
+
+    <text id="ra-step" x="390" y="50" text-anchor="middle" fill="var(--text-3)" font-size="13" opacity="0"></text>
+  </svg>
+
+  <div class="controls">
+    <button onclick="RA.readHit()">Trigger read (cache hit)</button>
+    <button onclick="RA.readMiss()">Trigger read (cache miss)</button>
+    <button onclick="RA.triggerRefresh()">Trigger TTL refresh</button>
+    <button onclick="RA.write()">Trigger write (not handled)</button>
+    <label class="cache-toggle"><input type="checkbox" onchange="RA.toggleCache(this.checked)"> Cache down</label>
+    <label class="db-toggle"><input type="checkbox" onchange="RA.toggleDB(this.checked)"> DB down</label>
+  </div>
+
+  <div class="commentary" id="ra-commentary">
+    Optimization for predictable hot-key access. Eliminates the "cold miss after TTL expiry" latency spike that hits everyone simultaneously (cache stampede). Predicts access; if prediction is wrong, you wasted DB calls. Used by browser cache headers (<code>stale-while-revalidate</code>), CDN tier-2 caches.
+  </div>
+
+  <div class="tradeoff-card">
+    <h4>Tradeoffs</h4>
+    <dl>
+      <dt>Read latency:</dt><dd>Microseconds on hit -- always, by design no miss for hot keys</dd>
+      <dt>Write latency:</dt><dd>Depends on paired write strategy</dd>
+      <dt>Consistency:</dt><dd>Eventually consistent; refresh interval bounds staleness</dd>
+      <dt>Durability if cache dies:</dt><dd>Strong -- data lives in DB</dd>
+      <dt>Common bug:</dt><dd>Wrong refresh prediction wastes DB load; missed refresh causes stampede</dd>
+    </dl>
+  </div>
+</section>
+
+<!-- ================================================================ -->
+<!-- COMPARISON TABLE -->
+<!-- ================================================================ -->
+<section class="comparison">
+  <h2>Side-by-side</h2>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Pattern</th>
+          <th>Read latency</th>
+          <th>Write latency</th>
+          <th>Consistency</th>
+          <th>Durability</th>
+          <th>Cache-down survival</th>
+          <th>Best for</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Cache-aside</strong></td>
+          <td>us hit, DB on miss</td>
+          <td>~DB</td>
+          <td>Eventual (race-prone)</td>
+          <td>Strong (cache loss harmless)</td>
+          <td>Reads slower, app continues</td>
+          <td>Most general-purpose; the "default"</td>
+        </tr>
+        <tr>
+          <td><strong>Read-through</strong></td>
+          <td>us hit, DB on miss</td>
+          <td>(depends on write strategy)</td>
+          <td>Depends</td>
+          <td>Strong</td>
+          <td>Depends</td>
+          <td>Clean abstraction, ORM L2, CDN</td>
+        </tr>
+        <tr>
+          <td><strong>Write-through</strong></td>
+          <td>us hit</td>
+          <td>Cache + DB (sync)</td>
+          <td>Strong</td>
+          <td>Strong</td>
+          <td>Reads/writes degrade to DB</td>
+          <td>Read-heavy + strong consistency</td>
+        </tr>
+        <tr>
+          <td><strong>Write-back</strong></td>
+          <td>us hit</td>
+          <td>us (cache only)</td>
+          <td>Eventual (lag = flush)</td>
+          <td><strong style="color:var(--accent-red)">Weak</strong> (pre-flush data lost)</td>
+          <td>Unflushed writes lost</td>
+          <td>Extreme write throughput, batch DB</td>
+        </tr>
+        <tr>
+          <td><strong>Refresh-ahead</strong></td>
+          <td>us hit always</td>
+          <td>(depends on write strategy)</td>
+          <td>Bounded staleness</td>
+          <td>Strong</td>
+          <td>Reverts to direct DB</td>
+          <td>Predictable hot keys, avoid stampede</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ================================================================ -->
+<!-- PATTERN TRANSFER -->
+<!-- ================================================================ -->
+<section class="transfer">
+  <h2>Where these patterns appear in other systems</h2>
+  <ul class="transfer-list">
+    <li><strong>CDN edge caching</strong> -- read-through (origin pulls + caches; cache is the API surface)</li>
+    <li><strong>CDN with <code>stale-while-revalidate</code> (RFC 5861)</strong> -- refresh-ahead (serve stale, refresh in background)</li>
+    <li><strong>Service worker / PWA offline cache</strong> -- cache-aside (app code decides when to use cache vs network)</li>
+    <li><strong>Outbox pattern (transactional outbox)</strong> -- write-back, but the dirty buffer is in the <em>durable</em> DB, so the failure mode is fixed</li>
+    <li><strong>Kafka producer with <code>acks=0</code></strong> -- write-back (fire-and-forget, lossy on broker death)</li>
+    <li><strong>Kafka producer with <code>acks=all</code></strong> -- write-through (strong durability at write-latency cost)</li>
+    <li><strong>OS page cache</strong> -- write-back (<code>fsync</code> is the manual flush)</li>
+    <li><strong>Browser HTTP cache (<code>Cache-Control: max-age + must-revalidate</code>)</strong> -- refresh-ahead (revalidation before stale)</li>
+    <li><strong>Hibernate / JPA L2 cache</strong> -- read-through (cache <em>is</em> the access layer)</li>
+    <li><strong>Memcached + your app code</strong> -- cache-aside (Memcached does not know about your DB)</li>
+    <li><strong>Redis Object Cache for WordPress</strong> -- cache-aside</li>
+  </ul>
+
+  <div class="takeaway">
+    <strong>The transfer test.</strong> When an interviewer asks "how would you cache X?", picking a pattern is half the answer. The other half is naming the failure mode you are choosing -- "I am picking write-back here because writes dominate and I can tolerate up to 5 seconds of write loss on cache death; if not, write-through." Senior signal: explicit failure-mode tradeoff, not just "use Redis."
+  </div>
+</section>
+
+<script>
+(function() {
+  // ======================== SHARED HELPERS ========================
+
+  var animating = {};
+
+  function delay(ms) {
+    return new Promise(function(resolve) { setTimeout(resolve, ms); });
+  }
+
+  function setStep(id, text) {
+    var el = document.getElementById(id);
+    el.textContent = text;
+    el.setAttribute('opacity', '1');
+  }
+
+  function clearStep(id) {
+    var el = document.getElementById(id);
+    el.setAttribute('opacity', '0');
+  }
+
+  function setCommentary(id, html) {
+    document.getElementById(id).innerHTML = html;
+  }
+
+  function createPacket(svg, color, label) {
+    var ns = 'http://www.w3.org/2000/svg';
+    var g = document.createElementNS(ns, 'g');
+    var c = document.createElementNS(ns, 'circle');
+    c.setAttribute('r', '10');
+    c.setAttribute('fill', color);
+    c.setAttribute('opacity', '0.9');
+    g.appendChild(c);
+    if (label) {
+      var t = document.createElementNS(ns, 'text');
+      t.setAttribute('text-anchor', 'middle');
+      t.setAttribute('y', '-16');
+      t.setAttribute('fill', color);
+      t.setAttribute('font-size', '11');
+      t.setAttribute('font-weight', 'bold');
+      t.textContent = label;
+      g.appendChild(t);
+    }
+    svg.appendChild(g);
+    return g;
+  }
+
+  function animatePacket(svg, x1, y1, x2, y2, color, label, durationMs) {
+    return new Promise(function(resolve) {
+      var packet = createPacket(svg, color, label);
+      var start = null;
+      function step(ts) {
+        if (!start) start = ts;
+        var p = Math.min((ts - start) / durationMs, 1);
+        var ease = p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;
+        var cx = x1 + (x2 - x1) * ease;
+        var cy = y1 + (y2 - y1) * ease;
+        packet.setAttribute('transform', 'translate(' + cx + ',' + cy + ')');
+        if (p < 1) {
+          requestAnimationFrame(step);
+        } else {
+          svg.removeChild(packet);
+          resolve();
+        }
+      }
+      requestAnimationFrame(step);
+    });
+  }
+
+  function flashBox(id, color, ms) {
+    var el = document.getElementById(id);
+    var orig = el.getAttribute('stroke');
+    el.setAttribute('stroke', color);
+    el.setAttribute('stroke-width', '3');
+    setTimeout(function() {
+      el.setAttribute('stroke', orig);
+      el.setAttribute('stroke-width', '2');
+    }, ms || 400);
+  }
+
+  function showXMark(svg, x, y, durationMs) {
+    var ns = 'http://www.w3.org/2000/svg';
+    var g = document.createElementNS(ns, 'g');
+    g.setAttribute('transform', 'translate(' + x + ',' + y + ')');
+    var l1 = document.createElementNS(ns, 'line');
+    l1.setAttribute('x1', '-12'); l1.setAttribute('y1', '-12');
+    l1.setAttribute('x2', '12'); l1.setAttribute('y2', '12');
+    l1.setAttribute('stroke', '#ff6b6b'); l1.setAttribute('stroke-width', '3');
+    var l2 = document.createElementNS(ns, 'line');
+    l2.setAttribute('x1', '12'); l2.setAttribute('y1', '-12');
+    l2.setAttribute('x2', '-12'); l2.setAttribute('y2', '12');
+    l2.setAttribute('stroke', '#ff6b6b'); l2.setAttribute('stroke-width', '3');
+    g.appendChild(l1); g.appendChild(l2);
+    svg.appendChild(g);
+    setTimeout(function() { if (g.parentNode) svg.removeChild(g); }, durationMs || 800);
+  }
+
+  function disableButtons(section, disabled) {
+    var btns = section.querySelectorAll('.controls button');
+    for (var i = 0; i < btns.length; i++) btns[i].disabled = disabled;
+  }
+
+  // ======================== TAB SWITCHING ========================
+
+  var tabButtons = document.querySelectorAll('#tabs button');
+  var sections = document.querySelectorAll('.pattern-section');
+
+  for (var i = 0; i < tabButtons.length; i++) {
+    tabButtons[i].addEventListener('click', (function(btn) {
+      return function() {
+        for (var j = 0; j < tabButtons.length; j++) tabButtons[j].classList.remove('active');
+        btn.classList.add('active');
+        var target = btn.getAttribute('data-target');
+        for (var k = 0; k < sections.length; k++) {
+          sections[k].hidden = sections[k].getAttribute('data-pattern') !== target;
+        }
+      };
+    })(tabButtons[i]));
+  }
+
+  // ======================== CACHE-ASIDE ========================
+
+  window.CA = (function() {
+    var svg = document.getElementById('svg-cache-aside');
+    var section = svg.closest('.pattern-section');
+    var cacheDown = false, dbDown = false;
+    var busy = false;
+
+    // Coordinates: App center (120,170), Cache center (400,90), DB center (400,250)
+    var APP = [180, 155]; var CACHE = [340, 90]; var DB = [340, 250];
+    var APP_R = [180, 185];
+    var CACHE_R = [460, 90]; var DB_R = [460, 250];
+
+    function lock() { busy = true; disableButtons(section, true); }
+    function unlock() { busy = false; disableButtons(section, false); }
+
+    return {
+      toggleCache: function(on) {
+        cacheDown = on;
+        var box = document.getElementById('ca-cache');
+        var st = document.getElementById('ca-cache-status');
+        var label = section.querySelector('.cache-toggle');
+        if (on) {
+          box.setAttribute('stroke', 'var(--accent-red)'); box.setAttribute('opacity', '0.4');
+          st.textContent = 'DOWN'; st.setAttribute('opacity', '1');
+          label.classList.add('toggled-on');
+        } else {
+          box.setAttribute('stroke', 'var(--accent-yellow)'); box.setAttribute('opacity', '1');
+          st.setAttribute('opacity', '0');
+          label.classList.remove('toggled-on');
+        }
+      },
+      toggleDB: function(on) {
+        dbDown = on;
+        var box = document.getElementById('ca-db');
+        var st = document.getElementById('ca-db-status');
+        var label = section.querySelector('.db-toggle');
+        if (on) {
+          box.setAttribute('stroke', 'var(--accent-red)'); box.setAttribute('opacity', '0.4');
+          st.textContent = 'DOWN'; st.setAttribute('opacity', '1');
+          label.classList.add('toggled-on');
+        } else {
+          box.setAttribute('stroke', 'var(--accent-green)'); box.setAttribute('opacity', '1');
+          st.setAttribute('opacity', '0');
+          label.classList.remove('toggled-on');
+        }
+      },
+
+      readHit: async function() {
+        if (busy) return; lock();
+        if (cacheDown) {
+          // Falls through to DB
+          if (dbDown) {
+            setStep('ca-step', 'Cache down + DB down -- read fails');
+            setCommentary('ca-commentary', '<strong>FAIL.</strong> Both cache and DB are down. No data source available.');
+            showXMark(svg, 260, 170, 1200);
+            await delay(1400); clearStep('ca-step'); unlock(); return;
+          }
+          setStep('ca-step', '1. Cache down -- read goes direct to DB');
+          setCommentary('ca-commentary', 'Cache is down. App bypasses cache and reads directly from DB. System stays correct, just slower.');
+          await animatePacket(svg, APP_R[0], APP_R[1], DB[0], DB[1], '#51cf66', 'GET', 500);
+          flashBox('ca-db', '#51cf66', 300);
+          setStep('ca-step', '2. DB returns value directly to App');
+          await delay(300);
+          await animatePacket(svg, DB_R[0], DB_R[1], APP[0], APP[1], '#51cf66', 'val', 500);
+          flashBox('ca-app', '#339af0', 300);
+          setStep('ca-step', 'Done -- served from DB (slower, but correct)');
+          await delay(1000); clearStep('ca-step'); unlock(); return;
+        }
+        setStep('ca-step', '1. App queries cache');
+        setCommentary('ca-commentary', '<strong>Cache HIT.</strong> App asks the cache first. Key exists -- return immediately. Fastest path: single network hop, microsecond response.');
+        await animatePacket(svg, APP[0], APP[1], CACHE[0], CACHE[1], '#ffd43b', 'GET', 400);
+        flashBox('ca-cache', '#ffd43b', 300);
+        setStep('ca-step', '2. Cache returns value (HIT)');
+        await delay(200);
+        await animatePacket(svg, CACHE_R[0], CACHE_R[1], APP[0], APP[1], '#ffd43b', 'val', 400);
+        flashBox('ca-app', '#339af0', 300);
+        setStep('ca-step', 'Done -- cache hit, DB not touched');
+        await delay(1000); clearStep('ca-step'); unlock();
+      },
+
+      readMiss: async function() {
+        if (busy) return; lock();
+        if (cacheDown) {
+          if (dbDown) {
+            setStep('ca-step', 'Cache down + DB down -- read fails');
+            setCommentary('ca-commentary', '<strong>FAIL.</strong> Both cache and DB are down. No data source available.');
+            showXMark(svg, 260, 170, 1200);
+            await delay(1400); clearStep('ca-step'); unlock(); return;
+          }
+          setStep('ca-step', '1. Cache down -- read goes direct to DB');
+          setCommentary('ca-commentary', 'Cache is down. App reads directly from DB. Cannot backfill cache until it recovers.');
+          await animatePacket(svg, APP_R[0], APP_R[1], DB[0], DB[1], '#51cf66', 'GET', 500);
+          flashBox('ca-db', '#51cf66', 300);
+          setStep('ca-step', '2. DB returns value directly to App');
+          await delay(300);
+          await animatePacket(svg, DB_R[0], DB_R[1], APP[0], APP[1], '#51cf66', 'val', 500);
+          flashBox('ca-app', '#339af0', 300);
+          setStep('ca-step', 'Done -- served from DB, cache not populated');
+          await delay(1000); clearStep('ca-step'); unlock(); return;
+        }
+        setStep('ca-step', '1. App queries cache');
+        setCommentary('ca-commentary', '<strong>Cache MISS.</strong> Key not in cache. App must fall through to DB, then backfill the cache so the next read is a hit.');
+        await animatePacket(svg, APP[0], APP[1], CACHE[0], CACHE[1], '#ffd43b', 'GET', 400);
+        flashBox('ca-cache', '#ff6b6b', 300);
+        setStep('ca-step', '2. Cache returns NIL (MISS)');
+        await delay(300);
+        await animatePacket(svg, CACHE_R[0], CACHE_R[1], APP[0], APP[1], '#ff6b6b', 'nil', 300);
+
+        if (dbDown) {
+          setStep('ca-step', '3. DB is down -- read fails');
+          setCommentary('ca-commentary', '<strong>FAIL.</strong> Cache miss and DB is down. App cannot serve the request. This is the expected failure mode for cache-aside: miss + DB down = error.');
+          showXMark(svg, 400, 250, 1200);
+          await delay(1400); clearStep('ca-step'); unlock(); return;
+        }
+        setStep('ca-step', '3. App queries DB');
+        await animatePacket(svg, APP_R[0], APP_R[1], DB[0], DB[1], '#51cf66', 'SELECT', 500);
+        flashBox('ca-db', '#51cf66', 300);
+        setStep('ca-step', '4. DB returns value to App');
+        await delay(200);
+        await animatePacket(svg, DB_R[0], DB_R[1], APP[0], APP[1], '#51cf66', 'val', 400);
+        setStep('ca-step', '5. App writes value back to cache');
+        await animatePacket(svg, APP[0], APP[1], CACHE[0], CACHE[1], '#ffd43b', 'SET', 400);
+        flashBox('ca-cache', '#51cf66', 300);
+        setCommentary('ca-commentary', '<strong>Cache MISS path complete.</strong> App queried cache (miss), fetched from DB, then backfilled the cache. Next read for this key will be a hit. Cost: 3 network hops instead of 1.');
+        setStep('ca-step', 'Done -- value cached for next read');
+        await delay(1200); clearStep('ca-step'); unlock();
+      },
+
+      write: async function() {
+        if (busy) return; lock();
+        if (dbDown) {
+          setStep('ca-step', 'DB is down -- write fails');
+          setCommentary('ca-commentary', '<strong>FAIL.</strong> Cache-aside writes to DB first. DB is down, so the write cannot proceed. Cache is not updated either (correct -- no stale divergence).');
+          showXMark(svg, 400, 250, 1200);
+          await delay(1400); clearStep('ca-step'); unlock(); return;
+        }
+        setStep('ca-step', '1. App writes to DB first');
+        setCommentary('ca-commentary', '<strong>Write path.</strong> Order matters: DB first, then invalidate cache. This order prevents the race where a concurrent read re-caches a stale value between invalidation and DB write.');
+        await animatePacket(svg, APP_R[0], APP_R[1], DB[0], DB[1], '#51cf66', 'UPDATE', 500);
+        flashBox('ca-db', '#51cf66', 300);
+        setStep('ca-step', '2. DB confirms write');
+        await delay(300);
+        if (!cacheDown) {
+          setStep('ca-step', '3. App invalidates cache (DEL key)');
+          await animatePacket(svg, APP[0], APP[1], CACHE[0], CACHE[1], '#ff6b6b', 'DEL', 400);
+          flashBox('ca-cache', '#ff6b6b', 300);
+          setCommentary('ca-commentary', '<strong>Write complete.</strong> DB updated, cache invalidated (DEL key). Next read will miss and backfill from DB. The "DB-first, invalidate-second" order is the canonical fix for the stale-cache race.');
+          setStep('ca-step', 'Done -- DB written, cache invalidated');
+        } else {
+          setCommentary('ca-commentary', '<strong>Write complete (cache down).</strong> DB updated. Cache is down so no invalidation needed -- when cache recovers, reads will miss and backfill from DB naturally.');
+          setStep('ca-step', 'Done -- DB written, cache was down');
+        }
+        await delay(1200); clearStep('ca-step'); unlock();
+      }
+    };
+  })();
+
+  // ======================== READ-THROUGH ========================
+
+  window.RT = (function() {
+    var svg = document.getElementById('svg-read-through');
+    var section = svg.closest('.pattern-section');
+    var cacheDown = false, dbDown = false;
+    var busy = false;
+
+    // Linear layout: App(120,170) -> Cache(390,170) -> DB(660,170)
+    var APP_R = [180, 170]; var CACHE_L = [320, 170]; var CACHE_R = [460, 170];
+    var DB_L = [600, 170]; var DB_R = [720, 170];
+
+    function lock() { busy = true; disableButtons(section, true); }
+    function unlock() { busy = false; disableButtons(section, false); }
+
+    return {
+      toggleCache: function(on) {
+        cacheDown = on;
+        var box = document.getElementById('rt-cache');
+        var st = document.getElementById('rt-cache-status');
+        var label = section.querySelector('.cache-toggle');
+        if (on) {
+          box.setAttribute('stroke', 'var(--accent-red)'); box.setAttribute('opacity', '0.4');
+          st.textContent = 'DOWN'; st.setAttribute('opacity', '1');
+          label.classList.add('toggled-on');
+        } else {
+          box.setAttribute('stroke', 'var(--accent-yellow)'); box.setAttribute('opacity', '1');
+          st.setAttribute('opacity', '0');
+          label.classList.remove('toggled-on');
+        }
+      },
+      toggleDB: function(on) {
+        dbDown = on;
+        var box = document.getElementById('rt-db');
+        var st = document.getElementById('rt-db-status');
+        var label = section.querySelector('.db-toggle');
+        if (on) {
+          box.setAttribute('stroke', 'var(--accent-red)'); box.setAttribute('opacity', '0.4');
+          st.textContent = 'DOWN'; st.setAttribute('opacity', '1');
+          label.classList.add('toggled-on');
+        } else {
+          box.setAttribute('stroke', 'var(--accent-green)'); box.setAttribute('opacity', '1');
+          st.setAttribute('opacity', '0');
+          label.classList.remove('toggled-on');
+        }
+      },
+
+      readHit: async function() {
+        if (busy) return; lock();
+        if (cacheDown) {
+          setStep('rt-step', 'Cache down -- app sees error');
+          setCommentary('rt-commentary', '<strong>FAIL.</strong> In read-through, the cache <em>is</em> the interface. If it is down, the app has no fallback unless it implements a direct-DB path -- which defeats the abstraction.');
+          showXMark(svg, 250, 170, 1200);
+          await delay(1400); clearStep('rt-step'); unlock(); return;
+        }
+        setStep('rt-step', '1. App queries cache');
+        setCommentary('rt-commentary', '<strong>Cache HIT.</strong> App only talks to the cache. Key exists, value returned immediately. The app never knows about the DB.');
+        await animatePacket(svg, APP_R[0], APP_R[1], CACHE_L[0], CACHE_L[1], '#ffd43b', 'GET', 400);
+        flashBox('rt-cache', '#ffd43b', 300);
+        setStep('rt-step', '2. Cache returns value (HIT)');
+        await delay(200);
+        await animatePacket(svg, CACHE_L[0], CACHE_L[1], APP_R[0], APP_R[1], '#ffd43b', 'val', 400);
+        flashBox('rt-app', '#339af0', 300);
+        setStep('rt-step', 'Done -- cache hit, DB not touched');
+        await delay(1000); clearStep('rt-step'); unlock();
+      },
+
+      readMiss: async function() {
+        if (busy) return; lock();
+        if (cacheDown) {
+          setStep('rt-step', 'Cache down -- app sees error');
+          setCommentary('rt-commentary', '<strong>FAIL.</strong> Cache is the only interface the app knows. If it is down, reads fail entirely.');
+          showXMark(svg, 250, 170, 1200);
+          await delay(1400); clearStep('rt-step'); unlock(); return;
+        }
+        setStep('rt-step', '1. App queries cache');
+        setCommentary('rt-commentary', '<strong>Cache MISS.</strong> Key not found. Unlike cache-aside, the <em>cache itself</em> fetches from DB -- the app does not talk to DB.');
+        await animatePacket(svg, APP_R[0], APP_R[1], CACHE_L[0], CACHE_L[1], '#ffd43b', 'GET', 400);
+        flashBox('rt-cache', '#ff6b6b', 300);
+        setStep('rt-step', '2. MISS -- cache fetches from DB');
+        await delay(200);
+        if (dbDown) {
+          setStep('rt-step', '3. DB is down -- cache returns error');
+          await animatePacket(svg, CACHE_R[0], CACHE_R[1], DB_L[0], DB_L[1], '#51cf66', 'SELECT', 400);
+          showXMark(svg, 660, 170, 800);
+          setCommentary('rt-commentary', '<strong>FAIL.</strong> Cache missed and tried to fetch from DB, but DB is down. Error propagated back to the app.');
+          await delay(400);
+          await animatePacket(svg, CACHE_L[0], CACHE_L[1], APP_R[0], APP_R[1], '#ff6b6b', 'ERR', 400);
+          await delay(800); clearStep('rt-step'); unlock(); return;
+        }
+        await animatePacket(svg, CACHE_R[0], CACHE_R[1], DB_L[0], DB_L[1], '#51cf66', 'SELECT', 500);
+        flashBox('rt-db', '#51cf66', 300);
+        setStep('rt-step', '3. DB returns to cache');
+        await delay(200);
+        await animatePacket(svg, DB_L[0], DB_L[1], CACHE_R[0], CACHE_R[1], '#51cf66', 'val', 400);
+        flashBox('rt-cache', '#51cf66', 300);
+        setStep('rt-step', '4. Cache stores + returns to App');
+        await delay(200);
+        await animatePacket(svg, CACHE_L[0], CACHE_L[1], APP_R[0], APP_R[1], '#ffd43b', 'val', 400);
+        flashBox('rt-app', '#339af0', 300);
+        setCommentary('rt-commentary', '<strong>Cache MISS path complete.</strong> Cache fetched from DB transparently, stored the value, and returned it. The app never touched the DB. Next read is a hit.');
+        setStep('rt-step', 'Done -- cache filled, app served');
+        await delay(1200); clearStep('rt-step'); unlock();
+      },
+
+      write: async function() {
+        if (busy) return; lock();
+        setStep('rt-step', 'Read-through does not handle writes');
+        setCommentary('rt-commentary', '<strong>Not handled.</strong> Read-through is a read-only pattern. Writes must be paired with another strategy: cache-aside writes (app writes to DB + invalidates cache) or write-through (cache writes to DB synchronously). Using read-through alone without a write strategy causes silent data loss.');
+        showXMark(svg, 390, 170, 1500);
+        await delay(1800); clearStep('rt-step'); unlock();
+      }
+    };
+  })();
+
+  // ======================== WRITE-THROUGH ========================
+
+  window.WT = (function() {
+    var svg = document.getElementById('svg-write-through');
+    var section = svg.closest('.pattern-section');
+    var cacheDown = false, dbDown = false;
+    var busy = false;
+
+    var APP_R = [180, 170]; var CACHE_L = [320, 170]; var CACHE_R = [460, 170];
+    var DB_L = [600, 170]; var DB_R = [720, 170];
+
+    function lock() { busy = true; disableButtons(section, true); }
+    function unlock() { busy = false; disableButtons(section, false); }
+
+    return {
+      toggleCache: function(on) {
+        cacheDown = on;
+        var box = document.getElementById('wt-cache');
+        var st = document.getElementById('wt-cache-status');
+        var label = section.querySelector('.cache-toggle');
+        if (on) {
+          box.setAttribute('stroke', 'var(--accent-red)'); box.setAttribute('opacity', '0.4');
+          st.textContent = 'DOWN'; st.setAttribute('opacity', '1');
+          label.classList.add('toggled-on');
+        } else {
+          box.setAttribute('stroke', 'var(--accent-yellow)'); box.setAttribute('opacity', '1');
+          st.setAttribute('opacity', '0');
+          label.classList.remove('toggled-on');
+        }
+      },
+      toggleDB: function(on) {
+        dbDown = on;
+        var box = document.getElementById('wt-db');
+        var st = document.getElementById('wt-db-status');
+        var label = section.querySelector('.db-toggle');
+        if (on) {
+          box.setAttribute('stroke', 'var(--accent-red)'); box.setAttribute('opacity', '0.4');
+          st.textContent = 'DOWN'; st.setAttribute('opacity', '1');
+          label.classList.add('toggled-on');
+        } else {
+          box.setAttribute('stroke', 'var(--accent-green)'); box.setAttribute('opacity', '1');
+          st.setAttribute('opacity', '0');
+          label.classList.remove('toggled-on');
+        }
+      },
+
+      readHit: async function() {
+        if (busy) return; lock();
+        if (cacheDown) {
+          if (dbDown) {
+            setStep('wt-step', 'Both down -- read fails');
+            setCommentary('wt-commentary', '<strong>FAIL.</strong> Both cache and DB are down.');
+            showXMark(svg, 390, 170, 1200);
+            await delay(1400); clearStep('wt-step'); unlock(); return;
+          }
+          setStep('wt-step', '1. Cache down -- fallback to DB');
+          setCommentary('wt-commentary', 'Cache is down. Reads degrade to direct DB queries. Slower but correct.');
+          await animatePacket(svg, APP_R[0], APP_R[1], DB_L[0], DB_L[1], '#51cf66', 'GET', 600);
+          flashBox('wt-db', '#51cf66', 300);
+          setStep('wt-step', '2. DB returns value');
+          await delay(200);
+          await animatePacket(svg, DB_L[0], DB_L[1], APP_R[0], APP_R[1], '#51cf66', 'val', 500);
+          flashBox('wt-app', '#339af0', 300);
+          setStep('wt-step', 'Done -- served from DB directly');
+          await delay(1000); clearStep('wt-step'); unlock(); return;
+        }
+        setStep('wt-step', '1. App queries cache');
+        setCommentary('wt-commentary', '<strong>Cache HIT.</strong> Like read-through, the app queries the cache. Key exists, returned immediately.');
+        await animatePacket(svg, APP_R[0], APP_R[1], CACHE_L[0], CACHE_L[1], '#ffd43b', 'GET', 400);
+        flashBox('wt-cache', '#ffd43b', 300);
+        setStep('wt-step', '2. Cache returns value (HIT)');
+        await delay(200);
+        await animatePacket(svg, CACHE_L[0], CACHE_L[1], APP_R[0], APP_R[1], '#ffd43b', 'val', 400);
+        flashBox('wt-app', '#339af0', 300);
+        setStep('wt-step', 'Done -- cache hit');
+        await delay(1000); clearStep('wt-step'); unlock();
+      },
+
+      readMiss: async function() {
+        if (busy) return; lock();
+        if (cacheDown) {
+          if (dbDown) {
+            setStep('wt-step', 'Both down -- read fails');
+            setCommentary('wt-commentary', '<strong>FAIL.</strong> Both cache and DB are down.');
+            showXMark(svg, 390, 170, 1200);
+            await delay(1400); clearStep('wt-step'); unlock(); return;
+          }
+          setStep('wt-step', '1. Cache down -- fallback to DB');
+          setCommentary('wt-commentary', 'Cache is down. Read falls through directly to DB.');
+          await animatePacket(svg, APP_R[0], APP_R[1], DB_L[0], DB_L[1], '#51cf66', 'GET', 600);
+          flashBox('wt-db', '#51cf66', 300);
+          await delay(200);
+          await animatePacket(svg, DB_L[0], DB_L[1], APP_R[0], APP_R[1], '#51cf66', 'val', 500);
+          flashBox('wt-app', '#339af0', 300);
+          setStep('wt-step', 'Done -- served from DB');
+          await delay(1000); clearStep('wt-step'); unlock(); return;
+        }
+        setStep('wt-step', '1. App queries cache');
+        setCommentary('wt-commentary', '<strong>Cache MISS.</strong> Cache fetches from DB (read-through behavior on the read side).');
+        await animatePacket(svg, APP_R[0], APP_R[1], CACHE_L[0], CACHE_L[1], '#ffd43b', 'GET', 400);
+        flashBox('wt-cache', '#ff6b6b', 300);
+        setStep('wt-step', '2. MISS -- cache fetches from DB');
+        await delay(200);
+        if (dbDown) {
+          await animatePacket(svg, CACHE_R[0], CACHE_R[1], DB_L[0], DB_L[1], '#51cf66', 'SELECT', 400);
+          showXMark(svg, 660, 170, 800);
+          setStep('wt-step', '3. DB down -- error returned');
+          setCommentary('wt-commentary', '<strong>FAIL.</strong> Cache miss + DB down = error. No stale data served.');
+          await delay(400);
+          await animatePacket(svg, CACHE_L[0], CACHE_L[1], APP_R[0], APP_R[1], '#ff6b6b', 'ERR', 400);
+          await delay(800); clearStep('wt-step'); unlock(); return;
+        }
+        await animatePacket(svg, CACHE_R[0], CACHE_R[1], DB_L[0], DB_L[1], '#51cf66', 'SELECT', 500);
+        flashBox('wt-db', '#51cf66', 300);
+        setStep('wt-step', '3. DB returns to cache, cache stores');
+        await delay(200);
+        await animatePacket(svg, DB_L[0], DB_L[1], CACHE_R[0], CACHE_R[1], '#51cf66', 'val', 400);
+        flashBox('wt-cache', '#51cf66', 300);
+        setStep('wt-step', '4. Cache returns to App');
+        await delay(200);
+        await animatePacket(svg, CACHE_L[0], CACHE_L[1], APP_R[0], APP_R[1], '#ffd43b', 'val', 400);
+        flashBox('wt-app', '#339af0', 300);
+        setCommentary('wt-commentary', '<strong>Cache MISS path complete.</strong> Read side is identical to read-through: cache auto-fills from DB.');
+        setStep('wt-step', 'Done -- cache filled');
+        await delay(1200); clearStep('wt-step'); unlock();
+      },
+
+      write: async function() {
+        if (busy) return; lock();
+        if (cacheDown) {
+          if (dbDown) {
+            setStep('wt-step', 'Both down -- write fails');
+            setCommentary('wt-commentary', '<strong>FAIL.</strong> Both cache and DB are down. Write cannot proceed.');
+            showXMark(svg, 390, 170, 1200);
+            await delay(1400); clearStep('wt-step'); unlock(); return;
+          }
+          setStep('wt-step', '1. Cache down -- write goes direct to DB');
+          setCommentary('wt-commentary', 'Cache is down. Write degrades to direct DB write. When cache recovers, it may serve stale data until next miss backfills.');
+          await animatePacket(svg, APP_R[0], APP_R[1], DB_L[0], DB_L[1], '#51cf66', 'UPDATE', 600);
+          flashBox('wt-db', '#51cf66', 300);
+          setStep('wt-step', 'Done -- written to DB only');
+          await delay(1000); clearStep('wt-step'); unlock(); return;
+        }
+        setStep('wt-step', '1. App writes to cache');
+        setCommentary('wt-commentary', '<strong>Write path.</strong> App sends the write to cache. Cache writes through to DB <em>synchronously</em> before acking. No race, no stale data -- but every write pays DB latency.');
+        await animatePacket(svg, APP_R[0], APP_R[1], CACHE_L[0], CACHE_L[1], '#ffd43b', 'SET', 400);
+        flashBox('wt-cache', '#ffd43b', 300);
+        setStep('wt-step', '2. Cache writes through to DB (sync)');
+        await delay(200);
+        if (dbDown) {
+          await animatePacket(svg, CACHE_R[0], CACHE_R[1], DB_L[0], DB_L[1], '#51cf66', 'INSERT', 400);
+          showXMark(svg, 660, 170, 800);
+          setStep('wt-step', '3. DB down -- write fails (good: no silent loss)');
+          setCommentary('wt-commentary', '<strong>FAIL (safe).</strong> DB is down, so cache rejects the write. No data is lost silently. This is the durability guarantee of write-through: writes only succeed when DB confirms.');
+          await delay(400);
+          await animatePacket(svg, CACHE_L[0], CACHE_L[1], APP_R[0], APP_R[1], '#ff6b6b', 'ERR', 400);
+          await delay(800); clearStep('wt-step'); unlock(); return;
+        }
+        await animatePacket(svg, CACHE_R[0], CACHE_R[1], DB_L[0], DB_L[1], '#51cf66', 'INSERT', 500);
+        flashBox('wt-db', '#51cf66', 300);
+        setStep('wt-step', '3. DB confirms');
+        await delay(200);
+        await animatePacket(svg, DB_L[0], DB_L[1], CACHE_R[0], CACHE_R[1], '#51cf66', 'OK', 300);
+        setStep('wt-step', '4. Cache acks to App');
+        await delay(100);
+        await animatePacket(svg, CACHE_L[0], CACHE_L[1], APP_R[0], APP_R[1], '#ffd43b', 'OK', 400);
+        flashBox('wt-app', '#339af0', 300);
+        setCommentary('wt-commentary', '<strong>Write complete.</strong> Both cache and DB are updated atomically. Strong consistency at the cost of write latency (cache + DB round-trip). No invalidation race.');
+        setStep('wt-step', 'Done -- cache + DB in sync');
+        await delay(1200); clearStep('wt-step'); unlock();
+      }
+    };
+  })();
+
+  // ======================== WRITE-BACK ========================
+
+  window.WB = (function() {
+    var svg = document.getElementById('svg-write-back');
+    var section = svg.closest('.pattern-section');
+    var cacheDown = false, dbDown = false;
+    var dirtyCount = 0;
+    var busy = false;
+
+    var APP_R = [180, 170]; var CACHE_L = [300, 170]; var CACHE_R = [480, 190];
+    var DB_L = [620, 190]; var DB_R = [740, 190];
+
+    function lock() { busy = true; disableButtons(section, true); }
+    function unlock() { busy = false; disableButtons(section, false); }
+
+    function updateDirty() {
+      document.getElementById('wb-dirty-count').textContent = dirtyCount + ' entr' + (dirtyCount === 1 ? 'y' : 'ies');
+    }
+
+    return {
+      toggleCache: function(on) {
+        cacheDown = on;
+        var box = document.getElementById('wb-cache');
+        var st = document.getElementById('wb-cache-status');
+        var label = section.querySelector('.cache-toggle');
+        if (on) {
+          box.setAttribute('stroke', 'var(--accent-red)'); box.setAttribute('opacity', '0.4');
+          st.textContent = 'DOWN'; st.setAttribute('opacity', '1');
+          label.classList.add('toggled-on');
+          if (dirtyCount > 0) {
+            setCommentary('wb-commentary', '<strong>DATA LOSS.</strong> Cache died with <strong>' + dirtyCount + ' dirty entr' + (dirtyCount === 1 ? 'y' : 'ies') + '</strong> unflushed. Those writes are permanently lost -- they never reached the DB. This is the killer failure mode of write-back.');
+            dirtyCount = 0;
+            updateDirty();
+          }
+        } else {
+          box.setAttribute('stroke', 'var(--accent-yellow)'); box.setAttribute('opacity', '1');
+          st.setAttribute('opacity', '0');
+          label.classList.remove('toggled-on');
+        }
+      },
+      toggleDB: function(on) {
+        dbDown = on;
+        var box = document.getElementById('wb-db');
+        var st = document.getElementById('wb-db-status');
+        var label = section.querySelector('.db-toggle');
+        if (on) {
+          box.setAttribute('stroke', 'var(--accent-red)'); box.setAttribute('opacity', '0.4');
+          st.textContent = 'DOWN'; st.setAttribute('opacity', '1');
+          label.classList.add('toggled-on');
+        } else {
+          box.setAttribute('stroke', 'var(--accent-green)'); box.setAttribute('opacity', '1');
+          st.setAttribute('opacity', '0');
+          label.classList.remove('toggled-on');
+        }
+      },
+
+      readHit: async function() {
+        if (busy) return; lock();
+        if (cacheDown) {
+          if (dbDown) {
+            setStep('wb-step', 'Both down -- read fails');
+            setCommentary('wb-commentary', '<strong>FAIL.</strong> Both cache and DB are down.');
+            showXMark(svg, 350, 170, 1200);
+            await delay(1400); clearStep('wb-step'); unlock(); return;
+          }
+          setStep('wb-step', 'Cache down -- reading from DB');
+          setCommentary('wb-commentary', 'Cache is down. Reading from DB directly. Note: if there were dirty entries in cache, they are lost and DB may serve stale data.');
+          await animatePacket(svg, APP_R[0], APP_R[1], DB_L[0], DB_L[1], '#51cf66', 'GET', 600);
+          flashBox('wb-db', '#51cf66', 300);
+          await delay(200);
+          await animatePacket(svg, DB_L[0], DB_L[1], APP_R[0], APP_R[1], '#51cf66', 'val', 500);
+          flashBox('wb-app', '#339af0', 300);
+          setStep('wb-step', 'Done -- served from DB (may be stale)');
+          await delay(1000); clearStep('wb-step'); unlock(); return;
+        }
+        setStep('wb-step', '1. App reads from cache');
+        setCommentary('wb-commentary', '<strong>Cache HIT.</strong> Value returned from cache immediately. May include dirty (unflushed) writes -- the app sees the latest data even before DB has it.');
+        await animatePacket(svg, APP_R[0], APP_R[1], CACHE_L[0], CACHE_L[1], '#ffd43b', 'GET', 400);
+        flashBox('wb-cache', '#ffd43b', 300);
+        setStep('wb-step', '2. Cache returns value');
+        await delay(200);
+        await animatePacket(svg, CACHE_L[0], CACHE_L[1], APP_R[0], APP_R[1], '#ffd43b', 'val', 400);
+        flashBox('wb-app', '#339af0', 300);
+        setStep('wb-step', 'Done -- cache hit');
+        await delay(1000); clearStep('wb-step'); unlock();
+      },
+
+      readMiss: async function() {
+        if (busy) return; lock();
+        if (cacheDown) {
+          if (dbDown) {
+            setStep('wb-step', 'Both down -- read fails');
+            showXMark(svg, 350, 170, 1200);
+            await delay(1400); clearStep('wb-step'); unlock(); return;
+          }
+          setStep('wb-step', 'Cache down -- reading from DB');
+          setCommentary('wb-commentary', 'Cache is down. Falls through to DB.');
+          await animatePacket(svg, APP_R[0], APP_R[1], DB_L[0], DB_L[1], '#51cf66', 'GET', 600);
+          flashBox('wb-db', '#51cf66', 300);
+          await delay(200);
+          await animatePacket(svg, DB_L[0], DB_L[1], APP_R[0], APP_R[1], '#51cf66', 'val', 500);
+          setStep('wb-step', 'Done -- served from DB');
+          await delay(1000); clearStep('wb-step'); unlock(); return;
+        }
+        setStep('wb-step', '1. App reads from cache');
+        setCommentary('wb-commentary', '<strong>Cache MISS.</strong> Cache falls through to DB to load the value (read-through behavior).');
+        await animatePacket(svg, APP_R[0], APP_R[1], CACHE_L[0], CACHE_L[1], '#ffd43b', 'GET', 400);
+        flashBox('wb-cache', '#ff6b6b', 300);
+        setStep('wb-step', '2. MISS -- cache loads from DB');
+        if (dbDown) {
+          await animatePacket(svg, CACHE_R[0], CACHE_R[1], DB_L[0], DB_L[1], '#51cf66', 'SELECT', 400);
+          showXMark(svg, 680, 190, 800);
+          setCommentary('wb-commentary', '<strong>FAIL.</strong> Cache miss + DB down = error.');
+          await delay(400);
+          await animatePacket(svg, CACHE_L[0], CACHE_L[1], APP_R[0], APP_R[1], '#ff6b6b', 'ERR', 400);
+          await delay(800); clearStep('wb-step'); unlock(); return;
+        }
+        await delay(200);
+        await animatePacket(svg, CACHE_R[0], CACHE_R[1], DB_L[0], DB_L[1], '#51cf66', 'SELECT', 500);
+        flashBox('wb-db', '#51cf66', 300);
+        setStep('wb-step', '3. DB returns to cache');
+        await delay(200);
+        await animatePacket(svg, DB_L[0], DB_L[1], CACHE_R[0], CACHE_R[1], '#51cf66', 'val', 400);
+        flashBox('wb-cache', '#51cf66', 300);
+        setStep('wb-step', '4. Cache returns to App');
+        await delay(200);
+        await animatePacket(svg, CACHE_L[0], CACHE_L[1], APP_R[0], APP_R[1], '#ffd43b', 'val', 400);
+        flashBox('wb-app', '#339af0', 300);
+        setCommentary('wb-commentary', '<strong>Cache MISS path complete.</strong> Loaded from DB and cached. Next read is a hit.');
+        setStep('wb-step', 'Done -- cache filled');
+        await delay(1200); clearStep('wb-step'); unlock();
+      },
+
+      write: async function() {
+        if (busy) return; lock();
+        if (cacheDown) {
+          setStep('wb-step', 'Cache down -- write fails');
+          setCommentary('wb-commentary', '<strong>FAIL.</strong> Write-back writes to cache only. If cache is down, the write has nowhere to go. Unlike write-through, there is no DB fallback on the write path.');
+          showXMark(svg, 350, 170, 1200);
+          await delay(1400); clearStep('wb-step'); unlock(); return;
+        }
+        setStep('wb-step', '1. App writes to cache');
+        setCommentary('wb-commentary', '<strong>Write (async).</strong> App writes to cache only. Cache acks immediately -- microsecond latency. Entry marked dirty, queued for async flush to DB.');
+        await animatePacket(svg, APP_R[0], APP_R[1], CACHE_L[0], CACHE_L[1], '#ffa94d', 'SET', 350);
+        flashBox('wb-cache', '#ffa94d', 300);
+        dirtyCount++;
+        updateDirty();
+        setStep('wb-step', '2. Cache acks immediately (dirty buffer +1)');
+        await delay(200);
+        await animatePacket(svg, CACHE_L[0], CACHE_L[1], APP_R[0], APP_R[1], '#ffa94d', 'OK', 300);
+        flashBox('wb-app', '#339af0', 300);
+        setCommentary('wb-commentary', '<strong>Write complete (in cache).</strong> Dirty buffer now has <strong>' + dirtyCount + '</strong> unflushed entr' + (dirtyCount === 1 ? 'y' : 'ies') + '. DB does not have this data yet. If the cache dies now, these writes are lost. Click "Trigger flush" to drain to DB, or toggle "Cache down" to see data loss.');
+        setStep('wb-step', 'Done -- cached, not yet in DB');
+        await delay(1200); clearStep('wb-step'); unlock();
+      },
+
+      flush: async function() {
+        if (busy) return; lock();
+        if (dirtyCount === 0) {
+          setStep('wb-step', 'Nothing to flush');
+          setCommentary('wb-commentary', 'Dirty buffer is empty. No pending writes to flush.');
+          await delay(1000); clearStep('wb-step'); unlock(); return;
+        }
+        if (cacheDown) {
+          setStep('wb-step', 'Cache down -- cannot flush');
+          setCommentary('wb-commentary', '<strong>Cannot flush.</strong> Cache is down. If there were dirty entries, they are already lost.');
+          await delay(1200); clearStep('wb-step'); unlock(); return;
+        }
+        if (dbDown) {
+          setStep('wb-step', 'DB down -- flush queued, will retry');
+          setCommentary('wb-commentary', '<strong>DB down.</strong> Flush cannot complete. Dirty entries remain in cache buffer. Write-back retries when DB recovers. If cache dies in the meantime, data is lost.');
+          showXMark(svg, 680, 190, 1200);
+          await delay(1400); clearStep('wb-step'); unlock(); return;
+        }
+        var flushing = dirtyCount;
+        setStep('wb-step', '1. Cache flushes ' + flushing + ' dirty entr' + (flushing === 1 ? 'y' : 'ies') + ' to DB');
+        setCommentary('wb-commentary', '<strong>Flushing.</strong> Cache batch-writes ' + flushing + ' dirty entr' + (flushing === 1 ? 'y' : 'ies') + ' to DB. This is the async background job that makes write-back efficient -- many small writes become one batch.');
+        await animatePacket(svg, CACHE_R[0], CACHE_R[1], DB_L[0], DB_L[1], '#ffa94d', 'BATCH ' + flushing, 700);
+        flashBox('wb-db', '#ffa94d', 300);
+        setStep('wb-step', '2. DB confirms batch write');
+        await delay(300);
+        await animatePacket(svg, DB_L[0], DB_L[1], CACHE_R[0], CACHE_R[1], '#51cf66', 'OK', 400);
+        dirtyCount = 0;
+        updateDirty();
+        flashBox('wb-cache', '#51cf66', 300);
+        setCommentary('wb-commentary', '<strong>Flush complete.</strong> All dirty entries persisted to DB. Dirty buffer is now empty. Cache and DB are in sync (until the next write).');
+        setStep('wb-step', 'Done -- dirty buffer drained');
+        await delay(1200); clearStep('wb-step'); unlock();
+      }
+    };
+  })();
+
+  // ======================== REFRESH-AHEAD ========================
+
+  window.RA = (function() {
+    var svg = document.getElementById('svg-refresh-ahead');
+    var section = svg.closest('.pattern-section');
+    var cacheDown = false, dbDown = false;
+    var busy = false;
+    var ttlPct = 100;
+
+    var APP_R = [180, 190]; var CACHE_L = [300, 190]; var CACHE_R = [480, 190];
+    var DB_L = [620, 190]; var DB_R = [740, 190];
+
+    function lock() { busy = true; disableButtons(section, true); }
+    function unlock() { busy = false; disableButtons(section, false); }
+
+    function updateTTLBar(pct) {
+      ttlPct = pct;
+      var bar = document.getElementById('ra-ttl-bar');
+      var txt = document.getElementById('ra-ttl-text');
+      var w = Math.max(0, Math.min(110, 110 * pct / 100));
+      bar.setAttribute('width', w);
+      txt.textContent = Math.round(pct) + '%';
+      if (pct <= 20) {
+        bar.setAttribute('fill', 'var(--accent-red)');
+      } else if (pct <= 50) {
+        bar.setAttribute('fill', 'var(--accent-yellow)');
+      } else {
+        bar.setAttribute('fill', 'var(--accent-green)');
+      }
+    }
+
+    return {
+      toggleCache: function(on) {
+        cacheDown = on;
+        var box = document.getElementById('ra-cache');
+        var st = document.getElementById('ra-cache-status');
+        var label = section.querySelector('.cache-toggle');
+        if (on) {
+          box.setAttribute('stroke', 'var(--accent-red)'); box.setAttribute('opacity', '0.4');
+          st.textContent = 'DOWN'; st.setAttribute('opacity', '1');
+          label.classList.add('toggled-on');
+        } else {
+          box.setAttribute('stroke', 'var(--accent-yellow)'); box.setAttribute('opacity', '1');
+          st.setAttribute('opacity', '0');
+          label.classList.remove('toggled-on');
+        }
+      },
+      toggleDB: function(on) {
+        dbDown = on;
+        var box = document.getElementById('ra-db');
+        var st = document.getElementById('ra-db-status');
+        var label = section.querySelector('.db-toggle');
+        if (on) {
+          box.setAttribute('stroke', 'var(--accent-red)'); box.setAttribute('opacity', '0.4');
+          st.textContent = 'DOWN'; st.setAttribute('opacity', '1');
+          label.classList.add('toggled-on');
+        } else {
+          box.setAttribute('stroke', 'var(--accent-green)'); box.setAttribute('opacity', '1');
+          st.setAttribute('opacity', '0');
+          label.classList.remove('toggled-on');
+        }
+      },
+
+      readHit: async function() {
+        if (busy) return; lock();
+        if (cacheDown) {
+          if (dbDown) {
+            setStep('ra-step', 'Both down -- read fails');
+            showXMark(svg, 350, 190, 1200);
+            await delay(1400); clearStep('ra-step'); unlock(); return;
+          }
+          setStep('ra-step', 'Cache down -- direct DB read');
+          setCommentary('ra-commentary', 'Cache is down. Reads fall back to DB directly. No refresh-ahead benefit -- every read pays DB latency.');
+          await animatePacket(svg, APP_R[0], APP_R[1], DB_L[0], DB_L[1], '#51cf66', 'GET', 600);
+          flashBox('ra-db', '#51cf66', 300);
+          await delay(200);
+          await animatePacket(svg, DB_L[0], DB_L[1], APP_R[0], APP_R[1], '#51cf66', 'val', 500);
+          setStep('ra-step', 'Done -- served from DB');
+          await delay(1000); clearStep('ra-step'); unlock(); return;
+        }
+        // Simulate TTL decay on each read
+        if (ttlPct > 20) {
+          updateTTLBar(Math.max(20, ttlPct - 25));
+        }
+        setStep('ra-step', '1. App reads from cache (HIT)');
+        setCommentary('ra-commentary', '<strong>Cache HIT.</strong> Value served immediately. TTL is at ' + Math.round(ttlPct) + '%. Refresh-ahead keeps hot keys populated so you never see a miss-induced latency spike.');
+        await animatePacket(svg, APP_R[0], APP_R[1], CACHE_L[0], CACHE_L[1], '#ffd43b', 'GET', 400);
+        flashBox('ra-cache', '#ffd43b', 300);
+        setStep('ra-step', '2. Cache returns value');
+        await delay(200);
+        await animatePacket(svg, CACHE_L[0], CACHE_L[1], APP_R[0], APP_R[1], '#ffd43b', 'val', 400);
+        flashBox('ra-app', '#339af0', 300);
+        if (ttlPct <= 20) {
+          setCommentary('ra-commentary', '<strong>Cache HIT + TTL below 20% threshold.</strong> Value served from cache. The refresh-ahead layer detects TTL is low and will proactively refresh in the background. Click "Trigger TTL refresh" to see the background reload.');
+        }
+        setStep('ra-step', 'Done -- cache hit (TTL ' + Math.round(ttlPct) + '%)');
+        await delay(1000); clearStep('ra-step'); unlock();
+      },
+
+      readMiss: async function() {
+        if (busy) return; lock();
+        if (cacheDown) {
+          if (dbDown) {
+            setStep('ra-step', 'Both down -- read fails');
+            showXMark(svg, 350, 190, 1200);
+            await delay(1400); clearStep('ra-step'); unlock(); return;
+          }
+          setStep('ra-step', 'Cache down -- direct DB read');
+          setCommentary('ra-commentary', 'Cache is down. Falls through to DB.');
+          await animatePacket(svg, APP_R[0], APP_R[1], DB_L[0], DB_L[1], '#51cf66', 'GET', 600);
+          flashBox('ra-db', '#51cf66', 300);
+          await delay(200);
+          await animatePacket(svg, DB_L[0], DB_L[1], APP_R[0], APP_R[1], '#51cf66', 'val', 500);
+          setStep('ra-step', 'Done -- served from DB');
+          await delay(1000); clearStep('ra-step'); unlock(); return;
+        }
+        setStep('ra-step', '1. App reads from cache (MISS)');
+        setCommentary('ra-commentary', '<strong>Cache MISS.</strong> This should not happen for hot keys if refresh-ahead is configured correctly. Indicates either a cold key or prediction failure. Falls through to DB.');
+        await animatePacket(svg, APP_R[0], APP_R[1], CACHE_L[0], CACHE_L[1], '#ffd43b', 'GET', 400);
+        flashBox('ra-cache', '#ff6b6b', 300);
+        setStep('ra-step', '2. MISS -- cache loads from DB');
+        if (dbDown) {
+          await animatePacket(svg, CACHE_R[0], CACHE_R[1], DB_L[0], DB_L[1], '#51cf66', 'SELECT', 400);
+          showXMark(svg, 680, 190, 800);
+          setCommentary('ra-commentary', '<strong>FAIL.</strong> Cache miss + DB down = error. Refresh-ahead prevents this for hot keys; cold keys still vulnerable.');
+          await delay(400);
+          await animatePacket(svg, CACHE_L[0], CACHE_L[1], APP_R[0], APP_R[1], '#ff6b6b', 'ERR', 400);
+          await delay(800); clearStep('ra-step'); unlock(); return;
+        }
+        await delay(200);
+        await animatePacket(svg, CACHE_R[0], CACHE_R[1], DB_L[0], DB_L[1], '#51cf66', 'SELECT', 500);
+        flashBox('ra-db', '#51cf66', 300);
+        setStep('ra-step', '3. DB returns to cache');
+        await delay(200);
+        await animatePacket(svg, DB_L[0], DB_L[1], CACHE_R[0], CACHE_R[1], '#51cf66', 'val', 400);
+        flashBox('ra-cache', '#51cf66', 300);
+        updateTTLBar(100);
+        setStep('ra-step', '4. Cache returns to App (TTL reset)');
+        await delay(200);
+        await animatePacket(svg, CACHE_L[0], CACHE_L[1], APP_R[0], APP_R[1], '#ffd43b', 'val', 400);
+        flashBox('ra-app', '#339af0', 300);
+        setCommentary('ra-commentary', '<strong>Miss path complete.</strong> Loaded from DB, TTL reset to 100%. Subsequent reads will hit. Refresh-ahead will proactively reload when TTL drops below threshold.');
+        setStep('ra-step', 'Done -- cache filled, TTL 100%');
+        await delay(1200); clearStep('ra-step'); unlock();
+      },
+
+      triggerRefresh: async function() {
+        if (busy) return; lock();
+        if (cacheDown) {
+          setStep('ra-step', 'Cache down -- cannot refresh');
+          setCommentary('ra-commentary', 'Cache is down. No refresh possible.');
+          await delay(1000); clearStep('ra-step'); unlock(); return;
+        }
+        var lbl = document.getElementById('ra-refresh-label');
+        lbl.setAttribute('opacity', '1');
+        setStep('ra-step', '1. TTL below threshold -- background refresh');
+        setCommentary('ra-commentary', '<strong>Background refresh triggered.</strong> Cache detects hot key TTL is near expiry. It proactively fetches a fresh copy from DB <em>while still serving the old value</em>. Reads continue uninterrupted.');
+        if (dbDown) {
+          await animatePacket(svg, CACHE_R[0], CACHE_R[1], DB_L[0], DB_L[1], '#cc5de8', 'REFRESH', 500);
+          showXMark(svg, 680, 190, 800);
+          setStep('ra-step', '2. DB down -- refresh fails silently');
+          setCommentary('ra-commentary', '<strong>Refresh failed.</strong> DB is down. Cache continues serving the existing (slightly stale) value until hard TTL expiry. If key expires before DB recovers, the next read will be a cold miss -- potential stampede.');
+          lbl.setAttribute('opacity', '0');
+          await delay(1400); clearStep('ra-step'); unlock(); return;
+        }
+        await animatePacket(svg, CACHE_R[0], CACHE_R[1], DB_L[0], DB_L[1], '#cc5de8', 'REFRESH', 500);
+        flashBox('ra-db', '#cc5de8', 300);
+        setStep('ra-step', '2. DB returns fresh value');
+        await delay(200);
+        await animatePacket(svg, DB_L[0], DB_L[1], CACHE_R[0], CACHE_R[1], '#51cf66', 'fresh val', 400);
+        flashBox('ra-cache', '#51cf66', 300);
+        updateTTLBar(100);
+        lbl.setAttribute('opacity', '0');
+        setCommentary('ra-commentary', '<strong>Refresh complete.</strong> TTL reset to 100%. The key never expired -- no miss, no stampede. Reads were served throughout the refresh. This is the core value: predictable hot keys never go cold.');
+        setStep('ra-step', 'Done -- TTL reset, zero downtime');
+        await delay(1200); clearStep('ra-step'); unlock();
+      },
+
+      write: async function() {
+        if (busy) return; lock();
+        setStep('ra-step', 'Refresh-ahead does not handle writes');
+        setCommentary('ra-commentary', '<strong>Not handled.</strong> Refresh-ahead is a read optimization. Writes must be paired with another strategy: cache-aside, write-through, or write-back. Without a write strategy, the cache may serve stale data indefinitely until the next refresh cycle.');
+        showXMark(svg, 390, 190, 1500);
+        await delay(1800); clearStep('ra-step'); unlock();
+      }
+    };
+  })();
+
+})();
+</script>
+
+</body>
+</html>

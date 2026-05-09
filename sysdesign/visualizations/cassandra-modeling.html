@@ -1,0 +1,1363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cassandra Data Modeling -- Interactive Companion</title>
+<style>
+:root {
+  --bg: #0f0f15;
+  --surface: #181820;
+  --surface-2: #20202a;
+  --border: #2a2a35;
+  --text: #e6e6ea;
+  --text-2: #cfcfd6;
+  --text-3: #888;
+  --accent-red: #ff6b6b;
+  --accent-green: #51cf66;
+  --accent-blue: #339af0;
+  --accent-yellow: #ffd43b;
+  --accent-purple: #cc5de8;
+  --accent-cyan: #8be9fd;
+  --accent-orange: #ffa94d;
+}
+*, *::before, *::after { box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  padding: 32px 24px;
+  max-width: 1100px;
+  margin: 0 auto;
+  line-height: 1.55;
+}
+h1 { color: #fff; margin-bottom: 4px; }
+h1 + p.sub { color: var(--text-3); font-style: italic; margin-top: 0; margin-bottom: 24px; }
+h2 { color: #fff; margin-top: 48px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+h3 { color: var(--text-2); margin-top: 20px; }
+code {
+  background: var(--surface-2);
+  padding: 2px 6px;
+  border-radius: 3px;
+  color: var(--accent-cyan);
+  font-size: 13px;
+}
+pre {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 14px 16px;
+  overflow-x: auto;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-2);
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+}
+pre .kw { color: var(--accent-purple); }
+pre .type { color: var(--accent-blue); }
+pre .comment { color: var(--text-3); font-style: italic; }
+pre .str { color: var(--accent-green); }
+svg {
+  background: var(--surface);
+  border-radius: 8px;
+  display: block;
+  margin: 14px auto;
+  width: 100%;
+  height: auto;
+}
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0;
+  align-items: center;
+}
+.controls button, .btn {
+  padding: 10px 16px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  border-radius: 6px;
+  cursor: pointer;
+  min-height: 44px;
+  font-size: 14px;
+  transition: background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+.controls button:hover, .btn:hover { background: var(--surface); }
+.controls button:disabled, .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.controls button.active-btn { border-color: var(--accent-blue); color: var(--accent-blue); }
+.controls button.danger { border-color: var(--accent-red); color: var(--accent-red); }
+.controls button.danger:hover { background: #2a1520; }
+.commentary {
+  background: var(--surface-2);
+  padding: 14px;
+  border-radius: 6px;
+  font-size: 14px;
+  color: var(--text-2);
+  margin: 12px 0;
+  min-height: 44px;
+  line-height: 1.5;
+}
+.takeaway {
+  background: #1a1a22;
+  border-left: 3px solid var(--accent-green);
+  padding: 12px 16px;
+  margin: 14px 0;
+  font-size: 14px;
+}
+.takeaway strong { color: var(--accent-green); }
+.takeaway ul { margin: 6px 0 0 0; padding-left: 18px; }
+.takeaway li { margin-bottom: 6px; }
+.query-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 12px;
+  margin: 4px 0;
+  border-radius: 6px;
+  font-size: 13px;
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.query-row:hover { border-color: var(--accent-blue); }
+.query-row.selected { border-color: var(--accent-blue); background: #1a1a2a; }
+.query-badge {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.badge-fast { background: #1a2e1a; color: var(--accent-green); }
+.badge-slow { background: #2e2a1a; color: var(--accent-yellow); }
+.badge-reject { background: #2e1a1a; color: var(--accent-red); }
+.physical-layout {
+  display: grid;
+  gap: 2px;
+  margin: 14px 0;
+  font-size: 12px;
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+}
+.physical-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 2px;
+}
+.physical-cell {
+  padding: 6px 8px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.physical-cell.header {
+  background: var(--surface);
+  color: var(--accent-cyan);
+  font-weight: 600;
+}
+.physical-cell.pk { color: var(--accent-purple); }
+.physical-cell.ck { color: var(--accent-blue); }
+.physical-cell.highlight { background: #1a2a1a; border-color: var(--accent-green); }
+.node-bar {
+  display: flex;
+  gap: 12px;
+  margin: 14px 0;
+  align-items: flex-end;
+  min-height: 180px;
+}
+.node-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.node-col .bar-fill {
+  width: 100%;
+  max-width: 80px;
+  border-radius: 4px 4px 0 0;
+  transition: height 0.6s ease, background 0.3s;
+  min-height: 4px;
+}
+.node-col .label {
+  font-size: 12px;
+  color: var(--text-3);
+  text-align: center;
+}
+.node-col .count {
+  font-size: 11px;
+  color: var(--text-2);
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+}
+.write-path-viz {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin: 14px 0;
+  padding: 16px;
+  background: var(--surface);
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+.write-box {
+  padding: 10px 14px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  font-size: 13px;
+  text-align: center;
+  min-width: 140px;
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+.write-box.active-write {
+  border-color: var(--accent-green);
+  box-shadow: 0 0 12px rgba(81, 207, 102, 0.2);
+}
+.write-arrow {
+  color: var(--text-3);
+  font-size: 20px;
+  transition: color 0.3s;
+}
+.write-arrow.active-arrow { color: var(--accent-green); }
+.sstable-viz {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 14px 0;
+  padding: 16px;
+  background: var(--surface);
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  min-height: 80px;
+  align-items: flex-end;
+}
+.sstable-block {
+  width: 60px;
+  border-radius: 4px;
+  text-align: center;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 4px 2px;
+  transition: opacity 0.8s, transform 0.5s, background 0.3s;
+  color: #fff;
+}
+.sstable-block.expired {
+  opacity: 0.15;
+  transform: scale(0.9);
+}
+.paxos-step {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+  font-size: 13px;
+  color: var(--text-3);
+  transition: color 0.3s;
+}
+.paxos-step.active-step { color: var(--text); }
+.paxos-step .step-dot {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 600;
+  flex-shrink: 0;
+  transition: border-color 0.3s, background 0.3s, color 0.3s;
+}
+.paxos-step.active-step .step-dot {
+  border-color: var(--accent-yellow);
+  background: var(--accent-yellow);
+  color: #000;
+}
+.paxos-step.done-step .step-dot {
+  border-color: var(--accent-green);
+  background: var(--accent-green);
+  color: #000;
+}
+.tombstone-viz {
+  display: flex;
+  gap: 3px;
+  flex-wrap: wrap;
+  margin: 14px 0;
+  padding: 16px;
+  background: var(--surface);
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  min-height: 60px;
+}
+.tombstone-cell {
+  width: 14px;
+  height: 14px;
+  border-radius: 2px;
+  transition: background 0.3s;
+}
+.tombstone-cell.live { background: var(--accent-green); }
+.tombstone-cell.dead { background: var(--accent-red); opacity: 0.5; }
+.tombstone-cell.empty { background: var(--surface-2); }
+.counter-bar {
+  display: flex;
+  gap: 16px;
+  margin: 10px 0;
+  font-size: 13px;
+}
+.counter-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.counter-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+}
+@media (max-width: 720px) {
+  body { padding: 20px 14px; }
+  .node-bar { gap: 6px; }
+  .write-path-viz { gap: 8px; padding: 12px; }
+}
+@media (max-width: 480px) {
+  .controls { flex-direction: column; }
+  .controls button { width: 100%; }
+  .physical-row { grid-template-columns: repeat(2, 1fr); }
+  .node-bar { flex-wrap: wrap; }
+  .node-col { min-width: 50px; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Cassandra data modeling</h1>
+  <p class="sub">Partition keys, hot partitions, denormalize-by-query, tombstones, TWCS for time-series. Cassandra punishes relational instincts -- these are the rules that keep you out of trouble.</p>
+</header>
+
+<!-- ============================================================ -->
+<!-- SECTION 1: PRIMARY KEY ANATOMY                                -->
+<!-- ============================================================ -->
+<h2>1. Primary key anatomy</h2>
+
+<p>Every Cassandra table has a primary key with two distinct roles packed into one declaration:</p>
+
+<svg viewBox="0 0 800 120" style="max-width:800px; height: 120px;">
+  <rect x="0" y="0" width="800" height="120" fill="none"/>
+  <!-- The full PK line -->
+  <text x="40" y="30" fill="#888" font-size="13" font-family="SF Mono, Fira Code, monospace">PRIMARY KEY (</text>
+  <text x="195" y="30" fill="#cc5de8" font-size="13" font-family="SF Mono, Fira Code, monospace">(partition_key)</text>
+  <text x="345" y="30" fill="#888" font-size="13" font-family="SF Mono, Fira Code, monospace">,</text>
+  <text x="360" y="30" fill="#339af0" font-size="13" font-family="SF Mono, Fira Code, monospace">clustering_key1, clustering_key2</text>
+  <text x="650" y="30" fill="#888" font-size="13" font-family="SF Mono, Fira Code, monospace">)</text>
+  <!-- Brackets and labels -->
+  <line x1="195" y1="40" x2="195" y2="55" stroke="#cc5de8" stroke-width="1.5"/>
+  <line x1="345" y1="40" x2="345" y2="55" stroke="#cc5de8" stroke-width="1.5"/>
+  <line x1="195" y1="55" x2="345" y2="55" stroke="#cc5de8" stroke-width="1.5"/>
+  <line x1="270" y1="55" x2="270" y2="65" stroke="#cc5de8" stroke-width="1.5"/>
+  <text x="270" y="80" fill="#cc5de8" font-size="11" font-family="sans-serif" text-anchor="middle">partition key</text>
+  <text x="270" y="95" fill="#888" font-size="10" font-family="sans-serif" text-anchor="middle">hash -> token -> node</text>
+  <text x="270" y="108" fill="#888" font-size="10" font-family="sans-serif" text-anchor="middle">MUST be in WHERE</text>
+
+  <line x1="360" y1="40" x2="360" y2="55" stroke="#339af0" stroke-width="1.5"/>
+  <line x1="640" y1="40" x2="640" y2="55" stroke="#339af0" stroke-width="1.5"/>
+  <line x1="360" y1="55" x2="640" y2="55" stroke="#339af0" stroke-width="1.5"/>
+  <line x1="500" y1="55" x2="500" y2="65" stroke="#339af0" stroke-width="1.5"/>
+  <text x="500" y="80" fill="#339af0" font-size="11" font-family="sans-serif" text-anchor="middle">clustering key(s)</text>
+  <text x="500" y="95" fill="#888" font-size="10" font-family="sans-serif" text-anchor="middle">sort order WITHIN partition</text>
+  <text x="500" y="108" fill="#888" font-size="10" font-family="sans-serif" text-anchor="middle">range queries + ORDER BY</text>
+</svg>
+
+<p><strong style="color:var(--accent-purple)">Partition key</strong> determines which node(s) own the data. Cassandra hashes it to a token, maps the token to a position on the ring, and routes the request to the responsible node(s). Every efficient query MUST include the full partition key in its <code>WHERE</code> clause.</p>
+
+<p><strong style="color:var(--accent-blue)">Clustering key(s)</strong> determine sort order within a partition. They enable range scans and <code>ORDER BY</code>. Clustering keys must be used left-to-right in queries -- you cannot skip one.</p>
+
+<h3>Interactive example: <code>users_by_country</code></h3>
+
+<pre><span class="kw">CREATE TABLE</span> users_by_country (
+  country   <span class="type">text</span>,
+  signup_at <span class="type">timestamp</span>,
+  user_id   <span class="type">uuid</span>,
+  name      <span class="type">text</span>,
+  <span class="kw">PRIMARY KEY</span> ((<span class="str">country</span>), <span class="str">signup_at</span>, <span class="str">user_id</span>)
+) <span class="kw">WITH CLUSTERING ORDER BY</span> (signup_at <span class="kw">DESC</span>);</pre>
+
+<p>Physical layout for <code>country = 'US'</code> -- all rows co-located on the same node, sorted by <code>signup_at DESC</code>:</p>
+
+<div class="physical-layout" id="pk-layout">
+  <div class="physical-row">
+    <div class="physical-cell header pk">country (PK)</div>
+    <div class="physical-cell header ck">signup_at (CK1)</div>
+    <div class="physical-cell header ck">user_id (CK2)</div>
+    <div class="physical-cell header">name</div>
+  </div>
+  <div class="physical-row">
+    <div class="physical-cell pk">US</div>
+    <div class="physical-cell ck">2024-12-15</div>
+    <div class="physical-cell ck">a3f1...</div>
+    <div class="physical-cell">Dana</div>
+  </div>
+  <div class="physical-row">
+    <div class="physical-cell pk">US</div>
+    <div class="physical-cell ck">2024-11-02</div>
+    <div class="physical-cell ck">b7c2...</div>
+    <div class="physical-cell">Charlie</div>
+  </div>
+  <div class="physical-row">
+    <div class="physical-cell pk">US</div>
+    <div class="physical-cell ck">2024-06-18</div>
+    <div class="physical-cell ck">c9d3...</div>
+    <div class="physical-cell">Bob</div>
+  </div>
+  <div class="physical-row">
+    <div class="physical-cell pk">US</div>
+    <div class="physical-cell ck">2024-01-05</div>
+    <div class="physical-cell ck">d2e4...</div>
+    <div class="physical-cell">Alice</div>
+  </div>
+</div>
+
+<p style="font-size:13px; color:var(--text-3)">Click a query below to see which rows it touches:</p>
+
+<div id="query-demos">
+  <div class="query-row" data-query="q1" onclick="selectQuery('q1')">
+    <span class="query-badge badge-fast">FAST</span>
+    <span>WHERE country='US'</span>
+  </div>
+  <div class="query-row" data-query="q2" onclick="selectQuery('q2')">
+    <span class="query-badge badge-fast">FAST</span>
+    <span>WHERE country='US' AND signup_at > '2024-06-01'</span>
+  </div>
+  <div class="query-row" data-query="q3" onclick="selectQuery('q3')">
+    <span class="query-badge badge-fast">FAST</span>
+    <span>WHERE country='US' AND signup_at > '2024-01-01' AND user_id = 'a3f1...'</span>
+  </div>
+  <div class="query-row" data-query="q4" onclick="selectQuery('q4')">
+    <span class="query-badge badge-slow">SLOW</span>
+    <span>WHERE country='US' AND user_id = 'c9d3...'</span>
+  </div>
+  <div class="query-row" data-query="q5" onclick="selectQuery('q5')">
+    <span class="query-badge badge-reject">REJECT</span>
+    <span>WHERE name = 'Alice'</span>
+  </div>
+</div>
+
+<div class="commentary" id="query-commentary">Click a query to see why it is fast, slow, or rejected.</div>
+
+<div class="takeaway">
+  <strong>Takeaway:</strong> Cassandra is a key-value store with a hierarchical key. Partition key is mandatory in WHERE; clustering keys must be used left-to-right (no skipping). If you skip a clustering key, Cassandra cannot use the index efficiently. If you omit the partition key entirely, the query is rejected or requires a full cluster scan.
+</div>
+
+<!-- ============================================================ -->
+<!-- SECTION 2: HOT PARTITION                                      -->
+<!-- ============================================================ -->
+<h2>2. Hot partition -- the canonical anti-pattern</h2>
+
+<p>Domain: time-series sensor readings at 1 Hz.</p>
+
+<h3>Bad model: unbounded partition</h3>
+
+<pre><span class="kw">CREATE TABLE</span> readings (
+  sensor_id <span class="type">uuid</span>,
+  ts        <span class="type">timestamp</span>,
+  value     <span class="type">double</span>,
+  <span class="kw">PRIMARY KEY</span> ((<span class="str">sensor_id</span>), <span class="str">ts</span>)
+);</pre>
+
+<p>Every reading for sensor X goes to <strong>one partition forever</strong>. After a year at 1 Hz: 31.5M rows in one partition, one node bottlenecked, partition well over 100 MB. Cassandra struggles with partitions beyond 100 MB -- GC pauses, compaction stalls, read latency spikes.</p>
+
+<div class="controls">
+  <button onclick="runHotDemo('bad')" id="btn-hot-bad" class="active-btn">Bad: single partition</button>
+  <button onclick="runHotDemo('good')" id="btn-hot-good">Good: bucketed</button>
+  <button onclick="resetHotDemo()" class="danger">Reset</button>
+</div>
+
+<p style="font-size:13px; color:var(--text-3)">Writes per node (5-node cluster). Watch the distribution:</p>
+
+<div class="node-bar" id="hot-bar">
+  <div class="node-col">
+    <div class="count" id="hot-n0-count">0</div>
+    <div class="bar-fill" id="hot-n0" style="height:4px; background:var(--accent-blue)"></div>
+    <div class="label">N0</div>
+  </div>
+  <div class="node-col">
+    <div class="count" id="hot-n1-count">0</div>
+    <div class="bar-fill" id="hot-n1" style="height:4px; background:var(--accent-green)"></div>
+    <div class="label">N1</div>
+  </div>
+  <div class="node-col">
+    <div class="count" id="hot-n2-count">0</div>
+    <div class="bar-fill" id="hot-n2" style="height:4px; background:var(--accent-purple)"></div>
+    <div class="label">N2</div>
+  </div>
+  <div class="node-col">
+    <div class="count" id="hot-n3-count">0</div>
+    <div class="bar-fill" id="hot-n3" style="height:4px; background:var(--accent-orange)"></div>
+    <div class="label">N3</div>
+  </div>
+  <div class="node-col">
+    <div class="count" id="hot-n4-count">0</div>
+    <div class="bar-fill" id="hot-n4" style="height:4px; background:var(--accent-cyan)"></div>
+    <div class="label">N4</div>
+  </div>
+</div>
+
+<div class="commentary" id="hot-commentary">Click "Bad: single partition" to simulate unbounded time-series writes, then "Good: bucketed" to see the fix.</div>
+
+<h3>Good model: bucketed partition key</h3>
+
+<pre><span class="kw">CREATE TABLE</span> readings (
+  sensor_id <span class="type">uuid</span>,
+  day       <span class="type">date</span>,
+  ts        <span class="type">timestamp</span>,
+  value     <span class="type">double</span>,
+  <span class="kw">PRIMARY KEY</span> ((<span class="str">sensor_id</span>, <span class="str">day</span>), <span class="str">ts</span>)
+);</pre>
+
+<p>Now partition = <code>(sensor_id, day)</code>. Each day's data is a fresh partition, distributed by <code>hash(sensor_id, day)</code>. Each partition is bounded: ~86,400 rows max at 1 Hz.</p>
+
+<p>Range query <code>WHERE sensor_id = X AND day = '2024-01-15'</code> hits 1 partition on 1 node. <code>WHERE sensor_id = X AND day IN ('2024-01-15', ..., '2024-01-21')</code> hits 7 partitions, possibly across 7 nodes -- scatter-gather, but each partition is small and fast.</p>
+
+<div class="takeaway">
+  <strong>Takeaway:</strong> Time-series ALWAYS bucketed. Pick the bucket size so partitions stay under 100 MB / under 100K rows. Day, hour, week -- depends on write rate. At 1 Hz, day-bucketing gives ~86K rows per partition. At 100 Hz, use hour-bucketing (~360K rows -- still within bounds).
+</div>
+
+<!-- ============================================================ -->
+<!-- SECTION 3: DENORMALIZE-BY-QUERY                               -->
+<!-- ============================================================ -->
+<h2>3. Denormalize-by-query</h2>
+
+<p>Domain: a chat application with two access patterns:</p>
+<ul style="color:var(--text-2)">
+  <li>"Show all messages for user X" (sorted by time)</li>
+  <li>"Show all messages in room Y" (sorted by time)</li>
+</ul>
+
+<h3>Wrong (relational) approach</h3>
+
+<pre><span class="comment">-- One table to rule them all (the relational instinct)</span>
+<span class="kw">CREATE TABLE</span> messages (
+  msg_id   <span class="type">uuid</span>,
+  user_id  <span class="type">uuid</span>,
+  room_id  <span class="type">uuid</span>,
+  content  <span class="type">text</span>,
+  ts       <span class="type">timestamp</span>,
+  <span class="kw">PRIMARY KEY</span> ((<span class="str">msg_id</span>))
+);</pre>
+
+<p>Query "all messages for user X" requires either a secondary index (per-node local scan, scatter to all nodes) or <code>ALLOW FILTERING</code> (full cluster scan). Both are unacceptable at scale.</p>
+
+<h3>Right (Cassandra) approach: one table per query pattern</h3>
+
+<pre><span class="kw">CREATE TABLE</span> messages_by_user (
+  user_id  <span class="type">uuid</span>,
+  ts       <span class="type">timestamp</span>,
+  msg_id   <span class="type">uuid</span>,
+  room_id  <span class="type">uuid</span>,
+  content  <span class="type">text</span>,
+  <span class="kw">PRIMARY KEY</span> ((<span class="str">user_id</span>), <span class="str">ts</span>, <span class="str">msg_id</span>)
+) <span class="kw">WITH CLUSTERING ORDER BY</span> (ts <span class="kw">DESC</span>);
+
+<span class="kw">CREATE TABLE</span> messages_by_room (
+  room_id  <span class="type">uuid</span>,
+  ts       <span class="type">timestamp</span>,
+  msg_id   <span class="type">uuid</span>,
+  user_id  <span class="type">uuid</span>,
+  content  <span class="type">text</span>,
+  <span class="kw">PRIMARY KEY</span> ((<span class="str">room_id</span>), <span class="str">ts</span>, <span class="str">msg_id</span>)
+) <span class="kw">WITH CLUSTERING ORDER BY</span> (ts <span class="kw">DESC</span>);</pre>
+
+<p>Write path: app writes <strong>both tables</strong> on every new message. Storage cost is 2x; read cost is optimal for either query.</p>
+
+<div class="controls">
+  <button onclick="runDenormDemo()" id="btn-denorm">Send message</button>
+  <button onclick="resetDenormDemo()" class="danger">Reset</button>
+</div>
+
+<div class="write-path-viz" id="denorm-viz">
+  <div class="write-box" id="denorm-app">
+    <div style="font-size:11px; color:var(--text-3)">Application</div>
+    <div style="margin-top:4px">new message</div>
+  </div>
+  <div class="write-arrow" id="denorm-arrow1">&rarr;</div>
+  <div class="write-box" id="denorm-t1">
+    <div style="font-size:11px; color:var(--accent-purple)">messages_by_user</div>
+    <div style="margin-top:4px; font-size:12px" id="denorm-t1-count">0 rows</div>
+  </div>
+  <div class="write-arrow" id="denorm-arrow2">&rarr;</div>
+  <div class="write-box" id="denorm-t2">
+    <div style="font-size:11px; color:var(--accent-blue)">messages_by_room</div>
+    <div style="margin-top:4px; font-size:12px" id="denorm-t2-count">0 rows</div>
+  </div>
+</div>
+
+<div class="commentary" id="denorm-commentary">Click "Send message" to see how each message produces two inserts -- one per query pattern.</div>
+
+<div class="takeaway">
+  <strong>Takeaway:</strong> Denormalize-by-query is mandatory. Storage is cheap; query latency is the constraint. Each query pattern gets its own table. The write path fans out to all relevant tables. This is the fundamental trade-off Cassandra makes: write amplification for read optimization.
+</div>
+
+<!-- ============================================================ -->
+<!-- SECTION 4: TOMBSTONES                                         -->
+<!-- ============================================================ -->
+<h2>4. Tombstones -- the silent killer</h2>
+
+<p>When you <code>DELETE</code> a row in Cassandra, it does not disappear. A <strong>tombstone</strong> (marker) is written instead. The actual data is removed during compaction -- eventually. Until then, tombstones accumulate and degrade reads.</p>
+
+<h3>Anti-pattern: Cassandra as a queue</h3>
+
+<pre><span class="kw">CREATE TABLE</span> queue (
+  shard    <span class="type">int</span>,
+  msg_id   <span class="type">timeuuid</span>,
+  payload  <span class="type">text</span>,
+  <span class="kw">PRIMARY KEY</span> ((<span class="str">shard</span>), <span class="str">msg_id</span>)
+);</pre>
+
+<p>Insert 1000 messages, process 990, delete 990. Result: 10 live rows + 990 tombstones. A range query <code>WHERE shard=1 LIMIT 100</code> reads through all 1000 cells but returns only 10.</p>
+
+<div class="controls">
+  <button onclick="runTombstoneDemo('insert')" id="btn-tomb-insert">1. Insert 1000</button>
+  <button onclick="runTombstoneDemo('delete')" id="btn-tomb-delete" disabled>2. Delete 990</button>
+  <button onclick="runTombstoneDemo('query')" id="btn-tomb-query" disabled>3. Query LIMIT 100</button>
+  <button onclick="resetTombstoneDemo()" class="danger">Reset</button>
+</div>
+
+<div class="tombstone-viz" id="tombstone-grid"></div>
+
+<div class="counter-bar" id="tombstone-counters">
+  <div class="counter-item">
+    <div class="counter-dot" style="background:var(--accent-green)"></div>
+    <span>Live: <strong id="tomb-live">0</strong></span>
+  </div>
+  <div class="counter-item">
+    <div class="counter-dot" style="background:var(--accent-red); opacity:0.5"></div>
+    <span>Tombstones: <strong id="tomb-dead">0</strong></span>
+  </div>
+  <div class="counter-item">
+    <span>Cells scanned: <strong id="tomb-scanned">0</strong></span>
+  </div>
+</div>
+
+<div class="commentary" id="tombstone-commentary">Step through the demo: insert, delete, then query. Watch how tombstones force Cassandra to scan dead cells to find live ones.</div>
+
+<p style="margin-top:16px"><strong>Thresholds:</strong></p>
+<ul style="color:var(--text-2); font-size:14px">
+  <li><code>tombstone_warn_threshold</code> (default 1000) -- SELECT logs a warning when it scans this many tombstones.</li>
+  <li><code>tombstone_failure_threshold</code> (default 100,000) -- SELECT <strong>fails</strong> with <code>TombstoneOverwhelmingException</code>.</li>
+</ul>
+
+<p style="margin-top:16px"><strong>Mitigations:</strong></p>
+<ul style="color:var(--text-2); font-size:14px">
+  <li>Do not use Cassandra as a queue. Use Redis Streams or Kafka for queue semantics.</li>
+  <li>Prefer short TTLs with auto-expire over explicit <code>DELETE</code> -- expired data is cleaned more efficiently.</li>
+  <li>Use TWCS (TimeWindowCompactionStrategy) for time-series with TTL -- drops entire SSTables when all data expires, no tombstone read overhead. See Section 5.</li>
+  <li>Design for append-mostly workloads. Cassandra's storage engine is optimized for writes, not updates/deletes.</li>
+</ul>
+
+<div class="takeaway">
+  <strong>Takeaway:</strong> Tombstones are the price of decentralized deletes. In a leaderless system, a delete must be propagated as a marker (tombstone) so all replicas know the data is gone. Avoid patterns that create tombstone pressure -- TTLs over DELETEs, append-mostly workloads.
+</div>
+
+<!-- ============================================================ -->
+<!-- SECTION 5: TTLs AND TWCS                                      -->
+<!-- ============================================================ -->
+<h2>5. TTLs and TWCS for time-series</h2>
+
+<pre><span class="kw">CREATE TABLE</span> readings (
+  sensor_id <span class="type">uuid</span>,
+  day       <span class="type">date</span>,
+  ts        <span class="type">timestamp</span>,
+  value     <span class="type">double</span>,
+  <span class="kw">PRIMARY KEY</span> ((<span class="str">sensor_id</span>, <span class="str">day</span>), <span class="str">ts</span>)
+) <span class="kw">WITH</span> default_time_to_live = <span class="str">7776000</span>  <span class="comment">-- 90 days</span>
+  <span class="kw">AND</span> compaction = {
+    <span class="str">'class'</span>: <span class="str">'TimeWindowCompactionStrategy'</span>,
+    <span class="str">'compaction_window_size'</span>: <span class="str">'1'</span>,
+    <span class="str">'compaction_window_unit'</span>: <span class="str">'DAYS'</span>
+  };</pre>
+
+<p><strong>TWCS</strong> groups SSTables by time window. Writes on day N go to SSTable(day N). After 90 days, the entire day-N SSTable is expired -- compaction drops the file as a unit, no per-cell tombstone scan.</p>
+
+<div class="controls">
+  <button onclick="runTwcsDemo()" id="btn-twcs">Simulate 14 days + TTL expiry</button>
+  <button onclick="resetTwcsDemo()" class="danger">Reset</button>
+</div>
+
+<p style="font-size:13px; color:var(--text-3)">SSTables by day (green = live, dim = expired and dropped by compaction):</p>
+
+<div class="sstable-viz" id="sstable-viz"></div>
+
+<div class="commentary" id="twcs-commentary">Click "Simulate" to watch SSTables created per day, then see old ones expire as a unit -- no tombstone overhead.</div>
+
+<h3>Comparison: STCS (default) vs TWCS</h3>
+
+<div class="physical-layout" style="max-width:600px">
+  <div class="physical-row" style="grid-template-columns: 1fr 1fr 1fr">
+    <div class="physical-cell header"></div>
+    <div class="physical-cell header">STCS (default)</div>
+    <div class="physical-cell header">TWCS</div>
+  </div>
+  <div class="physical-row" style="grid-template-columns: 1fr 1fr 1fr">
+    <div class="physical-cell" style="color:var(--accent-cyan)">TTL cleanup</div>
+    <div class="physical-cell">Tombstones mixed with live data; compaction must find and remove them</div>
+    <div class="physical-cell" style="color:var(--accent-green)">Entire SSTable dropped when window expires</div>
+  </div>
+  <div class="physical-row" style="grid-template-columns: 1fr 1fr 1fr">
+    <div class="physical-cell" style="color:var(--accent-cyan)">Write amp</div>
+    <div class="physical-cell">High (data rewritten across tiers)</div>
+    <div class="physical-cell" style="color:var(--accent-green)">Low (each window compacted once)</div>
+  </div>
+  <div class="physical-row" style="grid-template-columns: 1fr 1fr 1fr">
+    <div class="physical-cell" style="color:var(--accent-cyan)">Best for</div>
+    <div class="physical-cell">General workloads, mixed reads/writes</div>
+    <div class="physical-cell" style="color:var(--accent-green)">Time-series with TTL, append-only</div>
+  </div>
+  <div class="physical-row" style="grid-template-columns: 1fr 1fr 1fr">
+    <div class="physical-cell" style="color:var(--accent-cyan)">Caveat</div>
+    <div class="physical-cell">Space amplification (multiple copies during compaction)</div>
+    <div class="physical-cell">No out-of-order writes (late data creates small SSTables in old windows)</div>
+  </div>
+</div>
+
+<div class="takeaway">
+  <strong>Takeaway:</strong> TWCS + TTL = the time-series prescription. Files become disposable instead of incrementally cleaned. The combination eliminates tombstone overhead entirely for time-series data that naturally expires.
+</div>
+
+<!-- ============================================================ -->
+<!-- SECTION 6: LWT                                                -->
+<!-- ============================================================ -->
+<h2>6. Lightweight transactions (LWT) -- when you need strong consistency</h2>
+
+<p>Cassandra defaults to eventual consistency. When you need a compare-and-set operation -- <code>INSERT ... IF NOT EXISTS</code> or <code>UPDATE ... IF condition</code> -- it uses <strong>Paxos</strong> under the hood.</p>
+
+<pre><span class="comment">-- Idempotency key: ensure exactly-once payment processing</span>
+<span class="kw">INSERT INTO</span> payments (idempotency_key, amount, status)
+  <span class="kw">VALUES</span> (<span class="str">'pay-abc-123'</span>, <span class="str">49.99</span>, <span class="str">'pending'</span>)
+  <span class="kw">IF NOT EXISTS</span>;</pre>
+
+<div class="controls">
+  <button onclick="runLwtDemo()" id="btn-lwt">Compare: normal write vs LWT</button>
+  <button onclick="resetLwtDemo()" class="danger">Reset</button>
+</div>
+
+<h3>Normal write (1 round-trip)</h3>
+<div id="lwt-normal">
+  <div class="paxos-step" id="normal-s1">
+    <div class="step-dot">1</div>
+    <span>Client &rarr; Coordinator &rarr; Replicas &rarr; ACK</span>
+  </div>
+</div>
+
+<h3>LWT write (4 Paxos round-trips)</h3>
+<div id="lwt-paxos">
+  <div class="paxos-step" id="paxos-s1">
+    <div class="step-dot">1</div>
+    <span><strong>Prepare</strong> -- Coordinator sends prepare(ballot) to replicas, gets promises</span>
+  </div>
+  <div class="paxos-step" id="paxos-s2">
+    <div class="step-dot">2</div>
+    <span><strong>Read</strong> -- Coordinator reads current value from replicas (to check IF condition)</span>
+  </div>
+  <div class="paxos-step" id="paxos-s3">
+    <div class="step-dot">3</div>
+    <span><strong>Propose</strong> -- If condition met, coordinator proposes new value to replicas</span>
+  </div>
+  <div class="paxos-step" id="paxos-s4">
+    <div class="step-dot">4</div>
+    <span><strong>Commit</strong> -- Replicas accept; coordinator commits and returns result</span>
+  </div>
+</div>
+
+<div class="commentary" id="lwt-commentary">Click "Compare" to visualize the latency difference. Normal writes complete in ~1 round-trip; LWT requires 4 Paxos phases, roughly 10x the latency.</div>
+
+<p>Use cases for LWT (all cold-path):</p>
+<ul style="color:var(--text-2); font-size:14px">
+  <li><strong>Idempotency keys</strong> -- <code>INSERT IF NOT EXISTS</code> to guarantee exactly-once processing.</li>
+  <li><strong>Leader election</strong> -- <code>UPDATE ... SET leader = me IF leader = null</code>.</li>
+  <li><strong>Unique constraints</strong> -- enforce uniqueness on fields Cassandra normally does not constrain (email, username).</li>
+  <li><strong>Optimistic locking</strong> -- <code>UPDATE ... SET version = N+1 IF version = N</code>.</li>
+</ul>
+
+<div class="takeaway">
+  <strong>Takeaway:</strong> LWT is the escape hatch for strong consistency. It is slow -- 4 Paxos round-trips, roughly 10x normal write latency. Use sparingly, on cold paths only. If you need strong consistency on a hot path, Cassandra is the wrong database.
+</div>
+
+<!-- ============================================================ -->
+<!-- SECTION 7: MVs AND SECONDARY INDEXES                          -->
+<!-- ============================================================ -->
+<h2>7. Materialized views and secondary indexes -- careful</h2>
+
+<h3>Materialized views</h3>
+
+<p>Cassandra-managed denormalization: define a view and Cassandra keeps it in sync with the base table.</p>
+
+<pre><span class="kw">CREATE TABLE</span> users_by_id (
+  user_id  <span class="type">uuid</span>,
+  email    <span class="type">text</span>,
+  name     <span class="type">text</span>,
+  <span class="kw">PRIMARY KEY</span> ((<span class="str">user_id</span>))
+);
+
+<span class="kw">CREATE MATERIALIZED VIEW</span> users_by_email <span class="kw">AS</span>
+  <span class="kw">SELECT</span> * <span class="kw">FROM</span> users_by_id
+  <span class="kw">WHERE</span> email <span class="kw">IS NOT NULL AND</span> user_id <span class="kw">IS NOT NULL</span>
+  <span class="kw">PRIMARY KEY</span> ((<span class="str">email</span>), <span class="str">user_id</span>);</pre>
+
+<p>Write to <code>users_by_id</code> and the view <code>users_by_email</code> is updated automatically. Sounds great. The caveats:</p>
+
+<ul style="color:var(--text-2); font-size:14px">
+  <li><strong>Eventual consistency</strong> between base table and MV -- reads from the view may be stale.</li>
+  <li><strong>Performance overhead</strong> on writes -- each base table mutation triggers a read-before-write on the view partition.</li>
+  <li><strong>Operational unpredictability</strong> -- many production clusters have abandoned MVs as too fragile. They can cause repair issues and build up backlogs.</li>
+</ul>
+
+<h3>Secondary indexes</h3>
+
+<pre><span class="kw">CREATE INDEX ON</span> users_by_id (name);</pre>
+
+<p>This creates a <strong>local secondary index</strong> -- each node indexes only its own data.</p>
+
+<svg viewBox="0 0 700 200" style="max-width:700px; height:200px;">
+  <!-- Nodes -->
+  <rect x="40" y="20" width="120" height="50" rx="6" fill="#20202a" stroke="#2a2a35"/>
+  <text x="100" y="50" text-anchor="middle" fill="#e6e6ea" font-size="13" font-family="sans-serif">Node 1</text>
+  <text x="100" y="90" text-anchor="middle" fill="#888" font-size="11" font-family="sans-serif">local index</text>
+
+  <rect x="240" y="20" width="120" height="50" rx="6" fill="#20202a" stroke="#2a2a35"/>
+  <text x="300" y="50" text-anchor="middle" fill="#e6e6ea" font-size="13" font-family="sans-serif">Node 2</text>
+  <text x="300" y="90" text-anchor="middle" fill="#888" font-size="11" font-family="sans-serif">local index</text>
+
+  <rect x="440" y="20" width="120" height="50" rx="6" fill="#20202a" stroke="#2a2a35"/>
+  <text x="500" y="50" text-anchor="middle" fill="#e6e6ea" font-size="13" font-family="sans-serif">Node 3</text>
+  <text x="500" y="90" text-anchor="middle" fill="#888" font-size="11" font-family="sans-serif">local index</text>
+
+  <!-- Coordinator -->
+  <rect x="240" y="130" width="120" height="40" rx="6" fill="#1a1a22" stroke="#339af0"/>
+  <text x="300" y="155" text-anchor="middle" fill="#339af0" font-size="13" font-family="sans-serif">Coordinator</text>
+
+  <!-- Arrows from coordinator to all nodes -->
+  <line x1="260" y1="130" x2="120" y2="70" stroke="#ff6b6b" stroke-width="1.5" stroke-dasharray="4"/>
+  <line x1="300" y1="130" x2="300" y2="70" stroke="#ff6b6b" stroke-width="1.5" stroke-dasharray="4"/>
+  <line x1="340" y1="130" x2="480" y2="70" stroke="#ff6b6b" stroke-width="1.5" stroke-dasharray="4"/>
+
+  <text x="300" y="190" text-anchor="middle" fill="#ff6b6b" font-size="11" font-family="sans-serif">WHERE name = 'Alice' (no partition key) = scatter to ALL nodes</text>
+</svg>
+
+<p>Query with <strong>only</strong> a secondary index (no partition key) forces a scatter query to every node -- each node scans its local index and returns results. This is O(N) in cluster size, not O(1).</p>
+
+<p>Secondary indexes are only efficient when the query <strong>also</strong> includes the partition key -- then it is just per-partition filtering on one node.</p>
+
+<h3>SAI (Storage-Attached Indexes) -- Cassandra 5.x</h3>
+
+<p>SAI is a better implementation (attached to SSTables, not separate data structure), but the fundamental limitation remains: without the partition key, the query must scatter to all nodes. Better per-node performance, same distribution problem.</p>
+
+<div class="takeaway">
+  <strong>Takeaway:</strong> Do not use secondary indexes for the same reason you would not make a Cassandra cluster behave relationally. The right answer is almost always: denormalize into a dedicated table (Section 3). Materialized views automate this but come with reliability trade-offs many teams find unacceptable. When in doubt, manage the denormalization in application code.
+</div>
+
+<!-- ============================================================ -->
+<!-- JAVASCRIPT                                                    -->
+<!-- ============================================================ -->
+<script>
+/* ----------------------------------------------------------------
+   Section 1: Query selector
+   ---------------------------------------------------------------- */
+var queryData = {
+  q1: {
+    rows: [1,2,3,4],
+    text: 'WHERE country=\'US\' -- partition key provided. Cassandra hashes \'US\', routes to the owning node, scans all rows within the partition. Single-node, single-partition read. Fast.'
+  },
+  q2: {
+    rows: [1,2],
+    text: 'WHERE country=\'US\' AND signup_at > \'2024-06-01\' -- partition key + range on first clustering key. Cassandra goes to the \'US\' partition and uses the sorted clustering order to find the range start, then scans forward. Fast.'
+  },
+  q3: {
+    rows: [1],
+    text: 'WHERE country=\'US\' AND signup_at > \'2024-01-01\' AND user_id = \'a3f1...\' -- partition key + both clustering keys, left-to-right. Full index usage. Fast.'
+  },
+  q4: {
+    rows: [3],
+    text: 'WHERE country=\'US\' AND user_id = \'c9d3...\' -- SKIPS clustering key signup_at. Cassandra cannot use the clustering index efficiently because user_id is CK2 and CK1 (signup_at) was skipped. This is either rejected or requires ALLOW FILTERING (full partition scan). Slow.'
+  },
+  q5: {
+    rows: [],
+    text: 'WHERE name = \'Alice\' -- no partition key at all. Cassandra has no idea which node to route to. Rejected by default. With ALLOW FILTERING, it becomes a full cluster scan across every node, every partition. Never do this in production.'
+  }
+};
+
+function selectQuery(qid) {
+  // Toggle selection
+  var rows = document.querySelectorAll('.query-row');
+  rows.forEach(function(r) { r.classList.remove('selected'); });
+  var sel = document.querySelector('.query-row[data-query="' + qid + '"]');
+  if (sel) sel.classList.add('selected');
+
+  // Highlight physical rows
+  var layout = document.getElementById('pk-layout');
+  var dataRows = layout.querySelectorAll('.physical-row');
+  // dataRows[0] is header
+  for (var i = 1; i < dataRows.length; i++) {
+    var cells = dataRows[i].querySelectorAll('.physical-cell');
+    var highlight = queryData[qid].rows.indexOf(i) !== -1;
+    cells.forEach(function(c) {
+      if (highlight) c.classList.add('highlight');
+      else c.classList.remove('highlight');
+    });
+  }
+
+  document.getElementById('query-commentary').textContent = queryData[qid].text;
+}
+
+/* ----------------------------------------------------------------
+   Section 2: Hot partition demo
+   ---------------------------------------------------------------- */
+var hotCounts = [0,0,0,0,0];
+var hotInterval = null;
+var hotMode = null;
+var hotTick = 0;
+var HOT_MAX = 200;
+
+function simpleHash(str) {
+  var h = 0;
+  for (var i = 0; i < str.length; i++) {
+    h = ((h << 5) - h + str.charCodeAt(i)) | 0;
+  }
+  return Math.abs(h);
+}
+
+function updateHotBars() {
+  var maxCount = Math.max.apply(null, hotCounts) || 1;
+  for (var i = 0; i < 5; i++) {
+    var bar = document.getElementById('hot-n' + i);
+    var countEl = document.getElementById('hot-n' + i + '-count');
+    var h = Math.max(4, (hotCounts[i] / Math.max(maxCount, 1)) * 150);
+    bar.style.height = h + 'px';
+    countEl.textContent = hotCounts[i];
+
+    // Color hot node red if it's getting disproportionate writes
+    if (hotMode === 'bad' && hotCounts[i] > 0) {
+      var avg = hotCounts.reduce(function(a,b){return a+b;}, 0) / 5;
+      if (hotCounts[i] > avg * 3) {
+        bar.style.background = 'var(--accent-red)';
+      }
+    }
+  }
+}
+
+function runHotDemo(mode) {
+  if (hotInterval) clearInterval(hotInterval);
+  hotCounts = [0,0,0,0,0];
+  hotTick = 0;
+  hotMode = mode;
+
+  // Reset bar colors
+  var colors = ['var(--accent-blue)','var(--accent-green)','var(--accent-purple)','var(--accent-orange)','var(--accent-cyan)'];
+  for (var i = 0; i < 5; i++) {
+    document.getElementById('hot-n' + i).style.background = colors[i];
+  }
+
+  document.getElementById('btn-hot-bad').classList.toggle('active-btn', mode === 'bad');
+  document.getElementById('btn-hot-good').classList.toggle('active-btn', mode === 'good');
+
+  if (mode === 'bad') {
+    // Fixed sensor, no bucket -> always same node
+    var fixedNode = simpleHash('sensor-001') % 5;
+    document.getElementById('hot-commentary').textContent = 'Bad model: all writes for sensor-001 hash to Node N' + fixedNode + '. Watch it balloon while others sit idle...';
+    hotInterval = setInterval(function() {
+      if (hotTick >= HOT_MAX) { clearInterval(hotInterval); return; }
+      hotCounts[fixedNode] += 1;
+      // Tiny noise on other nodes (other sensors, but this sensor dominates)
+      if (hotTick % 8 === 0) {
+        var other = (fixedNode + 1 + Math.floor(Math.random() * 4)) % 5;
+        hotCounts[other] += 1;
+      }
+      hotTick++;
+      updateHotBars();
+    }, 30);
+  } else {
+    // Bucketed: sensor + day -> different hash each day
+    document.getElementById('hot-commentary').textContent = 'Good model: partition key = (sensor_id, day). Each day hashes differently, distributing writes across all nodes.';
+    var dayNum = 0;
+    hotInterval = setInterval(function() {
+      if (hotTick >= HOT_MAX) { clearInterval(hotInterval); return; }
+      // Every ~20 ticks, advance the day bucket
+      if (hotTick % 20 === 0) dayNum++;
+      var key = 'sensor-001:day-' + dayNum;
+      var node = simpleHash(key) % 5;
+      hotCounts[node] += 1;
+      hotTick++;
+      updateHotBars();
+    }, 30);
+  }
+}
+
+function resetHotDemo() {
+  if (hotInterval) clearInterval(hotInterval);
+  hotCounts = [0,0,0,0,0];
+  hotMode = null;
+  var colors = ['var(--accent-blue)','var(--accent-green)','var(--accent-purple)','var(--accent-orange)','var(--accent-cyan)'];
+  for (var i = 0; i < 5; i++) {
+    document.getElementById('hot-n' + i).style.height = '4px';
+    document.getElementById('hot-n' + i).style.background = colors[i];
+    document.getElementById('hot-n' + i + '-count').textContent = '0';
+  }
+  document.getElementById('btn-hot-bad').classList.add('active-btn');
+  document.getElementById('btn-hot-good').classList.remove('active-btn');
+  document.getElementById('hot-commentary').textContent = 'Click "Bad: single partition" to simulate unbounded time-series writes, then "Good: bucketed" to see the fix.';
+}
+
+/* ----------------------------------------------------------------
+   Section 3: Denormalize-by-query demo
+   ---------------------------------------------------------------- */
+var denormCount = 0;
+var denormAnimating = false;
+
+function runDenormDemo() {
+  if (denormAnimating) return;
+  denormAnimating = true;
+  denormCount++;
+
+  var app = document.getElementById('denorm-app');
+  var arrow1 = document.getElementById('denorm-arrow1');
+  var t1 = document.getElementById('denorm-t1');
+  var arrow2 = document.getElementById('denorm-arrow2');
+  var t2 = document.getElementById('denorm-t2');
+
+  document.getElementById('denorm-commentary').textContent =
+    'Message #' + denormCount + ': writing to both tables simultaneously...';
+
+  // Step 1: app lights up
+  app.classList.add('active-write');
+  setTimeout(function() {
+    // Step 2: arrows and tables
+    arrow1.classList.add('active-arrow');
+    arrow2.classList.add('active-arrow');
+    setTimeout(function() {
+      t1.classList.add('active-write');
+      t2.classList.add('active-write');
+      document.getElementById('denorm-t1-count').textContent = denormCount + ' row' + (denormCount > 1 ? 's' : '');
+      document.getElementById('denorm-t2-count').textContent = denormCount + ' row' + (denormCount > 1 ? 's' : '');
+      document.getElementById('denorm-commentary').textContent =
+        'Message #' + denormCount + ' inserted into both messages_by_user AND messages_by_room. ' +
+        'Total writes: ' + (denormCount * 2) + ' (2x storage cost, optimal read for either query pattern).';
+
+      setTimeout(function() {
+        app.classList.remove('active-write');
+        arrow1.classList.remove('active-arrow');
+        arrow2.classList.remove('active-arrow');
+        t1.classList.remove('active-write');
+        t2.classList.remove('active-write');
+        denormAnimating = false;
+      }, 600);
+    }, 300);
+  }, 300);
+}
+
+function resetDenormDemo() {
+  denormCount = 0;
+  denormAnimating = false;
+  document.getElementById('denorm-t1-count').textContent = '0 rows';
+  document.getElementById('denorm-t2-count').textContent = '0 rows';
+  document.getElementById('denorm-commentary').textContent =
+    'Click "Send message" to see how each message produces two inserts -- one per query pattern.';
+  ['denorm-app','denorm-t1','denorm-t2'].forEach(function(id) {
+    document.getElementById(id).classList.remove('active-write');
+  });
+  ['denorm-arrow1','denorm-arrow2'].forEach(function(id) {
+    document.getElementById(id).classList.remove('active-arrow');
+  });
+}
+
+/* ----------------------------------------------------------------
+   Section 4: Tombstone demo
+   ---------------------------------------------------------------- */
+var TOMB_TOTAL = 200; // visual cells (representing 1000 logical rows, 5:1 ratio)
+var tombState = []; // 'empty' | 'live' | 'dead'
+var tombStage = 0;
+
+function initTombstoneGrid() {
+  var grid = document.getElementById('tombstone-grid');
+  grid.innerHTML = '';
+  tombState = [];
+  for (var i = 0; i < TOMB_TOTAL; i++) {
+    var cell = document.createElement('div');
+    cell.className = 'tombstone-cell empty';
+    cell.id = 'tomb-cell-' + i;
+    grid.appendChild(cell);
+    tombState.push('empty');
+  }
+  updateTombCounters();
+}
+
+function updateTombCounters() {
+  var live = 0, dead = 0;
+  tombState.forEach(function(s) {
+    if (s === 'live') live++;
+    if (s === 'dead') dead++;
+  });
+  // Scale to logical counts (5:1)
+  document.getElementById('tomb-live').textContent = live * 5;
+  document.getElementById('tomb-dead').textContent = dead * 5;
+}
+
+function runTombstoneDemo(stage) {
+  if (stage === 'insert') {
+    tombStage = 1;
+    document.getElementById('btn-tomb-insert').disabled = true;
+    document.getElementById('btn-tomb-delete').disabled = false;
+    var idx = 0;
+    var insertInterval = setInterval(function() {
+      if (idx >= TOMB_TOTAL) {
+        clearInterval(insertInterval);
+        document.getElementById('tombstone-commentary').textContent =
+          '1000 messages inserted (200 cells shown at 5:1 scale). All live. Now click "Delete 990" to process and remove 990 of them.';
+        updateTombCounters();
+        return;
+      }
+      var batch = Math.min(10, TOMB_TOTAL - idx);
+      for (var b = 0; b < batch; b++) {
+        tombState[idx + b] = 'live';
+        document.getElementById('tomb-cell-' + (idx + b)).className = 'tombstone-cell live';
+      }
+      idx += batch;
+      updateTombCounters();
+    }, 20);
+    document.getElementById('tomb-scanned').textContent = '0';
+    document.getElementById('tombstone-commentary').textContent = 'Inserting 1000 messages...';
+  }
+
+  else if (stage === 'delete') {
+    tombStage = 2;
+    document.getElementById('btn-tomb-delete').disabled = true;
+    document.getElementById('btn-tomb-query').disabled = false;
+    // Delete 198 out of 200 cells (ratio: 990/1000)
+    var toDelete = 198;
+    var deleted = 0;
+    var idx = 0;
+    var deleteInterval = setInterval(function() {
+      if (deleted >= toDelete) {
+        clearInterval(deleteInterval);
+        document.getElementById('tombstone-commentary').textContent =
+          '990 messages deleted. But Cassandra wrote 990 tombstone markers -- the data is not gone yet. ' +
+          '10 live rows remain among 990 tombstones. Click "Query LIMIT 100" to see the read penalty.';
+        updateTombCounters();
+        return;
+      }
+      var batch = Math.min(8, toDelete - deleted);
+      for (var b = 0; b < batch; b++) {
+        if (idx < TOMB_TOTAL && tombState[idx] === 'live') {
+          tombState[idx] = 'dead';
+          document.getElementById('tomb-cell-' + idx).className = 'tombstone-cell dead';
+          deleted++;
+        }
+        idx++;
+      }
+      updateTombCounters();
+    }, 15);
+    document.getElementById('tombstone-commentary').textContent = 'Deleting 990 messages (writing tombstones)...';
+  }
+
+  else if (stage === 'query') {
+    tombStage = 3;
+    document.getElementById('btn-tomb-query').disabled = true;
+    // Simulate scanning: walk through all cells, count scanned
+    var scanIdx = 0;
+    var found = 0;
+    var scanned = 0;
+    document.getElementById('tombstone-commentary').textContent = 'Scanning: SELECT * WHERE shard=1 LIMIT 100...';
+    var scanInterval = setInterval(function() {
+      if (scanIdx >= TOMB_TOTAL || found >= 2) { // 2 cells = 10 logical rows, but we want to show full scan
+        clearInterval(scanInterval);
+        document.getElementById('tomb-scanned').textContent = scanned * 5;
+        document.getElementById('tombstone-commentary').textContent =
+          'Query complete. Cassandra scanned ' + (scanned * 5) + ' cells (tombstones + live) to return just ' +
+          (found * 5) + ' live rows. The 990 tombstones forced a near-full partition scan. ' +
+          'At tombstone_warn_threshold (1000), this logs a warning. At 100K tombstones, the query fails outright.';
+        return;
+      }
+      // Scan a batch
+      var batch = Math.min(4, TOMB_TOTAL - scanIdx);
+      for (var b = 0; b < batch; b++) {
+        if (scanIdx + b >= TOMB_TOTAL) break;
+        scanned++;
+        var cell = document.getElementById('tomb-cell-' + (scanIdx + b));
+        cell.style.outline = '1px solid var(--accent-yellow)';
+        if (tombState[scanIdx + b] === 'live') found++;
+      }
+      scanIdx += batch;
+      document.getElementById('tomb-scanned').textContent = scanned * 5;
+    }, 30);
+  }
+}
+
+function resetTombstoneDemo() {
+  tombStage = 0;
+  document.getElementById('btn-tomb-insert').disabled = false;
+  document.getElementById('btn-tomb-delete').disabled = true;
+  document.getElementById('btn-tomb-query').disabled = true;
+  document.getElementById('tomb-scanned').textContent = '0';
+  document.getElementById('tombstone-commentary').textContent =
+    'Step through the demo: insert, delete, then query. Watch how tombstones force Cassandra to scan dead cells to find live ones.';
+  initTombstoneGrid();
+}
+
+// Init on load
+initTombstoneGrid();
+
+/* ----------------------------------------------------------------
+   Section 5: TWCS / SSTable demo
+   ---------------------------------------------------------------- */
+var twcsAnimating = false;
+
+function runTwcsDemo() {
+  if (twcsAnimating) return;
+  twcsAnimating = true;
+  var viz = document.getElementById('sstable-viz');
+  viz.innerHTML = '';
+
+  var days = [];
+  var totalDays = 14;
+  var ttlDays = 5; // Pretend TTL is 5 days for visual purposes (90 would not be visible)
+  var dayColors = [
+    'var(--accent-blue)', 'var(--accent-green)', 'var(--accent-purple)',
+    'var(--accent-orange)', 'var(--accent-cyan)', 'var(--accent-yellow)',
+    'var(--accent-red)', '#66d9ef', '#a6e22e', '#fd971f',
+    '#ae81ff', '#f92672', '#e6db74', '#339af0'
+  ];
+
+  document.getElementById('twcs-commentary').textContent = 'Day 1: writes create SSTable for day 1...';
+
+  var currentDay = 0;
+  var buildInterval = setInterval(function() {
+    if (currentDay >= totalDays) {
+      clearInterval(buildInterval);
+      // Now expire old ones
+      document.getElementById('twcs-commentary').textContent =
+        'All 14 days written. Now simulating TTL expiry -- SSTables older than 5 days are dropped as whole files...';
+      setTimeout(function() { expireSSTables(); }, 800);
+      return;
+    }
+
+    var block = document.createElement('div');
+    block.className = 'sstable-block';
+    block.id = 'sst-day-' + currentDay;
+    block.style.background = dayColors[currentDay % dayColors.length];
+    block.style.height = (30 + Math.random() * 20) + 'px';
+    block.textContent = 'D' + (currentDay + 1);
+    viz.appendChild(block);
+    days.push(block);
+
+    currentDay++;
+    document.getElementById('twcs-commentary').textContent =
+      'Day ' + currentDay + ': new SSTable created for this time window. ' +
+      'Each day\'s writes go into a separate file.';
+  }, 400);
+
+  function expireSSTables() {
+    var expireIdx = 0;
+    var expireInterval = setInterval(function() {
+      if (expireIdx >= totalDays - ttlDays) {
+        clearInterval(expireInterval);
+        document.getElementById('twcs-commentary').textContent =
+          'Done. SSTables for days 1-' + (totalDays - ttlDays) + ' expired and were dropped as whole files -- ' +
+          'no per-cell tombstone scan needed. This is why TWCS + TTL is the time-series prescription. ' +
+          'Compare to STCS where expired cells become tombstones mixed with live data.';
+        twcsAnimating = false;
+        return;
+      }
+      var block = document.getElementById('sst-day-' + expireIdx);
+      if (block) block.classList.add('expired');
+      expireIdx++;
+      document.getElementById('twcs-commentary').textContent =
+        'Expiring SSTable for day ' + expireIdx + ' -- entire file dropped, zero tombstone overhead.';
+    }, 500);
+  }
+}
+
+function resetTwcsDemo() {
+  twcsAnimating = false;
+  document.getElementById('sstable-viz').innerHTML = '';
+  document.getElementById('twcs-commentary').textContent =
+    'Click "Simulate" to watch SSTables created per day, then see old ones expire as a unit -- no tombstone overhead.';
+}
+
+/* ----------------------------------------------------------------
+   Section 6: LWT Paxos demo
+   ---------------------------------------------------------------- */
+var lwtAnimating = false;
+
+function runLwtDemo() {
+  if (lwtAnimating) return;
+  lwtAnimating = true;
+
+  // Reset all steps
+  var normalStep = document.getElementById('normal-s1');
+  var paxosSteps = [
+    document.getElementById('paxos-s1'),
+    document.getElementById('paxos-s2'),
+    document.getElementById('paxos-s3'),
+    document.getElementById('paxos-s4')
+  ];
+
+  normalStep.className = 'paxos-step';
+  paxosSteps.forEach(function(s) { s.className = 'paxos-step'; });
+
+  document.getElementById('lwt-commentary').textContent = 'Normal write starting...';
+
+  // Normal write: instant
+  setTimeout(function() {
+    normalStep.className = 'paxos-step active-step';
+    document.getElementById('lwt-commentary').textContent = 'Normal write: 1 round-trip -- client to coordinator to replicas. Done.';
+    setTimeout(function() {
+      normalStep.className = 'paxos-step done-step';
+      document.getElementById('lwt-commentary').textContent = 'Normal write complete. Now starting LWT (Paxos)...';
+
+      // LWT: 4 steps
+      var step = 0;
+      var stepLabels = [
+        'LWT Phase 1/4: Prepare -- coordinator sends ballot to replicas, collects promises...',
+        'LWT Phase 2/4: Read -- coordinator reads current value to check IF condition...',
+        'LWT Phase 3/4: Propose -- condition met, coordinator proposes new value to replicas...',
+        'LWT Phase 4/4: Commit -- replicas accept, coordinator commits and returns result.'
+      ];
+      var lwtInterval = setInterval(function() {
+        if (step > 0) paxosSteps[step - 1].className = 'paxos-step done-step';
+        if (step >= 4) {
+          clearInterval(lwtInterval);
+          document.getElementById('lwt-commentary').textContent =
+            'LWT complete after 4 Paxos round-trips. Roughly 10x the latency of a normal write. ' +
+            'Use only on cold paths: idempotency keys, leader election, unique constraints.';
+          lwtAnimating = false;
+          return;
+        }
+        paxosSteps[step].className = 'paxos-step active-step';
+        document.getElementById('lwt-commentary').textContent = stepLabels[step];
+        step++;
+      }, 800);
+    }, 600);
+  }, 400);
+}
+
+function resetLwtDemo() {
+  lwtAnimating = false;
+  document.getElementById('normal-s1').className = 'paxos-step';
+  for (var i = 1; i <= 4; i++) {
+    document.getElementById('paxos-s' + i).className = 'paxos-step';
+  }
+  document.getElementById('lwt-commentary').textContent =
+    'Click "Compare" to visualize the latency difference. Normal writes complete in ~1 round-trip; LWT requires 4 Paxos phases, roughly 10x the latency.';
+}
+</script>
+
+</body>
+</html>
