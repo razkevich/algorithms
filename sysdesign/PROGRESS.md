@@ -125,7 +125,7 @@ Tick when a problem walkthrough has *actively exercised* it (not just mentioned)
 - [x] **Fanout-on-write vs fanout-on-read for feeds** — `patterns/feed-fanout.md` _(✅ Day 2 — hybrid push/pull, celeb cache)_
 
 **Active sprint (each tied to a scheduled mock):**
-- [ ] **Consistent hashing** + visualization — `patterns/consistent-hashing.md` _(Day 3 — Distributed Cache)_
+- [x] **Consistent hashing** + visualization — `patterns/consistent-hashing.md` + `visualizations/consistent-hashing.html` _(✅ Day 3 — ring / vnodes / bounded-load / Maglev variants; node-add 1/N-property visualized)_
 - [ ] **Geohashing / spatial indexing** + visualization — `patterns/geohashing.md` _(Day 4 — Ride-Sharing)_
 - [ ] **Idempotency keys, sagas, double-spend, audit log** — `patterns/idempotency.md` _(Day 5 — Payment)_
 - [ ] **Rate-limiting algorithms** (token / sliding / leaky bucket) — `concepts/rate-limiting-algorithms.md` _(Day 6 — Rate Limiter)_
