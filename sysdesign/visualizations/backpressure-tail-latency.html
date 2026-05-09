@@ -1,0 +1,1464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Backpressure + Tail Latency</title>
+<style>
+:root {
+  --bg: #0f0f15;
+  --surface: #181820;
+  --surface-2: #20202a;
+  --border: #2a2a35;
+  --text: #e6e6ea;
+  --text-2: #cfcfd6;
+  --text-3: #888;
+  --accent-red: #ff6b6b;
+  --accent-green: #51cf66;
+  --accent-blue: #339af0;
+  --accent-yellow: #ffd43b;
+  --accent-purple: #cc5de8;
+  --accent-cyan: #8be9fd;
+  --accent-orange: #ffa94d;
+}
+*, *::before, *::after { box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  padding: 32px 24px;
+  max-width: 1100px;
+  margin: 0 auto;
+  line-height: 1.55;
+}
+h1 { color: #fff; margin-bottom: 4px; }
+h1 + p.sub { color: var(--text-3); font-style: italic; margin-top: 0; margin-bottom: 24px; }
+h2 { color: #fff; margin-top: 48px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+h3 { color: var(--text-2); margin-top: 20px; }
+p { color: var(--text-2); }
+code {
+  background: var(--surface-2);
+  padding: 2px 6px;
+  border-radius: 3px;
+  color: var(--accent-cyan);
+  font-size: 13px;
+}
+svg {
+  background: var(--surface);
+  border-radius: 8px;
+  display: block;
+  margin: 14px auto;
+  width: 100%;
+  height: auto;
+}
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0;
+  align-items: center;
+}
+.controls button, .btn {
+  padding: 10px 16px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  border-radius: 6px;
+  cursor: pointer;
+  min-height: 44px;
+  font-size: 14px;
+  transition: background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+.controls button:hover, .btn:hover { background: var(--surface); }
+.controls button:disabled, .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.controls button.active-btn { border-color: var(--accent-blue); color: var(--accent-blue); }
+.controls button.danger { border-color: var(--accent-red); color: var(--accent-red); }
+.controls button.danger:hover { background: #2a1520; }
+.slider-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-3);
+  min-width: 200px;
+}
+.slider-group label { white-space: nowrap; min-width: 100px; }
+.slider-group input[type="range"] {
+  flex: 1;
+  min-width: 80px;
+  accent-color: var(--accent-blue);
+}
+.slider-group .val { min-width: 36px; text-align: right; color: var(--text-2); font-weight: 600; }
+.commentary {
+  background: var(--surface-2);
+  padding: 14px;
+  border-radius: 6px;
+  font-size: 14px;
+  color: var(--text-2);
+  margin: 12px 0;
+  min-height: 44px;
+  line-height: 1.5;
+}
+.takeaway {
+  background: #1a1a22;
+  border-left: 3px solid var(--accent-green);
+  padding: 12px 16px;
+  margin: 14px 0;
+  font-size: 14px;
+  color: var(--text-2);
+}
+.takeaway strong { color: var(--accent-green); }
+.takeaway ul { margin: 6px 0 0 0; padding-left: 18px; }
+.takeaway li { margin-bottom: 6px; }
+.mechanism-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+  margin: 12px 0;
+}
+.mechanism-card h4 {
+  color: var(--accent-blue);
+  margin: 0 0 8px 0;
+  font-size: 15px;
+}
+.mechanism-card p { font-size: 14px; margin: 4px 0; }
+.mechanism-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin: 12px 0;
+}
+.cheat-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 14px 0;
+  font-size: 14px;
+}
+.cheat-table th {
+  background: var(--surface-2);
+  color: var(--accent-blue);
+  text-align: left;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  font-weight: 600;
+}
+.cheat-table td {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  color: var(--text-2);
+  vertical-align: top;
+}
+.cheat-table tr:nth-child(even) td { background: var(--surface); }
+.result-box {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px 20px;
+  margin: 12px 0;
+  text-align: center;
+}
+.result-box .big-num {
+  font-size: 36px;
+  font-weight: 700;
+  color: var(--accent-yellow);
+  margin: 4px 0;
+}
+.result-box .big-label {
+  font-size: 13px;
+  color: var(--text-3);
+}
+.cause-toggles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 12px 0;
+}
+.cause-toggles button {
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-3);
+  border-radius: 16px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.15s;
+}
+.cause-toggles button.on {
+  border-color: var(--accent-orange);
+  color: var(--accent-orange);
+  background: rgba(255,169,77,0.1);
+}
+.budget-node {
+  fill: var(--surface-2);
+  stroke: var(--border);
+  stroke-width: 1.5;
+}
+@media (max-width: 720px) {
+  body { padding: 20px 14px; }
+  .mechanism-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 480px) {
+  .controls { flex-direction: column; }
+  .controls button { width: 100%; }
+  .slider-group { width: 100%; min-width: auto; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Backpressure + Tail Latency</h1>
+  <p class="sub">Bounded queues. The math of fanout amplifying tails. Hedged + tied requests. Dean's "Tail at Scale." The math behind why your microservice p99 is terrible and what to do about it.</p>
+</header>
+
+<!-- ============================================================ -->
+<!-- SECTION 1: BACKPRESSURE -- WHY BOUNDED QUEUES                 -->
+<!-- ============================================================ -->
+<h2>1. Backpressure -- Why Bounded Queues</h2>
+
+<p>Production is producer + consumer. If the producer emits faster than the consumer processes, a queue forms between them. An <strong>unbounded queue</strong> grows until the process runs out of memory and crashes. A <strong>bounded queue</strong> forces a decision when full: block the producer, drop new work, or evict the oldest entry. That decision <em>is</em> backpressure.</p>
+
+<div class="controls">
+  <div class="slider-group">
+    <label>Producer rate:</label>
+    <input type="range" id="bp-prod-rate" min="1" max="20" value="8">
+    <span class="val" id="bp-prod-val">8</span><span style="color:var(--text-3)">/s</span>
+  </div>
+  <div class="slider-group">
+    <label>Consumer rate:</label>
+    <input type="range" id="bp-cons-rate" min="1" max="20" value="5">
+    <span class="val" id="bp-cons-val">5</span><span style="color:var(--text-3)">/s</span>
+  </div>
+  <div class="slider-group">
+    <label>Queue capacity:</label>
+    <input type="range" id="bp-capacity" min="5" max="40" value="20">
+    <span class="val" id="bp-cap-val">20</span>
+  </div>
+</div>
+
+<div class="controls">
+  <button id="bp-mode-unbounded" class="active-btn" onclick="setBpMode('unbounded')">Unbounded</button>
+  <button id="bp-mode-block" onclick="setBpMode('block')">Block (TCP-style)</button>
+  <button id="bp-mode-drop" onclick="setBpMode('drop')">Drop (load shed)</button>
+  <button id="bp-mode-replace" onclick="setBpMode('replace')">Replace (oldest-out)</button>
+  <button onclick="resetBp()" class="danger">Reset</button>
+</div>
+
+<svg id="bp-svg" viewBox="0 0 900 260"></svg>
+<div class="commentary" id="bp-commentary">Press a mode button and watch the queue behavior. With producer &gt; consumer, the unbounded queue grows forever.</div>
+
+<div class="takeaway">
+  <strong>Takeaway:</strong> Unbounded queue = ticking time bomb. Bounded + one of (block, drop, replace) = the real choice. Block is default (lossless); switch to drop only when survival &gt; completeness.
+</div>
+
+<!-- ============================================================ -->
+<!-- SECTION 2: BACKPRESSURE MECHANISMS IN PRACTICE                -->
+<!-- ============================================================ -->
+<h2>2. Backpressure Mechanisms in Practice</h2>
+
+<p>Every network and application layer has its own backpressure mechanism. The dangerous leaks happen at <strong>layer boundaries</strong> -- TCP gives backpressure, but an in-process unbounded queue between your gateway and worker thread pool does not.</p>
+
+<div class="mechanism-grid">
+  <div class="mechanism-card">
+    <h4>TCP Backpressure</h4>
+    <svg id="mech-tcp" viewBox="0 0 400 120"></svg>
+    <p>Receiver advertises <code>rwnd</code> (receive window). Sender cannot outpace. When receiver buffer fills, window shrinks to 0 -- sender blocks. Built-in flow control at L4.</p>
+  </div>
+  <div class="mechanism-card">
+    <h4>HTTP/2 Flow Control</h4>
+    <svg id="mech-http2" viewBox="0 0 400 120"></svg>
+    <p>Per-stream window on top of connection window. Can backpressure one slow stream without blocking the entire connection. Each stream independently flow-controlled.</p>
+  </div>
+  <div class="mechanism-card">
+    <h4>Reactive Streams</h4>
+    <svg id="mech-reactive" viewBox="0 0 400 120"></svg>
+    <p>Subscriber calls <code>request(N)</code> to pull N items from publisher. Demand-driven: publisher never sends more than requested. Non-blocking, async backpressure.</p>
+  </div>
+  <div class="mechanism-card">
+    <h4>Message Queue + Ack</h4>
+    <svg id="mech-mq" viewBox="0 0 400 120"></svg>
+    <p>Consumer acks after processing. Broker won't redeliver (or counts against in-flight limit) until ack or timeout. Kafka: consumer controls offset. SQS: visibility timeout.</p>
+  </div>
+  <div class="mechanism-card">
+    <h4>Semaphore at Gateway</h4>
+    <svg id="mech-sema" viewBox="0 0 400 120"></svg>
+    <p>Limit concurrent in-flight requests (e.g., max 100 workers). Request 101 gets <code>503 Service Unavailable</code>. Simple, effective, coarse-grained.</p>
+  </div>
+  <div class="mechanism-card">
+    <h4>Token Bucket</h4>
+    <svg id="mech-token" viewBox="0 0 400 120"></svg>
+    <p>Tokens refill at steady rate R. Each request costs 1 token. Burst up to bucket size B. When empty, requests are queued or rejected. Rate limiting with burst tolerance.</p>
+  </div>
+</div>
+
+<div class="takeaway">
+  <strong>Takeaway:</strong> Every layer has its backpressure mechanism. The leaks are at layer boundaries -- TCP gives backpressure; an in-process unbounded queue between gateway and worker does not. Audit each boundary.
+</div>
+
+<!-- ============================================================ -->
+<!-- SECTION 3: CAUSES OF TAIL LATENCY                             -->
+<!-- ============================================================ -->
+<h2>3. Causes of Tail Latency</h2>
+
+<p>A latency histogram is rarely smooth. The tail (p99 / p999) is dominated by specific, deterministic causes -- not random noise. Toggle each cause below to see its contribution to the tail.</p>
+
+<div class="cause-toggles" id="cause-toggles">
+  <button data-cause="gc" onclick="toggleCause('gc')">GC pauses</button>
+  <button data-cause="queue" onclick="toggleCause('queue')">Queueing delay</button>
+  <button data-cause="hol" onclick="toggleCause('hol')">Head-of-line blocking</button>
+  <button data-cause="disk" onclick="toggleCause('disk')">Disk seek / IO</button>
+  <button data-cause="ctx" onclick="toggleCause('ctx')">Context switches</button>
+  <button data-cause="net" onclick="toggleCause('net')">Network retransmit</button>
+  <button data-cause="cache" onclick="toggleCause('cache')">Cache miss</button>
+  <button data-cause="dep" onclick="toggleCause('dep')">Slow dependency</button>
+  <button data-cause="cold" onclick="toggleCause('cold')">Cold start</button>
+  <button data-cause="numa" onclick="toggleCause('numa')">NUMA / kernel jitter</button>
+</div>
+
+<svg id="histo-svg" viewBox="0 0 900 300"></svg>
+<div class="commentary" id="histo-commentary">Toggle causes to see how each one contributes a bump on the latency tail. The tail is not random -- it is the sum of specific deterministic events.</div>
+
+<div class="takeaway">
+  <strong>Takeaway:</strong> p99 troubleshooting is usually finding <em>which</em> of these dominates. The tail is not random -- it is the sum of specific deterministic events.
+</div>
+
+<!-- ============================================================ -->
+<!-- SECTION 4: p99 / p999 MATH AT SCALE                           -->
+<!-- ============================================================ -->
+<h2>4. p99 / p999 Math at Scale</h2>
+
+<p>The fanout multiplier: if a single service has p99 = 100ms (1% of requests exceed 100ms), and a user request fans out to <strong>N</strong> sub-requests in parallel, the probability that <em>all N</em> finish within 100ms is <code>0.99^N</code>. As N grows, the chance of hitting at least one slow sub-request approaches certainty.</p>
+
+<div class="controls">
+  <div class="slider-group">
+    <label>Fanout N:</label>
+    <input type="range" id="fanout-n" min="1" max="200" value="10">
+    <span class="val" id="fanout-n-val">10</span>
+  </div>
+  <div class="slider-group">
+    <label>Per-call success %:</label>
+    <input type="range" id="fanout-pct" min="900" max="999" value="990">
+    <span class="val" id="fanout-pct-val">99.0</span><span style="color:var(--text-3)">%</span>
+  </div>
+</div>
+
+<div style="display:flex; gap:16px; flex-wrap:wrap;">
+  <div class="result-box" style="flex:1; min-width: 220px;">
+    <div class="big-label">P(all N under target)</div>
+    <div class="big-num" id="fanout-all-ok">90.4%</div>
+    <div class="big-label"><code>success_rate^N</code></div>
+  </div>
+  <div class="result-box" style="flex:1; min-width: 220px;">
+    <div class="big-label">P(at least 1 slow)</div>
+    <div class="big-num" id="fanout-at-least-one" style="color:var(--accent-red);">9.6%</div>
+    <div class="big-label"><code>1 - success_rate^N</code></div>
+  </div>
+</div>
+
+<svg id="fanout-svg" viewBox="0 0 900 280"></svg>
+<div class="commentary" id="fanout-commentary">At N=10 with p99 per call, ~9.6% of fanout requests hit the tail of at least one sub-call. At N=100, it rises to ~63%.</div>
+
+<div class="takeaway">
+  <strong>Takeaway:</strong> Tail latency compounds with fanout. p99 of a 10-fanout is worse than p99 of any single backend. p99 of a 100-fanout is catastrophically worse. This is <em>why</em> large microservice architectures have terrible p99.
+</div>
+
+<!-- ============================================================ -->
+<!-- SECTION 5: DEAN'S TAIL-AT-SCALE TACTICS                       -->
+<!-- ============================================================ -->
+<h2>5. Dean's Tail-at-Scale Tactics</h2>
+
+<p>Reference: Jeff Dean and Luiz Barroso, "The Tail at Scale" (2013). Techniques to reduce <em>user-visible</em> tail latency without fixing every backend's tail.</p>
+
+<h3>Hedged Requests</h3>
+<p>Send request to server A. After a short delay (e.g., the 95th percentile of typical latency), send a <strong>backup</strong> to server B. Take whichever responds first; cancel the other. 2x cost for dramatic tail reduction.</p>
+
+<div class="controls">
+  <button id="hedge-run" onclick="runHedged()">Run Hedged Request</button>
+  <button onclick="resetHedged()">Reset</button>
+</div>
+<svg id="hedge-svg" viewBox="0 0 900 220"></svg>
+<div class="commentary" id="hedge-commentary">Click "Run Hedged Request" to see the two-server race. The client sends to A first, then after a delay hedges to B. First response wins.</div>
+
+<h3>Tied Requests</h3>
+<p>Send the request to <strong>N servers simultaneously</strong>. The first server to start processing notifies the others to cancel. Better than hedged because no wasted work -- only one actually processes. Requires server-side cooperation.</p>
+
+<div class="controls">
+  <button id="tied-run" onclick="runTied()">Run Tied Request</button>
+  <button onclick="resetTied()">Reset</button>
+</div>
+<svg id="tied-svg" viewBox="0 0 900 200"></svg>
+<div class="commentary" id="tied-commentary">Click "Run Tied Request" to see servers coordinate. Only the first to dequeue actually processes; others drop the request.</div>
+
+<h3>Other Tactics</h3>
+<div class="mechanism-grid">
+  <div class="mechanism-card">
+    <h4>Micro-partitioning</h4>
+    <p>Split each shard into 10x smaller pieces. If a shard fails, its load distributes as ~10% increase across others (vs. 100% in coarse partitioning). Faster recovery, smaller blast radius.</p>
+  </div>
+  <div class="mechanism-card">
+    <h4>Selective Replication</h4>
+    <p>Replicate hot keys MORE than cold keys. RF=5 for the top 1% of keys, RF=3 for the rest. More replicas = more choices for hedged/tied requests on the hottest data.</p>
+  </div>
+  <div class="mechanism-card">
+    <h4>Late Binding</h4>
+    <p>Don't decide which replica to query until the last possible moment. At dispatch time, read responsiveness signals (queue depth, recent latency) and pick the healthiest server.</p>
+  </div>
+  <div class="mechanism-card">
+    <h4>Good Enough Responses</h4>
+    <p>Return partial results if some sub-requests time out. A search page with 9/10 results is better than a timeout error. Requires the client to tolerate incomplete data.</p>
+  </div>
+</div>
+
+<div class="takeaway">
+  <strong>Takeaway:</strong> Hedged + tied requests = the user-facing answer to backend tails. ~2x cost for ~10x tail-latency reduction. The tradeoff is almost always worth it for user-facing fanout paths.
+</div>
+
+<!-- ============================================================ -->
+<!-- SECTION 6: LATENCY BUDGETS + SLO DESIGN                       -->
+<!-- ============================================================ -->
+<h2>6. Latency Budgets + SLO Design</h2>
+
+<p>Set a per-service latency budget. If service A has a 200ms budget and calls B (50ms) + C (50ms), A's local processing budget is 100ms. Every external call needs a timeout shorter than your own budget. The common bug: <code>httpClient.Get(url)</code> with no timeout -- cascading hang when a dependency goes slow.</p>
+
+<svg id="budget-svg" viewBox="0 0 900 320"></svg>
+
+<h3>Deadline Propagation</h3>
+<p>Pass your remaining deadline downstream. gRPC has this built in: each service truncates further calls to whatever time remains. If you have 150ms left and call a dependency, it gets a 150ms deadline -- not its "default" 500ms. This prevents stale work on requests that the client has already abandoned.</p>
+
+<div class="controls">
+  <button onclick="animateBudgetBlow()">Simulate Dependency Blowout</button>
+  <button onclick="resetBudget()">Reset</button>
+</div>
+<div class="commentary" id="budget-commentary">Service A (200ms budget) calls B and C in parallel. Each gets a 50ms budget. Local processing gets the remaining 100ms. Click "Simulate Dependency Blowout" to see what happens when C exceeds its budget.</div>
+
+<div class="takeaway">
+  <strong>Takeaway:</strong> Budgets + propagated deadlines = how you keep tail latency from compounding catastrophically. Every external call must have a timeout. Every timeout must be &lt; your own remaining budget.
+</div>
+
+<!-- ============================================================ -->
+<!-- SECTION 7: QUICK REFERENCE -- SPIKY p99 DEBUGGING             -->
+<!-- ============================================================ -->
+<h2>7. Quick Reference -- "Spiky p99" Debugging Cheat Sheet</h2>
+
+<table class="cheat-table">
+  <thead>
+    <tr>
+      <th>Symptom</th>
+      <th>Suspect</th>
+      <th>Tool / Verify</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>p99 jumps every ~60s</td>
+      <td>GC or scheduled job</td>
+      <td>Flame graph during pause window; GC logs; cron audit</td>
+    </tr>
+    <tr>
+      <td>p99 grows under load</td>
+      <td>Queue saturation</td>
+      <td>Queue depth metrics; threadpool active/max; connection pool exhaustion</td>
+    </tr>
+    <tr>
+      <td>p99 high on one node only</td>
+      <td>NUMA / disk / NIC issue</td>
+      <td>Per-host metrics; <code>perf stat</code>; disk IOPS; NIC drop counters</td>
+    </tr>
+    <tr>
+      <td>p99 high from one downstream</td>
+      <td>Tail amplification through fanout</td>
+      <td>Hedged requests; per-dependency latency histogram; timeout audit</td>
+    </tr>
+    <tr>
+      <td>p99 grows during deploy</td>
+      <td>Cold start / JIT warmup</td>
+      <td>Warm pool; gradual traffic ramp; JIT compilation logs; class-loading time</td>
+    </tr>
+    <tr>
+      <td>p99 spikes at top of hour</td>
+      <td>Cache stampede / TTL sync</td>
+      <td>Jitter on cache TTLs; staggered expiration; request coalescing</td>
+    </tr>
+    <tr>
+      <td>p99 correlates with request size</td>
+      <td>Serialization / network transfer</td>
+      <td>Payload size metrics; compression; pagination limits</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="takeaway" style="border-left-color: var(--accent-yellow);">
+  <strong style="color: var(--accent-yellow);">The senior tell:</strong> "p99 of fanout = much worse than p99 of any single backend. The fix isn't 'make each backend faster' -- it's hedged requests + deadline propagation + bounded fanout." Quote Jeff Dean's paper if pressed.
+</div>
+
+<script>
+/* ================================================================
+   SECTION 1: Producer-Consumer Queue Simulation
+   ================================================================ */
+const bpSvg = document.getElementById('bp-svg');
+let bpMode = 'unbounded';
+let bpQueue = [];
+let bpDropped = 0;
+let bpBlocked = false;
+let bpOomCrash = false;
+let bpAnimId = null;
+let bpLastProd = 0;
+let bpLastCons = 0;
+let bpProducedTotal = 0;
+let bpConsumedTotal = 0;
+let bpParticles = []; // for animated items
+
+function setBpMode(mode) {
+  document.querySelectorAll('#bp-mode-unbounded, #bp-mode-block, #bp-mode-drop, #bp-mode-replace').forEach(b => b.classList.remove('active-btn'));
+  document.getElementById('bp-mode-' + mode).classList.add('active-btn');
+  bpMode = mode;
+  resetBp();
+}
+
+function resetBp() {
+  bpQueue = [];
+  bpDropped = 0;
+  bpBlocked = false;
+  bpOomCrash = false;
+  bpProducedTotal = 0;
+  bpConsumedTotal = 0;
+  bpParticles = [];
+  bpLastProd = 0;
+  bpLastCons = 0;
+  if (bpAnimId) cancelAnimationFrame(bpAnimId);
+  bpAnimId = null;
+  drawBp();
+  startBpAnim();
+  updateBpCommentary();
+}
+
+function getBpProdRate() { return +document.getElementById('bp-prod-rate').value; }
+function getBpConsRate() { return +document.getElementById('bp-cons-rate').value; }
+function getBpCapacity() { return +document.getElementById('bp-capacity').value; }
+
+document.getElementById('bp-prod-rate').addEventListener('input', function() {
+  document.getElementById('bp-prod-val').textContent = this.value;
+});
+document.getElementById('bp-cons-rate').addEventListener('input', function() {
+  document.getElementById('bp-cons-val').textContent = this.value;
+});
+document.getElementById('bp-capacity').addEventListener('input', function() {
+  document.getElementById('bp-cap-val').textContent = this.value;
+});
+
+function updateBpCommentary() {
+  const c = document.getElementById('bp-commentary');
+  const pr = getBpProdRate(), cr = getBpConsRate();
+  if (bpOomCrash) {
+    c.innerHTML = '<span style="color:var(--accent-red);font-weight:700;">OOM CRASH!</span> Unbounded queue grew past safe limits. Process killed. This is why unbounded queues are time bombs.';
+    return;
+  }
+  if (pr <= cr) {
+    c.textContent = 'Producer rate <= consumer rate. Queue stays near-empty. No backpressure needed.';
+  } else if (bpMode === 'unbounded') {
+    c.innerHTML = 'Producer > consumer with <strong>unbounded</strong> queue. Queue grows linearly forever. Eventually: OOM crash.';
+  } else if (bpMode === 'block') {
+    c.innerHTML = '<strong>Block (TCP-style):</strong> When queue is full, producer blocks. Backpressure propagates upstream. Lossless -- no requests dropped, but producer throughput is throttled.';
+  } else if (bpMode === 'drop') {
+    c.innerHTML = '<strong>Drop (load shed):</strong> When queue is full, new requests are rejected (503). Survival > completeness. Dropped: <span style="color:var(--accent-red)">' + bpDropped + '</span>';
+  } else if (bpMode === 'replace') {
+    c.innerHTML = '<strong>Replace (oldest-out):</strong> When queue is full, drop the oldest entry and accept the new one. Good for real-time data where stale = useless. Evicted: <span style="color:var(--accent-orange)">' + bpDropped + '</span>';
+  }
+}
+
+function drawBp() {
+  const w = 900, h = 260;
+  const cap = getBpCapacity();
+  const maxDisplay = bpMode === 'unbounded' ? Math.max(cap, bpQueue.length + 5) : cap;
+  // Layout
+  const prodX = 80, queueX = 250, queueW = 400, consX = 750;
+  const midY = 130;
+  const slotW = Math.min(14, queueW / maxDisplay);
+  const actualQueueW = slotW * maxDisplay;
+
+  let svg = '';
+  // Producer box
+  const prodColor = bpBlocked ? 'var(--accent-red)' : 'var(--accent-blue)';
+  svg += `<rect x="${prodX-40}" y="${midY-30}" width="80" height="60" rx="8" fill="var(--surface-2)" stroke="${prodColor}" stroke-width="2"/>`;
+  svg += `<text x="${prodX}" y="${midY-6}" text-anchor="middle" fill="${prodColor}" font-size="12" font-weight="600">PRODUCER</text>`;
+  svg += `<text x="${prodX}" y="${midY+12}" text-anchor="middle" fill="var(--text-3)" font-size="11">${getBpProdRate()}/s</text>`;
+  if (bpBlocked) {
+    svg += `<text x="${prodX}" y="${midY+28}" text-anchor="middle" fill="var(--accent-red)" font-size="10" font-weight="700">BLOCKED</text>`;
+  }
+
+  // Arrow producer -> queue
+  svg += `<line x1="${prodX+40}" y1="${midY}" x2="${queueX-5}" y2="${midY}" stroke="var(--text-3)" stroke-width="1.5" stroke-dasharray="4,3"/>`;
+  svg += `<polygon points="${queueX-5},${midY-4} ${queueX-5},${midY+4} ${queueX+1},${midY}" fill="var(--text-3)"/>`;
+
+  // Queue container
+  const qLeft = queueX;
+  const qTop = midY - 22;
+  const qH = 44;
+  if (bpOomCrash) {
+    svg += `<rect x="${qLeft}" y="${qTop}" width="${actualQueueW}" height="${qH}" rx="4" fill="rgba(255,107,107,0.15)" stroke="var(--accent-red)" stroke-width="2"/>`;
+    svg += `<text x="${qLeft + actualQueueW/2}" y="${midY+5}" text-anchor="middle" fill="var(--accent-red)" font-size="16" font-weight="700">OOM CRASH</text>`;
+  } else {
+    svg += `<rect x="${qLeft}" y="${qTop}" width="${actualQueueW}" height="${qH}" rx="4" fill="var(--surface)" stroke="var(--border)" stroke-width="1.5"/>`;
+    // Queue slots
+    for (let i = 0; i < bpQueue.length && i < maxDisplay; i++) {
+      const sx = qLeft + i * slotW + 1;
+      const age = bpQueue[i] || 0;
+      const color = age > 5 ? 'var(--accent-orange)' : age > 2 ? 'var(--accent-yellow)' : 'var(--accent-green)';
+      svg += `<rect x="${sx}" y="${qTop+2}" width="${Math.max(slotW-2, 2)}" height="${qH-4}" rx="2" fill="${color}" opacity="0.7"/>`;
+    }
+    // If unbounded overflow
+    if (bpMode === 'unbounded' && bpQueue.length > 50) {
+      svg += `<text x="${qLeft + actualQueueW + 10}" y="${midY+5}" fill="var(--accent-red)" font-size="13" font-weight="600">${bpQueue.length} items...</text>`;
+    }
+  }
+
+  // Queue label
+  const qlabel = bpMode === 'unbounded' ? 'UNBOUNDED QUEUE' : 'BOUNDED QUEUE (cap=' + cap + ')';
+  svg += `<text x="${qLeft + actualQueueW/2}" y="${qTop - 8}" text-anchor="middle" fill="var(--text-3)" font-size="11">${qlabel}</text>`;
+  // Queue fill
+  if (!bpOomCrash) {
+    const fillPct = bpMode === 'unbounded' ? (bpQueue.length > 0 ? Math.min(bpQueue.length / 50 * 100, 100) : 0) : (bpQueue.length / cap * 100);
+    svg += `<text x="${qLeft + actualQueueW/2}" y="${midY + qH/2 + 16}" text-anchor="middle" fill="var(--text-3)" font-size="11">${bpQueue.length}${bpMode !== 'unbounded' ? '/' + cap : ''} items (${fillPct.toFixed(0)}%)</text>`;
+  }
+
+  // Arrow queue -> consumer
+  svg += `<line x1="${qLeft + actualQueueW + 5}" y1="${midY}" x2="${consX-40}" y2="${midY}" stroke="var(--text-3)" stroke-width="1.5" stroke-dasharray="4,3"/>`;
+  svg += `<polygon points="${consX-40},${midY-4} ${consX-40},${midY+4} ${consX-34},${midY}" fill="var(--text-3)"/>`;
+
+  // Consumer box
+  svg += `<rect x="${consX-40}" y="${midY-30}" width="80" height="60" rx="8" fill="var(--surface-2)" stroke="var(--accent-green)" stroke-width="2"/>`;
+  svg += `<text x="${consX}" y="${midY-6}" text-anchor="middle" fill="var(--accent-green)" font-size="12" font-weight="600">CONSUMER</text>`;
+  svg += `<text x="${consX}" y="${midY+12}" text-anchor="middle" fill="var(--text-3)" font-size="11">${getBpConsRate()}/s</text>`;
+
+  // Stats row
+  const statsY = h - 30;
+  svg += `<text x="20" y="${statsY}" fill="var(--text-3)" font-size="12">Produced: <tspan fill="var(--accent-blue)">${bpProducedTotal}</tspan></text>`;
+  svg += `<text x="200" y="${statsY}" fill="var(--text-3)" font-size="12">Consumed: <tspan fill="var(--accent-green)">${bpConsumedTotal}</tspan></text>`;
+  if (bpMode === 'drop' || bpMode === 'replace') {
+    const dropLabel = bpMode === 'drop' ? 'Rejected' : 'Evicted';
+    svg += `<text x="400" y="${statsY}" fill="var(--text-3)" font-size="12">${dropLabel}: <tspan fill="var(--accent-red)">${bpDropped}</tspan></text>`;
+  }
+  if (bpMode === 'block' && bpBlocked) {
+    svg += `<text x="400" y="${statsY}" fill="var(--accent-red)" font-size="12" font-weight="600">Producer BLOCKED -- backpressure active</text>`;
+  }
+
+  // Legend for queue age colors
+  svg += `<text x="600" y="${statsY}" fill="var(--text-3)" font-size="11">Age:</text>`;
+  svg += `<rect x="632" y="${statsY-10}" width="10" height="10" rx="2" fill="var(--accent-green)" opacity="0.7"/>`;
+  svg += `<text x="646" y="${statsY}" fill="var(--text-3)" font-size="10">new</text>`;
+  svg += `<rect x="672" y="${statsY-10}" width="10" height="10" rx="2" fill="var(--accent-yellow)" opacity="0.7"/>`;
+  svg += `<text x="686" y="${statsY}" fill="var(--text-3)" font-size="10">aging</text>`;
+  svg += `<rect x="720" y="${statsY-10}" width="10" height="10" rx="2" fill="var(--accent-orange)" opacity="0.7"/>`;
+  svg += `<text x="734" y="${statsY}" fill="var(--text-3)" font-size="10">stale</text>`;
+
+  bpSvg.innerHTML = svg;
+}
+
+function startBpAnim() {
+  let lastT = 0;
+  function tick(t) {
+    if (!lastT) lastT = t;
+    const dt = (t - lastT) / 1000;
+    lastT = t;
+    if (bpOomCrash) { drawBp(); return; }
+
+    const pr = getBpProdRate();
+    const cr = getBpConsRate();
+    const cap = getBpCapacity();
+
+    // Produce
+    bpLastProd += dt * pr;
+    while (bpLastProd >= 1) {
+      bpLastProd -= 1;
+      if (bpMode === 'unbounded') {
+        bpQueue.push(0);
+        bpProducedTotal++;
+        if (bpQueue.length > 200) { bpOomCrash = true; updateBpCommentary(); break; }
+      } else if (bpMode === 'block') {
+        if (bpQueue.length < cap) {
+          bpQueue.push(0);
+          bpProducedTotal++;
+          bpBlocked = false;
+        } else {
+          bpBlocked = true;
+        }
+      } else if (bpMode === 'drop') {
+        if (bpQueue.length < cap) {
+          bpQueue.push(0);
+          bpProducedTotal++;
+        } else {
+          bpDropped++;
+          bpProducedTotal++;
+        }
+      } else if (bpMode === 'replace') {
+        if (bpQueue.length < cap) {
+          bpQueue.push(0);
+        } else {
+          bpQueue.shift();
+          bpQueue.push(0);
+          bpDropped++;
+        }
+        bpProducedTotal++;
+      }
+    }
+
+    // Consume
+    bpLastCons += dt * cr;
+    while (bpLastCons >= 1 && bpQueue.length > 0) {
+      bpLastCons -= 1;
+      bpQueue.shift();
+      bpConsumedTotal++;
+    }
+    if (bpQueue.length === 0) bpLastCons = 0;
+
+    // Age items
+    for (let i = 0; i < bpQueue.length; i++) {
+      bpQueue[i] += dt;
+    }
+
+    drawBp();
+    updateBpCommentary();
+    bpAnimId = requestAnimationFrame(tick);
+  }
+  bpAnimId = requestAnimationFrame(tick);
+}
+
+// Start
+drawBp();
+startBpAnim();
+
+/* ================================================================
+   SECTION 2: Mechanism mini-diagrams (static + subtle animation)
+   ================================================================ */
+function drawMechanismDiagrams() {
+  // TCP
+  const tcp = document.getElementById('mech-tcp');
+  tcp.innerHTML = `
+    <rect x="20" y="30" width="80" height="50" rx="6" fill="var(--surface-2)" stroke="var(--accent-blue)" stroke-width="1.5"/>
+    <text x="60" y="58" text-anchor="middle" fill="var(--accent-blue)" font-size="11" font-weight="600">Sender</text>
+    <rect x="290" y="30" width="80" height="50" rx="6" fill="var(--surface-2)" stroke="var(--accent-green)" stroke-width="1.5"/>
+    <text x="330" y="58" text-anchor="middle" fill="var(--accent-green)" font-size="11" font-weight="600">Receiver</text>
+    <line x1="100" y1="45" x2="290" y2="45" stroke="var(--accent-blue)" stroke-width="1.5" marker-end="url(#arrowBlue)"/>
+    <text x="195" y="40" text-anchor="middle" fill="var(--text-3)" font-size="10">data segments</text>
+    <line x1="290" y1="65" x2="100" y2="65" stroke="var(--accent-green)" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arrowGreen)"/>
+    <text x="195" y="80" text-anchor="middle" fill="var(--accent-green)" font-size="10">ACK + rwnd=16KB</text>
+    <text x="195" y="110" text-anchor="middle" fill="var(--text-3)" font-size="10" font-style="italic">rwnd shrinks to 0 -> sender blocks</text>
+    <defs>
+      <marker id="arrowBlue" markerWidth="6" markerHeight="6" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6" fill="var(--accent-blue)"/></marker>
+      <marker id="arrowGreen" markerWidth="6" markerHeight="6" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6" fill="var(--accent-green)"/></marker>
+    </defs>`;
+
+  // HTTP/2
+  const http2 = document.getElementById('mech-http2');
+  http2.innerHTML = `
+    <rect x="30" y="15" width="340" height="95" rx="6" fill="none" stroke="var(--border)" stroke-width="1" stroke-dasharray="4,3"/>
+    <text x="200" y="12" text-anchor="middle" fill="var(--text-3)" font-size="10">HTTP/2 Connection</text>
+    <rect x="50" y="25" width="120" height="28" rx="4" fill="var(--surface-2)" stroke="var(--accent-blue)" stroke-width="1.5"/>
+    <text x="110" y="43" text-anchor="middle" fill="var(--accent-blue)" font-size="10">Stream 1 (fast)</text>
+    <rect x="50" y="60" width="120" height="28" rx="4" fill="var(--surface-2)" stroke="var(--accent-red)" stroke-width="1.5"/>
+    <text x="110" y="78" text-anchor="middle" fill="var(--accent-red)" font-size="10">Stream 2 (slow)</text>
+    <rect x="230" y="25" width="120" height="28" rx="4" fill="var(--surface-2)" stroke="var(--accent-green)" stroke-width="1.5"/>
+    <text x="290" y="43" text-anchor="middle" fill="var(--accent-green)" font-size="10">Stream 3 (fast)</text>
+    <text x="290" y="78" text-anchor="middle" fill="var(--accent-orange)" font-size="10">window=0 (paused)</text>
+    <line x1="170" y1="74" x2="230" y2="74" stroke="var(--accent-red)" stroke-width="1" stroke-dasharray="3,3"/>
+    <text x="200" y="100" text-anchor="middle" fill="var(--text-3)" font-size="10" font-style="italic">Stream 2 backpressured independently</text>`;
+
+  // Reactive Streams
+  const reactive = document.getElementById('mech-reactive');
+  reactive.innerHTML = `
+    <rect x="20" y="30" width="90" height="50" rx="6" fill="var(--surface-2)" stroke="var(--accent-purple)" stroke-width="1.5"/>
+    <text x="65" y="52" text-anchor="middle" fill="var(--accent-purple)" font-size="11" font-weight="600">Publisher</text>
+    <text x="65" y="68" text-anchor="middle" fill="var(--text-3)" font-size="9">has 1000 items</text>
+    <rect x="280" y="30" width="90" height="50" rx="6" fill="var(--surface-2)" stroke="var(--accent-cyan)" stroke-width="1.5"/>
+    <text x="325" y="52" text-anchor="middle" fill="var(--accent-cyan)" font-size="11" font-weight="600">Subscriber</text>
+    <text x="325" y="68" text-anchor="middle" fill="var(--text-3)" font-size="9">can handle 10</text>
+    <line x1="280" y1="45" x2="110" y2="45" stroke="var(--accent-cyan)" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arrowCyan)"/>
+    <text x="195" y="40" text-anchor="middle" fill="var(--accent-cyan)" font-size="10">request(10)</text>
+    <line x1="110" y1="65" x2="280" y2="65" stroke="var(--accent-purple)" stroke-width="1.5" marker-end="url(#arrowPurple)"/>
+    <text x="195" y="80" text-anchor="middle" fill="var(--accent-purple)" font-size="10">onNext x10</text>
+    <text x="195" y="110" text-anchor="middle" fill="var(--text-3)" font-size="10" font-style="italic">Demand-driven: publisher never sends more than requested</text>
+    <defs>
+      <marker id="arrowCyan" markerWidth="6" markerHeight="6" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6" fill="var(--accent-cyan)"/></marker>
+      <marker id="arrowPurple" markerWidth="6" markerHeight="6" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6" fill="var(--accent-purple)"/></marker>
+    </defs>`;
+
+  // Message Queue + Ack
+  const mq = document.getElementById('mech-mq');
+  mq.innerHTML = `
+    <rect x="20" y="35" width="70" height="45" rx="6" fill="var(--surface-2)" stroke="var(--accent-blue)" stroke-width="1.5"/>
+    <text x="55" y="60" text-anchor="middle" fill="var(--accent-blue)" font-size="10" font-weight="600">Producer</text>
+    <rect x="150" y="25" width="100" height="65" rx="6" fill="var(--surface-2)" stroke="var(--accent-yellow)" stroke-width="1.5"/>
+    <text x="200" y="48" text-anchor="middle" fill="var(--accent-yellow)" font-size="10" font-weight="600">Broker</text>
+    <text x="200" y="65" text-anchor="middle" fill="var(--text-3)" font-size="9">in-flight: 3/10</text>
+    <text x="200" y="80" text-anchor="middle" fill="var(--text-3)" font-size="9">pending: 47</text>
+    <rect x="310" y="35" width="70" height="45" rx="6" fill="var(--surface-2)" stroke="var(--accent-green)" stroke-width="1.5"/>
+    <text x="345" y="60" text-anchor="middle" fill="var(--accent-green)" font-size="10" font-weight="600">Consumer</text>
+    <line x1="90" y1="50" x2="150" y2="50" stroke="var(--text-3)" stroke-width="1" marker-end="url(#arrowGrey)"/>
+    <line x1="250" y1="50" x2="310" y2="50" stroke="var(--text-3)" stroke-width="1" marker-end="url(#arrowGrey)"/>
+    <line x1="310" y1="70" x2="250" y2="70" stroke="var(--accent-green)" stroke-width="1" stroke-dasharray="3,3" marker-end="url(#arrowGreen2)"/>
+    <text x="280" y="85" text-anchor="middle" fill="var(--accent-green)" font-size="9">ACK</text>
+    <text x="200" y="110" text-anchor="middle" fill="var(--text-3)" font-size="10" font-style="italic">No redeliver until ACK or timeout</text>
+    <defs>
+      <marker id="arrowGrey" markerWidth="6" markerHeight="6" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6" fill="var(--text-3)"/></marker>
+      <marker id="arrowGreen2" markerWidth="6" markerHeight="6" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6" fill="var(--accent-green)"/></marker>
+    </defs>`;
+
+  // Semaphore
+  const sema = document.getElementById('mech-sema');
+  sema.innerHTML = `
+    <rect x="20" y="20" width="70" height="80" rx="6" fill="var(--surface-2)" stroke="var(--accent-blue)" stroke-width="1.5"/>
+    <text x="55" y="42" text-anchor="middle" fill="var(--accent-blue)" font-size="10" font-weight="600">Clients</text>
+    <text x="55" y="60" text-anchor="middle" fill="var(--text-3)" font-size="9">150 req/s</text>
+    <rect x="150" y="20" width="100" height="80" rx="6" fill="var(--surface-2)" stroke="var(--accent-yellow)" stroke-width="1.5"/>
+    <text x="200" y="42" text-anchor="middle" fill="var(--accent-yellow)" font-size="10" font-weight="600">Gateway</text>
+    <text x="200" y="60" text-anchor="middle" fill="var(--text-3)" font-size="9">semaphore: 100</text>
+    <text x="200" y="76" text-anchor="middle" fill="var(--text-3)" font-size="9">in-use: 100/100</text>
+    <rect x="310" y="20" width="70" height="80" rx="6" fill="var(--surface-2)" stroke="var(--accent-green)" stroke-width="1.5"/>
+    <text x="345" y="42" text-anchor="middle" fill="var(--accent-green)" font-size="10" font-weight="600">Workers</text>
+    <text x="345" y="60" text-anchor="middle" fill="var(--text-3)" font-size="9">100 active</text>
+    <line x1="90" y1="45" x2="150" y2="45" stroke="var(--text-3)" stroke-width="1" marker-end="url(#arrowGrey)"/>
+    <line x1="250" y1="45" x2="310" y2="45" stroke="var(--text-3)" stroke-width="1" marker-end="url(#arrowGrey)"/>
+    <text x="120" y="85" fill="var(--accent-red)" font-size="10" font-weight="600">50 req -> 503</text>
+    <text x="200" y="110" text-anchor="middle" fill="var(--text-3)" font-size="10" font-style="italic">Request 101+ gets 503 Service Unavailable</text>`;
+
+  // Token Bucket
+  const token = document.getElementById('mech-token');
+  token.innerHTML = `
+    <rect x="130" y="10" width="140" height="70" rx="8" fill="var(--surface-2)" stroke="var(--accent-orange)" stroke-width="1.5"/>
+    <text x="200" y="30" text-anchor="middle" fill="var(--accent-orange)" font-size="11" font-weight="600">Token Bucket</text>
+    <text x="200" y="48" text-anchor="middle" fill="var(--text-3)" font-size="10">capacity B = 10</text>
+    <text x="200" y="64" text-anchor="middle" fill="var(--text-3)" font-size="10">refill R = 5/s</text>
+    ${[0,1,2,3,4,5,6].map((i) => `<circle cx="${155+i*13}" cy="53" r="4" fill="${i<5 ? 'var(--accent-orange)' : 'var(--surface)'}" stroke="var(--accent-orange)" stroke-width="1"/>`).join('')}
+    <line x1="200" y1="80" x2="200" y2="100" stroke="var(--text-3)" stroke-width="1" marker-end="url(#arrowGrey)"/>
+    <text x="200" y="115" text-anchor="middle" fill="var(--text-3)" font-size="10">1 token per request; burst up to B; empty = reject/queue</text>`;
+}
+drawMechanismDiagrams();
+
+/* ================================================================
+   SECTION 3: Latency Histogram with toggleable causes
+   ================================================================ */
+const causesActive = {};
+const causeProfiles = {
+  gc:    { label: 'GC pauses',         color: '#ff6b6b', bumps: [{center: 80, width: 15, height: 40}, {center: 120, width: 10, height: 20}] },
+  queue: { label: 'Queueing delay',    color: '#ffd43b', bumps: [{center: 60, width: 20, height: 35}] },
+  hol:   { label: 'Head-of-line',      color: '#cc5de8', bumps: [{center: 70, width: 12, height: 25}] },
+  disk:  { label: 'Disk seek/IO',      color: '#ffa94d', bumps: [{center: 90, width: 18, height: 30}] },
+  ctx:   { label: 'Context switches',  color: '#339af0', bumps: [{center: 55, width: 10, height: 18}] },
+  net:   { label: 'Network retransmit',color: '#51cf66', bumps: [{center: 100, width: 14, height: 22}] },
+  cache: { label: 'Cache miss',        color: '#8be9fd', bumps: [{center: 45, width: 8, height: 15}] },
+  dep:   { label: 'Slow dependency',   color: '#e599f7', bumps: [{center: 110, width: 20, height: 35}] },
+  cold:  { label: 'Cold start',        color: '#ff8787', bumps: [{center: 130, width: 12, height: 18}] },
+  numa:  { label: 'NUMA/kernel',       color: '#74c0fc', bumps: [{center: 75, width: 8, height: 12}] }
+};
+
+function toggleCause(cause) {
+  causesActive[cause] = !causesActive[cause];
+  const btn = document.querySelector(`[data-cause="${cause}"]`);
+  btn.classList.toggle('on', causesActive[cause]);
+  drawHistogram();
+  updateHistoCommentary();
+}
+
+function updateHistoCommentary() {
+  const active = Object.keys(causesActive).filter(k => causesActive[k]);
+  const c = document.getElementById('histo-commentary');
+  if (active.length === 0) {
+    c.textContent = 'Toggle causes to see how each one contributes a bump on the latency tail. The tail is not random -- it is the sum of specific deterministic events.';
+  } else {
+    const names = active.map(k => causeProfiles[k].label).join(', ');
+    c.innerHTML = 'Active causes: <strong>' + names + '</strong>. Each adds its own bump on the tail. In production, p99 troubleshooting means finding which of these dominates.';
+  }
+}
+
+function drawHistogram() {
+  const svg = document.getElementById('histo-svg');
+  const w = 900, h = 300;
+  const padL = 60, padR = 30, padT = 30, padB = 50;
+  const plotW = w - padL - padR;
+  const plotH = h - padT - padB;
+  const bins = 150;
+  const binW = plotW / bins;
+
+  // Base distribution (log-normal shape)
+  const data = new Array(bins).fill(0);
+  for (let i = 0; i < bins; i++) {
+    const x = i / bins;
+    // Log-normal-ish base
+    data[i] = Math.exp(-Math.pow(Math.log(x * 4 + 0.3) - 0.5, 2) / 0.3) * 80;
+    if (i < 3) data[i] *= 0.3;
+  }
+
+  // Add cause bumps
+  const activeCauses = Object.keys(causesActive).filter(k => causesActive[k]);
+  for (const cause of activeCauses) {
+    const profile = causeProfiles[cause];
+    for (const bump of profile.bumps) {
+      for (let i = 0; i < bins; i++) {
+        const dist = Math.abs(i - bump.center);
+        if (dist < bump.width * 2) {
+          data[i] += bump.height * Math.exp(-dist * dist / (2 * bump.width * bump.width / 4));
+        }
+      }
+    }
+  }
+
+  const maxVal = Math.max(...data) * 1.1;
+
+  let s = '';
+  // Grid lines
+  for (let i = 0; i <= 4; i++) {
+    const y = padT + plotH - (i / 4) * plotH;
+    s += `<line x1="${padL}" y1="${y}" x2="${w-padR}" y2="${y}" stroke="var(--border)" stroke-width="0.5"/>`;
+  }
+
+  // Base bars
+  for (let i = 0; i < bins; i++) {
+    const bh = (data[i] / maxVal) * plotH;
+    const x = padL + i * binW;
+    const y = padT + plotH - bh;
+
+    // Determine color: blue for body, colored for tail cause contributions
+    let color = 'var(--accent-blue)';
+    let opacity = 0.6;
+    if (i > 40) {
+      // Check if any active cause contributes here
+      let maxContrib = null;
+      let maxContribVal = 0;
+      for (const cause of activeCauses) {
+        const profile = causeProfiles[cause];
+        let contrib = 0;
+        for (const bump of profile.bumps) {
+          const dist = Math.abs(i - bump.center);
+          if (dist < bump.width * 2) {
+            contrib += bump.height * Math.exp(-dist * dist / (2 * bump.width * bump.width / 4));
+          }
+        }
+        if (contrib > maxContribVal) { maxContribVal = contrib; maxContrib = cause; }
+      }
+      if (maxContrib && maxContribVal > 2) {
+        color = causeProfiles[maxContrib].color;
+        opacity = 0.7;
+      }
+    }
+    s += `<rect x="${x}" y="${y}" width="${Math.max(binW - 0.5, 1)}" height="${bh}" fill="${color}" opacity="${opacity}"/>`;
+  }
+
+  // p50, p99, p999 markers
+  const p50bin = 15, p99bin = 60, p999bin = 100;
+  const markers = [
+    {bin: p50bin, label: 'p50', color: 'var(--accent-green)'},
+    {bin: p99bin, label: 'p99', color: 'var(--accent-yellow)'},
+    {bin: p999bin, label: 'p999', color: 'var(--accent-red)'}
+  ];
+  for (const m of markers) {
+    const x = padL + m.bin * binW;
+    s += `<line x1="${x}" y1="${padT}" x2="${x}" y2="${padT+plotH}" stroke="${m.color}" stroke-width="1.5" stroke-dasharray="4,3"/>`;
+    s += `<text x="${x}" y="${padT - 6}" text-anchor="middle" fill="${m.color}" font-size="11" font-weight="600">${m.label}</text>`;
+  }
+
+  // Axes
+  s += `<line x1="${padL}" y1="${padT+plotH}" x2="${w-padR}" y2="${padT+plotH}" stroke="var(--text-3)" stroke-width="1"/>`;
+  s += `<line x1="${padL}" y1="${padT}" x2="${padL}" y2="${padT+plotH}" stroke="var(--text-3)" stroke-width="1"/>`;
+  s += `<text x="${w/2}" y="${h-8}" text-anchor="middle" fill="var(--text-3)" font-size="12">Latency (ms) --></text>`;
+  s += `<text x="15" y="${padT+plotH/2}" text-anchor="middle" fill="var(--text-3)" font-size="12" transform="rotate(-90 15 ${padT+plotH/2})">Request count</text>`;
+
+  // Latency axis labels
+  const latLabels = ['0', '10', '50', '100', '200', '500', '1s'];
+  for (let i = 0; i < latLabels.length; i++) {
+    const x = padL + (i / (latLabels.length - 1)) * plotW;
+    s += `<text x="${x}" y="${padT+plotH+18}" text-anchor="middle" fill="var(--text-3)" font-size="10">${latLabels[i]}</text>`;
+  }
+
+  // Legend for active causes
+  if (activeCauses.length > 0) {
+    let lx = padL + 10;
+    const ly = padT + 15;
+    for (const cause of activeCauses) {
+      const profile = causeProfiles[cause];
+      s += `<rect x="${lx}" y="${ly-8}" width="10" height="10" rx="2" fill="${profile.color}" opacity="0.8"/>`;
+      s += `<text x="${lx+14}" y="${ly+1}" fill="${profile.color}" font-size="10">${profile.label}</text>`;
+      lx += profile.label.length * 6.5 + 24;
+      if (lx > w - padR - 100) { lx = padL + 10; }
+    }
+  }
+
+  svg.innerHTML = s;
+}
+drawHistogram();
+
+/* ================================================================
+   SECTION 4: Fanout calculator
+   ================================================================ */
+const fanoutSlider = document.getElementById('fanout-n');
+const fanoutPctSlider = document.getElementById('fanout-pct');
+
+function updateFanout() {
+  const n = +fanoutSlider.value;
+  const pct = +fanoutPctSlider.value / 1000; // e.g., 990 -> 0.99
+  document.getElementById('fanout-n-val').textContent = n;
+  document.getElementById('fanout-pct-val').textContent = (pct * 100).toFixed(1);
+
+  const allOk = Math.pow(pct, n);
+  const atLeast1 = 1 - allOk;
+
+  document.getElementById('fanout-all-ok').textContent = (allOk * 100).toFixed(1) + '%';
+  document.getElementById('fanout-at-least-one').textContent = (atLeast1 * 100).toFixed(1) + '%';
+
+  // Color the big number based on severity
+  const allOkEl = document.getElementById('fanout-all-ok');
+  if (allOk > 0.9) allOkEl.style.color = 'var(--accent-green)';
+  else if (allOk > 0.5) allOkEl.style.color = 'var(--accent-yellow)';
+  else allOkEl.style.color = 'var(--accent-red)';
+
+  drawFanoutChart(n, pct);
+  updateFanoutCommentary(n, pct, allOk, atLeast1);
+}
+
+function updateFanoutCommentary(n, pct, allOk, atLeast1) {
+  const c = document.getElementById('fanout-commentary');
+  const pctStr = (pct * 100).toFixed(1);
+  c.innerHTML = `At N=${n} with ${pctStr}% per-call success rate, <strong>${(atLeast1*100).toFixed(1)}%</strong> of fanout requests hit the tail of at least one sub-call. ` +
+    (atLeast1 > 0.5 ? '<span style="color:var(--accent-red)">More than half of user requests see tail latency.</span>' :
+     atLeast1 > 0.1 ? '<span style="color:var(--accent-yellow)">Significant tail exposure.</span>' :
+     '<span style="color:var(--accent-green)">Tail exposure is manageable.</span>');
+}
+
+function drawFanoutChart(currentN, pct) {
+  const svg = document.getElementById('fanout-svg');
+  const w = 900, h = 280;
+  const padL = 60, padR = 30, padT = 30, padB = 50;
+  const plotW = w - padL - padR;
+  const plotH = h - padT - padB;
+
+  let s = '';
+
+  // Grid
+  for (let i = 0; i <= 5; i++) {
+    const y = padT + (i / 5) * plotH;
+    const label = (100 - i * 20) + '%';
+    s += `<line x1="${padL}" y1="${y}" x2="${w-padR}" y2="${y}" stroke="var(--border)" stroke-width="0.5"/>`;
+    s += `<text x="${padL-8}" y="${y+4}" text-anchor="end" fill="var(--text-3)" font-size="10">${label}</text>`;
+  }
+
+  // Plot line: P(at least 1 slow) = 1 - pct^N
+  const maxN = 200;
+  let path = '';
+  for (let n = 1; n <= maxN; n++) {
+    const prob = 1 - Math.pow(pct, n);
+    const x = padL + (n / maxN) * plotW;
+    const y = padT + (1 - prob) * plotH;
+    path += (n === 1 ? 'M' : 'L') + x.toFixed(1) + ',' + y.toFixed(1);
+  }
+  s += `<path d="${path}" fill="none" stroke="var(--accent-red)" stroke-width="2"/>`;
+
+  // Also plot P(all OK)
+  let pathOk = '';
+  for (let n = 1; n <= maxN; n++) {
+    const prob = Math.pow(pct, n);
+    const x = padL + (n / maxN) * plotW;
+    const y = padT + (1 - prob) * plotH;
+    pathOk += (n === 1 ? 'M' : 'L') + x.toFixed(1) + ',' + y.toFixed(1);
+  }
+  s += `<path d="${pathOk}" fill="none" stroke="var(--accent-green)" stroke-width="2"/>`;
+
+  // Current N marker
+  const cx = padL + (currentN / maxN) * plotW;
+  const cyBad = padT + (1 - (1 - Math.pow(pct, currentN))) * plotH;
+  const cyOk = padT + (1 - Math.pow(pct, currentN)) * plotH;
+  s += `<line x1="${cx}" y1="${padT}" x2="${cx}" y2="${padT+plotH}" stroke="var(--accent-yellow)" stroke-width="1" stroke-dasharray="4,3"/>`;
+  s += `<circle cx="${cx}" cy="${cyBad}" r="5" fill="var(--accent-red)"/>`;
+  s += `<circle cx="${cx}" cy="${cyOk}" r="5" fill="var(--accent-green)"/>`;
+  s += `<text x="${cx+8}" y="${cyBad-8}" fill="var(--accent-red)" font-size="10">N=${currentN}</text>`;
+
+  // Axes
+  s += `<line x1="${padL}" y1="${padT+plotH}" x2="${w-padR}" y2="${padT+plotH}" stroke="var(--text-3)" stroke-width="1"/>`;
+  s += `<line x1="${padL}" y1="${padT}" x2="${padL}" y2="${padT+plotH}" stroke="var(--text-3)" stroke-width="1"/>`;
+  s += `<text x="${w/2}" y="${h-8}" text-anchor="middle" fill="var(--text-3)" font-size="12">Fanout N (number of parallel sub-requests)</text>`;
+
+  // X-axis labels
+  for (let n = 0; n <= 200; n += 25) {
+    const x = padL + (n / maxN) * plotW;
+    s += `<text x="${x}" y="${padT+plotH+18}" text-anchor="middle" fill="var(--text-3)" font-size="10">${n}</text>`;
+  }
+
+  // Legend
+  s += `<rect x="${w-220}" y="${padT+5}" width="10" height="10" rx="2" fill="var(--accent-red)"/>`;
+  s += `<text x="${w-206}" y="${padT+14}" fill="var(--accent-red)" font-size="11">P(at least 1 slow)</text>`;
+  s += `<rect x="${w-220}" y="${padT+22}" width="10" height="10" rx="2" fill="var(--accent-green)"/>`;
+  s += `<text x="${w-206}" y="${padT+31}" fill="var(--accent-green)" font-size="11">P(all OK)</text>`;
+
+  svg.innerHTML = s;
+}
+
+fanoutSlider.addEventListener('input', updateFanout);
+fanoutPctSlider.addEventListener('input', updateFanout);
+updateFanout();
+
+/* ================================================================
+   SECTION 5: Hedged Requests Animation
+   ================================================================ */
+let hedgeAnim = null;
+function runHedged() {
+  if (hedgeAnim) cancelAnimationFrame(hedgeAnim);
+  const svg = document.getElementById('hedge-svg');
+  const comm = document.getElementById('hedge-commentary');
+  document.getElementById('hedge-run').disabled = true;
+
+  // Random latencies
+  const latA = 30 + Math.random() * 200; // Server A latency (ms scaled to animation frames)
+  const latB = 30 + Math.random() * 200;
+  const hedgeDelay = 50; // Send backup after this
+  const totalFrames = 300;
+  const winner = (latA <= latB + hedgeDelay) ? 'A' : 'B';
+  const winnerLat = winner === 'A' ? latA : (latB + hedgeDelay);
+
+  let frame = 0;
+  function tick() {
+    frame++;
+    const w = 900, h = 220;
+    let s = '';
+    const clientX = 80, serverAX = 450, serverBX = 450;
+    const clientY = 60, serverAY = 40, serverBY = 160;
+    const hedgeSentY = 130;
+
+    // Client
+    s += `<rect x="${clientX-35}" y="${clientY-20}" width="70" height="40" rx="6" fill="var(--surface-2)" stroke="var(--accent-blue)" stroke-width="1.5"/>`;
+    s += `<text x="${clientX}" y="${clientY+5}" text-anchor="middle" fill="var(--accent-blue)" font-size="11" font-weight="600">Client</text>`;
+
+    // Server A
+    const aActive = frame > 5;
+    const aColor = winner === 'A' && frame > latA ? 'var(--accent-green)' : 'var(--accent-cyan)';
+    s += `<rect x="${serverAX-35}" y="${serverAY-20}" width="70" height="40" rx="6" fill="var(--surface-2)" stroke="${aColor}" stroke-width="1.5"/>`;
+    s += `<text x="${serverAX}" y="${serverAY+5}" text-anchor="middle" fill="${aColor}" font-size="11" font-weight="600">Server A</text>`;
+
+    // Server B
+    const bSent = frame > hedgeDelay;
+    const bColor = winner === 'B' && frame > latB + hedgeDelay ? 'var(--accent-green)' : bSent ? 'var(--accent-orange)' : 'var(--text-3)';
+    s += `<rect x="${serverBX-35}" y="${serverBY-20}" width="70" height="40" rx="6" fill="var(--surface-2)" stroke="${bColor}" stroke-width="1.5"/>`;
+    s += `<text x="${serverBX}" y="${serverBY+5}" text-anchor="middle" fill="${bColor}" font-size="11" font-weight="600">Server B</text>`;
+
+    // Request to A (always sent)
+    if (aActive) {
+      const progress = Math.min(frame / (latA * 0.4), 1);
+      const reqX = clientX + 35 + progress * (serverAX - clientX - 70);
+      if (frame < latA * 0.4) {
+        s += `<circle cx="${reqX}" cy="${serverAY}" r="4" fill="var(--accent-blue)"/>`;
+        s += `<text x="${reqX}" y="${serverAY-10}" text-anchor="middle" fill="var(--text-3)" font-size="9">req</text>`;
+      }
+    }
+
+    // Response from A
+    if (frame > latA * 0.4 && frame < latA) {
+      const progress = (frame - latA * 0.4) / (latA * 0.6);
+      const respX = serverAX - 35 - progress * (serverAX - clientX - 70);
+      s += `<circle cx="${respX}" cy="${serverAY}" r="4" fill="${winner === 'A' ? 'var(--accent-green)' : 'var(--accent-cyan)'}"/>`;
+    }
+    if (frame >= latA) {
+      const respColor = winner === 'A' ? 'var(--accent-green)' : 'var(--text-3)';
+      s += `<line x1="${clientX+35}" y1="${serverAY}" x2="${serverAX-35}" y2="${serverAY}" stroke="${respColor}" stroke-width="1.5"/>`;
+      if (winner === 'A') s += `<text x="${(clientX+serverAX)/2}" y="${serverAY-8}" text-anchor="middle" fill="var(--accent-green)" font-size="10" font-weight="600">WINNER (${Math.round(latA)}ms)</text>`;
+    }
+
+    // Hedge label
+    if (bSent) {
+      s += `<text x="${clientX + 50}" y="${hedgeSentY-5}" fill="var(--accent-orange)" font-size="10">hedge after ${hedgeDelay}ms</text>`;
+    }
+
+    // Request to B (sent after delay)
+    if (bSent) {
+      const bStart = hedgeDelay;
+      const bReqEnd = bStart + latB * 0.4;
+      if (frame < bReqEnd) {
+        const progress = Math.min((frame - bStart) / (latB * 0.4), 1);
+        const reqX = clientX + 35 + progress * (serverBX - clientX - 70);
+        s += `<circle cx="${reqX}" cy="${serverBY}" r="4" fill="var(--accent-orange)"/>`;
+      }
+      // Response from B
+      if (frame > bReqEnd && frame < latB + hedgeDelay) {
+        const progress = (frame - bReqEnd) / (latB * 0.6);
+        const respX = serverBX - 35 - progress * (serverBX - clientX - 70);
+        s += `<circle cx="${respX}" cy="${serverBY}" r="4" fill="${winner === 'B' ? 'var(--accent-green)' : 'var(--accent-orange)'}"/>`;
+      }
+      if (frame >= latB + hedgeDelay) {
+        const respColor = winner === 'B' ? 'var(--accent-green)' : 'var(--text-3)';
+        s += `<line x1="${clientX+35}" y1="${serverBY}" x2="${serverBX-35}" y2="${serverBY}" stroke="${respColor}" stroke-width="1.5"/>`;
+        if (winner === 'B') s += `<text x="${(clientX+serverBX)/2}" y="${serverBY-8}" text-anchor="middle" fill="var(--accent-green)" font-size="10" font-weight="600">WINNER (${Math.round(latB+hedgeDelay)}ms total)</text>`;
+      }
+    }
+
+    // Timeline bar
+    const tlY = h - 25;
+    const tlLeft = 80, tlRight = 820;
+    const tlW = tlRight - tlLeft;
+    s += `<line x1="${tlLeft}" y1="${tlY}" x2="${tlRight}" y2="${tlY}" stroke="var(--border)" stroke-width="1"/>`;
+    const progress = Math.min(frame / totalFrames, 1);
+    s += `<rect x="${tlLeft}" y="${tlY-3}" width="${progress * tlW}" height="6" rx="3" fill="var(--accent-blue)" opacity="0.4"/>`;
+    s += `<text x="${tlLeft + progress * tlW}" y="${tlY - 10}" text-anchor="middle" fill="var(--text-3)" font-size="10">${Math.round(frame)}ms</text>`;
+
+    // Cancel marker
+    if (frame >= winnerLat) {
+      const loser = winner === 'A' ? 'B' : 'A';
+      const loserY = loser === 'A' ? serverAY : serverBY;
+      s += `<text x="${serverAX + 50}" y="${loserY+5}" fill="var(--accent-red)" font-size="10">CANCEL</text>`;
+      s += `<line x1="${serverAX + 40}" y1="${loserY-5}" x2="${serverAX + 55}" y2="${loserY+8}" stroke="var(--accent-red)" stroke-width="2"/>`;
+      s += `<line x1="${serverAX + 55}" y1="${loserY-5}" x2="${serverAX + 40}" y2="${loserY+8}" stroke="var(--accent-red)" stroke-width="2"/>`;
+    }
+
+    // Result text
+    if (frame >= Math.max(latA, latB + hedgeDelay)) {
+      const saved = Math.abs(latA - (latB + hedgeDelay));
+      s += `<text x="${w/2}" y="${tlY-25}" text-anchor="middle" fill="var(--accent-green)" font-size="12" font-weight="600">User-visible latency: ${Math.round(winnerLat)}ms (saved ${Math.round(saved)}ms via hedging)</text>`;
+    }
+
+    svg.innerHTML = s;
+
+    if (frame < totalFrames) {
+      hedgeAnim = requestAnimationFrame(tick);
+    } else {
+      document.getElementById('hedge-run').disabled = false;
+      comm.innerHTML = `Server A: ${Math.round(latA)}ms, Server B: ${Math.round(latB)}ms (sent after ${hedgeDelay}ms hedge delay). <strong>${winner}</strong> won. User saw ${Math.round(winnerLat)}ms instead of worst-case ${Math.round(Math.max(latA, latB + hedgeDelay))}ms.`;
+    }
+  }
+  hedgeAnim = requestAnimationFrame(tick);
+}
+
+function resetHedged() {
+  if (hedgeAnim) cancelAnimationFrame(hedgeAnim);
+  hedgeAnim = null;
+  document.getElementById('hedge-run').disabled = false;
+  const svg = document.getElementById('hedge-svg');
+  svg.innerHTML = `
+    <rect x="45" y="80" width="70" height="40" rx="6" fill="var(--surface-2)" stroke="var(--accent-blue)" stroke-width="1.5"/>
+    <text x="80" y="105" text-anchor="middle" fill="var(--accent-blue)" font-size="11" font-weight="600">Client</text>
+    <rect x="415" y="20" width="70" height="40" rx="6" fill="var(--surface-2)" stroke="var(--accent-cyan)" stroke-width="1.5"/>
+    <text x="450" y="45" text-anchor="middle" fill="var(--accent-cyan)" font-size="11" font-weight="600">Server A</text>
+    <rect x="415" y="140" width="70" height="40" rx="6" fill="var(--surface-2)" stroke="var(--accent-orange)" stroke-width="1.5"/>
+    <text x="450" y="165" text-anchor="middle" fill="var(--accent-orange)" font-size="11" font-weight="600">Server B</text>
+    <line x1="115" y1="90" x2="415" y2="40" stroke="var(--text-3)" stroke-width="1" stroke-dasharray="4,3"/>
+    <line x1="115" y1="110" x2="415" y2="160" stroke="var(--text-3)" stroke-width="1" stroke-dasharray="4,3"/>
+    <text x="250" y="75" text-anchor="middle" fill="var(--text-3)" font-size="10">primary request</text>
+    <text x="250" y="145" text-anchor="middle" fill="var(--text-3)" font-size="10">hedge (after delay)</text>
+  `;
+  document.getElementById('hedge-commentary').textContent = 'Click "Run Hedged Request" to see the two-server race. The client sends to A first, then after a delay hedges to B. First response wins.';
+}
+resetHedged();
+
+/* ================================================================
+   SECTION 5b: Tied Requests Animation
+   ================================================================ */
+let tiedAnim = null;
+function runTied() {
+  if (tiedAnim) cancelAnimationFrame(tiedAnim);
+  const svg = document.getElementById('tied-svg');
+  const comm = document.getElementById('tied-commentary');
+  document.getElementById('tied-run').disabled = true;
+
+  const servers = [
+    {name: 'S1', queueDepth: Math.floor(Math.random() * 8), y: 40},
+    {name: 'S2', queueDepth: Math.floor(Math.random() * 8), y: 100},
+    {name: 'S3', queueDepth: Math.floor(Math.random() * 8), y: 160}
+  ];
+  // The one with shortest queue dequeues first
+  const winner = servers.reduce((a, b) => a.queueDepth <= b.queueDepth ? a : b);
+  const dequeueFrame = 40 + winner.queueDepth * 8;
+  const cancelFrame = dequeueFrame + 15;
+  const doneFrame = dequeueFrame + 80;
+  const totalFrames = doneFrame + 40;
+
+  let frame = 0;
+  function tick() {
+    frame++;
+    const w = 900, h = 200;
+    let s = '';
+    const clientX = 80, serverX = 500;
+
+    // Client
+    s += `<rect x="${clientX-35}" y="80" width="70" height="40" rx="6" fill="var(--surface-2)" stroke="var(--accent-blue)" stroke-width="1.5"/>`;
+    s += `<text x="${clientX}" y="105" text-anchor="middle" fill="var(--accent-blue)" font-size="11" font-weight="600">Client</text>`;
+
+    for (const srv of servers) {
+      const isWinner = srv === winner;
+      const canceled = !isWinner && frame >= cancelFrame;
+      const processing = isWinner && frame >= dequeueFrame;
+      const done = isWinner && frame >= doneFrame;
+
+      let color = 'var(--accent-cyan)';
+      if (done) color = 'var(--accent-green)';
+      else if (canceled) color = 'var(--text-3)';
+      else if (processing) color = 'var(--accent-yellow)';
+
+      // Server box
+      s += `<rect x="${serverX-35}" y="${srv.y-18}" width="70" height="36" rx="6" fill="var(--surface-2)" stroke="${color}" stroke-width="1.5"/>`;
+      s += `<text x="${serverX}" y="${srv.y+1}" text-anchor="middle" fill="${color}" font-size="10" font-weight="600">${srv.name}</text>`;
+      s += `<text x="${serverX}" y="${srv.y+14}" text-anchor="middle" fill="var(--text-3)" font-size="9">queue: ${srv.queueDepth}</text>`;
+
+      // Request line from client
+      if (frame > 5) {
+        const progress = Math.min((frame - 5) / 25, 1);
+        const lineEndX = clientX + 35 + progress * (serverX - clientX - 70);
+        s += `<line x1="${clientX+35}" y1="100" x2="${lineEndX}" y2="${srv.y}" stroke="${canceled ? 'var(--text-3)' : color}" stroke-width="1" stroke-dasharray="${canceled ? '3,4' : 'none'}" opacity="${canceled ? 0.3 : 0.8}"/>`;
+      }
+
+      // Cancel X
+      if (canceled) {
+        s += `<text x="${serverX+45}" y="${srv.y+4}" fill="var(--accent-red)" font-size="10" font-weight="600">DROP</text>`;
+      }
+
+      // Winner processing indicator
+      if (processing && !done) {
+        const pulseR = 4 + Math.sin(frame * 0.2) * 2;
+        s += `<circle cx="${serverX-45}" cy="${srv.y}" r="${pulseR}" fill="var(--accent-yellow)" opacity="0.7"/>`;
+        s += `<text x="${serverX+45}" y="${srv.y+4}" fill="var(--accent-yellow)" font-size="10">PROCESSING</text>`;
+      }
+
+      // Done
+      if (done) {
+        s += `<text x="${serverX+45}" y="${srv.y+4}" fill="var(--accent-green)" font-size="10" font-weight="600">DONE</text>`;
+      }
+    }
+
+    // Result
+    if (frame >= doneFrame) {
+      s += `<text x="${w/2}" y="${h-15}" text-anchor="middle" fill="var(--accent-green)" font-size="12" font-weight="600">${winner.name} won (shortest queue: ${winner.queueDepth}). Others canceled -- no wasted work.</text>`;
+    }
+
+    // Coordination message
+    if (frame >= dequeueFrame && frame < cancelFrame) {
+      s += `<text x="${(clientX+serverX)/2}" y="${h-15}" text-anchor="middle" fill="var(--accent-yellow)" font-size="11">${winner.name} dequeued first -- sending cancel to others...</text>`;
+    }
+
+    svg.innerHTML = s;
+
+    if (frame < totalFrames) {
+      tiedAnim = requestAnimationFrame(tick);
+    } else {
+      document.getElementById('tied-run').disabled = false;
+      comm.innerHTML = `All 3 servers received the request. <strong>${winner.name}</strong> (queue depth: ${winner.queueDepth}) dequeued first and notified others to drop. Only one server did real work -- no waste.`;
+    }
+  }
+  tiedAnim = requestAnimationFrame(tick);
+}
+
+function resetTied() {
+  if (tiedAnim) cancelAnimationFrame(tiedAnim);
+  tiedAnim = null;
+  document.getElementById('tied-run').disabled = false;
+  const svg = document.getElementById('tied-svg');
+  svg.innerHTML = `
+    <rect x="45" y="80" width="70" height="40" rx="6" fill="var(--surface-2)" stroke="var(--accent-blue)" stroke-width="1.5"/>
+    <text x="80" y="105" text-anchor="middle" fill="var(--accent-blue)" font-size="11" font-weight="600">Client</text>
+    <rect x="465" y="22" width="70" height="36" rx="6" fill="var(--surface-2)" stroke="var(--accent-cyan)" stroke-width="1.5"/>
+    <text x="500" y="44" text-anchor="middle" fill="var(--accent-cyan)" font-size="10" font-weight="600">S1</text>
+    <rect x="465" y="82" width="70" height="36" rx="6" fill="var(--surface-2)" stroke="var(--accent-cyan)" stroke-width="1.5"/>
+    <text x="500" y="104" text-anchor="middle" fill="var(--accent-cyan)" font-size="10" font-weight="600">S2</text>
+    <rect x="465" y="142" width="70" height="36" rx="6" fill="var(--surface-2)" stroke="var(--accent-cyan)" stroke-width="1.5"/>
+    <text x="500" y="164" text-anchor="middle" fill="var(--accent-cyan)" font-size="10" font-weight="600">S3</text>
+    <line x1="115" y1="95" x2="465" y2="40" stroke="var(--text-3)" stroke-width="1" stroke-dasharray="4,3"/>
+    <line x1="115" y1="100" x2="465" y2="100" stroke="var(--text-3)" stroke-width="1" stroke-dasharray="4,3"/>
+    <line x1="115" y1="105" x2="465" y2="160" stroke="var(--text-3)" stroke-width="1" stroke-dasharray="4,3"/>
+    <text x="290" y="65" text-anchor="middle" fill="var(--text-3)" font-size="10">same request to all 3</text>
+    <text x="290" y="145" text-anchor="middle" fill="var(--text-3)" font-size="10">first to dequeue cancels others</text>
+  `;
+  document.getElementById('tied-commentary').textContent = 'Click "Run Tied Request" to see servers coordinate. Only the first to dequeue actually processes; others drop the request.';
+}
+resetTied();
+
+/* ================================================================
+   SECTION 6: Latency Budget DAG
+   ================================================================ */
+let budgetBlown = false;
+
+function drawBudget() {
+  const svg = document.getElementById('budget-svg');
+  const w = 900, h = 320;
+  let s = '';
+
+  // Service A (root)
+  const aX = 200, aY = 60;
+  s += `<rect x="${aX-60}" y="${aY-25}" width="120" height="50" rx="8" class="budget-node" ${budgetBlown ? 'stroke="var(--accent-yellow)"' : ''}/>`;
+  s += `<text x="${aX}" y="${aY-5}" text-anchor="middle" fill="var(--accent-blue)" font-size="12" font-weight="600">Service A</text>`;
+  s += `<text x="${aX}" y="${aY+12}" text-anchor="middle" fill="var(--text-3)" font-size="10">budget: 200ms</text>`;
+
+  // Local processing box
+  const lpX = 650, lpY = 60;
+  s += `<rect x="${lpX-55}" y="${lpY-25}" width="110" height="50" rx="8" class="budget-node"/>`;
+  s += `<text x="${lpX}" y="${lpY-5}" text-anchor="middle" fill="var(--accent-purple)" font-size="11" font-weight="600">Local Work</text>`;
+  s += `<text x="${lpX}" y="${lpY+12}" text-anchor="middle" fill="var(--text-3)" font-size="10">budget: 100ms</text>`;
+  s += `<line x1="${aX+60}" y1="${aY}" x2="${lpX-55}" y2="${lpY}" stroke="var(--text-3)" stroke-width="1" stroke-dasharray="4,3"/>`;
+
+  // Service B
+  const bX = 350, bY = 180;
+  s += `<rect x="${bX-55}" y="${bY-25}" width="110" height="50" rx="8" class="budget-node"/>`;
+  s += `<text x="${bX}" y="${bY-5}" text-anchor="middle" fill="var(--accent-green)" font-size="12" font-weight="600">Service B</text>`;
+  s += `<text x="${bX}" y="${bY+12}" text-anchor="middle" fill="var(--text-3)" font-size="10">budget: 50ms</text>`;
+  s += `<line x1="${aX}" y1="${aY+25}" x2="${bX}" y2="${bY-25}" stroke="var(--accent-green)" stroke-width="1.5"/>`;
+
+  // Service C
+  const cX = 600, cY = 180;
+  const cColor = budgetBlown ? 'var(--accent-red)' : 'var(--accent-orange)';
+  s += `<rect x="${cX-55}" y="${cY-25}" width="110" height="50" rx="8" class="budget-node" ${budgetBlown ? 'stroke="var(--accent-red)" stroke-width="2"' : ''}/>`;
+  s += `<text x="${cX}" y="${cY-5}" text-anchor="middle" fill="${cColor}" font-size="12" font-weight="600">Service C</text>`;
+  if (budgetBlown) {
+    s += `<text x="${cX}" y="${cY+12}" text-anchor="middle" fill="var(--accent-red)" font-size="10" font-weight="700">TOOK 180ms!</text>`;
+  } else {
+    s += `<text x="${cX}" y="${cY+12}" text-anchor="middle" fill="var(--text-3)" font-size="10">budget: 50ms</text>`;
+  }
+  s += `<line x1="${aX+30}" y1="${aY+25}" x2="${cX}" y2="${cY-25}" stroke="${cColor}" stroke-width="1.5"/>`;
+
+  // Service B's dependencies
+  const dX = 250, dY = 280;
+  s += `<rect x="${dX-45}" y="${dY-20}" width="90" height="40" rx="6" class="budget-node"/>`;
+  s += `<text x="${dX}" y="${dY-2}" text-anchor="middle" fill="var(--text-3)" font-size="10">DB Query</text>`;
+  s += `<text x="${dX}" y="${dY+14}" text-anchor="middle" fill="var(--text-3)" font-size="9">timeout: 30ms</text>`;
+  s += `<line x1="${bX-20}" y1="${bY+25}" x2="${dX}" y2="${dY-20}" stroke="var(--text-3)" stroke-width="1" stroke-dasharray="3,3"/>`;
+
+  const eX = 450, eY = 280;
+  s += `<rect x="${eX-45}" y="${eY-20}" width="90" height="40" rx="6" class="budget-node"/>`;
+  s += `<text x="${eX}" y="${eY-2}" text-anchor="middle" fill="var(--text-3)" font-size="10">Cache</text>`;
+  s += `<text x="${eX}" y="${eY+14}" text-anchor="middle" fill="var(--text-3)" font-size="9">timeout: 5ms</text>`;
+  s += `<line x1="${bX+20}" y1="${bY+25}" x2="${eX}" y2="${eY-20}" stroke="var(--text-3)" stroke-width="1" stroke-dasharray="3,3"/>`;
+
+  // Budget breakdown annotation
+  if (!budgetBlown) {
+    s += `<text x="50" y="140" fill="var(--text-3)" font-size="11">200ms total =</text>`;
+    s += `<text x="50" y="158" fill="var(--accent-green)" font-size="11">50ms (B) +</text>`;
+    s += `<text x="50" y="176" fill="var(--accent-orange)" font-size="11">50ms (C) +</text>`;
+    s += `<text x="50" y="194" fill="var(--accent-purple)" font-size="11">100ms (local)</text>`;
+  } else {
+    s += `<rect x="30" y="120" width="160" height="95" rx="6" fill="rgba(255,107,107,0.08)" stroke="var(--accent-red)" stroke-width="1"/>`;
+    s += `<text x="110" y="140" text-anchor="middle" fill="var(--accent-red)" font-size="11" font-weight="600">Budget blown!</text>`;
+    s += `<text x="110" y="158" text-anchor="middle" fill="var(--text-3)" font-size="10">C took 180ms</text>`;
+    s += `<text x="110" y="174" text-anchor="middle" fill="var(--text-3)" font-size="10">A must timeout C at 50ms</text>`;
+    s += `<text x="110" y="190" text-anchor="middle" fill="var(--text-3)" font-size="10">or return partial / error</text>`;
+    s += `<text x="110" y="206" text-anchor="middle" fill="var(--accent-yellow)" font-size="10">Deadline propagation</text>`;
+
+    // Timeout X on the line
+    const midLineX = (aX + 30 + cX) / 2;
+    const midLineY = (aY + 25 + cY - 25) / 2;
+    s += `<line x1="${midLineX-8}" y1="${midLineY-8}" x2="${midLineX+8}" y2="${midLineY+8}" stroke="var(--accent-red)" stroke-width="3"/>`;
+    s += `<line x1="${midLineX+8}" y1="${midLineY-8}" x2="${midLineX-8}" y2="${midLineY+8}" stroke="var(--accent-red)" stroke-width="3"/>`;
+    s += `<text x="${midLineX+15}" y="${midLineY}" fill="var(--accent-red)" font-size="10" font-weight="600">TIMEOUT 50ms</text>`;
+  }
+
+  svg.innerHTML = s;
+}
+
+function animateBudgetBlow() {
+  budgetBlown = true;
+  drawBudget();
+  document.getElementById('budget-commentary').innerHTML = '<span style="color:var(--accent-red);font-weight:600;">Service C blew its 50ms budget (took 180ms).</span> Service A must timeout C at 50ms and either return a partial response or an error. Without a deadline, A hangs for 180ms -- blowing its own 200ms budget for the caller above. <strong>Deadline propagation</strong> (built into gRPC) prevents stale work: C receives "you have 50ms" and can abort early.';
+}
+
+function resetBudget() {
+  budgetBlown = false;
+  drawBudget();
+  document.getElementById('budget-commentary').textContent = 'Service A (200ms budget) calls B and C in parallel. Each gets a 50ms budget. Local processing gets the remaining 100ms. Click "Simulate Dependency Blowout" to see what happens when C exceeds its budget.';
+}
+drawBudget();
+
+</script>
+
+</body>
+</html>

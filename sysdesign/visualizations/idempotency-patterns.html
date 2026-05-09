@@ -1,0 +1,1236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Idempotency Patterns -- Interview Cheat Sheet</title>
+<style>
+:root {
+  --bg: #0f0f15;
+  --surface: #181820;
+  --surface-2: #20202a;
+  --border: #2a2a35;
+  --text: #e6e6ea;
+  --text-2: #cfcfd6;
+  --text-3: #888;
+  --accent-red: #ff6b6b;
+  --accent-green: #51cf66;
+  --accent-blue: #339af0;
+  --accent-yellow: #ffd43b;
+  --accent-purple: #cc5de8;
+  --accent-cyan: #8be9fd;
+  --accent-orange: #ffa94d;
+}
+*, *::before, *::after { box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  padding: 32px 24px;
+  max-width: 1100px;
+  margin: 0 auto;
+  line-height: 1.55;
+}
+h1 { color: #fff; margin-bottom: 4px; }
+h1 + p.sub { color: var(--text-3); font-style: italic; margin-top: 0; margin-bottom: 24px; }
+h2 { color: #fff; margin-top: 40px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+h3 { color: var(--text-2); margin-top: 20px; }
+p { margin: 10px 0; }
+code {
+  background: var(--surface-2);
+  padding: 2px 6px;
+  border-radius: 3px;
+  color: var(--accent-cyan);
+  font-size: 13px;
+}
+svg {
+  background: var(--surface);
+  border-radius: 8px;
+  display: block;
+  margin: 14px auto;
+  width: 100%;
+  height: auto;
+}
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0;
+  align-items: center;
+}
+.controls button, .btn {
+  padding: 10px 16px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  border-radius: 6px;
+  cursor: pointer;
+  min-height: 44px;
+  font-size: 14px;
+  transition: background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+.controls button:hover, .btn:hover { background: var(--surface); }
+.controls button:disabled, .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.controls button.active-btn { border-color: var(--accent-blue); color: var(--accent-blue); }
+.controls button.danger { border-color: var(--accent-red); color: var(--accent-red); }
+.controls button.danger:hover { background: #2a1520; }
+.commentary {
+  background: var(--surface-2);
+  padding: 14px;
+  border-radius: 6px;
+  font-size: 14px;
+  color: var(--text-2);
+  margin: 12px 0;
+  min-height: 44px;
+  line-height: 1.5;
+}
+.takeaway {
+  background: #1a1a22;
+  border-left: 3px solid var(--accent-green);
+  padding: 12px 16px;
+  margin: 14px 0;
+  font-size: 14px;
+}
+.takeaway strong { color: var(--accent-green); }
+.takeaway ul { margin: 6px 0 0 0; padding-left: 18px; }
+.takeaway li { margin-bottom: 6px; }
+.method-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 14px 0;
+  font-size: 14px;
+}
+.method-table th, .method-table td {
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  text-align: left;
+}
+.method-table th {
+  background: var(--surface-2);
+  color: #fff;
+  font-weight: 600;
+}
+.method-table td { background: var(--surface); }
+.method-table tr:hover td { background: var(--surface-2); }
+.badge-yes {
+  display: inline-block;
+  background: rgba(81,207,102,0.15);
+  color: var(--accent-green);
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 12px;
+}
+.badge-no {
+  display: inline-block;
+  background: rgba(255,107,107,0.15);
+  color: var(--accent-red);
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 12px;
+}
+.badge-depends {
+  display: inline-block;
+  background: rgba(255,212,59,0.15);
+  color: var(--accent-yellow);
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 12px;
+}
+.bug-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+  margin: 14px 0;
+}
+.bug-card h4 {
+  margin: 0 0 8px 0;
+  color: var(--accent-red);
+  font-size: 14px;
+}
+.bug-card .fix-label {
+  color: var(--accent-green);
+  font-weight: 600;
+  font-size: 13px;
+}
+.tactic-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+  margin: 14px 0;
+}
+.tactic-card h4 {
+  margin: 0 0 8px 0;
+  color: var(--accent-blue);
+  font-size: 14px;
+}
+.stripe-field {
+  display: flex;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.stripe-field:last-child { border-bottom: none; }
+.stripe-field .sf-key {
+  min-width: 140px;
+  color: var(--accent-cyan);
+  font-family: 'SF Mono', 'Fira Code', monospace;
+}
+.stripe-field .sf-val { color: var(--text-2); }
+.summary-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 14px 0;
+  font-size: 13px;
+}
+.summary-table th, .summary-table td {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+}
+.summary-table th {
+  background: var(--surface-2);
+  color: #fff;
+  font-weight: 600;
+  position: sticky;
+  top: 0;
+}
+.summary-table td { background: var(--surface); }
+.summary-table tr:hover td { background: var(--surface-2); }
+.quote-block {
+  background: var(--surface-2);
+  border-left: 3px solid var(--accent-purple);
+  padding: 14px 18px;
+  margin: 18px 0;
+  font-size: 14px;
+  color: var(--text-2);
+  line-height: 1.6;
+}
+@media (max-width: 720px) {
+  body { padding: 20px 14px; }
+  .method-table, .summary-table { font-size: 12px; }
+  .method-table th, .method-table td,
+  .summary-table th, .summary-table td { padding: 8px 8px; }
+}
+@media (max-width: 480px) {
+  .controls { flex-direction: column; }
+  .controls button { width: 100%; }
+  .stripe-field { flex-direction: column; gap: 4px; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Idempotency patterns</h1>
+  <p class="sub">Idempotency keys, retry semantics, side-effect atomicity, the Stripe-style API contract. The pattern that separates "no double charges" from "we apologize for the inconvenience."</p>
+</header>
+
+<!-- ============================================================ -->
+<!-- SECTION 1: HTTP IDEMPOTENCY BY METHOD                         -->
+<!-- ============================================================ -->
+<h2>1. HTTP Idempotency by Method</h2>
+
+<p>The HTTP spec defines idempotency per method. An operation is <strong>idempotent</strong> if performing it N times produces the same server-side state as performing it once. <strong>Safe</strong> means no side effects at all (read-only).</p>
+
+<table class="method-table">
+  <thead>
+    <tr>
+      <th>Method</th>
+      <th>Idempotent?</th>
+      <th>Safe?</th>
+      <th>Why</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>GET</code></td>
+      <td><span class="badge-yes">YES</span></td>
+      <td><span class="badge-yes">YES</span></td>
+      <td>Read-only. No state change regardless of repetition.</td>
+    </tr>
+    <tr>
+      <td><code>HEAD</code></td>
+      <td><span class="badge-yes">YES</span></td>
+      <td><span class="badge-yes">YES</span></td>
+      <td>Same as GET, headers only.</td>
+    </tr>
+    <tr>
+      <td><code>PUT</code></td>
+      <td><span class="badge-yes">YES</span></td>
+      <td><span class="badge-no">NO</span></td>
+      <td>Replace entire resource. Same body = same state every time.</td>
+    </tr>
+    <tr>
+      <td><code>DELETE</code></td>
+      <td><span class="badge-yes">YES</span></td>
+      <td><span class="badge-no">NO</span></td>
+      <td>Delete once or delete again: resource is gone either way. (200/204 or 404 -- your API contract.)</td>
+    </tr>
+    <tr>
+      <td><code>POST</code></td>
+      <td><span class="badge-no">NO</span></td>
+      <td><span class="badge-no">NO</span></td>
+      <td>Each call creates a new resource. Repeated POST = duplicates.</td>
+    </tr>
+    <tr>
+      <td><code>PATCH</code></td>
+      <td><span class="badge-depends">DEPENDS</span></td>
+      <td><span class="badge-no">NO</span></td>
+      <td><code>{"name":"Alice"}</code> is idempotent. <code>{"balance": "+100"}</code> is not. Depends on whether the operation is absolute or relative.</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>But in real APIs, even POSTs need to be idempotent under retry. A network blip between "server processed" and "client received 200" means the client retries -- and creates a duplicate charge, a duplicate signup, a duplicate order. That is where <strong>idempotency keys</strong> come in.</p>
+
+<div class="takeaway">
+  <strong>Takeaway.</strong> RFC says POST is not idempotent; reality says clients retry. Idempotency keys reconcile the two.
+</div>
+
+<!-- ============================================================ -->
+<!-- SECTION 2: IDEMPOTENCY KEYS (STRIPE-STYLE)                    -->
+<!-- ============================================================ -->
+<h2>2. Idempotency Keys (Stripe-style)</h2>
+
+<h3>The pattern</h3>
+<p>Client generates a unique key per logical operation (UUID v4, typically). Sends it in an <code>Idempotency-Key</code> header. Server checks if it has seen the key before. If yes: return the <strong>stored response</strong> (no re-processing). If no: process normally, then store <code>(key, response)</code>.</p>
+
+<h3>Animated scenario</h3>
+<p>Click "Send Charge" to watch the first request. Click "Retry (network blip)" to see the idempotency key in action.</p>
+
+<svg id="idem-svg" viewBox="0 0 900 400" preserveAspectRatio="xMidYMid meet">
+  <defs>
+    <marker id="idem-arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#555"/>
+    </marker>
+    <marker id="idem-arrow-green" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,5 L0,10 Z" fill="var(--accent-green)"/>
+    </marker>
+    <marker id="idem-arrow-red" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,5 L0,10 Z" fill="var(--accent-red)"/>
+    </marker>
+    <marker id="idem-arrow-blue" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,5 L0,10 Z" fill="var(--accent-blue)"/>
+    </marker>
+    <marker id="idem-arrow-yellow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,5 L0,10 Z" fill="var(--accent-yellow)"/>
+    </marker>
+  </defs>
+
+  <!-- Client box -->
+  <rect x="30" y="60" width="160" height="280" rx="8" fill="none" stroke="var(--accent-blue)" stroke-width="2"/>
+  <text x="110" y="88" text-anchor="middle" fill="var(--accent-blue)" font-size="14" font-weight="700">Client</text>
+  <text x="110" y="115" text-anchor="middle" fill="var(--text-3)" font-size="11">POST /charges</text>
+  <text x="110" y="135" text-anchor="middle" fill="var(--accent-cyan)" font-size="10" font-family="monospace" id="idem-key-label">Idempotency-Key: abc-123</text>
+  <text x="110" y="155" text-anchor="middle" fill="var(--text-3)" font-size="10" id="idem-client-status">Ready to send</text>
+
+  <!-- Server box -->
+  <rect x="350" y="60" width="200" height="280" rx="8" fill="none" stroke="var(--accent-green)" stroke-width="2"/>
+  <text x="450" y="88" text-anchor="middle" fill="var(--accent-green)" font-size="14" font-weight="700">Server</text>
+  <text x="450" y="115" text-anchor="middle" fill="var(--text-3)" font-size="11" id="idem-server-step">Waiting for request...</text>
+  <text x="450" y="140" text-anchor="middle" fill="var(--text-3)" font-size="10" id="idem-server-step2"></text>
+
+  <!-- Key store -->
+  <rect x="640" y="60" width="230" height="280" rx="8" fill="none" stroke="var(--accent-yellow)" stroke-width="2"/>
+  <text x="755" y="88" text-anchor="middle" fill="var(--accent-yellow)" font-size="14" font-weight="700">Idempotency Store</text>
+  <text x="755" y="115" text-anchor="middle" fill="var(--text-3)" font-size="11">(Redis / DB)</text>
+
+  <!-- Store entries -->
+  <rect x="655" y="135" width="200" height="30" rx="4" fill="var(--surface-2)" stroke="var(--border)" stroke-width="1" id="idem-store-row1-bg"/>
+  <text x="665" y="155" fill="var(--text-3)" font-size="10" font-family="monospace" id="idem-store-row1">-- empty --</text>
+
+  <rect x="655" y="175" width="200" height="30" rx="4" fill="var(--surface-2)" stroke="var(--border)" stroke-width="1" id="idem-store-row2-bg"/>
+  <text x="665" y="195" fill="var(--text-3)" font-size="10" font-family="monospace" id="idem-store-row2"></text>
+
+  <rect x="655" y="215" width="200" height="30" rx="4" fill="var(--surface-2)" stroke="var(--border)" stroke-width="1" id="idem-store-row3-bg"/>
+  <text x="665" y="235" fill="var(--text-3)" font-size="10" font-family="monospace" id="idem-store-row3"></text>
+
+  <!-- Decision box inside server -->
+  <rect x="370" y="170" width="160" height="50" rx="6" fill="var(--surface-2)" stroke="var(--border)" stroke-width="1"/>
+  <text x="450" y="192" text-anchor="middle" fill="var(--text-2)" font-size="11" id="idem-decision">Key seen before?</text>
+  <text x="450" y="208" text-anchor="middle" fill="var(--accent-green)" font-size="11" font-weight="600" id="idem-decision2"></text>
+
+  <!-- Result box -->
+  <rect x="370" y="240" width="160" height="50" rx="6" fill="var(--surface-2)" stroke="var(--border)" stroke-width="1"/>
+  <text x="450" y="260" text-anchor="middle" fill="var(--text-3)" font-size="10">Result:</text>
+  <text x="450" y="278" text-anchor="middle" fill="var(--text-2)" font-size="12" font-weight="600" id="idem-result">--</text>
+
+  <!-- Animated elements group -->
+  <g id="idem-anims"></g>
+</svg>
+
+<div class="controls">
+  <button onclick="IDEM.sendCharge()" id="idem-btn-send">Send Charge</button>
+  <button onclick="IDEM.retry()" id="idem-btn-retry" disabled>Retry (network blip)</button>
+  <button onclick="IDEM.retryDiffBody()" id="idem-btn-diff" disabled>Retry (different body)</button>
+  <button onclick="IDEM.reset()" id="idem-btn-reset">Reset</button>
+</div>
+
+<div class="commentary" id="idem-commentary">Click "Send Charge" to watch a POST /charges request with an Idempotency-Key header. After the first successful charge, try "Retry" to see the dedup in action.</div>
+
+<h3>Storage backends</h3>
+<table class="method-table">
+  <thead>
+    <tr>
+      <th>Backend</th>
+      <th>Pros</th>
+      <th>Cons</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>Redis + TTL</code> (24h-7d)</td>
+      <td>Fast, simple, TTL is native</td>
+      <td>Cache eviction risk: key lost = re-processing on retry</td>
+    </tr>
+    <tr>
+      <td><code>DB unique index</code> on <code>(key, route)</code></td>
+      <td>Durable, can be in same txn as the work</td>
+      <td>Slower, requires cleanup job for expired keys</td>
+    </tr>
+    <tr>
+      <td><code>DynamoDB conditional put</code></td>
+      <td>Native idempotency via <code>attribute_not_exists</code></td>
+      <td>DDB-specific, requires TTL attribute for cleanup</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Server-side key state</h3>
+<div class="commentary">
+  Each stored entry: <code>{ key: "abc-123", request_hash: "sha256(body)", status_code: 200, response_body: "{...}", expires_at: "2026-05-10T..." }</code>
+</div>
+
+<h3>Dedup decision tree</h3>
+<svg id="dedup-tree-svg" viewBox="0 0 800 320" preserveAspectRatio="xMidYMid meet">
+  <!-- Root: lookup key -->
+  <rect x="300" y="10" width="200" height="40" rx="6" fill="var(--surface-2)" stroke="var(--accent-blue)" stroke-width="2"/>
+  <text x="400" y="35" text-anchor="middle" fill="var(--accent-blue)" font-size="12" font-weight="600">Lookup idempotency key</text>
+
+  <!-- Branch: not found -->
+  <line x1="340" y1="50" x2="160" y2="90" stroke="var(--accent-green)" stroke-width="1.5"/>
+  <text x="230" y="72" fill="var(--accent-green)" font-size="10">NOT FOUND</text>
+  <rect x="60" y="90" width="200" height="40" rx="6" fill="var(--surface-2)" stroke="var(--accent-green)" stroke-width="1.5"/>
+  <text x="160" y="115" text-anchor="middle" fill="var(--accent-green)" font-size="11">Process request normally</text>
+  <line x1="160" y1="130" x2="160" y2="160" stroke="var(--accent-green)" stroke-width="1"/>
+  <rect x="60" y="160" width="200" height="35" rx="6" fill="var(--surface-2)" stroke="var(--border)" stroke-width="1"/>
+  <text x="160" y="182" text-anchor="middle" fill="var(--text-2)" font-size="10">Store (key, hash, response)</text>
+  <line x1="160" y1="195" x2="160" y2="225" stroke="var(--accent-green)" stroke-width="1"/>
+  <rect x="80" y="225" width="160" height="30" rx="6" fill="rgba(81,207,102,0.1)" stroke="var(--accent-green)" stroke-width="1"/>
+  <text x="160" y="245" text-anchor="middle" fill="var(--accent-green)" font-size="11" font-weight="600">Return 200 + result</text>
+
+  <!-- Branch: found -->
+  <line x1="460" y1="50" x2="640" y2="90" stroke="var(--accent-yellow)" stroke-width="1.5"/>
+  <text x="560" y="72" fill="var(--accent-yellow)" font-size="10">FOUND</text>
+  <rect x="540" y="90" width="200" height="40" rx="6" fill="var(--surface-2)" stroke="var(--accent-yellow)" stroke-width="1.5"/>
+  <text x="640" y="115" text-anchor="middle" fill="var(--accent-yellow)" font-size="11">Compare request hash</text>
+
+  <!-- Sub-branch: hash matches -->
+  <line x1="590" y1="130" x2="510" y2="170" stroke="var(--accent-green)" stroke-width="1"/>
+  <text x="530" y="152" fill="var(--accent-green)" font-size="9">MATCH</text>
+  <rect x="420" y="170" width="180" height="30" rx="6" fill="rgba(81,207,102,0.1)" stroke="var(--accent-green)" stroke-width="1"/>
+  <text x="510" y="190" text-anchor="middle" fill="var(--accent-green)" font-size="10" font-weight="600">Return cached response</text>
+  <text x="510" y="215" text-anchor="middle" fill="var(--text-3)" font-size="9">(no re-processing)</text>
+
+  <!-- Sub-branch: hash mismatch -->
+  <line x1="690" y1="130" x2="710" y2="170" stroke="var(--accent-red)" stroke-width="1"/>
+  <text x="720" y="152" fill="var(--accent-red)" font-size="9">MISMATCH</text>
+  <rect x="630" y="170" width="160" height="30" rx="6" fill="rgba(255,107,107,0.1)" stroke="var(--accent-red)" stroke-width="1"/>
+  <text x="710" y="190" text-anchor="middle" fill="var(--accent-red)" font-size="10" font-weight="600">Return 422 error</text>
+  <text x="710" y="215" text-anchor="middle" fill="var(--text-3)" font-size="9">"Key reuse with different body"</text>
+
+  <!-- Concurrent note -->
+  <rect x="300" y="270" width="200" height="40" rx="6" fill="var(--surface-2)" stroke="var(--accent-purple)" stroke-width="1"/>
+  <text x="400" y="287" text-anchor="middle" fill="var(--accent-purple)" font-size="10">Concurrent same key?</text>
+  <text x="400" y="302" text-anchor="middle" fill="var(--text-3)" font-size="9">Block or return "in progress"</text>
+</svg>
+
+<div class="takeaway">
+  <strong>Takeaway.</strong> Idempotency keys = client-supplied UUID per logical request. Server stores + dedups. Redis or DB; both work, both have failure modes.
+</div>
+
+<!-- ============================================================ -->
+<!-- SECTION 3: WHERE IDEMPOTENCY GOES WRONG                       -->
+<!-- ============================================================ -->
+<h2>3. Where Idempotency Goes Wrong</h2>
+
+<p>The pattern is simple. The bugs are not. Each failure mode below has been seen in production.</p>
+
+<div class="bug-card" id="bug1">
+  <h4>Bug 1: Side effect before key check</h4>
+  <p style="font-size:13px;color:var(--text-2);">Server processes the charge, THEN stores the idempotency key. Crash between the two? Key never stored. Client retries. Card charged twice.</p>
+  <svg viewBox="0 0 800 180" preserveAspectRatio="xMidYMid meet">
+    <!-- Timeline -->
+    <line x1="50" y1="50" x2="750" y2="50" stroke="var(--border)" stroke-width="1"/>
+    <text x="50" y="35" fill="var(--text-3)" font-size="10">Request arrives</text>
+
+    <!-- Step 1: Process -->
+    <rect x="100" y="35" width="140" height="30" rx="4" fill="rgba(255,107,107,0.15)" stroke="var(--accent-red)" stroke-width="1"/>
+    <text x="170" y="55" text-anchor="middle" fill="var(--accent-red)" font-size="10">Charge card ($100)</text>
+
+    <!-- Step 2: Crash -->
+    <text x="290" y="55" fill="var(--accent-yellow)" font-size="16" font-weight="700">X</text>
+    <text x="310" y="55" fill="var(--accent-yellow)" font-size="10">CRASH</text>
+
+    <!-- Step 3: Key store (never reached) -->
+    <rect x="400" y="35" width="140" height="30" rx="4" fill="var(--surface-2)" stroke="var(--border)" stroke-width="1" stroke-dasharray="4,3"/>
+    <text x="470" y="55" text-anchor="middle" fill="var(--text-3)" font-size="10">Store key (skipped)</text>
+
+    <!-- Retry timeline -->
+    <line x1="50" y1="120" x2="750" y2="120" stroke="var(--border)" stroke-width="1"/>
+    <text x="50" y="105" fill="var(--text-3)" font-size="10">Client retries</text>
+    <rect x="100" y="105" width="120" height="30" rx="4" fill="var(--surface-2)" stroke="var(--accent-blue)" stroke-width="1"/>
+    <text x="160" y="125" text-anchor="middle" fill="var(--accent-blue)" font-size="10">Lookup key</text>
+    <text x="240" y="125" fill="var(--accent-red)" font-size="10">NOT FOUND</text>
+    <rect x="320" y="105" width="140" height="30" rx="4" fill="rgba(255,107,107,0.15)" stroke="var(--accent-red)" stroke-width="1"/>
+    <text x="390" y="125" text-anchor="middle" fill="var(--accent-red)" font-size="10" font-weight="600">Charge card AGAIN</text>
+    <text x="490" y="125" fill="var(--accent-red)" font-size="11" font-weight="700">DOUBLE CHARGE</text>
+  </svg>
+  <p class="fix-label">Fix: store key FIRST, atomically with side effect. Or use the idempotency key as PK in the destination table -- <code>INSERT IGNORE</code> on duplicate.</p>
+</div>
+
+<div class="bug-card" id="bug2">
+  <h4>Bug 2: Key reused with different body</h4>
+  <p style="font-size:13px;color:var(--text-2);">Client retries after a long gap. Same key, but the request body changed (different amount, different product). Server returns the cached response for the <em>original</em> request -- wrong result, silent corruption.</p>
+  <svg viewBox="0 0 800 160" preserveAspectRatio="xMidYMid meet">
+    <line x1="50" y1="50" x2="750" y2="50" stroke="var(--border)" stroke-width="1"/>
+    <text x="50" y="35" fill="var(--text-3)" font-size="10">First request</text>
+    <rect x="100" y="35" width="180" height="30" rx="4" fill="var(--surface-2)" stroke="var(--accent-green)" stroke-width="1"/>
+    <text x="190" y="55" text-anchor="middle" fill="var(--accent-green)" font-size="10">key=xyz body={amt:100}</text>
+    <text x="310" y="55" fill="var(--accent-green)" font-size="10">200 OK, charge_id=ch_1</text>
+
+    <line x1="50" y1="120" x2="750" y2="120" stroke="var(--border)" stroke-width="1"/>
+    <text x="50" y="105" fill="var(--text-3)" font-size="10">Later retry (body changed)</text>
+    <rect x="100" y="105" width="180" height="30" rx="4" fill="var(--surface-2)" stroke="var(--accent-yellow)" stroke-width="1"/>
+    <text x="190" y="125" text-anchor="middle" fill="var(--accent-yellow)" font-size="10">key=xyz body={amt:250}</text>
+    <text x="310" y="125" fill="var(--accent-red)" font-size="10">Returns cached: charge_id=ch_1 (WRONG amount)</text>
+  </svg>
+  <p class="fix-label">Fix: store <code>request_hash = sha256(body)</code> alongside key. On match-key-but-mismatch-hash, return 422 error.</p>
+</div>
+
+<div class="bug-card" id="bug3">
+  <h4>Bug 3: Multi-resource ops with partial idempotency</h4>
+  <p style="font-size:13px;color:var(--text-2);">Payment + email + accounting log. Payment is idempotent (key-based). Email and accounting are fire-and-forget. Retry = one charge, two emails, two ledger entries.</p>
+  <svg viewBox="0 0 800 140" preserveAspectRatio="xMidYMid meet">
+    <text x="50" y="30" fill="var(--text-3)" font-size="10">Request flow:</text>
+    <rect x="50" y="40" width="120" height="30" rx="4" fill="var(--surface-2)" stroke="var(--accent-green)" stroke-width="1"/>
+    <text x="110" y="60" text-anchor="middle" fill="var(--accent-green)" font-size="10">Payment (dedup)</text>
+    <line x1="170" y1="55" x2="210" y2="55" stroke="var(--border)" stroke-width="1"/>
+    <rect x="210" y="40" width="120" height="30" rx="4" fill="var(--surface-2)" stroke="var(--accent-red)" stroke-width="1"/>
+    <text x="270" y="60" text-anchor="middle" fill="var(--accent-red)" font-size="10">Email (no dedup)</text>
+    <line x1="330" y1="55" x2="370" y2="55" stroke="var(--border)" stroke-width="1"/>
+    <rect x="370" y="40" width="140" height="30" rx="4" fill="var(--surface-2)" stroke="var(--accent-red)" stroke-width="1"/>
+    <text x="440" y="60" text-anchor="middle" fill="var(--accent-red)" font-size="10">Accounting (no dedup)</text>
+
+    <text x="50" y="100" fill="var(--text-3)" font-size="10">On retry:</text>
+    <text x="110" y="120" text-anchor="middle" fill="var(--accent-green)" font-size="10">Skipped (key exists)</text>
+    <text x="270" y="120" text-anchor="middle" fill="var(--accent-red)" font-size="10" font-weight="600">SENT AGAIN</text>
+    <text x="440" y="120" text-anchor="middle" fill="var(--accent-red)" font-size="10" font-weight="600">WRITTEN AGAIN</text>
+  </svg>
+  <p class="fix-label">Fix: outbox pattern + downstream idempotency on each consumer. Every service in the chain must handle dedup independently.</p>
+</div>
+
+<div class="bug-card" id="bug4">
+  <h4>Bug 4: TTL too short</h4>
+  <p style="font-size:13px;color:var(--text-2);">Idempotency key stored with 5-minute TTL. Client retries after 10 minutes (mobile app in background, slow user). Key expired, charge re-processed.</p>
+  <svg viewBox="0 0 800 100" preserveAspectRatio="xMidYMid meet">
+    <line x1="50" y1="50" x2="750" y2="50" stroke="var(--border)" stroke-width="1"/>
+    <!-- TTL window -->
+    <rect x="100" y="35" width="200" height="30" rx="4" fill="rgba(81,207,102,0.1)" stroke="var(--accent-green)" stroke-width="1"/>
+    <text x="200" y="55" text-anchor="middle" fill="var(--accent-green)" font-size="10">Key alive (5 min TTL)</text>
+    <!-- Expiry -->
+    <text x="310" y="55" fill="var(--accent-yellow)" font-size="12" font-weight="700">|</text>
+    <text x="320" y="45" fill="var(--accent-yellow)" font-size="9">expired</text>
+    <!-- Retry arrives -->
+    <rect x="450" y="35" width="150" height="30" rx="4" fill="rgba(255,107,107,0.1)" stroke="var(--accent-red)" stroke-width="1"/>
+    <text x="525" y="55" text-anchor="middle" fill="var(--accent-red)" font-size="10">Retry at +10 min</text>
+    <text x="620" y="55" fill="var(--accent-red)" font-size="10" font-weight="600">RE-PROCESSED</text>
+  </svg>
+  <p class="fix-label">Fix: align TTL with realistic retry windows. 24 hours minimum for payment APIs. Stripe uses 24h.</p>
+</div>
+
+<div class="bug-card" id="bug5">
+  <h4>Bug 5: TTL too long / no cleanup</h4>
+  <p style="font-size:13px;color:var(--text-2);">Keys stored forever (or 90-day TTL on high-throughput endpoint). Millions of expired keys accumulate. DB bloat, slow lookups, storage cost.</p>
+  <p class="fix-label">Fix: TTL that matches retention need (24h-7d). Background cleanup job for DB-backed stores. Redis TTL handles this natively.</p>
+</div>
+
+<h3>Interactive: the atomic vs. non-atomic race</h3>
+<p>Click to see how ordering the key-store vs. side-effect changes the outcome on crash.</p>
+
+<svg id="atomic-svg" viewBox="0 0 900 260" preserveAspectRatio="xMidYMid meet">
+  <!-- Non-atomic path -->
+  <text x="50" y="30" fill="var(--accent-red)" font-size="12" font-weight="700">Non-atomic (bug):</text>
+  <line x1="50" y1="55" x2="850" y2="55" stroke="var(--border)" stroke-width="1"/>
+  <rect x="60" y="40" width="160" height="30" rx="4" fill="var(--surface-2)" stroke="var(--accent-red)" stroke-width="1" id="atomic-step1a"/>
+  <text x="140" y="60" text-anchor="middle" fill="var(--accent-red)" font-size="10" id="atomic-label1a">1. Execute side effect</text>
+  <rect x="240" y="40" width="40" height="30" rx="4" fill="var(--surface-2)" stroke="var(--accent-yellow)" stroke-width="2" id="atomic-crash1"/>
+  <text x="260" y="60" text-anchor="middle" fill="var(--accent-yellow)" font-size="12" font-weight="700" id="atomic-crash1-label">X</text>
+  <rect x="300" y="40" width="160" height="30" rx="4" fill="var(--surface-2)" stroke="var(--border)" stroke-width="1" stroke-dasharray="4,3"/>
+  <text x="380" y="60" text-anchor="middle" fill="var(--text-3)" font-size="10">2. Store key (skipped)</text>
+  <text x="490" y="60" fill="var(--accent-red)" font-size="10" font-weight="600" id="atomic-result1">Side effect applied, key NOT stored</text>
+
+  <!-- Atomic path -->
+  <text x="50" y="120" fill="var(--accent-green)" font-size="12" font-weight="700">Atomic (correct):</text>
+  <line x1="50" y1="145" x2="850" y2="145" stroke="var(--border)" stroke-width="1"/>
+  <rect x="60" y="130" width="300" height="30" rx="4" fill="var(--surface-2)" stroke="var(--accent-green)" stroke-width="1" id="atomic-step1b"/>
+  <text x="210" y="150" text-anchor="middle" fill="var(--accent-green)" font-size="10" id="atomic-label1b">BEGIN TXN: store key + execute side effect</text>
+  <rect x="380" y="130" width="120" height="30" rx="4" fill="var(--surface-2)" stroke="var(--accent-green)" stroke-width="1"/>
+  <text x="440" y="150" text-anchor="middle" fill="var(--accent-green)" font-size="10">COMMIT</text>
+  <text x="520" y="150" fill="var(--accent-green)" font-size="10" font-weight="600" id="atomic-result2">Both or neither. Safe.</text>
+
+  <!-- Alternative: INSERT-on-PK -->
+  <text x="50" y="210" fill="var(--accent-blue)" font-size="12" font-weight="700">Alternative (INSERT on PK):</text>
+  <line x1="50" y1="235" x2="850" y2="235" stroke="var(--border)" stroke-width="1"/>
+  <rect x="60" y="220" width="260" height="30" rx="4" fill="var(--surface-2)" stroke="var(--accent-blue)" stroke-width="1"/>
+  <text x="190" y="240" text-anchor="middle" fill="var(--accent-blue)" font-size="10">INSERT INTO charges (idempotency_key, ...)</text>
+  <rect x="340" y="220" width="200" height="30" rx="4" fill="var(--surface-2)" stroke="var(--accent-blue)" stroke-width="1"/>
+  <text x="440" y="240" text-anchor="middle" fill="var(--accent-blue)" font-size="10">Retry: UNIQUE violation = no-op</text>
+  <text x="560" y="240" fill="var(--accent-green)" font-size="10" font-weight="600">Inherently atomic.</text>
+</svg>
+
+<div class="takeaway">
+  <strong>Takeaway.</strong> The bug is always "state changed before idempotency was guaranteed." Make the idempotency atomic with the side effect.
+</div>
+
+<!-- ============================================================ -->
+<!-- SECTION 4: RETRY SEMANTICS                                    -->
+<!-- ============================================================ -->
+<h2>4. Retry Semantics -- At-Most-Once / At-Least-Once / Exactly-Once</h2>
+
+<p>Three delivery guarantees. Every distributed system picks one as its default. The right answer in interviews is almost always "at-least-once + idempotent consumer = practical exactly-once."</p>
+
+<svg id="retry-svg" viewBox="0 0 900 520" preserveAspectRatio="xMidYMid meet">
+  <!-- Labels -->
+  <text x="450" y="25" text-anchor="middle" fill="#fff" font-size="13" font-weight="700">Same scenario: Producer sends work. Transient failure on first attempt.</text>
+
+  <!-- AT-MOST-ONCE -->
+  <rect x="30" y="45" width="840" height="120" rx="8" fill="var(--surface-2)" stroke="var(--border)" stroke-width="1"/>
+  <text x="50" y="70" fill="var(--accent-red)" font-size="13" font-weight="700">At-Most-Once</text>
+  <text x="200" y="70" fill="var(--text-3)" font-size="11">Do not retry. Accept message loss on failure.</text>
+
+  <!-- Timeline -->
+  <line x1="60" y1="100" x2="840" y2="100" stroke="var(--border)" stroke-width="1"/>
+  <rect x="80" y="85" width="100" height="30" rx="4" fill="var(--surface)" stroke="var(--accent-blue)" stroke-width="1"/>
+  <text x="130" y="105" text-anchor="middle" fill="var(--accent-blue)" font-size="10">Send work</text>
+  <line x1="180" y1="100" x2="280" y2="100" stroke="var(--accent-blue)" stroke-width="1.5" stroke-dasharray="4,3"/>
+  <text x="310" y="105" fill="var(--accent-yellow)" font-size="14" font-weight="700">X</text>
+  <text x="330" y="105" fill="var(--accent-yellow)" font-size="10">FAIL</text>
+  <text x="420" y="105" fill="var(--text-3)" font-size="10">No retry. Work lost.</text>
+  <text x="660" y="105" fill="var(--accent-red)" font-size="11" font-weight="600">Result: 0 executions</text>
+  <text x="80" y="150" fill="var(--text-3)" font-size="10">Use when: retry is dangerous and no idempotency exists. Fire-and-forget logging, metrics, analytics.</text>
+
+  <!-- AT-LEAST-ONCE -->
+  <rect x="30" y="185" width="840" height="140" rx="8" fill="var(--surface-2)" stroke="var(--border)" stroke-width="1"/>
+  <text x="50" y="210" fill="var(--accent-yellow)" font-size="13" font-weight="700">At-Least-Once</text>
+  <text x="215" y="210" fill="var(--text-3)" font-size="11">Retry until acknowledged. May duplicate.</text>
+
+  <line x1="60" y1="240" x2="840" y2="240" stroke="var(--border)" stroke-width="1"/>
+  <rect x="80" y="225" width="100" height="30" rx="4" fill="var(--surface)" stroke="var(--accent-blue)" stroke-width="1"/>
+  <text x="130" y="245" text-anchor="middle" fill="var(--accent-blue)" font-size="10">Send work</text>
+  <line x1="180" y1="240" x2="280" y2="240" stroke="var(--accent-blue)" stroke-width="1.5" stroke-dasharray="4,3"/>
+  <text x="310" y="245" fill="var(--accent-yellow)" font-size="14" font-weight="700">X</text>
+  <text x="330" y="245" fill="var(--accent-yellow)" font-size="10">FAIL</text>
+
+  <!-- Retry -->
+  <rect x="400" y="225" width="100" height="30" rx="4" fill="var(--surface)" stroke="var(--accent-orange)" stroke-width="1"/>
+  <text x="450" y="245" text-anchor="middle" fill="var(--accent-orange)" font-size="10">Retry #1</text>
+  <line x1="500" y1="240" x2="560" y2="240" stroke="var(--accent-green)" stroke-width="1.5"/>
+  <text x="570" y="245" fill="var(--accent-green)" font-size="10">ACK</text>
+
+  <!-- But original also arrived -->
+  <text x="240" y="270" fill="var(--text-3)" font-size="9">(original also arrived late)</text>
+  <line x1="280" y1="260" x2="560" y2="260" stroke="var(--accent-red)" stroke-width="1" stroke-dasharray="3,3"/>
+  <text x="570" y="265" fill="var(--accent-red)" font-size="10">Processed TWICE</text>
+  <text x="660" y="245" fill="var(--accent-yellow)" font-size="11" font-weight="600">Result: 1-2 executions</text>
+  <text x="80" y="310" fill="var(--text-3)" font-size="10">Default for: SQS, RabbitMQ, HTTP retries, most distributed systems. Safe only if consumer is idempotent.</text>
+
+  <!-- EXACTLY-ONCE -->
+  <rect x="30" y="345" width="840" height="160" rx="8" fill="var(--surface-2)" stroke="var(--border)" stroke-width="1"/>
+  <text x="50" y="370" fill="var(--accent-green)" font-size="13" font-weight="700">Exactly-Once (practical)</text>
+  <text x="240" y="370" fill="var(--text-3)" font-size="11">At-least-once delivery + idempotent processing = effective EOS.</text>
+
+  <line x1="60" y1="400" x2="840" y2="400" stroke="var(--border)" stroke-width="1"/>
+  <rect x="80" y="385" width="100" height="30" rx="4" fill="var(--surface)" stroke="var(--accent-blue)" stroke-width="1"/>
+  <text x="130" y="405" text-anchor="middle" fill="var(--accent-blue)" font-size="10">Send work</text>
+  <line x1="180" y1="400" x2="280" y2="400" stroke="var(--accent-blue)" stroke-width="1.5" stroke-dasharray="4,3"/>
+  <text x="310" y="405" fill="var(--accent-yellow)" font-size="14" font-weight="700">X</text>
+  <text x="330" y="405" fill="var(--accent-yellow)" font-size="10">FAIL</text>
+
+  <rect x="400" y="385" width="100" height="30" rx="4" fill="var(--surface)" stroke="var(--accent-orange)" stroke-width="1"/>
+  <text x="450" y="405" text-anchor="middle" fill="var(--accent-orange)" font-size="10">Retry #1</text>
+  <line x1="500" y1="400" x2="560" y2="400" stroke="var(--accent-green)" stroke-width="1.5"/>
+  <text x="570" y="405" fill="var(--accent-green)" font-size="10">Processed</text>
+
+  <!-- Late original arrives but deduped -->
+  <line x1="280" y1="420" x2="560" y2="420" stroke="var(--accent-green)" stroke-width="1" stroke-dasharray="3,3"/>
+  <text x="570" y="425" fill="var(--accent-green)" font-size="10">DEDUPED (key exists)</text>
+  <text x="660" y="405" fill="var(--accent-green)" font-size="11" font-weight="600">Result: exactly 1 execution</text>
+
+  <text x="80" y="465" fill="var(--text-3)" font-size="10">Kafka transactional API: read + process + write + offset commit in one atomic transaction = true EOS within Kafka.</text>
+  <text x="80" y="485" fill="var(--text-3)" font-size="10">For cross-service: at-least-once + inbox table with dedup key on consumer = practical EOS.</text>
+</svg>
+
+<div class="takeaway">
+  <strong>Takeaway.</strong> Distributed systems are at-least-once by default. Make consumers idempotent; you have got effective exactly-once.
+</div>
+
+<!-- ============================================================ -->
+<!-- SECTION 5: IDEMPOTENT OPERATIONS -- DESIGN TACTICS            -->
+<!-- ============================================================ -->
+<h2>5. Idempotent Operations -- Design Tactics</h2>
+
+<p>Six tactics to make naturally non-idempotent operations idempotent. Each shows the same operation executed twice, producing the same final state.</p>
+
+<div class="tactic-card">
+  <h4>Tactic 1: Use natural idempotent ops where possible</h4>
+  <p style="font-size:13px;color:var(--text-2);">Prefer <code>SET</code> over <code>INCR</code>, <code>PUT</code> over <code>POST</code>, upsert over insert. The operation itself guarantees same-state-on-repeat.</p>
+  <svg viewBox="0 0 800 100" preserveAspectRatio="xMidYMid meet">
+    <text x="50" y="30" fill="var(--accent-red)" font-size="11" font-weight="600">Non-idempotent:</text>
+    <rect x="200" y="15" width="120" height="28" rx="4" fill="var(--surface-2)" stroke="var(--accent-red)" stroke-width="1"/>
+    <text x="260" y="34" text-anchor="middle" fill="var(--accent-red)" font-size="10">INCR counter</text>
+    <text x="340" y="34" fill="var(--text-3)" font-size="10">1 -> 2 -> 3 (each call changes state)</text>
+
+    <text x="50" y="75" fill="var(--accent-green)" font-size="11" font-weight="600">Idempotent:</text>
+    <rect x="200" y="60" width="140" height="28" rx="4" fill="var(--surface-2)" stroke="var(--accent-green)" stroke-width="1"/>
+    <text x="270" y="79" text-anchor="middle" fill="var(--accent-green)" font-size="10">SET counter = 3</text>
+    <text x="360" y="79" fill="var(--text-3)" font-size="10">3 -> 3 -> 3 (same state every time)</text>
+  </svg>
+</div>
+
+<div class="tactic-card">
+  <h4>Tactic 2: Embed dedup ID in the request</h4>
+  <p style="font-size:13px;color:var(--text-2);">Include a <code>request_id</code> in every message payload. Consumer keeps a recent-IDs set (Redis SET or DB table). On duplicate ID, skip processing.</p>
+  <svg viewBox="0 0 800 100" preserveAspectRatio="xMidYMid meet">
+    <rect x="50" y="20" width="200" height="28" rx="4" fill="var(--surface-2)" stroke="var(--accent-blue)" stroke-width="1"/>
+    <text x="150" y="39" text-anchor="middle" fill="var(--accent-blue)" font-size="10">{request_id: "r-42", ...}</text>
+    <line x1="250" y1="34" x2="320" y2="34" stroke="var(--accent-green)" stroke-width="1"/>
+    <text x="370" y="39" fill="var(--accent-green)" font-size="10">Process + store "r-42"</text>
+
+    <rect x="50" y="60" width="200" height="28" rx="4" fill="var(--surface-2)" stroke="var(--accent-orange)" stroke-width="1"/>
+    <text x="150" y="79" text-anchor="middle" fill="var(--accent-orange)" font-size="10">{request_id: "r-42", ...}</text>
+    <line x1="250" y1="74" x2="320" y2="74" stroke="var(--accent-green)" stroke-width="1"/>
+    <text x="370" y="79" fill="var(--accent-green)" font-size="10">"r-42" seen -> SKIP</text>
+  </svg>
+</div>
+
+<div class="tactic-card">
+  <h4>Tactic 3: Append-only storage with dedup keys</h4>
+  <p style="font-size:13px;color:var(--text-2);">Insert event with a unique key (<code>event_id</code>). On retry, <code>INSERT</code> fails due to unique constraint. State derived via aggregation over events -- duplicates never enter.</p>
+  <svg viewBox="0 0 800 110" preserveAspectRatio="xMidYMid meet">
+    <text x="50" y="25" fill="var(--text-3)" font-size="10">Events table (event_id is UNIQUE):</text>
+    <rect x="50" y="35" width="300" height="24" rx="3" fill="var(--surface-2)" stroke="var(--accent-green)" stroke-width="1"/>
+    <text x="60" y="52" fill="var(--accent-green)" font-size="10" font-family="monospace">INSERT (evt-1, charge, $100) -> OK</text>
+    <rect x="50" y="65" width="300" height="24" rx="3" fill="var(--surface-2)" stroke="var(--accent-red)" stroke-width="1"/>
+    <text x="60" y="82" fill="var(--accent-red)" font-size="10" font-family="monospace">INSERT (evt-1, charge, $100) -> UNIQUE VIOLATION</text>
+    <text x="380" y="82" fill="var(--accent-green)" font-size="10">No duplicate. State unchanged.</text>
+  </svg>
+</div>
+
+<div class="tactic-card">
+  <h4>Tactic 4: CAS (compare-and-swap) for state transitions</h4>
+  <p style="font-size:13px;color:var(--text-2);">Conditional update: <code>UPDATE wallet SET balance = balance - 100 WHERE user_id = X AND last_op_id != 'op-42'</code>. If same op retries, the WHERE clause filters it out. Zero rows affected = safe no-op.</p>
+  <svg viewBox="0 0 800 100" preserveAspectRatio="xMidYMid meet">
+    <rect x="50" y="15" width="440" height="28" rx="4" fill="var(--surface-2)" stroke="var(--accent-green)" stroke-width="1"/>
+    <text x="60" y="34" fill="var(--accent-green)" font-size="10" font-family="monospace">UPDATE ... WHERE last_op_id != 'op-42' -> 1 row affected</text>
+
+    <rect x="50" y="55" width="440" height="28" rx="4" fill="var(--surface-2)" stroke="var(--accent-yellow)" stroke-width="1"/>
+    <text x="60" y="74" fill="var(--accent-yellow)" font-size="10" font-family="monospace">UPDATE ... WHERE last_op_id != 'op-42' -> 0 rows (already applied)</text>
+    <text x="510" y="74" fill="var(--accent-green)" font-size="10">Safe no-op.</text>
+  </svg>
+</div>
+
+<div class="tactic-card">
+  <h4>Tactic 5: Inbox table on consumer side</h4>
+  <p style="font-size:13px;color:var(--text-2);">Consumer maintains an "inbox" table with <code>event_id</code> as unique key. Before processing, insert the event_id. If it already exists (unique constraint violation), skip. Same pattern as tactic 3 but on the consumer rather than the event store.</p>
+  <svg viewBox="0 0 800 100" preserveAspectRatio="xMidYMid meet">
+    <text x="50" y="25" fill="var(--text-3)" font-size="10">Consumer inbox (event_id UNIQUE):</text>
+    <rect x="50" y="35" width="350" height="24" rx="3" fill="var(--surface-2)" stroke="var(--accent-green)" stroke-width="1"/>
+    <text x="60" y="52" fill="var(--accent-green)" font-size="10" font-family="monospace">INSERT inbox(evt-7) -> OK -> process event</text>
+    <rect x="50" y="65" width="350" height="24" rx="3" fill="var(--surface-2)" stroke="var(--accent-yellow)" stroke-width="1"/>
+    <text x="60" y="82" fill="var(--accent-yellow)" font-size="10" font-family="monospace">INSERT inbox(evt-7) -> DUPLICATE -> skip processing</text>
+  </svg>
+</div>
+
+<div class="tactic-card">
+  <h4>Tactic 6: Idempotent aggregates</h4>
+  <p style="font-size:13px;color:var(--text-2);">Design state so duplicate events do not change the result. Use <code>MAX</code>, <code>SET</code>, or boolean flags instead of counters or appends. Example: <code>last_seen = MAX(last_seen, event_ts)</code> -- applying the same event twice does not change state.</p>
+  <svg viewBox="0 0 800 100" preserveAspectRatio="xMidYMid meet">
+    <text x="50" y="25" fill="var(--accent-red)" font-size="11" font-weight="600">Non-idempotent aggregate:</text>
+    <text x="290" y="25" fill="var(--text-3)" font-size="10" font-family="monospace">count = count + 1 -> 5, then 6 on retry</text>
+
+    <text x="50" y="55" fill="var(--accent-green)" font-size="11" font-weight="600">Idempotent aggregate:</text>
+    <text x="290" y="55" fill="var(--text-3)" font-size="10" font-family="monospace">last_seen = MAX(last_seen, "2026-05-09T10:00") -> same value on retry</text>
+
+    <text x="290" y="85" fill="var(--text-3)" font-size="10" font-family="monospace">features = features UNION {"premium"} -> same set on retry</text>
+  </svg>
+</div>
+
+<h3>Tactic selection guide</h3>
+<table class="method-table">
+  <thead>
+    <tr>
+      <th>Tactic</th>
+      <th>Best for</th>
+      <th>Requires</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Natural idempotent ops</td>
+      <td>Any API where you control the contract</td>
+      <td>Design discipline -- prefer PUT/SET/upsert from the start</td>
+    </tr>
+    <tr>
+      <td>Dedup ID in request</td>
+      <td>Queue consumers, webhook receivers</td>
+      <td>Recent-ID store (Redis SET or DB table)</td>
+    </tr>
+    <tr>
+      <td>Append-only + unique key</td>
+      <td>Event sourcing, audit logs, ledgers</td>
+      <td>Unique constraint on event ID column</td>
+    </tr>
+    <tr>
+      <td>CAS / conditional update</td>
+      <td>State machines, balance ops, inventory</td>
+      <td>Versioned rows or operation-tracking column</td>
+    </tr>
+    <tr>
+      <td>Inbox table</td>
+      <td>Cross-service event consumers</td>
+      <td>Per-consumer dedup table with unique constraint</td>
+    </tr>
+    <tr>
+      <td>Idempotent aggregates</td>
+      <td>Analytics, counters, feature flags</td>
+      <td>State expressed as MAX/SET/UNION (not SUM/APPEND)</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="takeaway">
+  <strong>Takeaway.</strong> Six tactics, one principle: make the final state a function of the input, not a function of how many times you applied it. SET over INCR. Upsert over insert. CAS over blind update.
+</div>
+
+<!-- ============================================================ -->
+<!-- SECTION 6: STRIPE API DESIGN EXAMPLE                          -->
+<!-- ============================================================ -->
+<h2>6. Stripe API Design Example</h2>
+
+<p>Stripe's <code>Idempotency-Key</code> header is the de-facto industry standard. AWS, GCP, Square, and Shopify all use the same model. Learn Stripe's contract and you can cite it verbatim in interviews.</p>
+
+<h3>The contract</h3>
+<div style="background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin: 14px 0;">
+  <div class="stripe-field">
+    <span class="sf-key">Header</span>
+    <span class="sf-val"><code>Idempotency-Key: &lt;client-generated UUID&gt;</code></span>
+  </div>
+  <div class="stripe-field">
+    <span class="sf-key">Applies to</span>
+    <span class="sf-val">All POST requests. GET/DELETE are already idempotent by definition.</span>
+  </div>
+  <div class="stripe-field">
+    <span class="sf-key">Key TTL</span>
+    <span class="sf-val">24 hours. After expiry, same key is treated as new.</span>
+  </div>
+  <div class="stripe-field">
+    <span class="sf-key">Same key + same body</span>
+    <span class="sf-val">Return stored <code>(status_code, headers, body)</code> from first execution. No re-processing.</span>
+  </div>
+  <div class="stripe-field">
+    <span class="sf-key">Same key + different body</span>
+    <span class="sf-val"><code>400 Bad Request</code> -- "Keys for idempotent requests can only be used with the same parameters they were first used with."</span>
+  </div>
+  <div class="stripe-field">
+    <span class="sf-key">Concurrent same key</span>
+    <span class="sf-val"><code>409 Conflict</code> -- second request returns immediately while first is still processing.</span>
+  </div>
+  <div class="stripe-field">
+    <span class="sf-key">Key generation</span>
+    <span class="sf-val">Client responsibility. UUID v4 recommended. Stripe does not generate keys for you.</span>
+  </div>
+</div>
+
+<h3>Response cache structure</h3>
+<div class="commentary" style="font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; line-height: 1.7;">
+{<br>
+&nbsp;&nbsp;"idempotency_key": "abc-123-def-456",<br>
+&nbsp;&nbsp;"request_path": "/v1/charges",<br>
+&nbsp;&nbsp;"request_params_hash": "sha256:e3b0c44...",<br>
+&nbsp;&nbsp;"status_code": 200,<br>
+&nbsp;&nbsp;"response_headers": {"content-type": "application/json"},<br>
+&nbsp;&nbsp;"response_body": "{\"id\":\"ch_1abc\",\"amount\":2000,...}",<br>
+&nbsp;&nbsp;"created_at": "2026-05-09T10:30:00Z",<br>
+&nbsp;&nbsp;"expires_at": "2026-05-10T10:30:00Z"<br>
+}
+</div>
+
+<p>Same model used by: <strong>AWS SDK</strong> (ClientToken parameter), <strong>GCP</strong> (requestId), <strong>Square</strong> (Idempotency-Key), <strong>Shopify</strong> (Idempotency-Key).</p>
+
+<div class="takeaway">
+  <strong>Takeaway.</strong> Stripe's <code>Idempotency-Key</code> header is the de-facto standard. Adopt the pattern verbatim -- clients already know it.
+</div>
+
+<!-- ============================================================ -->
+<!-- SECTION 7: COMPARISON AND SUMMARY                             -->
+<!-- ============================================================ -->
+<h2>7. Comparison and Summary</h2>
+
+<div style="overflow-x: auto;">
+<table class="summary-table">
+  <thead>
+    <tr>
+      <th>Dimension</th>
+      <th>Redis + TTL</th>
+      <th>Postgres unique index</th>
+      <th>DynamoDB conditional put</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Durability</strong></td>
+      <td>Volatile. Cache eviction or restart = key lost = potential re-processing.</td>
+      <td>Durable. Survives restarts. Can be in same txn as the work.</td>
+      <td>Durable. Replicated across AZs.</td>
+    </tr>
+    <tr>
+      <td><strong>Speed</strong></td>
+      <td>Sub-ms lookup. Fastest option.</td>
+      <td>1-5ms (indexed lookup). Fine for most workloads.</td>
+      <td>Single-digit ms. Fast, predictable.</td>
+    </tr>
+    <tr>
+      <td><strong>TTL</strong></td>
+      <td>Native. <code>SET key val EX 86400</code></td>
+      <td>No native TTL. Requires cleanup job or <code>pg_cron</code>.</td>
+      <td>Native via TTL attribute. DynamoDB auto-deletes expired items.</td>
+    </tr>
+    <tr>
+      <td><strong>Typical TTL</strong></td>
+      <td colspan="3">24 hours to 7 days. Align with realistic client retry windows.</td>
+    </tr>
+    <tr>
+      <td><strong>Atomicity</strong></td>
+      <td>Separate from the side effect (unless side effect is also in Redis). Two-phase risk.</td>
+      <td>Can be in the <strong>same transaction</strong> as the side effect. Gold standard for atomicity.</td>
+      <td>Conditional put is atomic. Side effect must be in same DDB table or use DDB transactions.</td>
+    </tr>
+    <tr>
+      <td><strong>Concurrent retry</strong></td>
+      <td><code>SET key val NX</code> (SETNX). Second caller sees key exists, knows first is in-progress.</td>
+      <td>Row-level lock. Second caller blocks until first commits.</td>
+      <td>Conditional put fails on second caller. Return 409.</td>
+    </tr>
+    <tr>
+      <td><strong>Cross-service</strong></td>
+      <td colspan="3">Each service handles its own idempotency independently. Use outbox pattern (producer) + inbox table (consumer) for cascade.</td>
+    </tr>
+    <tr>
+      <td><strong>Best for</strong></td>
+      <td>High-throughput APIs where occasional re-processing on eviction is tolerable.</td>
+      <td>Payment systems, financial transactions -- where atomicity with side effects is critical.</td>
+      <td>Serverless / AWS-native architectures. Lambda + DDB is a natural fit.</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<div class="quote-block">
+  <strong>The senior tell.</strong> "I would add an <code>Idempotency-Key</code> header per logical request, store key-to-response in Redis with 24h TTL, and make the side effect atomic with the key store via DB unique index in the same transaction. For cross-service, each downstream consumer maintains its own inbox table with the event ID as unique constraint."<br><br>
+  That is a one-paragraph senior answer. It covers the mechanism (idempotency key), the storage (Redis + DB), the atomicity guarantee (same transaction), and the cross-service story (inbox pattern). Interviewers hear all four and move on.
+</div>
+
+<div class="takeaway">
+  <strong>Key concepts for the interview.</strong>
+  <ul>
+    <li><strong>Idempotency key</strong> = client-supplied UUID per logical operation. Server stores (key, request_hash, response) and returns cached response on duplicate.</li>
+    <li><strong>Atomicity</strong> = the idempotency check must be in the same transaction as the side effect. Otherwise: crash between = double-processing.</li>
+    <li><strong>At-least-once + idempotent consumer</strong> = practical exactly-once. This is the answer for every "how do you guarantee no duplicates in a distributed system?" question.</li>
+    <li><strong>Cross-service</strong> = outbox pattern on producer, inbox table on each consumer. Each service is independently idempotent.</li>
+    <li><strong>Stripe contract</strong> = <code>Idempotency-Key</code> header, 24h TTL, same-key-different-body returns 400, concurrent same-key returns 409.</li>
+  </ul>
+</div>
+
+<!-- ============================================================ -->
+<!-- JAVASCRIPT: IDEMPOTENCY KEY ANIMATION                         -->
+<!-- ============================================================ -->
+<script>
+(function() {
+  'use strict';
+
+  var state = {
+    phase: 'idle', // idle, sent, processed, retried, diff-body
+    animTimer: null
+  };
+
+  var EL = {
+    svg: function() { return document.getElementById('idem-svg'); },
+    anims: function() { return document.getElementById('idem-anims'); },
+    keyLabel: function() { return document.getElementById('idem-key-label'); },
+    clientStatus: function() { return document.getElementById('idem-client-status'); },
+    serverStep: function() { return document.getElementById('idem-server-step'); },
+    serverStep2: function() { return document.getElementById('idem-server-step2'); },
+    decision: function() { return document.getElementById('idem-decision'); },
+    decision2: function() { return document.getElementById('idem-decision2'); },
+    result: function() { return document.getElementById('idem-result'); },
+    storeRow1: function() { return document.getElementById('idem-store-row1'); },
+    storeRow1Bg: function() { return document.getElementById('idem-store-row1-bg'); },
+    storeRow2: function() { return document.getElementById('idem-store-row2'); },
+    storeRow3: function() { return document.getElementById('idem-store-row3'); },
+    commentary: function() { return document.getElementById('idem-commentary'); },
+    btnSend: function() { return document.getElementById('idem-btn-send'); },
+    btnRetry: function() { return document.getElementById('idem-btn-retry'); },
+    btnDiff: function() { return document.getElementById('idem-btn-diff'); },
+    btnReset: function() { return document.getElementById('idem-btn-reset'); }
+  };
+
+  function clearAnims() {
+    var g = EL.anims();
+    while (g.firstChild) g.removeChild(g.firstChild);
+  }
+
+  function createArrow(x1, y1, x2, y2, color, label, delay) {
+    var g = EL.anims();
+    var line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    line.setAttribute('x1', x1);
+    line.setAttribute('y1', y1);
+    line.setAttribute('x2', x1);
+    line.setAttribute('y2', y1);
+    line.setAttribute('stroke', color);
+    line.setAttribute('stroke-width', '2');
+    line.setAttribute('stroke-dasharray', '6,3');
+    line.style.opacity = '0';
+    g.appendChild(line);
+
+    var txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    txt.setAttribute('x', (x1 + x2) / 2);
+    txt.setAttribute('y', (y1 + y2) / 2 - 8);
+    txt.setAttribute('text-anchor', 'middle');
+    txt.setAttribute('fill', color);
+    txt.setAttribute('font-size', '10');
+    txt.textContent = label;
+    txt.style.opacity = '0';
+    g.appendChild(txt);
+
+    setTimeout(function() {
+      line.style.opacity = '1';
+      line.style.transition = 'all 0.5s ease';
+      line.setAttribute('x2', x2);
+      line.setAttribute('y2', y2);
+      txt.style.opacity = '1';
+      txt.style.transition = 'opacity 0.3s ease 0.3s';
+    }, delay);
+  }
+
+  function sendCharge() {
+    if (state.phase !== 'idle') return;
+    state.phase = 'sending';
+    clearAnims();
+
+    EL.btnSend().disabled = true;
+    EL.clientStatus().textContent = 'Sending...';
+    EL.commentary().textContent = 'Step 1: Client sends POST /charges with Idempotency-Key: abc-123. Server receives the request.';
+
+    // Arrow: client -> server
+    createArrow(190, 130, 350, 130, 'var(--accent-blue)', 'POST /charges + key:abc-123', 100);
+
+    setTimeout(function() {
+      EL.serverStep().textContent = '1. Received request';
+      EL.serverStep2().textContent = 'Checking key store...';
+      EL.commentary().textContent = 'Step 2: Server checks idempotency store for key "abc-123". Key NOT FOUND -- this is a new request.';
+    }, 800);
+
+    // Arrow: server -> store (lookup)
+    createArrow(550, 150, 640, 150, 'var(--accent-yellow)', 'LOOKUP abc-123', 900);
+
+    setTimeout(function() {
+      EL.decision().textContent = 'Key seen before?';
+      EL.decision2().textContent = 'NO -- process request';
+      EL.decision2().style.color = 'var(--accent-green)';
+      EL.commentary().textContent = 'Step 3: Key not found. Server processes the charge -- calls payment provider, debits card, creates charge record.';
+    }, 1600);
+
+    setTimeout(function() {
+      EL.serverStep().textContent = '2. Processing charge...';
+      EL.serverStep2().textContent = 'Card charged: $100.00';
+      EL.result().textContent = '200 OK, ch_1abc';
+      EL.result().style.color = 'var(--accent-green)';
+    }, 2400);
+
+    setTimeout(function() {
+      EL.serverStep().textContent = '3. Storing key + response';
+      EL.storeRow1().textContent = 'abc-123 -> 200, ch_1abc';
+      EL.storeRow1().style.color = 'var(--accent-cyan)';
+      EL.storeRow1Bg().setAttribute('stroke', 'var(--accent-green)');
+      EL.storeRow2().textContent = 'hash: sha256(body)';
+      EL.storeRow2().style.color = 'var(--text-3)';
+      EL.storeRow3().textContent = 'expires: +24h';
+      EL.storeRow3().style.color = 'var(--text-3)';
+      EL.commentary().textContent = 'Step 4: Server stores (key, request_hash, response) in idempotency store with 24h TTL. Then returns 200 to client.';
+    }, 3200);
+
+    // Arrow: server -> client (response)
+    createArrow(350, 200, 190, 200, 'var(--accent-green)', '200 OK, charge_id=ch_1abc', 3400);
+
+    setTimeout(function() {
+      // Simulate network blip
+      var blipLine = EL.anims().querySelectorAll('line');
+      var lastLine = blipLine[blipLine.length - 1];
+      if (lastLine) {
+        lastLine.setAttribute('stroke', 'var(--accent-red)');
+        lastLine.setAttribute('stroke-dasharray', '2,6');
+      }
+      var blipTexts = EL.anims().querySelectorAll('text');
+      var lastText = blipTexts[blipTexts.length - 1];
+      if (lastText) {
+        lastText.textContent = 'NETWORK BLIP -- response lost';
+        lastText.setAttribute('fill', 'var(--accent-red)');
+      }
+      EL.clientStatus().textContent = 'Timeout! Response not received.';
+      EL.clientStatus().style.color = 'var(--accent-red)';
+      EL.commentary().textContent = 'Step 5: Network blip! Server processed the charge and sent 200, but the response never reached the client. Client will retry with the SAME Idempotency-Key.';
+      state.phase = 'processed';
+      EL.btnRetry().disabled = false;
+      EL.btnDiff().disabled = false;
+    }, 4200);
+  }
+
+  function retry() {
+    if (state.phase !== 'processed') return;
+    state.phase = 'retrying';
+    clearAnims();
+
+    EL.btnRetry().disabled = true;
+    EL.btnDiff().disabled = true;
+    EL.clientStatus().textContent = 'Retrying with same key...';
+    EL.clientStatus().style.color = 'var(--accent-orange)';
+    EL.commentary().textContent = 'Step 6: Client retries the SAME POST /charges with the SAME Idempotency-Key: abc-123. Same body, same key.';
+
+    // Arrow: client -> server
+    createArrow(190, 130, 350, 130, 'var(--accent-orange)', 'RETRY: POST /charges + key:abc-123', 100);
+
+    setTimeout(function() {
+      EL.serverStep().textContent = '1. Received retry';
+      EL.serverStep2().textContent = 'Checking key store...';
+    }, 800);
+
+    // Arrow: server -> store (lookup)
+    createArrow(550, 150, 640, 150, 'var(--accent-yellow)', 'LOOKUP abc-123', 900);
+
+    setTimeout(function() {
+      EL.decision().textContent = 'Key seen before?';
+      EL.decision2().textContent = 'YES + hash matches';
+      EL.decision2().style.color = 'var(--accent-green)';
+      EL.storeRow1Bg().setAttribute('stroke', 'var(--accent-yellow)');
+      EL.commentary().textContent = 'Step 7: Key FOUND! Request hash matches the stored hash. Server returns the CACHED response from the first execution. No second charge. No re-processing.';
+    }, 1600);
+
+    setTimeout(function() {
+      EL.serverStep().textContent = '2. Key found, hash matches';
+      EL.serverStep2().textContent = 'Returning cached response';
+      EL.result().textContent = '200 OK, ch_1abc (CACHED)';
+      EL.result().style.color = 'var(--accent-green)';
+    }, 2200);
+
+    // Arrow: server -> client (cached response)
+    createArrow(350, 200, 190, 200, 'var(--accent-green)', '200 OK (cached) -- NO second charge', 2400);
+
+    setTimeout(function() {
+      EL.clientStatus().textContent = 'Received 200 OK. charge_id=ch_1abc';
+      EL.clientStatus().style.color = 'var(--accent-green)';
+      EL.commentary().textContent = 'Done. The client got its response. The card was charged exactly once. The idempotency key did its job.';
+      state.phase = 'done';
+    }, 3200);
+  }
+
+  function retryDiffBody() {
+    if (state.phase !== 'processed') return;
+    state.phase = 'diff-body';
+    clearAnims();
+
+    EL.btnRetry().disabled = true;
+    EL.btnDiff().disabled = true;
+    EL.clientStatus().textContent = 'Retrying with DIFFERENT body...';
+    EL.clientStatus().style.color = 'var(--accent-red)';
+    EL.commentary().textContent = 'Bug scenario: Client reuses the same Idempotency-Key but with a DIFFERENT request body (different amount). This is a client-side bug.';
+
+    createArrow(190, 130, 350, 130, 'var(--accent-red)', 'RETRY: key:abc-123, amount=$250 (CHANGED)', 100);
+
+    setTimeout(function() {
+      EL.serverStep().textContent = '1. Received retry';
+      EL.serverStep2().textContent = 'Checking key store...';
+    }, 800);
+
+    createArrow(550, 150, 640, 150, 'var(--accent-yellow)', 'LOOKUP abc-123', 900);
+
+    setTimeout(function() {
+      EL.decision().textContent = 'Key seen before?';
+      EL.decision2().textContent = 'YES but hash MISMATCH';
+      EL.decision2().style.color = 'var(--accent-red)';
+      EL.storeRow1Bg().setAttribute('stroke', 'var(--accent-red)');
+      EL.commentary().textContent = 'Key found, but sha256(new body) does not match sha256(original body). The server rejects the request with 422 to prevent ambiguity.';
+    }, 1600);
+
+    setTimeout(function() {
+      EL.serverStep().textContent = '2. Key found, HASH MISMATCH';
+      EL.serverStep2().textContent = 'Rejecting: key reuse with different body';
+      EL.result().textContent = '422 Error';
+      EL.result().style.color = 'var(--accent-red)';
+    }, 2200);
+
+    createArrow(350, 200, 190, 200, 'var(--accent-red)', '422: Key reuse with different parameters', 2400);
+
+    setTimeout(function() {
+      EL.clientStatus().textContent = 'Error: key reuse detected. Generate new key.';
+      EL.clientStatus().style.color = 'var(--accent-red)';
+      EL.commentary().textContent = 'The server protected against key misuse. If the client wants a different charge amount, it must generate a NEW Idempotency-Key for the new logical operation.';
+      state.phase = 'done';
+    }, 3200);
+  }
+
+  function reset() {
+    if (state.animTimer) clearTimeout(state.animTimer);
+    state.phase = 'idle';
+    clearAnims();
+
+    EL.clientStatus().textContent = 'Ready to send';
+    EL.clientStatus().style.color = 'var(--text-3)';
+    EL.serverStep().textContent = 'Waiting for request...';
+    EL.serverStep2().textContent = '';
+    EL.decision().textContent = 'Key seen before?';
+    EL.decision2().textContent = '';
+    EL.result().textContent = '--';
+    EL.result().style.color = 'var(--text-2)';
+    EL.storeRow1().textContent = '-- empty --';
+    EL.storeRow1().style.color = 'var(--text-3)';
+    EL.storeRow1Bg().setAttribute('stroke', 'var(--border)');
+    EL.storeRow2().textContent = '';
+    EL.storeRow3().textContent = '';
+    EL.commentary().textContent = 'Click "Send Charge" to watch a POST /charges request with an Idempotency-Key header. After the first successful charge, try "Retry" to see the dedup in action.';
+
+    EL.btnSend().disabled = false;
+    EL.btnRetry().disabled = true;
+    EL.btnDiff().disabled = true;
+  }
+
+  // Expose to global
+  window.IDEM = {
+    sendCharge: sendCharge,
+    retry: retry,
+    retryDiffBody: retryDiffBody,
+    reset: reset
+  };
+})();
+</script>
+
+</body>
+</html>

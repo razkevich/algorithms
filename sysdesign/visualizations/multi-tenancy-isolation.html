@@ -1,0 +1,1446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Multi-Tenancy Isolation -- Silo / Pool / Bridge</title>
+<style>
+:root {
+  --bg: #0f0f15;
+  --surface: #181820;
+  --surface-2: #20202a;
+  --border: #2a2a35;
+  --text: #e6e6ea;
+  --text-2: #cfcfd6;
+  --text-3: #888;
+  --accent-red: #ff6b6b;
+  --accent-green: #51cf66;
+  --accent-blue: #339af0;
+  --accent-yellow: #ffd43b;
+  --accent-purple: #cc5de8;
+  --accent-cyan: #8be9fd;
+  --accent-orange: #ffa94d;
+  --tenant-a: #339af0;
+  --tenant-b: #51cf66;
+  --tenant-c: #ffa94d;
+  --tenant-d: #cc5de8;
+}
+*, *::before, *::after { box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  padding: 32px 24px;
+  max-width: 1100px;
+  margin: 0 auto;
+  line-height: 1.55;
+}
+h1 { color: #fff; margin-bottom: 4px; }
+h1 + p.sub { color: var(--text-3); font-style: italic; margin-top: 0; margin-bottom: 24px; }
+h2 { color: #fff; margin-top: 48px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+h3 { color: var(--text-2); margin-top: 20px; }
+p { margin: 10px 0; }
+code {
+  background: var(--surface-2);
+  padding: 2px 6px;
+  border-radius: 3px;
+  color: var(--accent-cyan);
+  font-size: 13px;
+}
+pre {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 14px;
+  overflow-x: auto;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-2);
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+}
+svg {
+  background: var(--surface);
+  border-radius: 8px;
+  display: block;
+  margin: 14px auto;
+  width: 100%;
+  height: auto;
+}
+.takeaway {
+  background: #1a1a22;
+  border-left: 3px solid var(--accent-green);
+  padding: 12px 16px;
+  margin: 14px 0;
+  font-size: 14px;
+}
+.takeaway strong { color: var(--accent-green); }
+.commentary {
+  background: var(--surface-2);
+  padding: 14px;
+  border-radius: 6px;
+  font-size: 14px;
+  color: var(--text-2);
+  margin: 12px 0;
+  min-height: 44px;
+  line-height: 1.5;
+}
+.model-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin: 20px 0;
+}
+.model-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+}
+.model-card h3 {
+  margin-top: 0;
+  font-size: 16px;
+  text-align: center;
+}
+.model-card .badge {
+  display: inline-block;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  margin-left: 6px;
+  font-weight: 600;
+}
+.badge-silo { background: rgba(255,107,107,0.2); color: var(--accent-red); }
+.badge-pool { background: rgba(81,207,102,0.2); color: var(--accent-green); }
+.badge-bridge { background: rgba(255,169,77,0.2); color: var(--accent-orange); }
+
+/* Per-layer toggles */
+.layer-controls {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+  margin: 16px 0;
+}
+.layer-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+.layer-row:last-child { border-bottom: none; }
+.layer-name {
+  width: 110px;
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text);
+  flex-shrink: 0;
+}
+.layer-toggle-group {
+  display: flex;
+  gap: 4px;
+}
+.layer-toggle-group button {
+  padding: 6px 14px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-3);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.15s;
+  min-height: 32px;
+}
+.layer-toggle-group button:hover { background: var(--surface); color: var(--text-2); }
+.layer-toggle-group button.active-silo {
+  border-color: var(--accent-red);
+  color: var(--accent-red);
+  background: rgba(255,107,107,0.1);
+}
+.layer-toggle-group button.active-bridge {
+  border-color: var(--accent-orange);
+  color: var(--accent-orange);
+  background: rgba(255,169,77,0.1);
+}
+.layer-toggle-group button.active-pool {
+  border-color: var(--accent-green);
+  color: var(--accent-green);
+  background: rgba(81,207,102,0.1);
+}
+.layer-desc {
+  font-size: 12px;
+  color: var(--text-3);
+  margin-left: auto;
+  max-width: 340px;
+  flex-shrink: 1;
+}
+.result-panel {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin: 16px 0;
+}
+.result-box {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+}
+.result-box h4 {
+  margin: 0 0 10px 0;
+  color: var(--text-2);
+  font-size: 14px;
+}
+.meter-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0;
+  font-size: 13px;
+}
+.meter-label {
+  width: 70px;
+  color: var(--text-3);
+  flex-shrink: 0;
+}
+.meter-bar {
+  flex: 1;
+  height: 8px;
+  background: var(--surface-2);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.meter-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.4s ease, background 0.4s ease;
+}
+.meter-value {
+  width: 40px;
+  text-align: right;
+  color: var(--text-2);
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+/* Cost chart */
+.chart-container {
+  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 20px;
+  margin: 16px 0;
+}
+
+/* Decision matrix table */
+.matrix-wrap {
+  overflow-x: auto;
+  margin: 16px 0;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  min-width: 700px;
+}
+th {
+  background: var(--surface);
+  color: var(--text-2);
+  padding: 10px 12px;
+  text-align: left;
+  border-bottom: 2px solid var(--border);
+  font-weight: 600;
+  white-space: nowrap;
+}
+td {
+  background: var(--surface-2);
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  vertical-align: top;
+}
+tr:hover td { background: #252530; }
+
+/* RLS demo */
+.rls-demo {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin: 16px 0;
+}
+.rls-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+}
+.rls-panel h4 {
+  margin: 0 0 10px 0;
+  font-size: 14px;
+}
+.rls-panel.danger { border-color: var(--accent-red); }
+.rls-panel.safe { border-color: var(--accent-green); }
+.rls-panel.danger h4 { color: var(--accent-red); }
+.rls-panel.safe h4 { color: var(--accent-green); }
+.sql-line {
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+  font-size: 13px;
+  padding: 3px 0;
+  line-height: 1.6;
+}
+.sql-keyword { color: var(--accent-purple); font-weight: 600; }
+.sql-table { color: var(--accent-blue); }
+.sql-string { color: var(--accent-green); }
+.sql-danger { color: var(--accent-red); }
+.sql-comment { color: var(--text-3); font-style: italic; }
+.sql-injected { color: var(--accent-green); background: rgba(81,207,102,0.1); padding: 1px 4px; border-radius: 3px; }
+.result-rows {
+  margin-top: 10px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.result-row {
+  display: flex;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+  border-bottom: 1px solid var(--border);
+}
+.result-row:last-child { border-bottom: none; }
+.result-row.header {
+  background: var(--surface);
+  font-weight: 600;
+  color: var(--text-2);
+}
+.result-row .col { flex: 1; }
+.result-row .leaked { color: var(--accent-red); }
+.result-row .blocked { color: var(--text-3); text-decoration: line-through; }
+
+/* Compliance visual */
+.compliance-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+  margin: 16px 0;
+}
+.compliance-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px;
+}
+.compliance-card h4 {
+  margin: 0 0 8px 0;
+  font-size: 13px;
+  color: var(--accent-yellow);
+}
+.compliance-card p {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-3);
+  line-height: 1.5;
+}
+.compliance-card .req {
+  display: inline-block;
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  margin-top: 6px;
+}
+.req-silo { background: rgba(255,107,107,0.15); color: var(--accent-red); }
+.req-bridge { background: rgba(255,169,77,0.15); color: var(--accent-orange); }
+.req-pool { background: rgba(81,207,102,0.15); color: var(--accent-green); }
+
+/* Identity flow */
+.flow-steps {
+  display: flex;
+  gap: 0;
+  align-items: center;
+  margin: 16px 0;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.flow-step {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 16px;
+  font-size: 13px;
+  text-align: center;
+  min-width: 140px;
+}
+.flow-arrow {
+  color: var(--text-3);
+  font-size: 20px;
+  padding: 0 6px;
+}
+
+/* Migration timeline */
+.timeline {
+  position: relative;
+  margin: 20px 0;
+  padding-left: 24px;
+}
+.timeline::before {
+  content: '';
+  position: absolute;
+  left: 8px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--border);
+}
+.timeline-item {
+  position: relative;
+  padding: 12px 0 12px 20px;
+}
+.timeline-item::before {
+  content: '';
+  position: absolute;
+  left: -20px;
+  top: 18px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--accent-blue);
+  border: 2px solid var(--bg);
+}
+.timeline-item h4 {
+  margin: 0 0 4px 0;
+  font-size: 14px;
+  color: var(--text);
+}
+.timeline-item p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-3);
+}
+
+/* Senior tell blockquote */
+blockquote {
+  background: var(--surface);
+  border-left: 3px solid var(--accent-blue);
+  padding: 14px 18px;
+  margin: 20px 0;
+  font-size: 14px;
+  color: var(--text-2);
+  line-height: 1.6;
+}
+blockquote strong { color: var(--accent-blue); }
+
+@media (max-width: 720px) {
+  body { padding: 20px 14px; }
+  .model-grid { grid-template-columns: 1fr; }
+  .rls-demo { grid-template-columns: 1fr; }
+  .result-panel { grid-template-columns: 1fr; }
+  .layer-row { flex-wrap: wrap; }
+  .layer-desc { margin-left: 0; max-width: none; margin-top: 4px; }
+  .flow-steps { flex-direction: column; }
+  .flow-arrow { transform: rotate(90deg); }
+}
+@media (max-width: 480px) {
+  .layer-toggle-group { flex-wrap: wrap; }
+  .layer-toggle-group button { flex: 1; min-width: 60px; text-align: center; }
+  .layer-name { width: 80px; font-size: 12px; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Multi-tenancy isolation</h1>
+  <p class="sub">Silo / Pool / Bridge -- the cost-vs-isolation curve. Per-layer choices for compute / DB / cache / queue. RLS as the cross-tenant leak defense. The architecture decision behind every B2B SaaS.</p>
+</header>
+
+<!-- ================================================================ -->
+<!-- SECTION 1: THE THREE MODELS                                       -->
+<!-- ================================================================ -->
+<h2>1. The Three Models</h2>
+
+<p>Every multi-tenant system makes a choice: how isolated are tenants from each other? The spectrum runs from full isolation (silo) through shared everything (pool), with most production systems landing somewhere in between (bridge).</p>
+
+<div class="model-grid">
+  <!-- SILO -->
+  <div class="model-card">
+    <h3>Silo <span class="badge badge-silo">Dedicated</span></h3>
+    <svg viewBox="0 0 280 320" style="height:280px">
+      <!-- Tenant A stack -->
+      <rect x="10" y="20" width="120" height="70" rx="6" fill="none" stroke="var(--tenant-a)" stroke-width="1.5" stroke-dasharray="4 2"/>
+      <text x="70" y="14" fill="var(--text-3)" font-size="10" text-anchor="middle">Tenant A infra</text>
+      <rect x="20" y="30" width="100" height="20" rx="4" fill="rgba(51,154,240,0.2)" stroke="var(--tenant-a)" stroke-width="1"/>
+      <text x="70" y="44" fill="var(--tenant-a)" font-size="10" text-anchor="middle">Compute A</text>
+      <rect x="20" y="58" width="100" height="20" rx="4" fill="rgba(51,154,240,0.2)" stroke="var(--tenant-a)" stroke-width="1"/>
+      <text x="70" y="72" fill="var(--tenant-a)" font-size="10" text-anchor="middle">DB A</text>
+      <!-- Tenant B stack -->
+      <rect x="150" y="20" width="120" height="70" rx="6" fill="none" stroke="var(--tenant-b)" stroke-width="1.5" stroke-dasharray="4 2"/>
+      <text x="210" y="14" fill="var(--text-3)" font-size="10" text-anchor="middle">Tenant B infra</text>
+      <rect x="160" y="30" width="100" height="20" rx="4" fill="rgba(81,207,102,0.2)" stroke="var(--tenant-b)" stroke-width="1"/>
+      <text x="210" y="44" fill="var(--tenant-b)" font-size="10" text-anchor="middle">Compute B</text>
+      <rect x="160" y="58" width="100" height="20" rx="4" fill="rgba(81,207,102,0.2)" stroke="var(--tenant-b)" stroke-width="1"/>
+      <text x="210" y="72" fill="var(--tenant-b)" font-size="10" text-anchor="middle">DB B</text>
+      <!-- Tenant C stack -->
+      <rect x="10" y="115" width="120" height="70" rx="6" fill="none" stroke="var(--tenant-c)" stroke-width="1.5" stroke-dasharray="4 2"/>
+      <text x="70" y="109" fill="var(--text-3)" font-size="10" text-anchor="middle">Tenant C infra</text>
+      <rect x="20" y="125" width="100" height="20" rx="4" fill="rgba(255,169,77,0.2)" stroke="var(--tenant-c)" stroke-width="1"/>
+      <text x="70" y="139" fill="var(--tenant-c)" font-size="10" text-anchor="middle">Compute C</text>
+      <rect x="20" y="153" width="100" height="20" rx="4" fill="rgba(255,169,77,0.2)" stroke="var(--tenant-c)" stroke-width="1"/>
+      <text x="70" y="167" fill="var(--tenant-c)" font-size="10" text-anchor="middle">DB C</text>
+      <!-- Tenant D stack -->
+      <rect x="150" y="115" width="120" height="70" rx="6" fill="none" stroke="var(--tenant-d)" stroke-width="1.5" stroke-dasharray="4 2"/>
+      <text x="210" y="109" fill="var(--text-3)" font-size="10" text-anchor="middle">Tenant D infra</text>
+      <rect x="160" y="125" width="100" height="20" rx="4" fill="rgba(204,93,232,0.2)" stroke="var(--tenant-d)" stroke-width="1"/>
+      <text x="210" y="139" fill="var(--tenant-d)" font-size="10" text-anchor="middle">Compute D</text>
+      <rect x="160" y="153" width="100" height="20" rx="4" fill="rgba(204,93,232,0.2)" stroke="var(--tenant-d)" stroke-width="1"/>
+      <text x="210" y="167" fill="var(--tenant-d)" font-size="10" text-anchor="middle">DB D</text>
+      <!-- Labels -->
+      <text x="140" y="220" fill="var(--accent-red)" font-size="11" text-anchor="middle" font-weight="600">Nothing shared</text>
+      <text x="140" y="238" fill="var(--text-3)" font-size="10" text-anchor="middle">Strongest isolation</text>
+      <text x="140" y="254" fill="var(--text-3)" font-size="10" text-anchor="middle">Highest cost</text>
+    </svg>
+  </div>
+
+  <!-- POOL -->
+  <div class="model-card">
+    <h3>Pool <span class="badge badge-pool">Shared</span></h3>
+    <svg viewBox="0 0 280 320" style="height:280px">
+      <!-- Shared compute -->
+      <rect x="30" y="20" width="220" height="55" rx="6" fill="var(--surface-2)" stroke="var(--border)" stroke-width="1.5"/>
+      <text x="140" y="14" fill="var(--text-3)" font-size="10" text-anchor="middle">Shared compute</text>
+      <rect x="45" y="32" width="42" height="32" rx="3" fill="rgba(51,154,240,0.15)" stroke="var(--tenant-a)" stroke-width="1"/>
+      <text x="66" y="52" fill="var(--tenant-a)" font-size="9" text-anchor="middle">A</text>
+      <rect x="95" y="32" width="42" height="32" rx="3" fill="rgba(81,207,102,0.15)" stroke="var(--tenant-b)" stroke-width="1"/>
+      <text x="116" y="52" fill="var(--tenant-b)" font-size="9" text-anchor="middle">B</text>
+      <rect x="145" y="32" width="42" height="32" rx="3" fill="rgba(255,169,77,0.15)" stroke="var(--tenant-c)" stroke-width="1"/>
+      <text x="166" y="52" fill="var(--tenant-c)" font-size="9" text-anchor="middle">C</text>
+      <rect x="195" y="32" width="42" height="32" rx="3" fill="rgba(204,93,232,0.15)" stroke="var(--tenant-d)" stroke-width="1"/>
+      <text x="216" y="52" fill="var(--tenant-d)" font-size="9" text-anchor="middle">D</text>
+      <!-- Arrow -->
+      <line x1="140" y1="75" x2="140" y2="95" stroke="var(--text-3)" stroke-width="1"/>
+      <polygon points="136,95 144,95 140,102" fill="var(--text-3)"/>
+      <!-- Shared DB -->
+      <rect x="30" y="105" width="220" height="80" rx="6" fill="var(--surface-2)" stroke="var(--border)" stroke-width="1.5"/>
+      <text x="140" y="99" fill="var(--text-3)" font-size="10" text-anchor="middle">Shared DB (tenant_id column)</text>
+      <!-- Rows -->
+      <text x="50" y="128" fill="var(--text-3)" font-size="9" font-family="monospace">id  tenant_id  data</text>
+      <text x="50" y="143" fill="var(--tenant-a)" font-size="9" font-family="monospace">1   A          ...</text>
+      <text x="50" y="156" fill="var(--tenant-b)" font-size="9" font-family="monospace">2   B          ...</text>
+      <text x="50" y="169" fill="var(--tenant-c)" font-size="9" font-family="monospace">3   C          ...</text>
+      <text x="50" y="182" fill="var(--tenant-d)" font-size="9" font-family="monospace">4   D          ...</text>
+      <!-- Labels -->
+      <text x="140" y="220" fill="var(--accent-green)" font-size="11" text-anchor="middle" font-weight="600">Everything shared</text>
+      <text x="140" y="238" fill="var(--text-3)" font-size="10" text-anchor="middle">Lowest cost</text>
+      <text x="140" y="254" fill="var(--text-3)" font-size="10" text-anchor="middle">Noisy-neighbor risk</text>
+    </svg>
+  </div>
+
+  <!-- BRIDGE -->
+  <div class="model-card">
+    <h3>Bridge <span class="badge badge-bridge">Hybrid</span></h3>
+    <svg viewBox="0 0 280 320" style="height:280px">
+      <!-- Shared compute -->
+      <rect x="30" y="20" width="220" height="55" rx="6" fill="var(--surface-2)" stroke="var(--border)" stroke-width="1.5"/>
+      <text x="140" y="14" fill="var(--text-3)" font-size="10" text-anchor="middle">Shared compute (k8s)</text>
+      <rect x="45" y="32" width="42" height="32" rx="3" fill="rgba(51,154,240,0.15)" stroke="var(--tenant-a)" stroke-width="1"/>
+      <text x="66" y="52" fill="var(--tenant-a)" font-size="9" text-anchor="middle">A</text>
+      <rect x="95" y="32" width="42" height="32" rx="3" fill="rgba(81,207,102,0.15)" stroke="var(--tenant-b)" stroke-width="1"/>
+      <text x="116" y="52" fill="var(--tenant-b)" font-size="9" text-anchor="middle">B</text>
+      <rect x="145" y="32" width="42" height="32" rx="3" fill="rgba(255,169,77,0.15)" stroke="var(--tenant-c)" stroke-width="1"/>
+      <text x="166" y="52" fill="var(--tenant-c)" font-size="9" text-anchor="middle">C</text>
+      <rect x="195" y="32" width="42" height="32" rx="3" fill="rgba(204,93,232,0.15)" stroke="var(--tenant-d)" stroke-width="1"/>
+      <text x="216" y="52" fill="var(--tenant-d)" font-size="9" text-anchor="middle">D</text>
+      <!-- Arrows to separate DBs -->
+      <line x1="66" y1="75" x2="66" y2="105" stroke="var(--tenant-a)" stroke-width="1"/>
+      <line x1="116" y1="75" x2="116" y2="105" stroke="var(--tenant-b)" stroke-width="1"/>
+      <line x1="166" y1="75" x2="166" y2="105" stroke="var(--tenant-c)" stroke-width="1"/>
+      <line x1="216" y1="75" x2="216" y2="105" stroke="var(--tenant-d)" stroke-width="1"/>
+      <!-- Separate DBs -->
+      <rect x="40" y="105" width="52" height="32" rx="4" fill="rgba(51,154,240,0.2)" stroke="var(--tenant-a)" stroke-width="1"/>
+      <text x="66" y="125" fill="var(--tenant-a)" font-size="9" text-anchor="middle">DB A</text>
+      <rect x="90" y="105" width="52" height="32" rx="4" fill="rgba(81,207,102,0.2)" stroke="var(--tenant-b)" stroke-width="1"/>
+      <text x="116" y="125" fill="var(--tenant-b)" font-size="9" text-anchor="middle">DB B</text>
+      <rect x="140" y="105" width="52" height="32" rx="4" fill="rgba(255,169,77,0.2)" stroke="var(--tenant-c)" stroke-width="1"/>
+      <text x="166" y="125" fill="var(--tenant-c)" font-size="9" text-anchor="middle">DB C</text>
+      <rect x="190" y="105" width="52" height="32" rx="4" fill="rgba(204,93,232,0.2)" stroke="var(--tenant-d)" stroke-width="1"/>
+      <text x="216" y="125" fill="var(--tenant-d)" font-size="9" text-anchor="middle">DB D</text>
+      <!-- Labels -->
+      <text x="140" y="168" fill="var(--accent-orange)" font-size="11" text-anchor="middle" font-weight="600">Some shared, some siloed</text>
+      <text x="140" y="186" fill="var(--text-3)" font-size="10" text-anchor="middle">Shared compute + dedicated DB</text>
+      <text x="140" y="202" fill="var(--text-3)" font-size="10" text-anchor="middle">Most common in practice</text>
+    </svg>
+  </div>
+</div>
+
+<div class="takeaway">
+  <strong>Takeaway:</strong> Silo and pool are the extremes. Almost everyone ends up at bridge -- the question is which layers go which way.
+</div>
+
+<!-- ================================================================ -->
+<!-- SECTION 2: PER-LAYER DECISIONS                                    -->
+<!-- ================================================================ -->
+<h2>2. Per-Layer Decisions</h2>
+
+<p>A real architecture is not a single "silo" or "pool" -- it is a set of per-layer choices. Toggle each layer independently and see how cost and isolation shift.</p>
+
+<div class="layer-controls" id="layer-controls">
+  <div class="layer-row">
+    <span class="layer-name">Compute</span>
+    <div class="layer-toggle-group" data-layer="compute">
+      <button onclick="setLayer('compute','silo')">Silo</button>
+      <button onclick="setLayer('compute','bridge')">Bridge</button>
+      <button class="active-pool" onclick="setLayer('compute','pool')">Pool</button>
+    </div>
+    <span class="layer-desc" id="desc-compute">Shared k8s cluster, all tenants co-scheduled on same nodes</span>
+  </div>
+  <div class="layer-row">
+    <span class="layer-name">Database</span>
+    <div class="layer-toggle-group" data-layer="database">
+      <button onclick="setLayer('database','silo')">Silo</button>
+      <button class="active-bridge" onclick="setLayer('database','bridge')">Bridge</button>
+      <button onclick="setLayer('database','pool')">Pool</button>
+    </div>
+    <span class="layer-desc" id="desc-database">Schema per tenant in shared Postgres instance</span>
+  </div>
+  <div class="layer-row">
+    <span class="layer-name">Cache</span>
+    <div class="layer-toggle-group" data-layer="cache">
+      <button onclick="setLayer('cache','silo')">Silo</button>
+      <button onclick="setLayer('cache','bridge')">Bridge</button>
+      <button class="active-pool" onclick="setLayer('cache','pool')">Pool</button>
+    </div>
+    <span class="layer-desc" id="desc-cache">Single Redis, key prefix per tenant (tenant:A:key)</span>
+  </div>
+  <div class="layer-row">
+    <span class="layer-name">Queue</span>
+    <div class="layer-toggle-group" data-layer="queue">
+      <button onclick="setLayer('queue','silo')">Silo</button>
+      <button onclick="setLayer('queue','bridge')">Bridge</button>
+      <button class="active-pool" onclick="setLayer('queue','pool')">Pool</button>
+    </div>
+    <span class="layer-desc" id="desc-queue">Shared Kafka topics, one topic per service</span>
+  </div>
+  <div class="layer-row">
+    <span class="layer-name">Network</span>
+    <div class="layer-toggle-group" data-layer="network">
+      <button onclick="setLayer('network','silo')">Silo</button>
+      <button onclick="setLayer('network','bridge')">Bridge</button>
+      <button class="active-pool" onclick="setLayer('network','pool')">Pool</button>
+    </div>
+    <span class="layer-desc" id="desc-network">Shared VPC, security groups per tenant</span>
+  </div>
+  <div class="layer-row">
+    <span class="layer-name">Identity</span>
+    <div class="layer-toggle-group" data-layer="identity">
+      <button onclick="setLayer('identity','silo')">Silo</button>
+      <button onclick="setLayer('identity','bridge')">Bridge</button>
+      <button class="active-pool" onclick="setLayer('identity','pool')">Pool</button>
+    </div>
+    <span class="layer-desc" id="desc-identity">Single IDP, tenant claim in JWT token</span>
+  </div>
+</div>
+
+<div class="result-panel">
+  <div class="result-box">
+    <h4>Resulting Cost Band</h4>
+    <div class="meter-row">
+      <span class="meter-label">Cost</span>
+      <div class="meter-bar"><div class="meter-fill" id="meter-cost" style="width:25%; background:var(--accent-green)"></div></div>
+      <span class="meter-value" id="val-cost">$2/t</span>
+    </div>
+    <div class="meter-row">
+      <span class="meter-label">Isolation</span>
+      <div class="meter-bar"><div class="meter-fill" id="meter-iso" style="width:45%; background:var(--accent-orange)"></div></div>
+      <span class="meter-value" id="val-iso">Med</span>
+    </div>
+    <div class="meter-row">
+      <span class="meter-label">Ops load</span>
+      <div class="meter-bar"><div class="meter-fill" id="meter-ops" style="width:35%; background:var(--accent-yellow)"></div></div>
+      <span class="meter-value" id="val-ops">Med</span>
+    </div>
+  </div>
+  <div class="result-box">
+    <h4>Sample Architecture</h4>
+    <div id="arch-description" class="commentary" style="margin:0; min-height:80px;">
+      Shared k8s cluster with per-tenant namespaces. Postgres with schema-per-tenant. Redis with key prefixes. Kafka with shared topics. Single VPC. Shared IDP with tenant claim in JWT.
+    </div>
+  </div>
+</div>
+
+<div id="arch-diagram-container">
+  <svg id="arch-svg" viewBox="0 0 1060 260" style="height:240px">
+  </svg>
+</div>
+
+<div class="takeaway">
+  <strong>Takeaway:</strong> Don't pick one model. Decide per layer. Compute usually pool; database the most common bridge point.
+</div>
+
+<!-- ================================================================ -->
+<!-- SECTION 3: COST VS ISOLATION CURVE                                -->
+<!-- ================================================================ -->
+<h2>3. The Cost-vs-Isolation Curve</h2>
+
+<p>Cost grows roughly exponentially as isolation tightens. Doubling isolation typically means 5-10x cost. The curve forces honest pricing: silo isolation is the enterprise tier.</p>
+
+<div class="chart-container">
+  <canvas id="cost-chart" width="1060" height="420" style="width:100%; height:auto; background:transparent;"></canvas>
+</div>
+
+<div class="commentary">
+  <strong>Illustrative numbers at 1000 tenants:</strong> Pool everything ~$0.10/tenant/month. Pool + per-tenant schema ~$1/tenant. Silo DB per tenant ~$50/tenant (RDS instance). Silo VM ~$200/tenant. Silo region ~$500+/tenant.
+</div>
+
+<div class="takeaway">
+  <strong>Sweet spot for B2B SaaS (100s-1000s of tenants):</strong> Pool compute + pool small DB + dedicated DB for premium / regulated tenants. The exponential cost curve forces honest pricing. If a tier wants silo isolation, that is the enterprise tier -- price it accordingly.
+</div>
+
+<!-- ================================================================ -->
+<!-- SECTION 4: COMPLIANCE CONSIDERATIONS                              -->
+<!-- ================================================================ -->
+<h2>4. Compliance Considerations</h2>
+
+<p>Some workloads force isolation regardless of cost preference. Compliance is the most common reason to break out of pool.</p>
+
+<div class="compliance-grid">
+  <div class="compliance-card">
+    <h4>GDPR Data Residency</h4>
+    <p>Data physically in specific region. Forces silo or pool with sharded-by-region routing. EU tenant data cannot leave EU boundary.</p>
+    <span class="req req-silo">Requires silo or regional shard</span>
+  </div>
+  <div class="compliance-card">
+    <h4>HIPAA / PHI</h4>
+    <p>Stricter audit trails, encryption at rest, access controls. Usually a separate environment. BAA with cloud provider required.</p>
+    <span class="req req-silo">Typically silo environment</span>
+  </div>
+  <div class="compliance-card">
+    <h4>PCI-DSS</h4>
+    <p>Cardholder data in scope. Tokenize to shrink scope OR isolate the PCI footprint. Smaller scope = cheaper audit.</p>
+    <span class="req req-bridge">Tokenize or isolate scope</span>
+  </div>
+  <div class="compliance-card">
+    <h4>SOC 2 / ISO 27001</h4>
+    <p>Process compliance. Pool is fine if encryption + access controls + audit logs are in place. Shared infrastructure works.</p>
+    <span class="req req-pool">Pool with controls</span>
+  </div>
+  <div class="compliance-card">
+    <h4>CMEK / BYOK</h4>
+    <p>Each tenant brings their own KMS key. Encryption layer is per-tenant even if storage is pooled. Key rotation per tenant.</p>
+    <span class="req req-bridge">Per-tenant encryption layer</span>
+  </div>
+</div>
+
+<!-- Regulated tenant diagram -->
+<h3>Regulated tenant: what changes</h3>
+<svg viewBox="0 0 1060 280" style="height:260px">
+  <!-- Standard tenants: pooled -->
+  <text x="265" y="24" fill="var(--text-3)" font-size="12" text-anchor="middle">Standard Tenants (pool)</text>
+  <rect x="30" y="35" width="470" height="50" rx="6" fill="var(--surface-2)" stroke="var(--border)" stroke-width="1.5"/>
+  <text x="265" y="65" fill="var(--text-2)" font-size="11" text-anchor="middle">Shared Compute (k8s cluster)</text>
+  <rect x="30" y="100" width="470" height="40" rx="6" fill="var(--surface-2)" stroke="var(--border)" stroke-width="1.5"/>
+  <text x="265" y="125" fill="var(--text-2)" font-size="11" text-anchor="middle">Shared DB (tenant_id discriminator)</text>
+  <rect x="30" y="155" width="470" height="30" rx="6" fill="var(--surface-2)" stroke="var(--border)" stroke-width="1.5"/>
+  <text x="265" y="175" fill="var(--text-2)" font-size="11" text-anchor="middle">Shared KMS key</text>
+  <!-- Tenant markers -->
+  <circle cx="150" cy="60" r="8" fill="rgba(51,154,240,0.3)" stroke="var(--tenant-a)" stroke-width="1.5"/>
+  <text x="150" y="64" fill="var(--tenant-a)" font-size="8" text-anchor="middle">A</text>
+  <circle cx="265" cy="60" r="8" fill="rgba(81,207,102,0.3)" stroke="var(--tenant-b)" stroke-width="1.5"/>
+  <text x="265" y="64" fill="var(--tenant-b)" font-size="8" text-anchor="middle">B</text>
+  <circle cx="380" cy="60" r="8" fill="rgba(255,169,77,0.3)" stroke="var(--tenant-c)" stroke-width="1.5"/>
+  <text x="380" y="64" fill="var(--tenant-c)" font-size="8" text-anchor="middle">C</text>
+
+  <!-- Regulated tenant: siloed -->
+  <rect x="560" y="15" width="470" height="240" rx="8" fill="none" stroke="var(--accent-yellow)" stroke-width="2" stroke-dasharray="6 3"/>
+  <text x="795" y="11" fill="var(--accent-yellow)" font-size="12" text-anchor="middle" font-weight="600">Regulated Tenant D (silo)</text>
+
+  <rect x="580" y="35" width="430" height="40" rx="6" fill="rgba(204,93,232,0.1)" stroke="var(--tenant-d)" stroke-width="1.5"/>
+  <text x="795" y="60" fill="var(--tenant-d)" font-size="11" text-anchor="middle">Dedicated Compute (isolated namespace + quotas)</text>
+
+  <rect x="580" y="90" width="430" height="40" rx="6" fill="rgba(204,93,232,0.1)" stroke="var(--tenant-d)" stroke-width="1.5"/>
+  <text x="795" y="115" fill="var(--tenant-d)" font-size="11" text-anchor="middle">Dedicated DB (own RDS instance)</text>
+
+  <rect x="580" y="145" width="200" height="30" rx="6" fill="rgba(204,93,232,0.1)" stroke="var(--tenant-d)" stroke-width="1.5"/>
+  <text x="680" y="165" fill="var(--tenant-d)" font-size="11" text-anchor="middle">Tenant D KMS key</text>
+
+  <rect x="810" y="145" width="200" height="30" rx="6" fill="rgba(255,212,59,0.1)" stroke="var(--accent-yellow)" stroke-width="1.5"/>
+  <text x="910" y="165" fill="var(--accent-yellow)" font-size="11" text-anchor="middle">Per-tenant audit log</text>
+
+  <circle cx="795" cy="55" r="8" fill="rgba(204,93,232,0.3)" stroke="var(--tenant-d)" stroke-width="1.5"/>
+  <text x="795" y="59" fill="var(--tenant-d)" font-size="8" text-anchor="middle">D</text>
+
+  <!-- Cost annotation -->
+  <text x="795" y="210" fill="var(--accent-red)" font-size="11" text-anchor="middle">~50x cost increase vs pool</text>
+  <text x="795" y="228" fill="var(--text-3)" font-size="10" text-anchor="middle">Required for HIPAA / GDPR residency / CMEK</text>
+</svg>
+
+<div class="takeaway">
+  <strong>Takeaway:</strong> Compliance is the most common reason to break out of pool. Build the silo path early; you will need it for the first big enterprise deal.
+</div>
+
+<!-- ================================================================ -->
+<!-- SECTION 5: TENANCY-AWARE IDENTITY                                 -->
+<!-- ================================================================ -->
+<h2>5. Tenancy-Aware Identity</h2>
+
+<p>The tenant identifier flow is the backbone of multi-tenancy. Every request must carry tenant context, and every data access must enforce it.</p>
+
+<h3>The identity flow</h3>
+<div class="flow-steps">
+  <div class="flow-step">
+    <div style="font-size:11px; color:var(--text-3)">Step 1</div>
+    <div>User authenticates</div>
+    <div style="font-size:11px; color:var(--text-3)">OAuth / OIDC</div>
+  </div>
+  <span class="flow-arrow">&#8594;</span>
+  <div class="flow-step">
+    <div style="font-size:11px; color:var(--text-3)">Step 2</div>
+    <div>JWT issued</div>
+    <div style="font-size:11px; color:var(--accent-cyan); font-family:monospace">sub + tenant</div>
+  </div>
+  <span class="flow-arrow">&#8594;</span>
+  <div class="flow-step">
+    <div style="font-size:11px; color:var(--text-3)">Step 3</div>
+    <div>API Gateway</div>
+    <div style="font-size:11px; color:var(--text-3)">extracts tenant</div>
+  </div>
+  <span class="flow-arrow">&#8594;</span>
+  <div class="flow-step">
+    <div style="font-size:11px; color:var(--text-3)">Step 4</div>
+    <div>Service layer</div>
+    <div style="font-size:11px; color:var(--text-3)">tenant from header</div>
+  </div>
+  <span class="flow-arrow">&#8594;</span>
+  <div class="flow-step">
+    <div style="font-size:11px; color:var(--text-3)">Step 5</div>
+    <div>DB query</div>
+    <div style="font-size:11px; color:var(--accent-green); font-family:monospace">WHERE tenant_id=X</div>
+  </div>
+</div>
+
+<h3>The senior bug: cross-tenant data leak</h3>
+<p>Forgetting the <code>tenant_id</code> filter on a query means a user from Tenant A sees Tenant B's data. This is the most common multi-tenant vulnerability.</p>
+
+<div class="rls-demo">
+  <div class="rls-panel danger">
+    <h4>Without RLS -- the leak</h4>
+    <div class="sql-line"><span class="sql-comment">-- Developer forgot tenant filter</span></div>
+    <div class="sql-line"><span class="sql-keyword">SELECT</span> * <span class="sql-keyword">FROM</span> <span class="sql-table">orders</span></div>
+    <div class="sql-line"><span class="sql-keyword">WHERE</span> status = <span class="sql-string">'pending'</span>;</div>
+    <div class="sql-line"><span class="sql-comment">-- No tenant_id filter!</span></div>
+    <div class="result-rows">
+      <div class="result-row header">
+        <span class="col">id</span>
+        <span class="col">tenant_id</span>
+        <span class="col">status</span>
+        <span class="col">amount</span>
+      </div>
+      <div class="result-row">
+        <span class="col">101</span>
+        <span class="col" style="color:var(--tenant-a)">A</span>
+        <span class="col">pending</span>
+        <span class="col">$420</span>
+      </div>
+      <div class="result-row">
+        <span class="col leaked">102</span>
+        <span class="col leaked">B</span>
+        <span class="col leaked">pending</span>
+        <span class="col leaked">$1,200</span>
+      </div>
+      <div class="result-row">
+        <span class="col leaked">103</span>
+        <span class="col leaked">C</span>
+        <span class="col leaked">pending</span>
+        <span class="col leaked">$89</span>
+      </div>
+      <div class="result-row">
+        <span class="col">104</span>
+        <span class="col" style="color:var(--tenant-a)">A</span>
+        <span class="col">pending</span>
+        <span class="col">$750</span>
+      </div>
+    </div>
+    <p style="font-size:12px; color:var(--accent-red); margin-top:8px">Tenant A sees orders from B and C. Cross-tenant data leak.</p>
+  </div>
+
+  <div class="rls-panel safe">
+    <h4>With Postgres RLS -- the defense</h4>
+    <div class="sql-line"><span class="sql-comment">-- Same query, but RLS policy active</span></div>
+    <div class="sql-line"><span class="sql-keyword">SELECT</span> * <span class="sql-keyword">FROM</span> <span class="sql-table">orders</span></div>
+    <div class="sql-line"><span class="sql-keyword">WHERE</span> status = <span class="sql-string">'pending'</span>;</div>
+    <div class="sql-line"><span class="sql-comment">-- RLS auto-injects:</span> <span class="sql-injected">AND tenant_id = current_setting('app.tenant')</span></div>
+    <div class="result-rows">
+      <div class="result-row header">
+        <span class="col">id</span>
+        <span class="col">tenant_id</span>
+        <span class="col">status</span>
+        <span class="col">amount</span>
+      </div>
+      <div class="result-row">
+        <span class="col">101</span>
+        <span class="col" style="color:var(--tenant-a)">A</span>
+        <span class="col">pending</span>
+        <span class="col">$420</span>
+      </div>
+      <div class="result-row" style="opacity:0.3">
+        <span class="col blocked">102</span>
+        <span class="col blocked">B</span>
+        <span class="col blocked">pending</span>
+        <span class="col blocked">$1,200</span>
+      </div>
+      <div class="result-row" style="opacity:0.3">
+        <span class="col blocked">103</span>
+        <span class="col blocked">C</span>
+        <span class="col blocked">pending</span>
+        <span class="col blocked">$89</span>
+      </div>
+      <div class="result-row">
+        <span class="col">104</span>
+        <span class="col" style="color:var(--tenant-a)">A</span>
+        <span class="col">pending</span>
+        <span class="col">$750</span>
+      </div>
+    </div>
+    <p style="font-size:12px; color:var(--accent-green); margin-top:8px">RLS enforces tenant filter. B and C rows invisible to Tenant A.</p>
+  </div>
+</div>
+
+<h3>RLS setup</h3>
+<pre>
+<span class="sql-comment">-- 1. Enable RLS on the table</span>
+<span class="sql-keyword">ALTER TABLE</span> orders <span class="sql-keyword">ENABLE ROW LEVEL SECURITY</span>;
+
+<span class="sql-comment">-- 2. Create the policy</span>
+<span class="sql-keyword">CREATE POLICY</span> tenant_isolation <span class="sql-keyword">ON</span> orders
+  <span class="sql-keyword">USING</span> (tenant_id = current_setting(<span class="sql-string">'app.tenant'</span>));
+
+<span class="sql-comment">-- 3. Set tenant context at connection start</span>
+<span class="sql-keyword">SET</span> app.tenant = <span class="sql-string">'tenant_A'</span>;
+
+<span class="sql-comment">-- 4. Every query now auto-filtered — no developer action needed</span>
+<span class="sql-keyword">SELECT</span> * <span class="sql-keyword">FROM</span> orders;  <span class="sql-comment">-- only sees tenant_A rows</span>
+</pre>
+
+<h3>Defense layers (defense in depth)</h3>
+<div class="commentary">
+  <strong>Layer 1 -- API Gateway:</strong> Extract tenant from JWT, inject as trusted header. Downstream services NEVER trust user-supplied tenant ID from request body.<br>
+  <strong>Layer 2 -- ORM scope:</strong> Global query scope always adds <code>tenant_id</code> filter. Bypass requires explicit <code>@SkipTenantFilter</code> annotation (auditable).<br>
+  <strong>Layer 3 -- Postgres RLS:</strong> Database enforces tenant filter on every query, even ad-hoc SQL. The last line of defense.
+</div>
+
+<div class="takeaway">
+  <strong>Takeaway:</strong> RLS or ORM-enforced scope is the defense. Trusting tenant_id from request body is the cross-tenant leak waiting to happen.
+</div>
+
+<!-- ================================================================ -->
+<!-- SECTION 6: DECISION MATRIX                                        -->
+<!-- ================================================================ -->
+<h2>6. Decision Matrix</h2>
+
+<div class="matrix-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>Model</th>
+        <th>Cost</th>
+        <th>Isolation</th>
+        <th>Blast Radius</th>
+        <th>Ops Ease</th>
+        <th>Compliance Fit</th>
+        <th>Pick When</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong style="color:var(--accent-red)">Silo (per cluster)</strong></td>
+        <td>$$$$$</td>
+        <td style="color:var(--accent-green)">Maximum</td>
+        <td style="color:var(--accent-green)">Single tenant</td>
+        <td style="color:var(--accent-red)">Hardest -- N clusters</td>
+        <td>HIPAA, FedRAMP, ITAR</td>
+        <td>Government / defense contracts. Single-digit whale customers paying $100K+/yr.</td>
+      </tr>
+      <tr>
+        <td><strong style="color:var(--accent-red)">Silo (DB only)</strong></td>
+        <td>$$$</td>
+        <td style="color:var(--accent-green)">Strong (data)</td>
+        <td style="color:var(--accent-green)">Data: single tenant<br>Compute: all</td>
+        <td style="color:var(--accent-orange)">Moderate -- N DBs</td>
+        <td>GDPR residency, SOC 2 Type II</td>
+        <td>Enterprise tier of B2B SaaS. Regulated industries. 10-100 large tenants.</td>
+      </tr>
+      <tr>
+        <td><strong style="color:var(--accent-orange)">Bridge (shared compute, silo DB)</strong></td>
+        <td>$$</td>
+        <td style="color:var(--accent-orange)">Good</td>
+        <td style="color:var(--accent-orange)">Compute: all<br>Data: single tenant</td>
+        <td style="color:var(--accent-green)">Good -- shared ops</td>
+        <td>SOC 2, ISO 27001, GDPR (with region routing)</td>
+        <td>The default B2B SaaS architecture. 100-1000 tenants, mixed tiers.</td>
+      </tr>
+      <tr>
+        <td><strong style="color:var(--accent-green)">Pool with RLS</strong></td>
+        <td>$</td>
+        <td style="color:var(--accent-orange)">Moderate</td>
+        <td style="color:var(--accent-red)">All tenants</td>
+        <td style="color:var(--accent-green)">Easiest -- 1 DB</td>
+        <td>SOC 2, ISO 27001</td>
+        <td>Early-stage SaaS. 1000+ small tenants. Cost-sensitive. Self-serve tier.</td>
+      </tr>
+      <tr>
+        <td><strong style="color:var(--accent-green)">Pool with discriminator</strong></td>
+        <td>$</td>
+        <td style="color:var(--accent-red)">Weak</td>
+        <td style="color:var(--accent-red)">All tenants</td>
+        <td style="color:var(--accent-green)">Easiest</td>
+        <td>Minimal</td>
+        <td>MVP / prototype. When you are moving fast and tenants are not security-sensitive.</td>
+      </tr>
+      <tr>
+        <td><strong style="color:var(--accent-orange)">Pool with regional sharding</strong></td>
+        <td>$$</td>
+        <td style="color:var(--accent-orange)">Regional</td>
+        <td style="color:var(--accent-orange)">Tenants in same region</td>
+        <td style="color:var(--accent-orange)">Moderate -- N regions</td>
+        <td>GDPR residency</td>
+        <td>Global SaaS with EU/US/APAC tenants. Data residency without full silo cost.</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ================================================================ -->
+<!-- SECTION 7: MIGRATION PATHS                                        -->
+<!-- ================================================================ -->
+<h2>7. Migration Paths</h2>
+
+<p>The reality: most successful SaaS starts pool, evolves bridge as enterprise customers arrive. The migration is inevitable -- the question is whether you planned for it.</p>
+
+<h3>Common migration story</h3>
+<div class="timeline">
+  <div class="timeline-item">
+    <h4>Day 1: Pool everything</h4>
+    <p>Single DB, single cluster, tenant_id column on every table. Ship fast. 0-100 tenants, all self-serve.</p>
+  </div>
+  <div class="timeline-item" style="--dot-color: var(--accent-orange)">
+    <h4>First enterprise deal</h4>
+    <p>Prospect requires dedicated DB (compliance / contractual). Scramble to extract tenant to separate RDS instance. Manual migration, some downtime.</p>
+  </div>
+  <div class="timeline-item">
+    <h4>Bridge architecture</h4>
+    <p>Build tenant-aware routing: small tenants stay in pool DB, large / regulated tenants get silo DB. Shared compute layer routes by tenant ID.</p>
+  </div>
+  <div class="timeline-item">
+    <h4>Mature state</h4>
+    <p>Self-serve: pool. Professional: pool with RLS. Enterprise: silo DB. Each tier priced to cover its infrastructure model.</p>
+  </div>
+</div>
+
+<h3>Tools and tactics</h3>
+<div class="commentary">
+  <strong>Tenant-aware sharding:</strong> Shard by tenant ID. Hot tenants get a dedicated shard; cold tenants share a shard. Shard map in config service.<br><br>
+  <strong>Per-tenant connection pool:</strong> Maintain a connection pool per tenant. Large tenants get a bigger pool. Route at the connection-pool level, not the query level.<br><br>
+  <strong>Migration without downtime:</strong> Dual-write to old and new store. Backfill historical data. Verify consistency. Cut reads to new store. Stop writes to old store. Four-phase cutover, zero downtime.<br><br>
+  <strong>Feature flags per tenant:</strong> Tenant config determines which code paths execute. New isolation features roll out to one tenant at a time. Same deployment, different behavior.
+</div>
+
+<blockquote>
+  <strong>The senior tell.</strong> "I would start pool with row-level filtering, plan the silo path for enterprise tier from day 1. Per-layer decision: compute pool, DB bridge (shared with per-tenant DB option). RLS in Postgres for the cross-tenant defense. The migration path from pool to bridge is the most important architectural decision -- build the routing layer early so extracting a tenant to a dedicated DB is a config change, not a rewrite."
+</blockquote>
+
+<div class="takeaway">
+  <strong>Takeaway:</strong> Start pool. Plan bridge from day 1. Build tenant-aware routing so the migration to silo DB is a config change, not a rewrite. Price enterprise tier to cover silo infrastructure cost.
+</div>
+
+<!-- ================================================================ -->
+<!-- JAVASCRIPT                                                        -->
+<!-- ================================================================ -->
+<script>
+(function() {
+  'use strict';
+
+  // ----------------------------------------------------------------
+  // Layer state
+  // ----------------------------------------------------------------
+  var layerState = {
+    compute:  'pool',
+    database: 'bridge',
+    cache:    'pool',
+    queue:    'pool',
+    network:  'pool',
+    identity: 'pool'
+  };
+
+  var layerDescriptions = {
+    compute: {
+      silo:   'Per-tenant k8s cluster or VM pool. Full CPU/memory isolation.',
+      bridge: 'Shared k8s cluster, per-tenant namespace with resource quotas.',
+      pool:   'Shared k8s cluster, all tenants co-scheduled on same nodes.'
+    },
+    database: {
+      silo:   'Dedicated DB instance (RDS) per tenant. Strongest data isolation.',
+      bridge: 'Schema per tenant in shared Postgres instance. Logical isolation.',
+      pool:   'Single DB, tenant_id discriminator column on every table.'
+    },
+    cache: {
+      silo:   'Dedicated Redis instance per tenant. No cache interference.',
+      bridge: 'Redis cluster sharded by tenant ID. Per-tenant memory limits.',
+      pool:   'Single Redis, key prefix per tenant (tenant:A:key).'
+    },
+    queue: {
+      silo:   'Dedicated Kafka topic per tenant. Full throughput isolation.',
+      bridge: 'Shared topic, partition by tenant ID within topic.',
+      pool:   'Shared Kafka topics, one topic per service.'
+    },
+    network: {
+      silo:   'Dedicated VPC per tenant. Full network isolation. Rare.',
+      bridge: 'Shared VPC, per-tenant subnet or security group.',
+      pool:   'Shared VPC, security groups per tenant.'
+    },
+    identity: {
+      silo:   'Per-tenant IDP instance. Separate user directories.',
+      bridge: 'Shared IDP, org-level federation (SAML/OIDC per tenant).',
+      pool:   'Single IDP, tenant claim in JWT token.'
+    }
+  };
+
+  // Cost/isolation/ops weights per layer per mode (0-100)
+  var layerWeights = {
+    compute:  { silo: { cost: 90, iso: 95, ops: 85 }, bridge: { cost: 40, iso: 55, ops: 40 }, pool: { cost: 10, iso: 15, ops: 10 } },
+    database: { silo: { cost: 85, iso: 90, ops: 75 }, bridge: { cost: 35, iso: 60, ops: 35 }, pool: { cost: 5, iso: 20, ops: 5 } },
+    cache:    { silo: { cost: 70, iso: 80, ops: 70 }, bridge: { cost: 30, iso: 50, ops: 35 }, pool: { cost: 5, iso: 10, ops: 5 } },
+    queue:    { silo: { cost: 60, iso: 70, ops: 65 }, bridge: { cost: 25, iso: 40, ops: 30 }, pool: { cost: 5, iso: 10, ops: 5 } },
+    network:  { silo: { cost: 80, iso: 95, ops: 80 }, bridge: { cost: 25, iso: 45, ops: 25 }, pool: { cost: 5, iso: 10, ops: 5 } },
+    identity: { silo: { cost: 50, iso: 60, ops: 55 }, bridge: { cost: 20, iso: 35, ops: 20 }, pool: { cost: 5, iso: 10, ops: 5 } }
+  };
+
+  // Importance weights for each layer in overall score
+  var layerImportance = {
+    compute: 0.25, database: 0.30, cache: 0.12, queue: 0.10, network: 0.13, identity: 0.10
+  };
+
+  window.setLayer = function(layer, mode) {
+    layerState[layer] = mode;
+    updateLayerUI();
+    updateResults();
+    updateArchDiagram();
+  };
+
+  function updateLayerUI() {
+    var layers = ['compute', 'database', 'cache', 'queue', 'network', 'identity'];
+    layers.forEach(function(layer) {
+      var group = document.querySelector('[data-layer="' + layer + '"]');
+      if (!group) return;
+      var buttons = group.querySelectorAll('button');
+      buttons.forEach(function(btn) {
+        btn.className = '';
+      });
+      var mode = layerState[layer];
+      var modes = ['silo', 'bridge', 'pool'];
+      var idx = modes.indexOf(mode);
+      if (idx >= 0 && buttons[idx]) {
+        buttons[idx].className = 'active-' + mode;
+      }
+      var descEl = document.getElementById('desc-' + layer);
+      if (descEl) {
+        descEl.textContent = layerDescriptions[layer][mode];
+      }
+    });
+  }
+
+  function updateResults() {
+    var layers = Object.keys(layerState);
+    var totalCost = 0, totalIso = 0, totalOps = 0;
+    layers.forEach(function(layer) {
+      var mode = layerState[layer];
+      var w = layerWeights[layer][mode];
+      var imp = layerImportance[layer];
+      totalCost += w.cost * imp;
+      totalIso += w.iso * imp;
+      totalOps += w.ops * imp;
+    });
+
+    // Cost meter
+    var costEl = document.getElementById('meter-cost');
+    var costVal = document.getElementById('val-cost');
+    costEl.style.width = totalCost + '%';
+    if (totalCost < 25) { costEl.style.background = 'var(--accent-green)'; costVal.textContent = '$1-2/t'; }
+    else if (totalCost < 45) { costEl.style.background = 'var(--accent-yellow)'; costVal.textContent = '$5-20/t'; }
+    else if (totalCost < 65) { costEl.style.background = 'var(--accent-orange)'; costVal.textContent = '$50-100/t'; }
+    else { costEl.style.background = 'var(--accent-red)'; costVal.textContent = '$200+/t'; }
+
+    // Isolation meter
+    var isoEl = document.getElementById('meter-iso');
+    var isoVal = document.getElementById('val-iso');
+    isoEl.style.width = totalIso + '%';
+    if (totalIso < 25) { isoEl.style.background = 'var(--accent-red)'; isoVal.textContent = 'Weak'; }
+    else if (totalIso < 45) { isoEl.style.background = 'var(--accent-orange)'; isoVal.textContent = 'Mod'; }
+    else if (totalIso < 65) { isoEl.style.background = 'var(--accent-yellow)'; isoVal.textContent = 'Good'; }
+    else { isoEl.style.background = 'var(--accent-green)'; isoVal.textContent = 'Strong'; }
+
+    // Ops meter
+    var opsEl = document.getElementById('meter-ops');
+    var opsVal = document.getElementById('val-ops');
+    opsEl.style.width = totalOps + '%';
+    if (totalOps < 20) { opsEl.style.background = 'var(--accent-green)'; opsVal.textContent = 'Low'; }
+    else if (totalOps < 40) { opsEl.style.background = 'var(--accent-yellow)'; opsVal.textContent = 'Med'; }
+    else if (totalOps < 60) { opsEl.style.background = 'var(--accent-orange)'; opsVal.textContent = 'High'; }
+    else { opsEl.style.background = 'var(--accent-red)'; opsVal.textContent = 'Heavy'; }
+
+    // Architecture description
+    var descEl = document.getElementById('arch-description');
+    var parts = [];
+    var modeNames = { silo: 'Dedicated', bridge: 'Bridged', pool: 'Shared' };
+    var layers2 = ['compute', 'database', 'cache', 'queue', 'network', 'identity'];
+    var layerLabels = { compute: 'Compute', database: 'Database', cache: 'Cache', queue: 'Queue', network: 'Network', identity: 'Identity' };
+    layers2.forEach(function(l) {
+      parts.push(layerLabels[l] + ': ' + modeNames[layerState[l]]);
+    });
+    descEl.textContent = parts.join('. ') + '.';
+  }
+
+  // ----------------------------------------------------------------
+  // Architecture diagram (reactive SVG)
+  // ----------------------------------------------------------------
+  function updateArchDiagram() {
+    var svg = document.getElementById('arch-svg');
+    var tenants = [
+      { id: 'A', color: 'var(--tenant-a)', fill: 'rgba(51,154,240,0.15)' },
+      { id: 'B', color: 'var(--tenant-b)', fill: 'rgba(81,207,102,0.15)' },
+      { id: 'C', color: 'var(--tenant-c)', fill: 'rgba(255,169,77,0.15)' },
+      { id: 'D', color: 'var(--tenant-d)', fill: 'rgba(204,93,232,0.15)' }
+    ];
+
+    var layers = [
+      { key: 'compute',  label: 'Compute', y: 30 },
+      { key: 'database', label: 'Database', y: 90 },
+      { key: 'cache',    label: 'Cache', y: 150 },
+      { key: 'queue',    label: 'Queue', y: 210 }
+    ];
+
+    var html = '';
+    // Layer labels
+    layers.forEach(function(layer) {
+      html += '<text x="10" y="' + (layer.y + 18) + '" fill="var(--text-3)" font-size="11" font-weight="600">' + layer.label + '</text>';
+
+      var mode = layerState[layer.key];
+      var startX = 100;
+      var totalW = 940;
+
+      if (mode === 'pool') {
+        // One big shared box with all tenants inside
+        html += '<rect x="' + startX + '" y="' + layer.y + '" width="' + totalW + '" height="30" rx="5" fill="var(--surface-2)" stroke="var(--border)" stroke-width="1"/>';
+        tenants.forEach(function(t, i) {
+          var tx = startX + 20 + i * 230;
+          html += '<rect x="' + tx + '" y="' + (layer.y + 5) + '" width="200" height="20" rx="3" fill="' + t.fill + '" stroke="' + t.color + '" stroke-width="0.8"/>';
+          html += '<text x="' + (tx + 100) + '" y="' + (layer.y + 19) + '" fill="' + t.color + '" font-size="9" text-anchor="middle">' + t.id + '</text>';
+        });
+      } else if (mode === 'bridge') {
+        // Outer shared border, inner separated sections
+        html += '<rect x="' + startX + '" y="' + layer.y + '" width="' + totalW + '" height="30" rx="5" fill="none" stroke="var(--border)" stroke-width="1" stroke-dasharray="4 2"/>';
+        tenants.forEach(function(t, i) {
+          var tx = startX + 10 + i * 232;
+          html += '<rect x="' + tx + '" y="' + (layer.y + 3) + '" width="218" height="24" rx="4" fill="' + t.fill + '" stroke="' + t.color + '" stroke-width="1"/>';
+          html += '<text x="' + (tx + 109) + '" y="' + (layer.y + 19) + '" fill="' + t.color + '" font-size="9" text-anchor="middle">' + t.id + '</text>';
+        });
+      } else {
+        // Fully separated boxes
+        tenants.forEach(function(t, i) {
+          var tx = startX + i * 240;
+          html += '<rect x="' + tx + '" y="' + layer.y + '" width="220" height="30" rx="5" fill="' + t.fill + '" stroke="' + t.color + '" stroke-width="1.5"/>';
+          html += '<text x="' + (tx + 110) + '" y="' + (layer.y + 19) + '" fill="' + t.color + '" font-size="9" text-anchor="middle">' + t.id + '</text>';
+        });
+      }
+
+      // Mode label
+      var modeLabel = mode.charAt(0).toUpperCase() + mode.slice(1);
+      var modeColor = mode === 'silo' ? 'var(--accent-red)' : mode === 'bridge' ? 'var(--accent-orange)' : 'var(--accent-green)';
+      html += '<text x="1055" y="' + (layer.y + 19) + '" fill="' + modeColor + '" font-size="10" text-anchor="end" font-style="italic">' + modeLabel + '</text>';
+    });
+
+    svg.innerHTML = html;
+  }
+
+  // ----------------------------------------------------------------
+  // Cost vs Isolation chart (canvas)
+  // ----------------------------------------------------------------
+  function drawCostChart() {
+    var canvas = document.getElementById('cost-chart');
+    if (!canvas) return;
+    var ctx = canvas.getContext('2d');
+    var dpr = window.devicePixelRatio || 1;
+    var rect = canvas.getBoundingClientRect();
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    ctx.scale(dpr, dpr);
+    var W = rect.width;
+    var H = rect.height;
+
+    // Chart area
+    var padL = 80, padR = 40, padT = 30, padB = 60;
+    var cW = W - padL - padR;
+    var cH = H - padT - padB;
+
+    // Clear
+    ctx.clearRect(0, 0, W, H);
+
+    // Grid
+    ctx.strokeStyle = '#2a2a35';
+    ctx.lineWidth = 0.5;
+    for (var i = 0; i <= 5; i++) {
+      var gy = padT + (cH / 5) * i;
+      ctx.beginPath();
+      ctx.moveTo(padL, gy);
+      ctx.lineTo(padL + cW, gy);
+      ctx.stroke();
+    }
+    for (var j = 0; j <= 5; j++) {
+      var gx = padL + (cW / 5) * j;
+      ctx.beginPath();
+      ctx.moveTo(gx, padT);
+      ctx.lineTo(gx, padT + cH);
+      ctx.stroke();
+    }
+
+    // Axes
+    ctx.strokeStyle = '#555';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(padL, padT);
+    ctx.lineTo(padL, padT + cH);
+    ctx.lineTo(padL + cW, padT + cH);
+    ctx.stroke();
+
+    // Y-axis labels (cost)
+    ctx.fillStyle = '#888';
+    ctx.font = '11px -apple-system, sans-serif';
+    ctx.textAlign = 'right';
+    var yLabels = ['$500+', '$200', '$50', '$5', '$1', '$0.10'];
+    for (var k = 0; k < yLabels.length; k++) {
+      ctx.fillText(yLabels[k], padL - 8, padT + (cH / 5) * k + 4);
+    }
+
+    // X-axis labels (isolation)
+    ctx.textAlign = 'center';
+    var xLabels = ['Pool\n(shared)', '', 'Bridge', '', 'Silo\n(dedicated)'];
+    var xPositions = [0, 0.25, 0.5, 0.75, 1.0];
+    xPositions.forEach(function(xp, idx) {
+      if (xLabels[idx]) {
+        var lines = xLabels[idx].split('\n');
+        lines.forEach(function(line, li) {
+          ctx.fillText(line, padL + xp * cW, padT + cH + 18 + li * 14);
+        });
+      }
+    });
+
+    // Axis titles
+    ctx.fillStyle = '#aaa';
+    ctx.font = '12px -apple-system, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('Isolation Strength', padL + cW / 2, padT + cH + 52);
+
+    ctx.save();
+    ctx.translate(18, padT + cH / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.fillText('Cost per Tenant / Month', 0, 0);
+    ctx.restore();
+
+    // Data points: [isolation 0-1, cost-log-position 0-1, label, color]
+    var points = [
+      { x: 0.05, y: 0.92, label: 'Pool everything', cost: '$0.10/t', color: '#51cf66' },
+      { x: 0.25, y: 0.78, label: 'Pool + per-tenant schema', cost: '$1/t', color: '#51cf66' },
+      { x: 0.40, y: 0.62, label: 'Pool + silo DB (bridge)', cost: '$5/t', color: '#ffa94d' },
+      { x: 0.60, y: 0.38, label: 'Silo DB per tenant', cost: '$50/t', color: '#ffa94d' },
+      { x: 0.80, y: 0.18, label: 'Silo VM', cost: '$200/t', color: '#ff6b6b' },
+      { x: 0.95, y: 0.05, label: 'Silo region', cost: '$500+/t', color: '#ff6b6b' }
+    ];
+
+    // Draw exponential curve
+    ctx.beginPath();
+    ctx.strokeStyle = 'rgba(51,154,240,0.5)';
+    ctx.lineWidth = 2;
+    for (var t = 0; t <= 1; t += 0.005) {
+      var costY = 1 - Math.pow(t, 2.2);
+      var px = padL + t * cW;
+      var py = padT + costY * cH;
+      if (t === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    }
+    ctx.stroke();
+
+    // Fill area under curve
+    ctx.lineTo(padL + cW, padT + cH);
+    ctx.lineTo(padL, padT + cH);
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(51,154,240,0.05)';
+    ctx.fill();
+
+    // Sweet spot region
+    ctx.fillStyle = 'rgba(81,207,102,0.08)';
+    ctx.fillRect(padL + 0.15 * cW, padT, 0.35 * cW, cH);
+    ctx.strokeStyle = 'rgba(81,207,102,0.3)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 4]);
+    ctx.strokeRect(padL + 0.15 * cW, padT, 0.35 * cW, cH);
+    ctx.setLineDash([]);
+
+    // Sweet spot label
+    ctx.fillStyle = '#51cf66';
+    ctx.font = '11px -apple-system, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('B2B SaaS sweet spot', padL + 0.325 * cW, padT + 16);
+
+    // Draw data points
+    points.forEach(function(pt) {
+      var px = padL + pt.x * cW;
+      var py = padT + pt.y * cH;
+
+      // Dot
+      ctx.beginPath();
+      ctx.arc(px, py, 5, 0, Math.PI * 2);
+      ctx.fillStyle = pt.color;
+      ctx.fill();
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      // Label
+      ctx.fillStyle = '#e6e6ea';
+      ctx.font = '11px -apple-system, sans-serif';
+      ctx.textAlign = pt.x > 0.5 ? 'right' : 'left';
+      var labelX = pt.x > 0.5 ? px - 10 : px + 10;
+      ctx.fillText(pt.label, labelX, py - 12);
+      ctx.fillStyle = pt.color;
+      ctx.font = '10px -apple-system, sans-serif';
+      ctx.fillText(pt.cost, labelX, py + 2);
+    });
+  }
+
+  // ----------------------------------------------------------------
+  // Initialize
+  // ----------------------------------------------------------------
+  function init() {
+    updateLayerUI();
+    updateResults();
+    updateArchDiagram();
+    drawCostChart();
+  }
+
+  // Redraw chart on resize
+  var resizeTimer;
+  window.addEventListener('resize', function() {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(drawCostChart, 150);
+  });
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+</script>
+
+</body>
+</html>

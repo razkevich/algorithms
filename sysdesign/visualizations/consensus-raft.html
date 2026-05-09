@@ -1,0 +1,1965 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Raft Consensus -- Step by Step</title>
+<style>
+:root {
+  --bg: #0f0f15;
+  --surface: #181820;
+  --surface-2: #20202a;
+  --border: #2a2a35;
+  --text: #e6e6ea;
+  --text-2: #cfcfd6;
+  --text-3: #888;
+  --accent-red: #ff6b6b;
+  --accent-green: #51cf66;
+  --accent-blue: #339af0;
+  --accent-yellow: #ffd43b;
+  --accent-purple: #cc5de8;
+  --accent-cyan: #8be9fd;
+  --accent-orange: #ffa94d;
+}
+*, *::before, *::after { box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  padding: 32px 24px;
+  max-width: 1100px;
+  margin: 0 auto;
+  line-height: 1.55;
+}
+h1 { color: #fff; margin-bottom: 4px; }
+h1 + p.sub { color: var(--text-3); font-style: italic; margin-top: 0; margin-bottom: 24px; }
+h2 { color: #fff; margin-top: 32px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+h3 { color: var(--text-2); margin-top: 20px; }
+code {
+  background: var(--surface-2);
+  padding: 2px 6px;
+  border-radius: 3px;
+  color: var(--accent-cyan);
+  font-size: 13px;
+}
+svg {
+  background: var(--surface);
+  border-radius: 8px;
+  display: block;
+  margin: 14px auto;
+  width: 100%;
+  height: auto;
+}
+.tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+.tabs button {
+  padding: 10px 20px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-2);
+  border-radius: 6px;
+  cursor: pointer;
+  min-height: 44px;
+  font-size: 14px;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.tabs button:hover { background: var(--surface); }
+.tabs button.active {
+  border-color: var(--accent-blue);
+  border-bottom: 2px solid var(--accent-blue);
+  color: #fff;
+}
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0;
+  align-items: center;
+}
+.controls button, .btn {
+  padding: 10px 16px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  border-radius: 6px;
+  cursor: pointer;
+  min-height: 44px;
+  font-size: 14px;
+  transition: background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+.controls button:hover, .btn:hover { background: var(--surface); }
+.controls button:disabled, .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.controls button.active-btn { border-color: var(--accent-blue); color: var(--accent-blue); }
+.controls button.danger { border-color: var(--accent-red); color: var(--accent-red); }
+.controls button.danger:hover { background: #2a1520; }
+.step-display {
+  font-size: 13px;
+  color: var(--text-3);
+  min-width: 90px;
+  text-align: center;
+}
+.commentary {
+  background: var(--surface-2);
+  padding: 14px;
+  border-radius: 6px;
+  font-size: 14px;
+  color: var(--text-2);
+  margin: 12px 0;
+  min-height: 44px;
+  line-height: 1.5;
+}
+.takeaway {
+  background: #1a1a22;
+  border-left: 3px solid var(--accent-green);
+  padding: 12px 16px;
+  margin: 14px 0;
+  font-size: 14px;
+}
+.takeaway strong { color: var(--accent-green); }
+.takeaway ul { margin: 6px 0 0 0; padding-left: 18px; }
+.takeaway li { margin-bottom: 6px; }
+section[hidden] { display: none !important; }
+.log-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 10px 0;
+  font-size: 13px;
+}
+.log-table th, .log-table td {
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  text-align: center;
+}
+.log-table th {
+  background: var(--surface-2);
+  color: var(--text-3);
+  font-weight: 600;
+}
+.log-table td { background: var(--surface); }
+.log-table td.committed { background: #1a2a1a; color: var(--accent-green); }
+.log-table td.uncommitted { background: #2a1a1a; color: var(--accent-orange); }
+.log-table td.stale { background: #2a1520; color: var(--accent-red); text-decoration: line-through; }
+@media (max-width: 720px) {
+  body { padding: 20px 14px; }
+}
+@media (max-width: 600px) {
+  .tabs { gap: 4px; }
+  .tabs button { padding: 10px 12px; font-size: 13px; flex: 1; min-width: 90px; text-align: center; }
+}
+@media (max-width: 480px) {
+  .controls { flex-direction: column; }
+  .controls button { width: 100%; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Raft consensus -- step by step</h1>
+  <p class="sub">Election, log replication, network partitions, snapshots. The fundament behind etcd, ZooKeeper-like systems, Postgres Patroni. Step through the algorithm; build the intuition; survive the depth probe.</p>
+</header>
+
+<nav class="tabs">
+  <button class="active" onclick="setActiveTab('election')">Leader Election</button>
+  <button onclick="setActiveTab('replication')">Log Replication</button>
+  <button onclick="setActiveTab('partition')">Partition + Leader Change</button>
+  <button onclick="setActiveTab('snapshot')">Snapshot + Compaction</button>
+  <button onclick="setActiveTab('membership')">Membership Change</button>
+</nav>
+
+<!-- ============================================================ -->
+<!-- TAB 1: LEADER ELECTION                                        -->
+<!-- ============================================================ -->
+<section data-tab="election">
+  <h2>Leader Election</h2>
+  <p>A Raft cluster of 5 nodes. Each node is a Follower, Candidate, or Leader. The leader sends periodic heartbeats (AppendEntries with no payload). If a follower's election timeout elapses without hearing from a leader, it starts a new election.</p>
+
+  <svg id="el-svg" viewBox="0 0 900 460" preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <marker id="el-arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="#555"/>
+      </marker>
+      <marker id="el-arrow-green" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="#51cf66"/>
+      </marker>
+      <marker id="el-arrow-blue" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="#339af0"/>
+      </marker>
+      <marker id="el-arrow-yellow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="#ffd43b"/>
+      </marker>
+    </defs>
+    <g id="el-scene"></g>
+  </svg>
+
+  <div class="controls">
+    <button onclick="EL.prev()" id="el-prev" disabled>Prev</button>
+    <button onclick="EL.next()" id="el-next">Next</button>
+    <button onclick="EL.play()" id="el-play">Play</button>
+    <span class="step-display" id="el-step-display">Step 0 / 0</span>
+    <button onclick="EL.toggleScenario()" id="el-scenario-btn">Switch: Split Vote</button>
+    <button onclick="EL.reset()">Reset</button>
+  </div>
+
+  <div class="commentary" id="el-commentary">All five nodes start as Followers in term 0. S1 is the current leader, sending periodic AppendEntries heartbeats to maintain authority.</div>
+
+  <div class="takeaway">
+    <strong>Takeaways</strong>
+    <ul>
+      <li>Election term increments monotonically. Each peer votes once per term. Random timeouts prevent perpetual split votes. Quorum requires majority -- 3 of 5, not 2 of 5.</li>
+      <li>The leader is the only node that sends AppendEntries. Followers only respond. A candidate that fails to win majority waits for a new random timeout before trying again.</li>
+      <li>Split votes are resolved by randomized election timeouts (typically 150-300ms). The node whose timeout fires first wins the next term.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- TAB 2: LOG REPLICATION                                        -->
+<!-- ============================================================ -->
+<section data-tab="replication" hidden>
+  <h2>Log Replication</h2>
+  <p>The leader receives client writes, appends them to its log, and replicates to followers via AppendEntries RPCs. An entry is <strong>committed</strong> once a majority (including the leader) has it. Committed entries are applied to the state machine.</p>
+
+  <svg id="lr-svg" viewBox="0 0 900 420" preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <marker id="lr-arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="#555"/>
+      </marker>
+      <marker id="lr-arrow-green" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="#51cf66"/>
+      </marker>
+      <marker id="lr-arrow-blue" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="#339af0"/>
+      </marker>
+    </defs>
+    <g id="lr-scene"></g>
+  </svg>
+
+  <div class="controls">
+    <button onclick="LR.prev()" id="lr-prev" disabled>Prev</button>
+    <button onclick="LR.next()" id="lr-next">Next</button>
+    <button onclick="LR.play()" id="lr-play">Play</button>
+    <span class="step-display" id="lr-step-display">Step 0 / 0</span>
+    <button onclick="LR.toggleScenario()" id="lr-scenario-btn">Switch: Stale Follower</button>
+    <button onclick="LR.reset()">Reset</button>
+  </div>
+
+  <div class="commentary" id="lr-commentary">S1 is the leader in term 1. Its log has 3 committed entries. All followers are in sync. A client is about to send a write request.</div>
+
+  <div class="takeaway">
+    <strong>Takeaways</strong>
+    <ul>
+      <li>Replication is per-entry leader-to-followers via AppendEntries. Commit = majority ack. Followers can lag; they catch up via standard replication, no special path.</li>
+      <li>The <code>prevLogIndex</code> / <code>prevLogTerm</code> consistency check ensures logs never diverge: a follower rejects if its log does not match the leader's at the previous entry.</li>
+      <li>Committed entries are never overwritten. Only uncommitted entries from stale leaders can be replaced.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- TAB 3: PARTITION + LEADER CHANGE                              -->
+<!-- ============================================================ -->
+<section data-tab="partition" hidden>
+  <h2>Partition + Leader Change</h2>
+  <p>A network partition splits the cluster. The majority partition elects a new leader and continues serving writes. The minority partition's stale leader cannot commit (no majority). On heal, the stale leader steps down and its uncommitted writes are overwritten.</p>
+
+  <svg id="pt-svg" viewBox="0 0 900 460" preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <marker id="pt-arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="#555"/>
+      </marker>
+      <marker id="pt-arrow-red" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="#ff6b6b"/>
+      </marker>
+      <marker id="pt-arrow-green" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="#51cf66"/>
+      </marker>
+    </defs>
+    <g id="pt-scene"></g>
+  </svg>
+
+  <div class="controls">
+    <button onclick="PT.prev()" id="pt-prev" disabled>Prev</button>
+    <button onclick="PT.next()" id="pt-next">Next</button>
+    <button onclick="PT.play()" id="pt-play">Play</button>
+    <span class="step-display" id="pt-step-display">Step 0 / 0</span>
+    <button onclick="PT.reset()">Reset</button>
+  </div>
+
+  <div class="commentary" id="pt-commentary">S1 is the leader in term 5. All five nodes are connected and in sync. We are about to introduce a network partition.</div>
+
+  <div class="takeaway">
+    <strong>Takeaways</strong>
+    <ul>
+      <li>Network partition creates two views. Only the majority partition can commit. The minority's stale leader steps down on heal via term comparison. Uncommitted entries are overwritten -- this is by design, not a bug.</li>
+      <li>Clients talking to the minority partition will see their writes time out (no commit acknowledgment). Clients must retry against the new leader.</li>
+      <li>This is Raft's core safety guarantee: no committed entry is ever lost, even across partitions and leader changes.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- TAB 4: SNAPSHOT + LOG COMPACTION                               -->
+<!-- ============================================================ -->
+<section data-tab="snapshot" hidden>
+  <h2>Snapshot + Log Compaction</h2>
+  <p>Without compaction, the Raft log grows without bound. Snapshots capture the state machine at a point in time, allowing log entries up to that point to be discarded. Far-behind followers receive the snapshot via InstallSnapshot RPC.</p>
+
+  <svg id="ss-svg" viewBox="0 0 900 420" preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <marker id="ss-arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="#555"/>
+      </marker>
+      <marker id="ss-arrow-green" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="#51cf66"/>
+      </marker>
+    </defs>
+    <g id="ss-scene"></g>
+  </svg>
+
+  <div class="controls">
+    <button onclick="SS.prev()" id="ss-prev" disabled>Prev</button>
+    <button onclick="SS.next()" id="ss-next">Next</button>
+    <button onclick="SS.play()" id="ss-play">Play</button>
+    <span class="step-display" id="ss-step-display">Step 0 / 0</span>
+    <button onclick="SS.reset()">Reset</button>
+  </div>
+
+  <div class="commentary" id="ss-commentary">A Raft node with a growing log. Each committed entry consumes memory. As the log grows, startup replay time increases and memory pressure mounts.</div>
+
+  <div class="takeaway">
+    <strong>Takeaways</strong>
+    <ul>
+      <li>Without snapshots, log grows unbounded. Snapshot is a state machine-level operation; Raft just integrates it via InstallSnapshot.</li>
+      <li>Each node snapshots independently. The leader only sends InstallSnapshot to followers that are too far behind for normal AppendEntries (their next index points to a discarded entry).</li>
+      <li>After applying a snapshot, the follower discards its entire log up to the snapshot index and resumes normal AppendEntries from there.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- TAB 5: MEMBERSHIP CHANGE                                      -->
+<!-- ============================================================ -->
+<section data-tab="membership" hidden>
+  <h2>Membership Change (Joint Consensus)</h2>
+  <p>Changing cluster membership (adding or removing nodes) is dangerous: during the transition, two disjoint majorities could form. Raft solves this with <strong>joint consensus</strong> -- a transitional config where entries must be committed by a majority of <em>both</em> the old and new configurations.</p>
+
+  <svg id="mc-svg" viewBox="0 0 900 460" preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <marker id="mc-arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="#555"/>
+      </marker>
+      <marker id="mc-arrow-green" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="#51cf66"/>
+      </marker>
+      <marker id="mc-arrow-yellow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="#ffd43b"/>
+      </marker>
+    </defs>
+    <g id="mc-scene"></g>
+  </svg>
+
+  <div class="controls">
+    <button onclick="MC.prev()" id="mc-prev" disabled>Prev</button>
+    <button onclick="MC.next()" id="mc-next">Next</button>
+    <button onclick="MC.play()" id="mc-play">Play</button>
+    <span class="step-display" id="mc-step-display">Step 0 / 0</span>
+    <button onclick="MC.reset()">Reset</button>
+  </div>
+
+  <div class="commentary" id="mc-commentary">A 3-node cluster (S1, S2, S3) with S1 as leader. We want to expand to 5 nodes (adding S4, S5). A naive switch could create two disjoint majorities during the transition.</div>
+
+  <div class="takeaway">
+    <strong>Takeaways</strong>
+    <ul>
+      <li>Naive membership change can cause split-brain (old and new configs both think they have majority). Joint consensus prevents it.</li>
+      <li>During joint consensus, every commit requires agreement from a majority of the OLD config AND a majority of the NEW config. This eliminates any window where two independent majorities can exist.</li>
+      <li>The transition is: C_old -> C_old,new (joint) -> C_new. Each step is a committed log entry. If the leader crashes mid-transition, the new leader continues from whichever config is in effect.</li>
+    </ul>
+  </div>
+</section>
+
+<script>
+/* ================================================================
+   SHARED UTILITIES
+   ================================================================ */
+function setActiveTab(name) {
+  var tabNames = ['election', 'replication', 'partition', 'snapshot', 'membership'];
+  var btns = document.querySelectorAll('nav.tabs button');
+  btns.forEach(function(b, i) { b.classList.toggle('active', tabNames[i] === name); });
+  document.querySelectorAll('section[data-tab]').forEach(function(s) {
+    s.hidden = s.getAttribute('data-tab') !== name;
+  });
+}
+
+function svgEl(tag, attrs) {
+  var el = document.createElementNS('http://www.w3.org/2000/svg', tag);
+  if (attrs) { for (var k in attrs) { el.setAttribute(k, attrs[k]); } }
+  return el;
+}
+
+function svgText(x, y, text, opts) {
+  var t = svgEl('text', Object.assign({
+    x: x, y: y, 'text-anchor': 'middle', fill: '#888', 'font-size': '11'
+  }, opts || {}));
+  t.textContent = text;
+  return t;
+}
+
+var NODE_COLORS = {
+  Follower: '#339af0',
+  Candidate: '#ffd43b',
+  Leader: '#51cf66'
+};
+
+var NODE_STROKE = {
+  Follower: '#2670b0',
+  Candidate: '#cc9900',
+  Leader: '#2d8f3a'
+};
+
+/* Draw a Raft node: circle + labels */
+function drawNode(scene, id, x, y, state, term, extra) {
+  var g = svgEl('g', { id: id });
+  var r = 32;
+  var col = NODE_COLORS[state] || '#888';
+  var stk = NODE_STROKE[state] || '#555';
+
+  g.appendChild(svgEl('circle', {
+    cx: x, cy: y, r: r,
+    fill: 'none', stroke: col, 'stroke-width': '2.5'
+  }));
+
+  /* Name */
+  g.appendChild(svgText(x, y - 6, id.replace(/^[a-z]+-/, ''), { fill: col, 'font-size': '15', 'font-weight': '700' }));
+
+  /* State label */
+  g.appendChild(svgText(x, y + 12, state, { fill: '#aaa', 'font-size': '10' }));
+
+  /* Term below */
+  g.appendChild(svgText(x, y + r + 16, 'term=' + term, { fill: '#666', 'font-size': '10' }));
+
+  /* Extra label (votes, etc.) */
+  if (extra) {
+    g.appendChild(svgText(x, y + r + 30, extra, { fill: '#888', 'font-size': '9' }));
+  }
+
+  /* Crashed X overlay */
+  if (state === 'Crashed') {
+    g.querySelector('circle').setAttribute('stroke', '#ff6b6b');
+    g.querySelector('circle').setAttribute('stroke-dasharray', '4,3');
+    g.querySelector('circle').setAttribute('opacity', '0.5');
+    var x1 = x - 18, y1 = y - 18, x2 = x + 18, y2 = y + 18;
+    g.appendChild(svgEl('line', { x1: x1, y1: y1, x2: x2, y2: y2, stroke: '#ff6b6b', 'stroke-width': '3' }));
+    g.appendChild(svgEl('line', { x1: x2, y1: y1, x2: x1, y2: y2, stroke: '#ff6b6b', 'stroke-width': '3' }));
+  }
+
+  scene.appendChild(g);
+  return g;
+}
+
+/* Draw an arrow between two points */
+function drawArrow(scene, x1, y1, x2, y2, color, label, dashed, markerId) {
+  var g = svgEl('g', {});
+  var dx = x2 - x1, dy = y2 - y1;
+  var len = Math.sqrt(dx * dx + dy * dy);
+  var ux = dx / len, uy = dy / len;
+  /* Shorten by node radius */
+  var sx = x1 + ux * 36, sy = y1 + uy * 36;
+  var ex = x2 - ux * 36, ey = y2 - uy * 36;
+  var mid = markerId || 'el-arrow';
+  g.appendChild(svgEl('line', {
+    x1: sx, y1: sy, x2: ex, y2: ey,
+    stroke: color || '#555', 'stroke-width': '1.5',
+    'marker-end': 'url(#' + mid + ')',
+    'stroke-dasharray': dashed ? '5,4' : 'none'
+  }));
+  if (label) {
+    var mx = (sx + ex) / 2, my = (sy + ey) / 2;
+    /* Offset label perpendicular to line */
+    var px = -uy * 12, py = ux * 12;
+    g.appendChild(svgText(mx + px, my + py, label, { fill: color || '#888', 'font-size': '9' }));
+  }
+  scene.appendChild(g);
+  return g;
+}
+
+/* Pentagon layout for 5 nodes */
+function pentagonPos(idx, cx, cy, r) {
+  var angle = -Math.PI / 2 + (2 * Math.PI * idx) / 5;
+  return { x: cx + r * Math.cos(angle), y: cy + r * Math.sin(angle) };
+}
+
+/* Generic stepper factory */
+function createStepper(prefix, steps, renderFn) {
+  var current = 0;
+  var playing = false;
+  var playTimer = null;
+
+  function updateButtons() {
+    document.getElementById(prefix + '-prev').disabled = current <= 0;
+    document.getElementById(prefix + '-next').disabled = current >= steps.length - 1;
+    document.getElementById(prefix + '-step-display').textContent =
+      'Step ' + (current + 1) + ' / ' + steps.length;
+    var playBtn = document.getElementById(prefix + '-play');
+    playBtn.textContent = playing ? 'Pause' : 'Play';
+  }
+
+  function render() {
+    renderFn(current, steps[current]);
+    updateButtons();
+  }
+
+  function next() {
+    if (current < steps.length - 1) { current++; render(); }
+    else if (playing) { stopPlay(); }
+  }
+
+  function prev() {
+    if (current > 0) { current--; render(); }
+  }
+
+  function play() {
+    if (playing) { stopPlay(); return; }
+    playing = true;
+    updateButtons();
+    playTimer = setInterval(function() { next(); }, 1500);
+  }
+
+  function stopPlay() {
+    playing = false;
+    if (playTimer) { clearInterval(playTimer); playTimer = null; }
+    updateButtons();
+  }
+
+  function reset() {
+    stopPlay();
+    current = 0;
+    render();
+  }
+
+  function setSteps(newSteps) {
+    steps = newSteps;
+    current = 0;
+    render();
+  }
+
+  render();
+
+  return { next: next, prev: prev, play: play, reset: reset, setSteps: setSteps, render: render };
+}
+
+
+/* ================================================================
+   TAB 1 -- LEADER ELECTION
+   ================================================================ */
+var EL = (function() {
+  var cx = 450, cy = 210, radius = 150;
+  var positions = [];
+  for (var i = 0; i < 5; i++) { positions.push(pentagonPos(i, cx, cy, radius)); }
+  var names = ['S1', 'S2', 'S3', 'S4', 'S5'];
+
+  var normalSteps = [
+    {
+      title: 'Steady state: S1 is Leader',
+      nodes: [
+        { name: 'S1', state: 'Leader', term: 0 },
+        { name: 'S2', state: 'Follower', term: 0 },
+        { name: 'S3', state: 'Follower', term: 0 },
+        { name: 'S4', state: 'Follower', term: 0 },
+        { name: 'S5', state: 'Follower', term: 0 }
+      ],
+      arrows: [
+        { from: 0, to: 1, label: 'heartbeat', color: '#51cf66' },
+        { from: 0, to: 2, label: 'heartbeat', color: '#51cf66' },
+        { from: 0, to: 3, label: 'heartbeat', color: '#51cf66' },
+        { from: 0, to: 4, label: 'heartbeat', color: '#51cf66' }
+      ],
+      commentary: 'All five nodes in term 0. S1 is leader, sending AppendEntries heartbeats every ~50ms to maintain authority. As long as followers receive heartbeats, they do not start elections.'
+    },
+    {
+      title: 'S1 crashes',
+      nodes: [
+        { name: 'S1', state: 'Crashed', term: 0 },
+        { name: 'S2', state: 'Follower', term: 0 },
+        { name: 'S3', state: 'Follower', term: 0 },
+        { name: 'S4', state: 'Follower', term: 0 },
+        { name: 'S5', state: 'Follower', term: 0 }
+      ],
+      arrows: [],
+      commentary: 'S1 crashes. Heartbeats stop. Each follower has a randomized election timeout (150-300ms). The first follower whose timeout elapses will become a candidate.'
+    },
+    {
+      title: 'S2 election timeout elapses',
+      nodes: [
+        { name: 'S1', state: 'Crashed', term: 0 },
+        { name: 'S2', state: 'Candidate', term: 1, extra: 'votes: 1 (self)' },
+        { name: 'S3', state: 'Follower', term: 0 },
+        { name: 'S4', state: 'Follower', term: 0 },
+        { name: 'S5', state: 'Follower', term: 0 }
+      ],
+      arrows: [],
+      commentary: 'S2\'s election timeout fires first (random ~180ms). S2 increments its term to 1, transitions to Candidate, and votes for itself. Each node can only cast one vote per term.'
+    },
+    {
+      title: 'S2 sends RequestVote RPCs',
+      nodes: [
+        { name: 'S1', state: 'Crashed', term: 0 },
+        { name: 'S2', state: 'Candidate', term: 1, extra: 'votes: 1 (self)' },
+        { name: 'S3', state: 'Follower', term: 0 },
+        { name: 'S4', state: 'Follower', term: 0 },
+        { name: 'S5', state: 'Follower', term: 0 }
+      ],
+      arrows: [
+        { from: 1, to: 0, label: 'RequestVote', color: '#ffd43b', dashed: true },
+        { from: 1, to: 2, label: 'RequestVote', color: '#ffd43b' },
+        { from: 1, to: 3, label: 'RequestVote', color: '#ffd43b' },
+        { from: 1, to: 4, label: 'RequestVote', color: '#ffd43b' }
+      ],
+      commentary: 'S2 sends RequestVote RPCs to all peers. The RPC includes S2\'s term (1) and log info (for the log-up-to-date check). The request to S1 fails -- S1 is crashed.'
+    },
+    {
+      title: 'Peers grant votes',
+      nodes: [
+        { name: 'S1', state: 'Crashed', term: 0 },
+        { name: 'S2', state: 'Candidate', term: 1, extra: 'votes: 4/5' },
+        { name: 'S3', state: 'Follower', term: 1, extra: 'voted: S2' },
+        { name: 'S4', state: 'Follower', term: 1, extra: 'voted: S2' },
+        { name: 'S5', state: 'Follower', term: 1, extra: 'voted: S2' }
+      ],
+      arrows: [
+        { from: 2, to: 1, label: 'vote granted', color: '#51cf66' },
+        { from: 3, to: 1, label: 'vote granted', color: '#51cf66' },
+        { from: 4, to: 1, label: 'vote granted', color: '#51cf66' }
+      ],
+      commentary: 'S3, S4, S5 have not voted in term 1 yet, and S2\'s log is at least as up-to-date as theirs. They grant their votes and update their term to 1. Each node can only vote once per term -- first-come-first-served.'
+    },
+    {
+      title: 'S2 becomes Leader',
+      nodes: [
+        { name: 'S1', state: 'Crashed', term: 0 },
+        { name: 'S2', state: 'Leader', term: 1 },
+        { name: 'S3', state: 'Follower', term: 1 },
+        { name: 'S4', state: 'Follower', term: 1 },
+        { name: 'S5', state: 'Follower', term: 1 }
+      ],
+      arrows: [],
+      commentary: 'S2 received 4 votes (self + S3 + S4 + S5). Majority is 3 of 5. With 4 votes, S2 wins and transitions to Leader for term 1. S2 immediately prepares to send heartbeats.'
+    },
+    {
+      title: 'S2 sends heartbeats as new Leader',
+      nodes: [
+        { name: 'S1', state: 'Crashed', term: 0 },
+        { name: 'S2', state: 'Leader', term: 1 },
+        { name: 'S3', state: 'Follower', term: 1 },
+        { name: 'S4', state: 'Follower', term: 1 },
+        { name: 'S5', state: 'Follower', term: 1 }
+      ],
+      arrows: [
+        { from: 1, to: 2, label: 'heartbeat', color: '#51cf66' },
+        { from: 1, to: 3, label: 'heartbeat', color: '#51cf66' },
+        { from: 1, to: 4, label: 'heartbeat', color: '#51cf66' }
+      ],
+      commentary: 'S2 sends AppendEntries heartbeats to all live peers, establishing its authority. Followers reset their election timeouts on receiving the heartbeat. Cluster is healthy again with 4 of 5 nodes operational.'
+    }
+  ];
+
+  var splitVoteSteps = [
+    {
+      title: 'Steady state: S1 is Leader',
+      nodes: [
+        { name: 'S1', state: 'Leader', term: 0 },
+        { name: 'S2', state: 'Follower', term: 0 },
+        { name: 'S3', state: 'Follower', term: 0 },
+        { name: 'S4', state: 'Follower', term: 0 },
+        { name: 'S5', state: 'Follower', term: 0 }
+      ],
+      arrows: [
+        { from: 0, to: 1, label: 'heartbeat', color: '#51cf66' },
+        { from: 0, to: 2, label: 'heartbeat', color: '#51cf66' },
+        { from: 0, to: 3, label: 'heartbeat', color: '#51cf66' },
+        { from: 0, to: 4, label: 'heartbeat', color: '#51cf66' }
+      ],
+      commentary: 'Same starting state. S1 is leader in term 0, sending heartbeats. About to demonstrate a split vote scenario.'
+    },
+    {
+      title: 'S1 crashes',
+      nodes: [
+        { name: 'S1', state: 'Crashed', term: 0 },
+        { name: 'S2', state: 'Follower', term: 0 },
+        { name: 'S3', state: 'Follower', term: 0 },
+        { name: 'S4', state: 'Follower', term: 0 },
+        { name: 'S5', state: 'Follower', term: 0 }
+      ],
+      arrows: [],
+      commentary: 'S1 crashes. Both S2 and S3 have similar election timeouts. In rare cases, two nodes time out nearly simultaneously.'
+    },
+    {
+      title: 'S2 AND S3 both become Candidates (same term)',
+      nodes: [
+        { name: 'S1', state: 'Crashed', term: 0 },
+        { name: 'S2', state: 'Candidate', term: 1, extra: 'votes: 1 (self)' },
+        { name: 'S3', state: 'Candidate', term: 1, extra: 'votes: 1 (self)' },
+        { name: 'S4', state: 'Follower', term: 0 },
+        { name: 'S5', state: 'Follower', term: 0 }
+      ],
+      arrows: [],
+      commentary: 'Split vote scenario: S2 and S3 both timeout at nearly the same instant. Both increment to term 1 and vote for themselves. Each has 1 vote so far.'
+    },
+    {
+      title: 'Both send RequestVote simultaneously',
+      nodes: [
+        { name: 'S1', state: 'Crashed', term: 0 },
+        { name: 'S2', state: 'Candidate', term: 1, extra: 'votes: 1 (self)' },
+        { name: 'S3', state: 'Candidate', term: 1, extra: 'votes: 1 (self)' },
+        { name: 'S4', state: 'Follower', term: 0 },
+        { name: 'S5', state: 'Follower', term: 0 }
+      ],
+      arrows: [
+        { from: 1, to: 3, label: 'RequestVote', color: '#ffd43b' },
+        { from: 1, to: 4, label: 'RequestVote', color: '#ffd43b' },
+        { from: 2, to: 3, label: 'RequestVote', color: '#cc5de8' },
+        { from: 2, to: 4, label: 'RequestVote', color: '#cc5de8' }
+      ],
+      commentary: 'Both candidates send RequestVote to S4 and S5. The order in which these RPCs arrive determines who gets each vote. Each peer votes only once per term -- first request to arrive wins that peer\'s vote.'
+    },
+    {
+      title: 'Split result: each gets 2 votes',
+      nodes: [
+        { name: 'S1', state: 'Crashed', term: 0 },
+        { name: 'S2', state: 'Candidate', term: 1, extra: 'votes: 2/5' },
+        { name: 'S3', state: 'Candidate', term: 1, extra: 'votes: 2/5' },
+        { name: 'S4', state: 'Follower', term: 1, extra: 'voted: S2' },
+        { name: 'S5', state: 'Follower', term: 1, extra: 'voted: S3' }
+      ],
+      arrows: [
+        { from: 3, to: 1, label: 'vote granted', color: '#51cf66' },
+        { from: 4, to: 2, label: 'vote granted', color: '#51cf66' }
+      ],
+      commentary: 'S4 received S2\'s RequestVote first -- grants vote to S2. S5 received S3\'s first -- grants vote to S3. Result: S2 has 2 votes (self + S4), S3 has 2 votes (self + S5). Neither has majority (need 3). DEADLOCK for this term.'
+    },
+    {
+      title: 'Election timeout -- back to waiting',
+      nodes: [
+        { name: 'S1', state: 'Crashed', term: 0 },
+        { name: 'S2', state: 'Follower', term: 1, extra: 'timeout: 220ms' },
+        { name: 'S3', state: 'Follower', term: 1, extra: 'timeout: 290ms' },
+        { name: 'S4', state: 'Follower', term: 1 },
+        { name: 'S5', state: 'Follower', term: 1 }
+      ],
+      arrows: [],
+      commentary: 'Neither candidate won. Both revert to Follower and start new, independently randomized election timeouts. S2 gets 220ms, S3 gets 290ms. The randomization is the key mechanism that breaks the tie.'
+    },
+    {
+      title: 'S2 times out first, new election in term 2',
+      nodes: [
+        { name: 'S1', state: 'Crashed', term: 0 },
+        { name: 'S2', state: 'Candidate', term: 2, extra: 'votes: 1 (self)' },
+        { name: 'S3', state: 'Follower', term: 1, extra: 'waiting...' },
+        { name: 'S4', state: 'Follower', term: 1 },
+        { name: 'S5', state: 'Follower', term: 1 }
+      ],
+      arrows: [
+        { from: 1, to: 2, label: 'RequestVote', color: '#ffd43b' },
+        { from: 1, to: 3, label: 'RequestVote', color: '#ffd43b' },
+        { from: 1, to: 4, label: 'RequestVote', color: '#ffd43b' }
+      ],
+      commentary: 'S2\'s new timeout (220ms) fires before S3\'s (290ms). S2 starts election for term 2. This time, S2 is the only candidate -- S3 has not timed out yet, so S3 is still a follower and can vote.'
+    },
+    {
+      title: 'S2 wins term 2 with clear majority',
+      nodes: [
+        { name: 'S1', state: 'Crashed', term: 0 },
+        { name: 'S2', state: 'Leader', term: 2 },
+        { name: 'S3', state: 'Follower', term: 2, extra: 'voted: S2' },
+        { name: 'S4', state: 'Follower', term: 2, extra: 'voted: S2' },
+        { name: 'S5', state: 'Follower', term: 2, extra: 'voted: S2' }
+      ],
+      arrows: [
+        { from: 1, to: 2, label: 'heartbeat', color: '#51cf66' },
+        { from: 1, to: 3, label: 'heartbeat', color: '#51cf66' },
+        { from: 1, to: 4, label: 'heartbeat', color: '#51cf66' }
+      ],
+      commentary: 'S3, S4, S5 all vote for S2 in term 2 (no competing candidate). S2 gets 4 votes, becomes leader. Term 1 was wasted on the split vote, but term 2 resolves cleanly thanks to randomized timeouts. The cluster is healthy.'
+    }
+  ];
+
+  var scenario = 'normal';
+
+  function getSteps() {
+    return scenario === 'normal' ? normalSteps : splitVoteSteps;
+  }
+
+  function renderStep(stepIdx, step) {
+    var scene = document.getElementById('el-scene');
+    scene.innerHTML = '';
+
+    /* Title */
+    scene.appendChild(svgText(cx, 30, step.title, { fill: '#fff', 'font-size': '14', 'font-weight': '600' }));
+
+    /* Draw arrows first (behind nodes) */
+    step.arrows.forEach(function(a) {
+      var from = positions[a.from], to = positions[a.to];
+      drawArrow(scene, from.x, from.y, to.x, to.y, a.color, a.label, a.dashed, 'el-arrow');
+    });
+
+    /* Draw nodes */
+    step.nodes.forEach(function(n, i) {
+      var p = positions[i];
+      drawNode(scene, 'el-' + n.name, p.x, p.y, n.state, n.term, n.extra);
+    });
+
+    /* Term bar at bottom */
+    var termY = 410;
+    scene.appendChild(svgText(cx, termY, 'Current max term: ' + Math.max.apply(null, step.nodes.map(function(n) { return n.term; })),
+      { fill: '#666', 'font-size': '12' }));
+
+    /* Quorum indicator */
+    var leaders = step.nodes.filter(function(n) { return n.state === 'Leader'; });
+    var live = step.nodes.filter(function(n) { return n.state !== 'Crashed'; });
+    var qText = 'Cluster: ' + live.length + '/5 alive | Majority: 3 needed';
+    if (leaders.length > 0) { qText += ' | Leader: ' + leaders[0].name; }
+    scene.appendChild(svgText(cx, termY + 20, qText, { fill: '#555', 'font-size': '11' }));
+
+    document.getElementById('el-commentary').textContent = step.commentary;
+  }
+
+  var stepper = null;
+
+  function init() {
+    stepper = createStepper('el', getSteps(), renderStep);
+  }
+
+  function toggleScenario() {
+    scenario = scenario === 'normal' ? 'splitvote' : 'normal';
+    var btn = document.getElementById('el-scenario-btn');
+    btn.textContent = scenario === 'normal' ? 'Switch: Split Vote' : 'Switch: Normal Election';
+    stepper.setSteps(getSteps());
+  }
+
+  init();
+
+  return {
+    next: function() { stepper.next(); },
+    prev: function() { stepper.prev(); },
+    play: function() { stepper.play(); },
+    reset: function() { stepper.reset(); },
+    toggleScenario: toggleScenario
+  };
+})();
+
+
+/* ================================================================
+   TAB 2 -- LOG REPLICATION
+   ================================================================ */
+var LR = (function() {
+  var cx = 450, cy = 180, radius = 140;
+  var positions = [];
+  for (var i = 0; i < 5; i++) { positions.push(pentagonPos(i, cx, cy, radius)); }
+
+  /* Log entry: { index, term, cmd, committed } */
+  function makeLog(entries) {
+    return entries.map(function(e) {
+      return { index: e[0], term: e[1], cmd: e[2], committed: e[3] !== false };
+    });
+  }
+
+  var baseLog = [[1, 1, 'set x=1'], [2, 1, 'set y=2'], [3, 1, 'del z']];
+
+  function drawLogs(scene, logsPerNode, highlightNode, highlightIdx, staleEntries) {
+    var startY = 290;
+    var colW = 160;
+    var startX = 45;
+    var rowH = 22;
+    var names = ['S1', 'S2', 'S3', 'S4', 'S5'];
+
+    names.forEach(function(name, ni) {
+      var x = startX + ni * colW;
+      var log = logsPerNode[ni] || [];
+      var nodeState = ni === 0 ? 'Leader' : 'Follower';
+
+      /* Node label */
+      var labelColor = ni === 0 ? '#51cf66' : '#339af0';
+      scene.appendChild(svgText(x + 65, startY, name, { fill: labelColor, 'font-size': '12', 'font-weight': '600' }));
+
+      /* Log entries */
+      log.forEach(function(entry, ei) {
+        var ey = startY + 12 + ei * rowH;
+        var isHighlight = highlightNode === ni && highlightIdx === ei;
+        var isStale = staleEntries && staleEntries[ni] && staleEntries[ni].indexOf(ei) !== -1;
+        var bgColor = isStale ? '#2a1520' : (entry.committed ? '#1a2a1a' : '#2a2018');
+        var textColor = isStale ? '#ff6b6b' : (entry.committed ? '#51cf66' : '#ffa94d');
+
+        scene.appendChild(svgEl('rect', {
+          x: x, y: ey, width: 130, height: rowH - 2, rx: 3,
+          fill: bgColor, stroke: isHighlight ? '#fff' : '#333', 'stroke-width': isHighlight ? '2' : '1'
+        }));
+
+        var label = '[' + entry.index + '] t' + entry.term + ' ' + entry.cmd;
+        if (isStale) { label = '[' + entry.index + '] OVERWRITTEN'; }
+        scene.appendChild(svgText(x + 65, ey + 14, label, {
+          fill: textColor, 'font-size': '9',
+          'text-decoration': isStale ? 'line-through' : 'none'
+        }));
+      });
+
+      /* commit marker */
+      var committed = log.filter(function(e) { return e.committed; });
+      if (committed.length > 0) {
+        var lastY = startY + 12 + committed.length * rowH;
+        scene.appendChild(svgText(x + 65, lastY + 4, 'committed: ' + committed.length, {
+          fill: '#51cf66', 'font-size': '8'
+        }));
+      }
+    });
+  }
+
+  var normalSteps = [
+    {
+      title: 'Steady state: S1 leader, logs in sync',
+      nodes: [
+        { name: 'S1', state: 'Leader', term: 1 },
+        { name: 'S2', state: 'Follower', term: 1 },
+        { name: 'S3', state: 'Follower', term: 1 },
+        { name: 'S4', state: 'Follower', term: 1 },
+        { name: 'S5', state: 'Follower', term: 1 }
+      ],
+      arrows: [],
+      logs: [
+        makeLog(baseLog), makeLog(baseLog), makeLog(baseLog),
+        makeLog(baseLog), makeLog(baseLog)
+      ],
+      commentary: 'S1 is leader in term 1. All nodes have 3 committed entries in their logs. Logs are fully synchronized.'
+    },
+    {
+      title: 'Client sends: set x=5',
+      nodes: [
+        { name: 'S1', state: 'Leader', term: 1 },
+        { name: 'S2', state: 'Follower', term: 1 },
+        { name: 'S3', state: 'Follower', term: 1 },
+        { name: 'S4', state: 'Follower', term: 1 },
+        { name: 'S5', state: 'Follower', term: 1 }
+      ],
+      arrows: [],
+      logs: [
+        makeLog(baseLog), makeLog(baseLog), makeLog(baseLog),
+        makeLog(baseLog), makeLog(baseLog)
+      ],
+      clientArrow: true,
+      commentary: 'A client sends "set x=5" to the leader (S1). The leader does not immediately respond -- it must first replicate and commit the entry.'
+    },
+    {
+      title: 'Leader appends to local log',
+      nodes: [
+        { name: 'S1', state: 'Leader', term: 1 },
+        { name: 'S2', state: 'Follower', term: 1 },
+        { name: 'S3', state: 'Follower', term: 1 },
+        { name: 'S4', state: 'Follower', term: 1 },
+        { name: 'S5', state: 'Follower', term: 1 }
+      ],
+      arrows: [],
+      logs: [
+        makeLog(baseLog.concat([[4, 1, 'set x=5', false]])),
+        makeLog(baseLog), makeLog(baseLog),
+        makeLog(baseLog), makeLog(baseLog)
+      ],
+      highlightNode: 0, highlightIdx: 3,
+      commentary: 'S1 appends the entry to its own log at index 4, term 1. The entry is UNCOMMITTED (orange). S1 does not apply it to the state machine yet.'
+    },
+    {
+      title: 'Leader sends AppendEntries to all followers',
+      nodes: [
+        { name: 'S1', state: 'Leader', term: 1 },
+        { name: 'S2', state: 'Follower', term: 1 },
+        { name: 'S3', state: 'Follower', term: 1 },
+        { name: 'S4', state: 'Follower', term: 1 },
+        { name: 'S5', state: 'Follower', term: 1 }
+      ],
+      arrows: [
+        { from: 0, to: 1, label: 'AppendEntries', color: '#339af0' },
+        { from: 0, to: 2, label: 'AppendEntries', color: '#339af0' },
+        { from: 0, to: 3, label: 'AppendEntries', color: '#339af0' },
+        { from: 0, to: 4, label: 'AppendEntries', color: '#339af0' }
+      ],
+      logs: [
+        makeLog(baseLog.concat([[4, 1, 'set x=5', false]])),
+        makeLog(baseLog), makeLog(baseLog),
+        makeLog(baseLog), makeLog(baseLog)
+      ],
+      commentary: 'S1 sends AppendEntries RPCs containing the new entry plus prevLogIndex=3, prevLogTerm=1 for the consistency check. Each follower verifies its log matches at the previous position.'
+    },
+    {
+      title: 'Followers verify consistency and append',
+      nodes: [
+        { name: 'S1', state: 'Leader', term: 1 },
+        { name: 'S2', state: 'Follower', term: 1 },
+        { name: 'S3', state: 'Follower', term: 1 },
+        { name: 'S4', state: 'Follower', term: 1 },
+        { name: 'S5', state: 'Follower', term: 1 }
+      ],
+      arrows: [
+        { from: 1, to: 0, label: 'OK', color: '#51cf66' },
+        { from: 2, to: 0, label: 'OK', color: '#51cf66' },
+        { from: 3, to: 0, label: 'OK', color: '#51cf66' },
+        { from: 4, to: 0, label: 'OK', color: '#51cf66' }
+      ],
+      logs: [
+        makeLog(baseLog.concat([[4, 1, 'set x=5', false]])),
+        makeLog(baseLog.concat([[4, 1, 'set x=5', false]])),
+        makeLog(baseLog.concat([[4, 1, 'set x=5', false]])),
+        makeLog(baseLog.concat([[4, 1, 'set x=5', false]])),
+        makeLog(baseLog.concat([[4, 1, 'set x=5', false]]))
+      ],
+      commentary: 'Each follower checks: "does my log at index 3 have term 1?" Yes -- match. They append the new entry at index 4 and respond OK. The entry is still uncommitted on all nodes.'
+    },
+    {
+      title: 'Leader counts ACKs -- majority reached, COMMIT',
+      nodes: [
+        { name: 'S1', state: 'Leader', term: 1 },
+        { name: 'S2', state: 'Follower', term: 1 },
+        { name: 'S3', state: 'Follower', term: 1 },
+        { name: 'S4', state: 'Follower', term: 1 },
+        { name: 'S5', state: 'Follower', term: 1 }
+      ],
+      arrows: [],
+      logs: [
+        makeLog(baseLog.concat([[4, 1, 'set x=5']])),
+        makeLog(baseLog.concat([[4, 1, 'set x=5', false]])),
+        makeLog(baseLog.concat([[4, 1, 'set x=5', false]])),
+        makeLog(baseLog.concat([[4, 1, 'set x=5', false]])),
+        makeLog(baseLog.concat([[4, 1, 'set x=5', false]]))
+      ],
+      highlightNode: 0, highlightIdx: 3,
+      commentary: 'S1 received OK from all 4 followers. Including itself, that is 5/5 -- well over the majority of 3. S1 marks the entry as COMMITTED (green), applies it to the state machine, and returns success to the client.'
+    },
+    {
+      title: 'Followers learn of commit via next heartbeat',
+      nodes: [
+        { name: 'S1', state: 'Leader', term: 1 },
+        { name: 'S2', state: 'Follower', term: 1 },
+        { name: 'S3', state: 'Follower', term: 1 },
+        { name: 'S4', state: 'Follower', term: 1 },
+        { name: 'S5', state: 'Follower', term: 1 }
+      ],
+      arrows: [
+        { from: 0, to: 1, label: 'leaderCommit=4', color: '#51cf66' },
+        { from: 0, to: 2, label: 'leaderCommit=4', color: '#51cf66' },
+        { from: 0, to: 3, label: 'leaderCommit=4', color: '#51cf66' },
+        { from: 0, to: 4, label: 'leaderCommit=4', color: '#51cf66' }
+      ],
+      logs: [
+        makeLog(baseLog.concat([[4, 1, 'set x=5']])),
+        makeLog(baseLog.concat([[4, 1, 'set x=5']])),
+        makeLog(baseLog.concat([[4, 1, 'set x=5']])),
+        makeLog(baseLog.concat([[4, 1, 'set x=5']])),
+        makeLog(baseLog.concat([[4, 1, 'set x=5']]))
+      ],
+      commentary: 'The next AppendEntries from S1 includes leaderCommit=4. Followers see their log has entry 4 and it is now committed. They apply it to their local state machines. Full sync achieved.'
+    }
+  ];
+
+  var staleFollowerSteps = [
+    {
+      title: 'S5 is stale -- lagging by 3 entries',
+      nodes: [
+        { name: 'S1', state: 'Leader', term: 1 },
+        { name: 'S2', state: 'Follower', term: 1 },
+        { name: 'S3', state: 'Follower', term: 1 },
+        { name: 'S4', state: 'Follower', term: 1 },
+        { name: 'S5', state: 'Follower', term: 1, extra: 'STALE' }
+      ],
+      arrows: [],
+      logs: [
+        makeLog(baseLog.concat([[4,1,'set a=1'],[5,1,'set b=2'],[6,1,'set c=3']])),
+        makeLog(baseLog.concat([[4,1,'set a=1'],[5,1,'set b=2'],[6,1,'set c=3']])),
+        makeLog(baseLog.concat([[4,1,'set a=1'],[5,1,'set b=2'],[6,1,'set c=3']])),
+        makeLog(baseLog.concat([[4,1,'set a=1'],[5,1,'set b=2'],[6,1,'set c=3']])),
+        makeLog(baseLog)
+      ],
+      commentary: 'S5 was temporarily disconnected and missed 3 entries (indices 4, 5, 6). S1 through S4 have all 6 committed entries. S5 only has the first 3.'
+    },
+    {
+      title: 'Leader sends AppendEntries to S5',
+      nodes: [
+        { name: 'S1', state: 'Leader', term: 1 },
+        { name: 'S2', state: 'Follower', term: 1 },
+        { name: 'S3', state: 'Follower', term: 1 },
+        { name: 'S4', state: 'Follower', term: 1 },
+        { name: 'S5', state: 'Follower', term: 1, extra: 'STALE' }
+      ],
+      arrows: [
+        { from: 0, to: 4, label: 'AppendEntries (prevIdx=6)', color: '#339af0' }
+      ],
+      logs: [
+        makeLog(baseLog.concat([[4,1,'set a=1'],[5,1,'set b=2'],[6,1,'set c=3']])),
+        makeLog(baseLog.concat([[4,1,'set a=1'],[5,1,'set b=2'],[6,1,'set c=3']])),
+        makeLog(baseLog.concat([[4,1,'set a=1'],[5,1,'set b=2'],[6,1,'set c=3']])),
+        makeLog(baseLog.concat([[4,1,'set a=1'],[5,1,'set b=2'],[6,1,'set c=3']])),
+        makeLog(baseLog)
+      ],
+      commentary: 'S1 sends AppendEntries with prevLogIndex=6, prevLogTerm=1. S5 checks: "do I have an entry at index 6?" No -- S5\'s log ends at index 3. S5 responds with a rejection.'
+    },
+    {
+      title: 'S5 rejects -- log mismatch at prevLogIndex',
+      nodes: [
+        { name: 'S1', state: 'Leader', term: 1 },
+        { name: 'S2', state: 'Follower', term: 1 },
+        { name: 'S3', state: 'Follower', term: 1 },
+        { name: 'S4', state: 'Follower', term: 1 },
+        { name: 'S5', state: 'Follower', term: 1, extra: 'STALE' }
+      ],
+      arrows: [
+        { from: 4, to: 0, label: 'REJECT (no idx 6)', color: '#ff6b6b' }
+      ],
+      logs: [
+        makeLog(baseLog.concat([[4,1,'set a=1'],[5,1,'set b=2'],[6,1,'set c=3']])),
+        makeLog(baseLog.concat([[4,1,'set a=1'],[5,1,'set b=2'],[6,1,'set c=3']])),
+        makeLog(baseLog.concat([[4,1,'set a=1'],[5,1,'set b=2'],[6,1,'set c=3']])),
+        makeLog(baseLog.concat([[4,1,'set a=1'],[5,1,'set b=2'],[6,1,'set c=3']])),
+        makeLog(baseLog)
+      ],
+      commentary: 'S5 rejects the AppendEntries. The leader detects the mismatch and decrements nextIndex for S5. It will walk back through the log to find the point where S5 and the leader agree.'
+    },
+    {
+      title: 'Leader walks back -- tries prevLogIndex=3',
+      nodes: [
+        { name: 'S1', state: 'Leader', term: 1 },
+        { name: 'S2', state: 'Follower', term: 1 },
+        { name: 'S3', state: 'Follower', term: 1 },
+        { name: 'S4', state: 'Follower', term: 1 },
+        { name: 'S5', state: 'Follower', term: 1, extra: 'catching up...' }
+      ],
+      arrows: [
+        { from: 0, to: 4, label: 'AppendEntries (prevIdx=3, entries 4-6)', color: '#339af0' }
+      ],
+      logs: [
+        makeLog(baseLog.concat([[4,1,'set a=1'],[5,1,'set b=2'],[6,1,'set c=3']])),
+        makeLog(baseLog.concat([[4,1,'set a=1'],[5,1,'set b=2'],[6,1,'set c=3']])),
+        makeLog(baseLog.concat([[4,1,'set a=1'],[5,1,'set b=2'],[6,1,'set c=3']])),
+        makeLog(baseLog.concat([[4,1,'set a=1'],[5,1,'set b=2'],[6,1,'set c=3']])),
+        makeLog(baseLog)
+      ],
+      commentary: 'Leader walks back to prevLogIndex=3. S5 checks: "do I have entry at index 3 with term 1?" Yes -- match found. S1 sends entries 4, 5, 6 in a single AppendEntries batch starting from the match point.'
+    },
+    {
+      title: 'S5 accepts and catches up',
+      nodes: [
+        { name: 'S1', state: 'Leader', term: 1 },
+        { name: 'S2', state: 'Follower', term: 1 },
+        { name: 'S3', state: 'Follower', term: 1 },
+        { name: 'S4', state: 'Follower', term: 1 },
+        { name: 'S5', state: 'Follower', term: 1 }
+      ],
+      arrows: [
+        { from: 4, to: 0, label: 'OK', color: '#51cf66' }
+      ],
+      logs: [
+        makeLog(baseLog.concat([[4,1,'set a=1'],[5,1,'set b=2'],[6,1,'set c=3']])),
+        makeLog(baseLog.concat([[4,1,'set a=1'],[5,1,'set b=2'],[6,1,'set c=3']])),
+        makeLog(baseLog.concat([[4,1,'set a=1'],[5,1,'set b=2'],[6,1,'set c=3']])),
+        makeLog(baseLog.concat([[4,1,'set a=1'],[5,1,'set b=2'],[6,1,'set c=3']])),
+        makeLog(baseLog.concat([[4,1,'set a=1'],[5,1,'set b=2'],[6,1,'set c=3']]))
+      ],
+      commentary: 'S5 appends entries 4, 5, 6. Its log now matches the leader. No special "catch-up" protocol -- standard AppendEntries with the right prevLogIndex handles it. Leader updates nextIndex for S5 back to 7.'
+    },
+    {
+      title: 'Partial replication demo: commit with 2 lagging',
+      nodes: [
+        { name: 'S1', state: 'Leader', term: 1 },
+        { name: 'S2', state: 'Follower', term: 1 },
+        { name: 'S3', state: 'Follower', term: 1 },
+        { name: 'S4', state: 'Follower', term: 1, extra: 'lagging' },
+        { name: 'S5', state: 'Follower', term: 1, extra: 'lagging' }
+      ],
+      arrows: [
+        { from: 0, to: 1, label: 'OK', color: '#51cf66' },
+        { from: 0, to: 2, label: 'OK', color: '#51cf66' },
+        { from: 0, to: 3, label: 'slow...', color: '#ffa94d', dashed: true },
+        { from: 0, to: 4, label: 'slow...', color: '#ffa94d', dashed: true }
+      ],
+      logs: [
+        makeLog(baseLog.concat([[4,1,'set a=1'],[5,1,'set b=2'],[6,1,'set c=3'],[7,1,'set d=4']])),
+        makeLog(baseLog.concat([[4,1,'set a=1'],[5,1,'set b=2'],[6,1,'set c=3'],[7,1,'set d=4']])),
+        makeLog(baseLog.concat([[4,1,'set a=1'],[5,1,'set b=2'],[6,1,'set c=3'],[7,1,'set d=4']])),
+        makeLog(baseLog.concat([[4,1,'set a=1'],[5,1,'set b=2'],[6,1,'set c=3']])),
+        makeLog(baseLog.concat([[4,1,'set a=1'],[5,1,'set b=2'],[6,1,'set c=3']]))
+      ],
+      commentary: 'New entry at index 7. S1 (leader) + S2 + S3 have it = 3/5 majority. S4 and S5 are lagging. That is fine -- 3/5 is majority, so index 7 is committed. S4 and S5 will catch up asynchronously via subsequent AppendEntries.'
+    }
+  ];
+
+  var scenario = 'normal';
+
+  function getSteps() {
+    return scenario === 'normal' ? normalSteps : staleFollowerSteps;
+  }
+
+  function renderStep(stepIdx, step) {
+    var scene = document.getElementById('lr-scene');
+    scene.innerHTML = '';
+
+    /* Title */
+    scene.appendChild(svgText(cx, 25, step.title, { fill: '#fff', 'font-size': '14', 'font-weight': '600' }));
+
+    /* Client arrow */
+    if (step.clientArrow) {
+      scene.appendChild(svgEl('rect', {
+        x: 10, y: 155, width: 80, height: 40, rx: 6,
+        fill: '#181820', stroke: '#ffa94d', 'stroke-width': '1.5'
+      }));
+      scene.appendChild(svgText(50, 179, 'Client', { fill: '#ffa94d', 'font-size': '11', 'font-weight': '600' }));
+      var ldrPos = positions[0];
+      drawArrow(scene, 90, 175, ldrPos.x - 30, ldrPos.y, '#ffa94d', 'set x=5', false, 'lr-arrow');
+    }
+
+    /* Arrows */
+    step.arrows.forEach(function(a) {
+      var from = positions[a.from], to = positions[a.to];
+      drawArrow(scene, from.x, from.y, to.x, to.y, a.color, a.label, a.dashed, 'lr-arrow');
+    });
+
+    /* Nodes */
+    step.nodes.forEach(function(n, i) {
+      var p = positions[i];
+      drawNode(scene, 'lr-' + n.name, p.x, p.y, n.state, n.term, n.extra);
+    });
+
+    /* Log tables */
+    if (step.logs) {
+      drawLogs(scene, step.logs, step.highlightNode, step.highlightIdx, step.staleEntries);
+    }
+
+    document.getElementById('lr-commentary').textContent = step.commentary;
+  }
+
+  var stepper = null;
+
+  function init() {
+    stepper = createStepper('lr', getSteps(), renderStep);
+  }
+
+  function toggleScenario() {
+    scenario = scenario === 'normal' ? 'stale' : 'normal';
+    var btn = document.getElementById('lr-scenario-btn');
+    btn.textContent = scenario === 'normal' ? 'Switch: Stale Follower' : 'Switch: Normal Replication';
+    stepper.setSteps(getSteps());
+  }
+
+  init();
+
+  return {
+    next: function() { stepper.next(); },
+    prev: function() { stepper.prev(); },
+    play: function() { stepper.play(); },
+    reset: function() { stepper.reset(); },
+    toggleScenario: toggleScenario
+  };
+})();
+
+
+/* ================================================================
+   TAB 3 -- PARTITION + LEADER CHANGE
+   ================================================================ */
+var PT = (function() {
+  /* Layout: two groups side by side when partitioned */
+  var cx = 450, cy = 200, radius = 150;
+  var normalPositions = [];
+  for (var i = 0; i < 5; i++) { normalPositions.push(pentagonPos(i, cx, cy, radius)); }
+
+  /* Partitioned positions: left group {S1, S2}, right group {S3, S4, S5} */
+  var leftPositions = [
+    { x: 150, y: 160 },
+    { x: 150, y: 260 }
+  ];
+  var rightPositions = [
+    { x: 600, y: 120 },
+    { x: 750, y: 200 },
+    { x: 600, y: 280 }
+  ];
+
+  function getPositions(partitioned) {
+    if (!partitioned) return normalPositions;
+    return [leftPositions[0], leftPositions[1], rightPositions[0], rightPositions[1], rightPositions[2]];
+  }
+
+  var steps = [
+    {
+      title: 'Steady state: S1 is Leader, term 5',
+      partitioned: false,
+      nodes: [
+        { name: 'S1', state: 'Leader', term: 5 },
+        { name: 'S2', state: 'Follower', term: 5 },
+        { name: 'S3', state: 'Follower', term: 5 },
+        { name: 'S4', state: 'Follower', term: 5 },
+        { name: 'S5', state: 'Follower', term: 5 }
+      ],
+      arrows: [
+        { from: 0, to: 1, label: 'heartbeat', color: '#51cf66' },
+        { from: 0, to: 2, label: 'heartbeat', color: '#51cf66' },
+        { from: 0, to: 3, label: 'heartbeat', color: '#51cf66' },
+        { from: 0, to: 4, label: 'heartbeat', color: '#51cf66' }
+      ],
+      commentary: 'S1 is the leader in term 5. All 5 nodes are connected, receiving heartbeats. Logs are in sync. We are about to partition the network.'
+    },
+    {
+      title: 'Network partition: {S1, S2} | {S3, S4, S5}',
+      partitioned: true,
+      nodes: [
+        { name: 'S1', state: 'Leader', term: 5, extra: 'minority' },
+        { name: 'S2', state: 'Follower', term: 5, extra: 'minority' },
+        { name: 'S3', state: 'Follower', term: 5 },
+        { name: 'S4', state: 'Follower', term: 5 },
+        { name: 'S5', state: 'Follower', term: 5 }
+      ],
+      arrows: [
+        { from: 0, to: 1, label: 'heartbeat', color: '#51cf66' }
+      ],
+      partitionLine: true,
+      commentary: 'Network partition splits the cluster into {S1, S2} (minority) and {S3, S4, S5} (majority). S1 can still send heartbeats to S2, but cannot reach S3, S4, S5.'
+    },
+    {
+      title: 'S1 tries to commit a write -- FAILS',
+      partitioned: true,
+      nodes: [
+        { name: 'S1', state: 'Leader', term: 5, extra: 'minority' },
+        { name: 'S2', state: 'Follower', term: 5, extra: 'minority' },
+        { name: 'S3', state: 'Follower', term: 5 },
+        { name: 'S4', state: 'Follower', term: 5 },
+        { name: 'S5', state: 'Follower', term: 5 }
+      ],
+      arrows: [
+        { from: 0, to: 1, label: 'AppendEntries', color: '#ffa94d' }
+      ],
+      partitionLine: true,
+      commentary: 'A client sends a write to S1. S1 appends to its log and sends AppendEntries to S2. S2 acknowledges -- but that is only 2/5. S1 cannot reach S3, S4, S5. NO MAJORITY. The entry remains UNCOMMITTED. S1 cannot respond to the client.'
+    },
+    {
+      title: 'S3, S4, S5 stop hearing heartbeats -- election timeout',
+      partitioned: true,
+      nodes: [
+        { name: 'S1', state: 'Leader', term: 5, extra: 'minority' },
+        { name: 'S2', state: 'Follower', term: 5, extra: 'minority' },
+        { name: 'S3', state: 'Candidate', term: 6, extra: 'votes: 1 (self)' },
+        { name: 'S4', state: 'Follower', term: 5 },
+        { name: 'S5', state: 'Follower', term: 5 }
+      ],
+      arrows: [
+        { from: 2, to: 3, label: 'RequestVote', color: '#ffd43b' },
+        { from: 2, to: 4, label: 'RequestVote', color: '#ffd43b' }
+      ],
+      partitionLine: true,
+      commentary: 'S3, S4, S5 have not received heartbeats from S1 (partitioned away). S3\'s election timeout fires first. S3 increments to term 6, becomes Candidate, votes for itself, and sends RequestVote to S4 and S5.'
+    },
+    {
+      title: 'S3 wins election in majority partition',
+      partitioned: true,
+      nodes: [
+        { name: 'S1', state: 'Leader', term: 5, extra: 'STALE leader' },
+        { name: 'S2', state: 'Follower', term: 5, extra: 'minority' },
+        { name: 'S3', state: 'Leader', term: 6 },
+        { name: 'S4', state: 'Follower', term: 6, extra: 'voted: S3' },
+        { name: 'S5', state: 'Follower', term: 6, extra: 'voted: S3' }
+      ],
+      arrows: [
+        { from: 2, to: 3, label: 'heartbeat', color: '#51cf66' },
+        { from: 2, to: 4, label: 'heartbeat', color: '#51cf66' }
+      ],
+      partitionLine: true,
+      commentary: 'S4 and S5 vote for S3 in term 6. S3 has 3 votes (self + S4 + S5) = majority. S3 becomes the new leader. Two leaders now exist -- but only S3\'s partition (majority) can commit. S1\'s partition (minority) cannot commit anything.'
+    },
+    {
+      title: 'S3 accepts writes -- they COMMIT',
+      partitioned: true,
+      nodes: [
+        { name: 'S1', state: 'Leader', term: 5, extra: 'STALE leader' },
+        { name: 'S2', state: 'Follower', term: 5, extra: 'minority' },
+        { name: 'S3', state: 'Leader', term: 6 },
+        { name: 'S4', state: 'Follower', term: 6 },
+        { name: 'S5', state: 'Follower', term: 6 }
+      ],
+      arrows: [
+        { from: 2, to: 3, label: 'AppendEntries', color: '#339af0' },
+        { from: 2, to: 4, label: 'AppendEntries', color: '#339af0' }
+      ],
+      partitionLine: true,
+      commentary: 'Clients route writes to S3 (the new leader). S3 replicates to S4 and S5. With 3/5 (S3 + S4 + S5), writes commit successfully. The majority partition operates normally. S1\'s uncommitted writes are stuck.'
+    },
+    {
+      title: 'Partition heals -- S1 sees higher term',
+      partitioned: false,
+      nodes: [
+        { name: 'S1', state: 'Leader', term: 5, extra: 'stepping down...' },
+        { name: 'S2', state: 'Follower', term: 5 },
+        { name: 'S3', state: 'Leader', term: 6 },
+        { name: 'S4', state: 'Follower', term: 6 },
+        { name: 'S5', state: 'Follower', term: 6 }
+      ],
+      arrows: [
+        { from: 2, to: 0, label: 'heartbeat (term=6)', color: '#51cf66' },
+        { from: 2, to: 1, label: 'heartbeat (term=6)', color: '#51cf66' }
+      ],
+      commentary: 'Partition heals. S1 receives a heartbeat from S3 with term 6, which is higher than S1\'s term 5. Raft rule: any node that sees a higher term immediately steps down to Follower and adopts the new term.'
+    },
+    {
+      title: 'S1 steps down -- uncommitted entries overwritten',
+      partitioned: false,
+      nodes: [
+        { name: 'S1', state: 'Follower', term: 6, extra: 'log corrected' },
+        { name: 'S2', state: 'Follower', term: 6 },
+        { name: 'S3', state: 'Leader', term: 6 },
+        { name: 'S4', state: 'Follower', term: 6 },
+        { name: 'S5', state: 'Follower', term: 6 }
+      ],
+      arrows: [
+        { from: 2, to: 0, label: 'AppendEntries', color: '#339af0' },
+        { from: 2, to: 1, label: 'AppendEntries', color: '#339af0' },
+        { from: 2, to: 3, label: 'heartbeat', color: '#51cf66' },
+        { from: 2, to: 4, label: 'heartbeat', color: '#51cf66' }
+      ],
+      commentary: 'S1 steps down to Follower in term 6. Its uncommitted entries from the partition period are overwritten by S3\'s log via the AppendEntries consistency mechanism. S2 also syncs to S3\'s log. No committed data was lost -- S1\'s writes never achieved majority. This is by design, not a bug.'
+    }
+  ];
+
+  function renderStep(stepIdx, step) {
+    var scene = document.getElementById('pt-scene');
+    scene.innerHTML = '';
+    var pos = getPositions(step.partitioned);
+
+    /* Title */
+    scene.appendChild(svgText(450, 30, step.title, { fill: '#fff', 'font-size': '14', 'font-weight': '600' }));
+
+    /* Partition line */
+    if (step.partitionLine) {
+      scene.appendChild(svgEl('line', {
+        x1: 380, y1: 60, x2: 380, y2: 380,
+        stroke: '#ff6b6b', 'stroke-width': '3', 'stroke-dasharray': '10,6', opacity: '0.7'
+      }));
+      scene.appendChild(svgText(380, 55, 'NETWORK PARTITION', { fill: '#ff6b6b', 'font-size': '11', 'font-weight': '600' }));
+      /* Partition labels */
+      scene.appendChild(svgText(180, 400, 'Minority (2/5)', { fill: '#ff6b6b', 'font-size': '12' }));
+      scene.appendChild(svgText(650, 400, 'Majority (3/5)', { fill: '#51cf66', 'font-size': '12' }));
+      /* Cannot commit label on left */
+      scene.appendChild(svgText(180, 420, 'Cannot commit', { fill: '#ff6b6b', 'font-size': '10' }));
+      scene.appendChild(svgText(650, 420, 'Can commit', { fill: '#51cf66', 'font-size': '10' }));
+    }
+
+    /* Arrows */
+    step.arrows.forEach(function(a) {
+      var from = pos[a.from], to = pos[a.to];
+      drawArrow(scene, from.x, from.y, to.x, to.y, a.color, a.label, a.dashed, 'pt-arrow');
+    });
+
+    /* Nodes */
+    step.nodes.forEach(function(n, i) {
+      var p = pos[i];
+      drawNode(scene, 'pt-' + n.name, p.x, p.y, n.state, n.term, n.extra);
+    });
+
+    /* Term comparison at bottom */
+    var termY = step.partitioned ? 440 : 400;
+    var terms = step.nodes.map(function(n) { return n.term; });
+    var maxTerm = Math.max.apply(null, terms);
+    scene.appendChild(svgText(450, termY, 'Highest term: ' + maxTerm, { fill: '#666', 'font-size': '11' }));
+
+    document.getElementById('pt-commentary').textContent = step.commentary;
+  }
+
+  var stepper = createStepper('pt', steps, renderStep);
+
+  return {
+    next: function() { stepper.next(); },
+    prev: function() { stepper.prev(); },
+    play: function() { stepper.play(); },
+    reset: function() { stepper.reset(); }
+  };
+})();
+
+
+/* ================================================================
+   TAB 4 -- SNAPSHOT + LOG COMPACTION
+   ================================================================ */
+var SS = (function() {
+  var steps = [
+    {
+      title: 'Growing log -- 12 committed entries',
+      logEntries: 12,
+      snapshotIdx: 0,
+      memoryPct: 25,
+      commentary: 'A Raft node has accumulated 12 committed log entries. Each entry consumes memory. As the system runs, this log grows without bound. Startup also requires replaying all entries to rebuild state.'
+    },
+    {
+      title: 'Log grows further -- 20 entries, memory climbing',
+      logEntries: 20,
+      snapshotIdx: 0,
+      memoryPct: 45,
+      commentary: 'Now 20 entries. Memory usage is climbing. More importantly, if this node restarts, it must replay all 20 entries to rebuild the state machine. With thousands of entries, startup becomes slow.'
+    },
+    {
+      title: 'State machine takes snapshot at index 10',
+      logEntries: 20,
+      snapshotIdx: 10,
+      memoryPct: 45,
+      snapshotting: true,
+      commentary: 'The state machine periodically takes a snapshot. The snapshot captures the complete state at index 10 (all key-value pairs, all data structures). This is a state-machine-level operation -- Raft does not dictate how it works.'
+    },
+    {
+      title: 'Log compacted -- entries 1-10 discarded',
+      logEntries: 20,
+      snapshotIdx: 10,
+      memoryPct: 28,
+      compacted: true,
+      commentary: 'After the snapshot is saved, log entries 1 through 10 can be safely discarded. The snapshot file captures their cumulative effect. Only entries 11-20 remain in the log. Memory drops significantly.'
+    },
+    {
+      title: 'New follower joins -- far behind',
+      logEntries: 20,
+      snapshotIdx: 10,
+      memoryPct: 28,
+      compacted: true,
+      newFollower: true,
+      followerLog: 0,
+      commentary: 'A new follower joins (or an existing one that was offline for a long time). It needs entries from the beginning, but entries 1-10 have been discarded. The leader cannot send them via normal AppendEntries.'
+    },
+    {
+      title: 'Leader sends InstallSnapshot RPC',
+      logEntries: 20,
+      snapshotIdx: 10,
+      memoryPct: 28,
+      compacted: true,
+      newFollower: true,
+      followerLog: 0,
+      sendingSnapshot: true,
+      commentary: 'The leader detects that the follower\'s nextIndex points to a discarded entry. Instead of AppendEntries, it sends an InstallSnapshot RPC containing the full snapshot. The follower applies the snapshot to its state machine.'
+    },
+    {
+      title: 'Follower applies snapshot, resumes normal replication',
+      logEntries: 20,
+      snapshotIdx: 10,
+      memoryPct: 28,
+      compacted: true,
+      newFollower: true,
+      followerLog: 10,
+      resumeNormal: true,
+      commentary: 'The follower applies the snapshot (state at index 10), discards its entire log, and sets its last applied index to 10. From here, the leader sends normal AppendEntries for entries 11-20. The follower catches up via the standard path.'
+    },
+    {
+      title: 'Follower fully caught up',
+      logEntries: 20,
+      snapshotIdx: 10,
+      memoryPct: 28,
+      compacted: true,
+      newFollower: true,
+      followerLog: 20,
+      commentary: 'The follower has received entries 11-20 via normal AppendEntries and is fully caught up. Snapshot + standard replication = complete catch-up with no special protocol beyond InstallSnapshot.'
+    }
+  ];
+
+  function renderStep(stepIdx, step) {
+    var scene = document.getElementById('ss-scene');
+    scene.innerHTML = '';
+
+    scene.appendChild(svgText(450, 30, step.title, { fill: '#fff', 'font-size': '14', 'font-weight': '600' }));
+
+    /* Leader node */
+    var leaderX = step.newFollower ? 300 : 450;
+    var leaderY = 80;
+    scene.appendChild(svgEl('rect', {
+      x: leaderX - 100, y: leaderY - 20, width: 200, height: 40, rx: 6,
+      fill: '#181820', stroke: '#51cf66', 'stroke-width': '2'
+    }));
+    scene.appendChild(svgText(leaderX, leaderY + 5, 'Leader State Machine', { fill: '#51cf66', 'font-size': '12', 'font-weight': '600' }));
+
+    /* Log visualization */
+    var logY = 150;
+    var logX = step.newFollower ? 80 : 100;
+    var entryW = step.newFollower ? 28 : 34;
+    var maxVisible = step.newFollower ? 16 : 20;
+    var startEntry = step.compacted ? step.snapshotIdx + 1 : 1;
+    var endEntry = Math.min(step.logEntries, maxVisible);
+
+    /* Snapshot block */
+    if (step.snapshotIdx > 0) {
+      var snapW = step.compacted ? 120 : step.snapshotIdx * entryW;
+      var snapX = logX - (step.compacted ? 130 : 0);
+      if (step.compacted) { snapX = logX - 130; }
+      else { snapX = logX; }
+
+      if (step.compacted) {
+        /* Snapshot file indicator */
+        scene.appendChild(svgEl('rect', {
+          x: logX - 130, y: logY - 5, width: 120, height: 50, rx: 6,
+          fill: '#1a2a1a', stroke: '#51cf66', 'stroke-width': '1.5',
+          'stroke-dasharray': step.snapshotting ? '4,3' : 'none'
+        }));
+        scene.appendChild(svgText(logX - 70, logY + 15, 'Snapshot', { fill: '#51cf66', 'font-size': '11', 'font-weight': '600' }));
+        scene.appendChild(svgText(logX - 70, logY + 30, 'idx 1-' + step.snapshotIdx, { fill: '#51cf66', 'font-size': '10' }));
+      } else if (step.snapshotting) {
+        /* Snapshot being taken - highlight entries */
+        scene.appendChild(svgEl('rect', {
+          x: logX - 2, y: logY - 8, width: step.snapshotIdx * entryW + 4, height: 56, rx: 4,
+          fill: 'none', stroke: '#51cf66', 'stroke-width': '2', 'stroke-dasharray': '4,3'
+        }));
+        scene.appendChild(svgText(logX + (step.snapshotIdx * entryW) / 2, logY - 16, 'Snapshotting...', { fill: '#51cf66', 'font-size': '10' }));
+      }
+    }
+
+    /* Log entries */
+    for (var i = startEntry; i <= step.logEntries && i <= startEntry + maxVisible - 1; i++) {
+      var ex = logX + (i - startEntry) * entryW;
+      var isBeforeSnapshot = !step.compacted && step.snapshotIdx > 0 && i <= step.snapshotIdx;
+      var bgColor = isBeforeSnapshot ? '#1a2a1a' : '#181820';
+      var borderColor = isBeforeSnapshot ? '#51cf66' : '#333';
+
+      scene.appendChild(svgEl('rect', {
+        x: ex, y: logY, width: entryW - 2, height: 40, rx: 3,
+        fill: bgColor, stroke: borderColor, 'stroke-width': '1'
+      }));
+      scene.appendChild(svgText(ex + (entryW - 2) / 2, logY + 16, '' + i, { fill: '#aaa', 'font-size': '10', 'font-weight': '600' }));
+      scene.appendChild(svgText(ex + (entryW - 2) / 2, logY + 30, 't1', { fill: '#666', 'font-size': '8' }));
+    }
+
+    /* Log label */
+    var logLabelX = logX + ((Math.min(step.logEntries, startEntry + maxVisible - 1) - startEntry + 1) * entryW) / 2;
+    scene.appendChild(svgText(logLabelX, logY + 58, 'Log (entries ' + startEntry + '-' + step.logEntries + ')', { fill: '#888', 'font-size': '10' }));
+
+    /* Memory bar */
+    var memBarX = logX;
+    var memBarY = logY + 75;
+    var memBarW = 300;
+    scene.appendChild(svgEl('rect', {
+      x: memBarX, y: memBarY, width: memBarW, height: 20, rx: 4,
+      fill: '#0f0f15', stroke: '#333', 'stroke-width': '1'
+    }));
+    var fillW = memBarW * step.memoryPct / 100;
+    var memColor = step.memoryPct > 60 ? '#ff6b6b' : (step.memoryPct > 35 ? '#ffa94d' : '#51cf66');
+    scene.appendChild(svgEl('rect', {
+      x: memBarX, y: memBarY, width: fillW, height: 20, rx: 4,
+      fill: memColor, opacity: '0.7'
+    }));
+    scene.appendChild(svgText(memBarX + memBarW / 2, memBarY + 14, 'Memory: ' + step.memoryPct + '%', { fill: '#fff', 'font-size': '10', 'font-weight': '600' }));
+
+    /* New follower */
+    if (step.newFollower) {
+      var fX = 620;
+      var fY = 80;
+      scene.appendChild(svgEl('rect', {
+        x: fX - 80, y: fY - 20, width: 160, height: 40, rx: 6,
+        fill: '#181820', stroke: '#339af0', 'stroke-width': '2'
+      }));
+      scene.appendChild(svgText(fX, fY + 5, 'New Follower', { fill: '#339af0', 'font-size': '12', 'font-weight': '600' }));
+
+      /* Follower log */
+      var fLogY = logY;
+      if (step.followerLog === 0) {
+        scene.appendChild(svgEl('rect', {
+          x: fX - 80, y: fLogY, width: 160, height: 40, rx: 3,
+          fill: '#0f0f15', stroke: '#333', 'stroke-width': '1'
+        }));
+        scene.appendChild(svgText(fX, fLogY + 24, '(empty log)', { fill: '#555', 'font-size': '10' }));
+      } else if (step.followerLog === 10) {
+        scene.appendChild(svgEl('rect', {
+          x: fX - 80, y: fLogY, width: 160, height: 40, rx: 3,
+          fill: '#1a2a1a', stroke: '#51cf66', 'stroke-width': '1'
+        }));
+        scene.appendChild(svgText(fX, fLogY + 16, 'Snapshot applied', { fill: '#51cf66', 'font-size': '10', 'font-weight': '600' }));
+        scene.appendChild(svgText(fX, fLogY + 30, 'state at idx 10', { fill: '#51cf66', 'font-size': '9' }));
+      } else if (step.followerLog === 20) {
+        scene.appendChild(svgEl('rect', {
+          x: fX - 80, y: fLogY - 5, width: 70, height: 50, rx: 3,
+          fill: '#1a2a1a', stroke: '#51cf66', 'stroke-width': '1'
+        }));
+        scene.appendChild(svgText(fX - 45, fLogY + 16, 'Snap', { fill: '#51cf66', 'font-size': '9', 'font-weight': '600' }));
+        scene.appendChild(svgText(fX - 45, fLogY + 30, '1-10', { fill: '#51cf66', 'font-size': '8' }));
+
+        scene.appendChild(svgEl('rect', {
+          x: fX - 5, y: fLogY - 5, width: 85, height: 50, rx: 3,
+          fill: '#181820', stroke: '#339af0', 'stroke-width': '1'
+        }));
+        scene.appendChild(svgText(fX + 38, fLogY + 16, 'Log', { fill: '#339af0', 'font-size': '9', 'font-weight': '600' }));
+        scene.appendChild(svgText(fX + 38, fLogY + 30, '11-20', { fill: '#339af0', 'font-size': '8' }));
+      }
+
+      /* Arrow from leader to follower */
+      if (step.sendingSnapshot) {
+        drawArrow(scene, leaderX + 100, leaderY, fX - 80, fY, '#51cf66', 'InstallSnapshot', false, 'ss-arrow-green');
+      }
+      if (step.resumeNormal) {
+        drawArrow(scene, leaderX + 100, leaderY, fX - 80, fY, '#339af0', 'AppendEntries (11-20)', false, 'ss-arrow');
+      }
+      if (step.followerLog === 20) {
+        scene.appendChild(svgText(fX, fLogY + 60, 'Fully caught up', { fill: '#51cf66', 'font-size': '11', 'font-weight': '600' }));
+      }
+    }
+
+    document.getElementById('ss-commentary').textContent = step.commentary;
+  }
+
+  var stepper = createStepper('ss', steps, renderStep);
+
+  return {
+    next: function() { stepper.next(); },
+    prev: function() { stepper.prev(); },
+    play: function() { stepper.play(); },
+    reset: function() { stepper.reset(); }
+  };
+})();
+
+
+/* ================================================================
+   TAB 5 -- MEMBERSHIP CHANGE (JOINT CONSENSUS)
+   ================================================================ */
+var MC = (function() {
+  /* Positions for 3-node and 5-node configs */
+  var cx = 450, cy = 200;
+
+  function triPos(idx) {
+    var angle = -Math.PI / 2 + (2 * Math.PI * idx) / 3;
+    return { x: cx + 120 * Math.cos(angle), y: cy + 120 * Math.sin(angle) };
+  }
+
+  function pentPos(idx) {
+    var angle = -Math.PI / 2 + (2 * Math.PI * idx) / 5;
+    return { x: cx + 150 * Math.cos(angle), y: cy + 150 * Math.sin(angle) };
+  }
+
+  var steps = [
+    {
+      title: '3-node cluster: S1 (Leader), S2, S3',
+      config: 'old',
+      nodes: [
+        { name: 'S1', state: 'Leader', term: 1, inOld: true, inNew: true },
+        { name: 'S2', state: 'Follower', term: 1, inOld: true, inNew: true },
+        { name: 'S3', state: 'Follower', term: 1, inOld: true, inNew: true }
+      ],
+      arrows: [
+        { from: 0, to: 1, label: 'heartbeat', color: '#51cf66' },
+        { from: 0, to: 2, label: 'heartbeat', color: '#51cf66' }
+      ],
+      majority: 'Old config: majority = 2 of 3',
+      commentary: 'Starting state: a 3-node cluster with S1 as leader. Majority is 2 of 3. We want to expand to 5 nodes by adding S4 and S5.'
+    },
+    {
+      title: 'Why naive switch is dangerous',
+      config: 'danger',
+      nodes: [
+        { name: 'S1', state: 'Leader', term: 1, inOld: true, inNew: true },
+        { name: 'S2', state: 'Follower', term: 1, inOld: true, inNew: true },
+        { name: 'S3', state: 'Follower', term: 1, inOld: true, inNew: true },
+        { name: 'S4', state: 'Follower', term: 1, inOld: false, inNew: true, extra: 'NEW' },
+        { name: 'S5', state: 'Follower', term: 1, inOld: false, inNew: true, extra: 'NEW' }
+      ],
+      arrows: [],
+      majority: 'DANGER: Old majority=2/3, New majority=3/5 -- disjoint possible!',
+      commentary: 'If we switch all nodes from 3-node to 5-node config at once, there is a window where some nodes think majority is 2/3 (old) and others think 3/5 (new). Two disjoint majorities could elect two leaders. Split-brain.'
+    },
+    {
+      title: 'Step 1: Leader creates C_old,new entry',
+      config: 'joint',
+      nodes: [
+        { name: 'S1', state: 'Leader', term: 1, inOld: true, inNew: true, extra: 'C_old,new' },
+        { name: 'S2', state: 'Follower', term: 1, inOld: true, inNew: true },
+        { name: 'S3', state: 'Follower', term: 1, inOld: true, inNew: true },
+        { name: 'S4', state: 'Follower', term: 1, inOld: false, inNew: true, extra: 'joining' },
+        { name: 'S5', state: 'Follower', term: 1, inOld: false, inNew: true, extra: 'joining' }
+      ],
+      arrows: [
+        { from: 0, to: 1, label: 'C_old,new', color: '#ffd43b' },
+        { from: 0, to: 2, label: 'C_old,new', color: '#ffd43b' },
+        { from: 0, to: 3, label: 'C_old,new', color: '#ffd43b' },
+        { from: 0, to: 4, label: 'C_old,new', color: '#ffd43b' }
+      ],
+      majority: 'Joint: majority of OLD (2/3) AND majority of NEW (3/5)',
+      commentary: 'S1 creates a special log entry: C_old,new (joint consensus configuration). It replicates this to all 5 nodes. Once this entry is active, every commit requires BOTH a majority of the old config {S1,S2,S3} AND a majority of the new config {S1,S2,S3,S4,S5}.'
+    },
+    {
+      title: 'Joint consensus committed',
+      config: 'joint',
+      nodes: [
+        { name: 'S1', state: 'Leader', term: 1, inOld: true, inNew: true, extra: 'C_old,new' },
+        { name: 'S2', state: 'Follower', term: 1, inOld: true, inNew: true, extra: 'C_old,new' },
+        { name: 'S3', state: 'Follower', term: 1, inOld: true, inNew: true, extra: 'C_old,new' },
+        { name: 'S4', state: 'Follower', term: 1, inOld: false, inNew: true, extra: 'C_old,new' },
+        { name: 'S5', state: 'Follower', term: 1, inOld: false, inNew: true, extra: 'C_old,new' }
+      ],
+      arrows: [],
+      majority: 'Joint: majority of OLD (2/3) AND majority of NEW (3/5)',
+      commentary: 'C_old,new is committed (acked by majority of both old and new configs). During this phase, no single config can independently elect a leader or commit an entry. This prevents split-brain during the transition window.'
+    },
+    {
+      title: 'Step 2: Leader creates C_new entry',
+      config: 'joint_to_new',
+      nodes: [
+        { name: 'S1', state: 'Leader', term: 1, inOld: true, inNew: true, extra: 'C_new' },
+        { name: 'S2', state: 'Follower', term: 1, inOld: true, inNew: true },
+        { name: 'S3', state: 'Follower', term: 1, inOld: true, inNew: true },
+        { name: 'S4', state: 'Follower', term: 1, inOld: false, inNew: true },
+        { name: 'S5', state: 'Follower', term: 1, inOld: false, inNew: true }
+      ],
+      arrows: [
+        { from: 0, to: 1, label: 'C_new', color: '#51cf66' },
+        { from: 0, to: 2, label: 'C_new', color: '#51cf66' },
+        { from: 0, to: 3, label: 'C_new', color: '#51cf66' },
+        { from: 0, to: 4, label: 'C_new', color: '#51cf66' }
+      ],
+      majority: 'Transitioning to: majority = 3 of 5 (new config only)',
+      commentary: 'Once C_old,new is committed, the leader creates C_new -- the final 5-node configuration. It replicates this to all nodes. Once C_new is committed, only the new config\'s majority matters.'
+    },
+    {
+      title: 'C_new committed -- 5-node cluster operational',
+      config: 'new',
+      nodes: [
+        { name: 'S1', state: 'Leader', term: 1, inOld: true, inNew: true },
+        { name: 'S2', state: 'Follower', term: 1, inOld: true, inNew: true },
+        { name: 'S3', state: 'Follower', term: 1, inOld: true, inNew: true },
+        { name: 'S4', state: 'Follower', term: 1, inOld: false, inNew: true },
+        { name: 'S5', state: 'Follower', term: 1, inOld: false, inNew: true }
+      ],
+      arrows: [
+        { from: 0, to: 1, label: 'heartbeat', color: '#51cf66' },
+        { from: 0, to: 2, label: 'heartbeat', color: '#51cf66' },
+        { from: 0, to: 3, label: 'heartbeat', color: '#51cf66' },
+        { from: 0, to: 4, label: 'heartbeat', color: '#51cf66' }
+      ],
+      majority: 'New config: majority = 3 of 5',
+      commentary: 'C_new is committed. The cluster is now a 5-node cluster. Majority is 3 of 5. The transition is complete. Old config is no longer referenced. At no point during the transition could two independent majorities have existed.'
+    },
+    {
+      title: 'Safety: leader crash during transition',
+      config: 'joint',
+      nodes: [
+        { name: 'S1', state: 'Crashed', term: 1, inOld: true, inNew: true, extra: 'was leader' },
+        { name: 'S2', state: 'Candidate', term: 2, inOld: true, inNew: true, extra: 'C_old,new' },
+        { name: 'S3', state: 'Follower', term: 1, inOld: true, inNew: true },
+        { name: 'S4', state: 'Follower', term: 1, inOld: false, inNew: true, extra: 'C_old,new' },
+        { name: 'S5', state: 'Follower', term: 1, inOld: false, inNew: true }
+      ],
+      arrows: [],
+      majority: 'New leader must also use joint consensus to commit',
+      commentary: 'If the leader crashes mid-transition (after C_old,new is replicated but before C_new), the new leader inherits the joint consensus config from its log. It continues the transition by replicating C_new. The protocol is crash-safe at every point.'
+    }
+  ];
+
+  function getPos(config, idx, total) {
+    if (total <= 3) return triPos(idx);
+    return pentPos(idx);
+  }
+
+  function renderStep(stepIdx, step) {
+    var scene = document.getElementById('mc-scene');
+    scene.innerHTML = '';
+
+    scene.appendChild(svgText(cx, 30, step.title, { fill: '#fff', 'font-size': '14', 'font-weight': '600' }));
+
+    /* Config indicator */
+    var configLabel = step.config === 'old' ? 'Config: C_old (3 nodes)' :
+                      step.config === 'new' ? 'Config: C_new (5 nodes)' :
+                      step.config === 'danger' ? 'DANGER: uncoordinated switch' :
+                      step.config === 'joint_to_new' ? 'Transitioning: C_old,new -> C_new' :
+                      'Config: C_old,new (joint consensus)';
+    var configColor = step.config === 'danger' ? '#ff6b6b' :
+                      step.config === 'joint' || step.config === 'joint_to_new' ? '#ffd43b' : '#51cf66';
+    scene.appendChild(svgText(cx, 55, configLabel, { fill: configColor, 'font-size': '12', 'font-weight': '600' }));
+
+    /* Majority requirement */
+    var majColor = step.config === 'danger' ? '#ff6b6b' : '#888';
+    scene.appendChild(svgText(cx, 410, step.majority, { fill: majColor, 'font-size': '11' }));
+
+    /* Danger zone highlight */
+    if (step.config === 'danger') {
+      /* Draw two overlapping circles showing possible disjoint majorities */
+      scene.appendChild(svgEl('ellipse', {
+        cx: cx - 80, cy: cy, rx: 140, ry: 100,
+        fill: 'none', stroke: '#ff6b6b', 'stroke-width': '1', 'stroke-dasharray': '6,4', opacity: '0.4'
+      }));
+      scene.appendChild(svgText(cx - 80, cy + 120, 'Old majority (2/3)', { fill: '#ff6b6b', 'font-size': '9' }));
+
+      scene.appendChild(svgEl('ellipse', {
+        cx: cx + 80, cy: cy, rx: 180, ry: 120,
+        fill: 'none', stroke: '#ffa94d', 'stroke-width': '1', 'stroke-dasharray': '6,4', opacity: '0.4'
+      }));
+      scene.appendChild(svgText(cx + 120, cy + 140, 'New majority (3/5)', { fill: '#ffa94d', 'font-size': '9' }));
+    }
+
+    /* Joint consensus ring highlights */
+    if (step.config === 'joint' || step.config === 'joint_to_new') {
+      scene.appendChild(svgEl('circle', {
+        cx: cx, cy: cy, r: 170,
+        fill: 'none', stroke: '#ffd43b', 'stroke-width': '1', 'stroke-dasharray': '8,4', opacity: '0.3'
+      }));
+    }
+
+    /* Nodes */
+    var total = step.nodes.length;
+    var positions = [];
+    step.nodes.forEach(function(n, i) {
+      var p = getPos(step.config, i, total);
+      positions.push(p);
+      var nodeExtra = n.extra || '';
+      if (n.inOld && !n.inNew) { nodeExtra += ' [OLD]'; }
+      else if (!n.inOld && n.inNew) { nodeExtra += ' [NEW]'; }
+      drawNode(scene, 'mc-' + n.name, p.x, p.y, n.state, n.term, nodeExtra || undefined);
+
+      /* Visual indicator: old vs new membership */
+      if (!n.inOld && n.inNew) {
+        scene.appendChild(svgEl('circle', {
+          cx: p.x + 28, cy: p.y - 28, r: 8,
+          fill: '#ffa94d', opacity: '0.8'
+        }));
+        scene.appendChild(svgText(p.x + 28, p.y - 24, '+', { fill: '#fff', 'font-size': '12', 'font-weight': '700' }));
+      }
+    });
+
+    /* Arrows */
+    step.arrows.forEach(function(a) {
+      var from = positions[a.from], to = positions[a.to];
+      drawArrow(scene, from.x, from.y, to.x, to.y, a.color, a.label, a.dashed, 'mc-arrow');
+    });
+
+    /* Config transition diagram at bottom */
+    var diagramY = 430;
+    var stages = ['C_old', 'C_old,new', 'C_new'];
+    var stageColors = ['#339af0', '#ffd43b', '#51cf66'];
+    var activeIdx = step.config === 'old' ? 0 :
+                    step.config === 'danger' ? -1 :
+                    step.config === 'joint' ? 1 :
+                    step.config === 'joint_to_new' ? 1.5 : 2;
+
+    stages.forEach(function(s, i) {
+      var sx = cx - 120 + i * 120;
+      var isActive = Math.abs(activeIdx - i) < 0.6;
+      scene.appendChild(svgEl('rect', {
+        x: sx - 40, y: diagramY, width: 80, height: 24, rx: 4,
+        fill: isActive ? stageColors[i] : '#181820',
+        stroke: stageColors[i], 'stroke-width': isActive ? '2' : '1',
+        opacity: isActive ? '1' : '0.5'
+      }));
+      scene.appendChild(svgText(sx, diagramY + 16, s, {
+        fill: isActive ? '#000' : stageColors[i],
+        'font-size': '10', 'font-weight': '600'
+      }));
+      if (i < 2) {
+        scene.appendChild(svgText(sx + 60, diagramY + 16, '->', { fill: '#555', 'font-size': '12' }));
+      }
+    });
+
+    document.getElementById('mc-commentary').textContent = step.commentary;
+  }
+
+  var stepper = createStepper('mc', steps, renderStep);
+
+  return {
+    next: function() { stepper.next(); },
+    prev: function() { stepper.prev(); },
+    play: function() { stepper.play(); },
+    reset: function() { stepper.reset(); }
+  };
+})();
+
+</script>
+</body>
+</html>

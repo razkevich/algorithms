@@ -91,7 +91,7 @@ Curated set — master these, decision-tree to one. See [`concepts/db-toolbox.md
 - [x] **DynamoDB** _(or Cassandra OSS sibling)_ — scale-out KV/wide-column. Drill: partition key design, GSI/LSI, hot partitions, single-table pattern. _(✅ Cassandra visualizations: [`cassandra-topologies.html`](visualizations/cassandra-topologies.html) — vnode ring, R+W>N, multi-DC, gossip. [`cassandra-modeling.html`](visualizations/cassandra-modeling.html) — partition keys, hot partitions, denormalize-by-query, TWCS.)_
 - [x] **Redis** — cache + ephemeral state. Drill: eviction, persistence, Cluster mode, sorted sets, streams, distributed lock caveats. _(✅ [`concepts/redis.html`](concepts/redis.html) cheat sheet + [`redis-topologies.html`](visualizations/redis-topologies.html) — failover/gossip/resharding sims + [`redis-caching-flows.html`](visualizations/redis-caching-flows.html) — cache-aside / write-through / write-back / refresh-ahead flows.)_
 - [x] **Elasticsearch** — search + log analytics. Drill: inverted index, sharding, refresh interval, mapping, aggregations, ILM tiers. NOT system of record. _(✅ Visualizations: [`elasticsearch-topologies.html`](visualizations/elasticsearch-topologies.html) — voting config / shard routing / query+fetch / cluster recovery. [`elasticsearch-search.html`](visualizations/elasticsearch-search.html) — inverted index, BM25 sliders, filter-vs-search context, aggregations.)_
-- [ ] **Kafka** — durable event log. Drill: partition+offset, acks/idempotent/transactional producer, consumer groups, ISR, retention/compaction.
+- [x] **Kafka** — durable event log. Drill: partition+offset, acks/idempotent/transactional producer, consumer groups, ISR, retention/compaction. _(✅ Visualizations: [`kafka-topologies.html`](visualizations/kafka-topologies.html) — KRaft, ISR, rebalance protocol; [`kafka-semantics.html`](visualizations/kafka-semantics.html) — partition keys, EOS, transactional API.)_
 - [ ] **S3 / object storage** — blob/archival/data lake. Drill: storage classes, lifecycle, pre-signed URLs, multipart, consistency model.
 - [ ] **Spanner / CockroachDB** _(stretch)_ — global ACID. One-line answer + trade-off; don't deep-dive unless asked.
 - [x] **MongoDB** _(bonus deep-dive, not in curated 7)_ — document store. _(✅ Visualizations: [`mongodb-topologies.html`](visualizations/mongodb-topologies.html) — replica set elections, sharded clusters, read concerns. [`mongodb-data-modeling.html`](visualizations/mongodb-data-modeling.html) — embed vs reference, bucket pattern, ESR rule.)_
@@ -102,20 +102,29 @@ Curated set — master these, decision-tree to one. See [`concepts/db-toolbox.md
 
 Tick when a problem walkthrough has *actively exercised* it (not just mentioned). Course-covered items link out for revisit; gap items become cheat-sheet candidates as problems expose them.
 
-### Course-covered (revisit, don't drill)
+### Course-covered (revisit, don't drill) — many now have companion HTML references
+- [x] **ACID vs BASE, Isolation Levels** — [EN/RU Mod 5] _(also: [`postgres-mvcc.html`](visualizations/postgres-mvcc.html) — RC/RR/SSI walkthroughs)_
+- [x] **Distributed Consensus (Raft, Paxos overview)** — [EN/RU Mod 4] _(also: [`consensus-raft.html`](visualizations/consensus-raft.html) — step-through; [`consensus-transactions.html`](visualizations/consensus-transactions.html) — 2PC/saga/TCC/outbox)_
+- [x] **Distributed Locking & Coordination** — [EN/RU Mod 4] _(also: [`locks-topologies.html`](visualizations/locks-topologies.html) — Redlock/etcd/DB/fencing-tokens; [`locks-patterns.html`](visualizations/locks-patterns.html) — mutex/leader-election/CAS)_
+- [x] **Message Queues + Exactly-Once Semantics** — [EN/RU Mod 5] _(also: [`kafka-semantics.html`](visualizations/kafka-semantics.html) — EOS, transactional API)_
+- [x] **Outbox, Sagas, CQRS, Event-Driven** — [EN/RU Mod 2] _(also: [`cdc-outbox.html`](visualizations/cdc-outbox.html); [`consensus-transactions.html`](visualizations/consensus-transactions.html) — saga orchestration vs choreography)_
+- [x] **Caching strategies (write-through/back, TTL, invalidation)** — [EN/RU Mod 6] _(also: [`redis-caching-flows.html`](visualizations/redis-caching-flows.html))_
+- [x] **Auth / AuthZ, OAuth2, JWT** — [EN/RU Mod 7] _(also: [`auth-flows.html`](visualizations/auth-flows.html); [`auth-api-security.html`](visualizations/auth-api-security.html))_
+- [x] **Observability / SRE (logs, metrics, traces, SLOs)** — [EN/RU Mod 6] _(also: [`observability-pipelines.html`](visualizations/observability-pipelines.html); [`observability-slo.html`](visualizations/observability-slo.html))_
+- [x] **Multi-tenancy strategies** — [EN/RU Mod 2] _(also: [`multi-tenancy-isolation.html`](visualizations/multi-tenancy-isolation.html); [`multi-tenancy-operations.html`](visualizations/multi-tenancy-operations.html))_
 - [ ] **Sharding & Replication strategies** — [EN/RU Mod 4]
 - [ ] **CAP Theorem & PACELC trade-offs** — [EN/RU Mod 4]
-- [ ] **ACID vs BASE, Isolation Levels** — [EN/RU Mod 5]
-- [ ] **Distributed Consensus (Raft, Paxos overview)** — [EN/RU Mod 4]
-- [ ] **Distributed Locking & Coordination** — [EN/RU Mod 4]
-- [ ] **Message Queues + Exactly-Once Semantics** — [EN/RU Mod 5]
-- [ ] **Outbox, Sagas, CQRS, Event-Driven** — [EN/RU Mod 2]
-- [ ] **Circuit Breakers, Bulkheads, Rate Limiting (concepts)** — [EN/RU Mod 6]
-- [ ] **Caching strategies (write-through/back, TTL, invalidation)** — [EN/RU Mod 6]
-- [ ] **Auth / AuthZ, OAuth2, JWT** — [EN/RU Mod 7]
-- [ ] **Observability / SRE (logs, metrics, traces, SLOs)** — [EN/RU Mod 6]
-- [ ] **API Architecture Patterns (REST/gRPC/GraphQL)** — [EN/RU Mod 3]
-- [ ] **Multi-tenancy strategies** — [EN/RU Mod 2]
+- [ ] **Circuit Breakers, Bulkheads, Rate Limiting (concepts)** — [EN/RU Mod 6] _(rate-limiting algos in [`auth-api-security.html`](visualizations/auth-api-security.html))_
+- [ ] **API Architecture Patterns (REST/gRPC/GraphQL)** — [EN/RU Mod 3] _(networking transport in [`networking-protocols.html`](visualizations/networking-protocols.html))_
+
+### Day-2 ops + infra references (system design library)
+
+Built independently of mocks; referenced as needed during interview prep. All dark-themed, mobile-friendly, self-contained interactive HTMLs in `visualizations/`.
+
+- **AWS** — [`aws-reference-architectures.html`](visualizations/aws-reference-architectures.html) (3-tier / async / multi-region / data lake) + [`aws-foundations.html`](visualizations/aws-foundations.html) (IAM, VPC, costs)
+- **Kubernetes** — [`kubernetes-topologies.html`](visualizations/kubernetes-topologies.html) (control plane / scheduling / networking / storage) + [`kubernetes-workloads.html`](visualizations/kubernetes-workloads.html) (workload types / rollouts / autoscaling / probes)
+- **Networking** — [`networking-protocols.html`](visualizations/networking-protocols.html) (TCP/TLS/HTTP1·2·3) + [`networking-load-balancing.html`](visualizations/networking-load-balancing.html) (L4/L7, sticky, mesh)
+- **Patterns + primitives** — [`probabilistic-data-structures.html`](visualizations/probabilistic-data-structures.html), [`distributed-id-generation.html`](visualizations/distributed-id-generation.html), [`storage-engines.html`](visualizations/storage-engines.html) (LSM vs B+), [`quorum-anti-entropy.html`](visualizations/quorum-anti-entropy.html), [`idempotency-patterns.html`](visualizations/idempotency-patterns.html), [`backpressure-tail-latency.html`](visualizations/backpressure-tail-latency.html), [`realtime-push.html`](visualizations/realtime-push.html) (WebSocket/SSE/long-polling)
 
 ### Gap-fill (cheat-sheet candidates — fill as problems expose them)
 

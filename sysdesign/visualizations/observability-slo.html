@@ -1,0 +1,1854 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SLOs, Error Budgets, Alert Design</title>
+<style>
+:root {
+  --bg: #0f0f15;
+  --surface: #181820;
+  --surface-2: #20202a;
+  --border: #2a2a35;
+  --text: #e6e6ea;
+  --text-2: #cfcfd6;
+  --text-3: #888;
+  --accent-red: #ff6b6b;
+  --accent-green: #51cf66;
+  --accent-blue: #339af0;
+  --accent-yellow: #ffd43b;
+  --accent-purple: #cc5de8;
+  --accent-cyan: #8be9fd;
+  --accent-orange: #ffa94d;
+}
+*, *::before, *::after { box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  padding: 32px 24px;
+  max-width: 1100px;
+  margin: 0 auto;
+  line-height: 1.55;
+}
+h1 { color: #fff; margin-bottom: 4px; }
+h1 + p.sub { color: var(--text-3); font-style: italic; margin-top: 0; margin-bottom: 24px; }
+h2 { color: #fff; margin-top: 48px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+h3 { color: var(--text-2); margin-top: 20px; }
+p { color: var(--text-2); }
+code {
+  background: var(--surface-2);
+  padding: 2px 6px;
+  border-radius: 3px;
+  color: var(--accent-cyan);
+  font-size: 13px;
+}
+svg {
+  background: var(--surface);
+  border-radius: 8px;
+  display: block;
+  margin: 14px auto;
+  width: 100%;
+  height: auto;
+}
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0;
+  align-items: center;
+}
+.controls button, .btn {
+  padding: 10px 16px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  border-radius: 6px;
+  cursor: pointer;
+  min-height: 44px;
+  font-size: 14px;
+  transition: background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+.controls button:hover, .btn:hover { background: var(--surface); }
+.controls button:disabled, .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.controls button.active-btn { border-color: var(--accent-blue); color: var(--accent-blue); }
+.controls button.danger { border-color: var(--accent-red); color: var(--accent-red); }
+.controls button.danger:hover { background: #2a1520; }
+.slider-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-3);
+  min-width: 220px;
+}
+.slider-group input[type="range"] {
+  flex: 1;
+  min-width: 80px;
+  accent-color: var(--accent-blue);
+}
+.slider-group label {
+  min-width: 50px;
+  text-align: right;
+}
+.commentary {
+  background: var(--surface-2);
+  padding: 14px;
+  border-radius: 6px;
+  font-size: 14px;
+  color: var(--text-2);
+  margin: 12px 0;
+  min-height: 44px;
+  line-height: 1.5;
+}
+.takeaway {
+  background: #1a1a22;
+  border-left: 3px solid var(--accent-green);
+  padding: 12px 16px;
+  margin: 14px 0;
+  font-size: 14px;
+}
+.takeaway strong { color: var(--accent-green); }
+.takeaway ul { margin: 6px 0 0 0; padding-left: 18px; }
+.takeaway li { margin-bottom: 6px; }
+
+/* Definition cards */
+.def-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin: 16px 0;
+}
+.def-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+}
+.def-card h4 {
+  margin: 0 0 8px 0;
+  font-size: 16px;
+}
+.def-card p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-3);
+  line-height: 1.5;
+}
+.def-card .label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+
+/* Nines table */
+.nines-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 16px 0;
+  font-size: 14px;
+}
+.nines-table th, .nines-table td {
+  padding: 10px 14px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+.nines-table th {
+  color: var(--text-3);
+  font-weight: 600;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.nines-table tr.active-nine {
+  background: var(--surface-2);
+}
+.nines-table .highlight {
+  color: var(--accent-yellow);
+  font-weight: 600;
+}
+
+/* Budget bar */
+.budget-bar-container {
+  margin: 16px 0;
+}
+.budget-bar-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  color: var(--text-3);
+  margin-bottom: 4px;
+}
+.budget-bar-outer {
+  width: 100%;
+  height: 28px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+  position: relative;
+}
+.budget-bar-inner {
+  height: 100%;
+  transition: width 0.4s ease, background-color 0.4s ease;
+  border-radius: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+}
+
+/* Antipattern cards */
+.antipattern-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+  margin: 16px 0;
+}
+.antipattern-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 16px;
+}
+.antipattern-card .bad {
+  color: var(--accent-red);
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.antipattern-card .fix {
+  color: var(--accent-green);
+  font-size: 13px;
+  margin-bottom: 0;
+}
+.antipattern-card .fix strong { color: var(--accent-green); }
+.antipattern-card .bad strong { color: var(--accent-red); }
+
+/* Schedule grid */
+.schedule-grid {
+  display: grid;
+  grid-template-columns: auto repeat(7, 1fr);
+  gap: 2px;
+  margin: 16px 0;
+  font-size: 12px;
+}
+.schedule-cell {
+  padding: 8px 6px;
+  text-align: center;
+  border-radius: 4px;
+  color: var(--text-2);
+}
+.schedule-header {
+  font-weight: 600;
+  color: var(--text-3);
+  font-size: 11px;
+  text-transform: uppercase;
+}
+.schedule-region {
+  text-align: right;
+  padding-right: 10px;
+  font-weight: 600;
+}
+
+/* Interview cards */
+.interview-cards {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  margin: 16px 0;
+}
+.interview-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 16px;
+}
+.interview-card .q {
+  color: var(--accent-blue);
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: 6px;
+}
+.interview-card .a {
+  color: var(--text-2);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* Incident timeline */
+.incident-timeline {
+  display: flex;
+  align-items: flex-start;
+  gap: 0;
+  margin: 16px 0;
+  position: relative;
+}
+.incident-stage {
+  flex: 1;
+  text-align: center;
+  position: relative;
+  padding: 0 4px;
+}
+.incident-stage .stage-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 8px;
+  font-weight: 700;
+  font-size: 14px;
+  color: #fff;
+}
+.incident-stage .stage-name {
+  font-weight: 600;
+  font-size: 13px;
+  margin-bottom: 4px;
+}
+.incident-stage .stage-metric {
+  font-size: 11px;
+  color: var(--text-3);
+}
+.incident-stage .stage-desc {
+  font-size: 12px;
+  color: var(--text-3);
+  margin-top: 4px;
+}
+.incident-connector {
+  position: absolute;
+  top: 18px;
+  left: 50%;
+  width: 100%;
+  height: 2px;
+  background: var(--border);
+  z-index: 0;
+}
+
+/* Canvas for chart animations */
+canvas {
+  background: var(--surface);
+  border-radius: 8px;
+  display: block;
+  margin: 14px auto;
+  width: 100%;
+}
+
+/* Golden signals dashboard */
+.signals-dashboard {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin: 16px 0;
+}
+.signal-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px;
+}
+.signal-panel h4 {
+  margin: 0 0 4px 0;
+  font-size: 13px;
+}
+.signal-panel .value {
+  font-size: 24px;
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+.signal-panel .label-sm {
+  font-size: 11px;
+  color: var(--text-3);
+}
+
+@media (max-width: 720px) {
+  body { padding: 20px 14px; }
+  .def-cards { grid-template-columns: 1fr; }
+  .antipattern-grid { grid-template-columns: 1fr; }
+  .signals-dashboard { grid-template-columns: 1fr; }
+  .schedule-grid { font-size: 10px; }
+  .incident-timeline { flex-direction: column; gap: 8px; }
+  .incident-connector { display: none; }
+}
+@media (max-width: 480px) {
+  .controls { flex-direction: column; }
+  .controls button { width: 100%; }
+  .slider-group { width: 100%; min-width: auto; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>SLOs, error budgets, alert design</h1>
+  <p class="sub">SLI / SLO / SLA, burn-rate alerts, golden signals, on-call. The discipline of running services at scale; the vocabulary that signals senior.</p>
+</header>
+
+<!-- ================================================================ -->
+<!-- SECTION 1: SLI / SLO / SLA                                       -->
+<!-- ================================================================ -->
+<h2>1. SLI / SLO / SLA -- definitions and relationship</h2>
+
+<div class="def-cards">
+  <div class="def-card">
+    <div class="label" style="color: var(--accent-blue);">Measurement</div>
+    <h4 style="color: var(--accent-blue);">SLI</h4>
+    <p>Service Level <strong style="color:var(--accent-blue)">Indicator</strong>. A quantitative measurement of service behavior. Examples: % of requests with latency &lt; 500ms; % of requests returning 2xx.</p>
+  </div>
+  <div class="def-card">
+    <div class="label" style="color: var(--accent-yellow);">Target</div>
+    <h4 style="color: var(--accent-yellow);">SLO</h4>
+    <p>Service Level <strong style="color:var(--accent-yellow)">Objective</strong>. A target for the SLI. "99.9% of requests succeed." Internal engineering commitment. Always stricter than SLA.</p>
+  </div>
+  <div class="def-card">
+    <div class="label" style="color: var(--accent-red);">Contract</div>
+    <h4 style="color: var(--accent-red);">SLA</h4>
+    <p>Service Level <strong style="color:var(--accent-red)">Agreement</strong>. An SLO with business consequences if missed -- refund, credit, penalty. Customer-facing contract.</p>
+  </div>
+</div>
+
+<h3>Visualizing the relationship</h3>
+<p>SLI is the chart line (actual performance). SLO is the horizontal target. SLA is the contractual cliff below which penalties apply.</p>
+
+<svg id="sli-chart" viewBox="0 0 900 300" style="max-height:300px;">
+  <!-- Background grid -->
+  <defs>
+    <pattern id="grid" width="60" height="30" patternUnits="userSpaceOnUse">
+      <path d="M 60 0 L 0 0 0 30" fill="none" stroke="#1a1a25" stroke-width="0.5"/>
+    </pattern>
+  </defs>
+  <rect x="60" y="20" width="820" height="240" fill="url(#grid)"/>
+
+  <!-- Y axis labels -->
+  <text x="55" y="36" fill="#888" font-size="11" text-anchor="end">100%</text>
+  <text x="55" y="96" fill="#888" font-size="11" text-anchor="end">99.9%</text>
+  <text x="55" y="156" fill="#888" font-size="11" text-anchor="end">99.5%</text>
+  <text x="55" y="216" fill="#888" font-size="11" text-anchor="end">99.0%</text>
+  <text x="55" y="256" fill="#888" font-size="11" text-anchor="end">98.5%</text>
+
+  <!-- SLA zone (red shading below SLA line) -->
+  <rect x="60" y="200" width="820" height="60" fill="rgba(255,107,107,0.06)"/>
+  <text x="870" y="218" fill="#ff6b6b" font-size="11" text-anchor="end" opacity="0.8">SLA violation zone</text>
+
+  <!-- SLA line -->
+  <line x1="60" y1="200" x2="880" y2="200" stroke="#ff6b6b" stroke-width="1.5" stroke-dasharray="8,4" opacity="0.7"/>
+  <text x="870" y="195" fill="#ff6b6b" font-size="12" text-anchor="end" font-weight="600">SLA 99.0%</text>
+
+  <!-- SLO line -->
+  <line x1="60" y1="90" x2="880" y2="90" stroke="#ffd43b" stroke-width="1.5" stroke-dasharray="6,3" opacity="0.7"/>
+  <text x="870" y="85" fill="#ffd43b" font-size="12" text-anchor="end" font-weight="600">SLO 99.9%</text>
+
+  <!-- SLI line (animated path) -->
+  <polyline id="sli-line" fill="none" stroke="#339af0" stroke-width="2.5"
+    points="60,50 120,45 180,55 240,48 300,60 360,75 420,85 450,130 470,170 490,140 520,95 560,70 600,55 660,50 720,48 780,52 840,47 880,50"/>
+
+  <!-- Labels -->
+  <text x="80" y="42" fill="#339af0" font-size="12" font-weight="600">SLI (actual)</text>
+
+  <!-- X axis -->
+  <text x="60" y="275" fill="#888" font-size="10">Day 1</text>
+  <text x="280" y="275" fill="#888" font-size="10">Day 8</text>
+  <text x="500" y="275" fill="#888" font-size="10">Day 15</text>
+  <text x="720" y="275" fill="#888" font-size="10">Day 22</text>
+  <text x="860" y="275" fill="#888" font-size="10">Day 30</text>
+
+  <!-- Incident annotation -->
+  <line x1="450" y1="20" x2="450" y2="175" stroke="#ff6b6b" stroke-width="1" stroke-dasharray="3,3" opacity="0.5"/>
+  <text x="455" y="185" fill="#ff6b6b" font-size="10" opacity="0.8">incident</text>
+</svg>
+
+<h3>The nines -- what each level costs</h3>
+
+<div class="slider-group" style="margin: 16px 0;">
+  <label style="min-width:80px">Nines:</label>
+  <input type="range" id="nines-slider" min="1" max="5" step="1" value="3">
+  <span id="nines-display" style="min-width:100px; color: var(--accent-yellow); font-weight:600;">99.9% (3 nines)</span>
+</div>
+
+<table class="nines-table" id="nines-table">
+  <thead>
+    <tr>
+      <th>Availability</th>
+      <th>Nines</th>
+      <th>Downtime / month</th>
+      <th>Downtime / year</th>
+      <th>Engineering effort</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr data-nine="1">
+      <td>90%</td>
+      <td>1 nine</td>
+      <td>72 hours</td>
+      <td>36.5 days</td>
+      <td style="color:var(--accent-green)">Low -- single server</td>
+    </tr>
+    <tr data-nine="2">
+      <td>99%</td>
+      <td>2 nines</td>
+      <td>7.2 hours</td>
+      <td>3.65 days</td>
+      <td style="color:var(--accent-blue)">Moderate -- basic redundancy</td>
+    </tr>
+    <tr data-nine="3">
+      <td class="highlight">99.9%</td>
+      <td class="highlight">3 nines</td>
+      <td class="highlight">43.2 min</td>
+      <td class="highlight">8.76 hours</td>
+      <td style="color:var(--accent-yellow)">High -- multi-AZ, health checks, auto-failover</td>
+    </tr>
+    <tr data-nine="4">
+      <td>99.99%</td>
+      <td>4 nines</td>
+      <td>4.32 min</td>
+      <td>52.6 min</td>
+      <td style="color:var(--accent-orange)">Very high -- multi-region, zero-downtime deploys</td>
+    </tr>
+    <tr data-nine="5">
+      <td>99.999%</td>
+      <td>5 nines</td>
+      <td>26 sec</td>
+      <td>5.26 min</td>
+      <td style="color:var(--accent-red)">Extreme -- custom infra, heroic on-call</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="commentary" id="nines-commentary">
+  At 3 nines (99.9%), you have 43.2 minutes of downtime per month. This is the sweet spot for most SaaS services: achievable with multi-AZ deployment, health checks, and auto-failover. Every additional nine costs roughly 10x more engineering effort.
+</div>
+
+<div class="takeaway">
+  <strong>Takeaway:</strong> SLO is your internal target; SLA is the external contract. Always set SLO stricter than SLA -- the gap is your buffer for error. Every additional 9 costs roughly 10x more engineering effort; pick the level your users actually need, not the one that sounds impressive.
+</div>
+
+<!-- ================================================================ -->
+<!-- SECTION 2: ERROR BUDGET                                           -->
+<!-- ================================================================ -->
+<h2>2. Error budget</h2>
+
+<p>Error budget = <code>(1 - SLO) x time window</code>. For a 99.9% SLO over 30 days:</p>
+<p style="text-align:center; font-size:16px; color:var(--accent-yellow);">
+  Budget = 0.1% x (30 x 24 x 60) = <strong>43.2 minutes</strong> of errors allowed
+</p>
+
+<h3>30-day error budget burn simulation</h3>
+
+<div class="controls">
+  <button id="budget-play" onclick="toggleBudgetAnim()">Play simulation</button>
+  <button onclick="resetBudgetAnim()">Reset</button>
+  <div class="slider-group">
+    <label>SLO:</label>
+    <input type="range" id="budget-slo-slider" min="990" max="999" step="1" value="999" oninput="updateBudgetSLO()">
+    <span id="budget-slo-display" style="color:var(--accent-yellow); font-weight:600; min-width:50px;">99.9%</span>
+  </div>
+</div>
+
+<canvas id="budget-canvas" height="320"></canvas>
+
+<div class="budget-bar-container">
+  <div class="budget-bar-label">
+    <span>Error budget remaining</span>
+    <span id="budget-pct-display">100%</span>
+  </div>
+  <div class="budget-bar-outer">
+    <div class="budget-bar-inner" id="budget-bar" style="width:100%; background: var(--accent-green);">100%</div>
+  </div>
+</div>
+
+<div class="commentary" id="budget-commentary">
+  Press "Play simulation" to watch errors consume the budget over a 30-day window. When the budget runs out, feature work freezes until reliability is restored.
+</div>
+
+<div class="takeaway">
+  <strong>Takeaway:</strong> Error budget gives an objective basis for the eternal feature-vs-reliability tension. Budget remaining = ship features at full speed. Budget exhausted = freeze feature work; focus on reliability. No more subjective arguments -- the math decides.
+</div>
+
+<!-- ================================================================ -->
+<!-- SECTION 3: BURN RATE ALERTS                                       -->
+<!-- ================================================================ -->
+<h2>3. Burn rate alerts</h2>
+
+<p>The senior pattern from Google's SRE workbook. Naive alert ("fire if error rate &gt; 1%") is noisy at low traffic and slow at high traffic. Multi-window burn rate fixes both.</p>
+
+<h3>How burn rate works</h3>
+
+<div class="def-cards" style="grid-template-columns: 1fr 1fr;">
+  <div class="def-card">
+    <div class="label" style="color:var(--accent-red)">Fast burn</div>
+    <h4 style="color:var(--accent-red);">1h window, 14x rate</h4>
+    <p>If you're burning 14x the expected rate in a 1h window, you'd exhaust your entire monthly budget in ~51 hours. Page immediately.</p>
+  </div>
+  <div class="def-card">
+    <div class="label" style="color:var(--accent-orange)">Slow burn</div>
+    <h4 style="color:var(--accent-orange);">6h window, 6x rate</h4>
+    <p>If you're burning 6x the expected rate over a 6h window, budget would be gone in ~5 days. Subtle degradation the fast window misses. Page within hours.</p>
+  </div>
+</div>
+
+<h3>Interactive burn rate demo</h3>
+
+<div class="controls">
+  <button id="burn-spike-btn" onclick="startBurnScenario('spike')">Simulate spike</button>
+  <button id="burn-slow-btn" onclick="startBurnScenario('slow')">Simulate slow degradation</button>
+  <button onclick="resetBurnDemo()">Reset</button>
+</div>
+
+<canvas id="burn-canvas" height="380"></canvas>
+
+<div class="commentary" id="burn-commentary">
+  Click "Simulate spike" to see a sudden error burst detected quickly by the 1h fast-burn window. Click "Simulate slow degradation" to see a gradual increase that only the 6h slow-burn window catches.
+</div>
+
+<div class="takeaway">
+  <strong>Takeaway:</strong> Multi-window burn rate captures both incidents (fast burn) and degradations (slow burn) without false positives at low traffic. Avoid pure-threshold error-rate alerts -- they're either too noisy or too slow.
+</div>
+
+<!-- ================================================================ -->
+<!-- SECTION 4: GOLDEN SIGNALS                                         -->
+<!-- ================================================================ -->
+<h2>4. Golden signals -- RED + USE</h2>
+
+<p>Two complementary frameworks. RED tells you the service is misbehaving from the user's perspective. USE tells you why.</p>
+
+<div class="def-cards" style="grid-template-columns: 1fr 1fr;">
+  <div class="def-card" style="border-color: var(--accent-blue);">
+    <div class="label" style="color:var(--accent-blue)">Request-driven (user view)</div>
+    <h4 style="color:var(--accent-blue);">RED</h4>
+    <p><strong style="color:var(--accent-blue)">R</strong>ate -- requests per second<br>
+       <strong style="color:var(--accent-blue)">E</strong>rrors -- error rate (%)<br>
+       <strong style="color:var(--accent-blue)">D</strong>uration -- latency distribution (p50, p99, p999)</p>
+  </div>
+  <div class="def-card" style="border-color: var(--accent-purple);">
+    <div class="label" style="color:var(--accent-purple)">Resources (infra view)</div>
+    <h4 style="color:var(--accent-purple);">USE</h4>
+    <p><strong style="color:var(--accent-purple)">U</strong>tilization -- % of time resource was busy<br>
+       <strong style="color:var(--accent-purple)">S</strong>aturation -- degree of extra work queued<br>
+       <strong style="color:var(--accent-purple)">E</strong>rrors -- count of resource errors</p>
+  </div>
+</div>
+
+<h3>Service dashboard simulation</h3>
+
+<div class="controls">
+  <button id="golden-normal-btn" class="active-btn" onclick="setGoldenState('normal')">Normal operation</button>
+  <button id="golden-spike-btn" onclick="setGoldenState('spike')">Latency spike</button>
+  <button id="golden-overload-btn" onclick="setGoldenState('overload')">CPU overload</button>
+</div>
+
+<!-- RED panels -->
+<h4 style="color:var(--accent-blue); margin-bottom:8px;">RED metrics (user-facing)</h4>
+<div class="signals-dashboard">
+  <div class="signal-panel">
+    <h4 style="color:var(--accent-blue)">Rate</h4>
+    <div class="value" id="red-rate" style="color:var(--accent-blue)">1,240</div>
+    <div class="label-sm">req/s</div>
+  </div>
+  <div class="signal-panel">
+    <h4 style="color:var(--accent-red)">Errors</h4>
+    <div class="value" id="red-errors" style="color:var(--accent-green)">0.12%</div>
+    <div class="label-sm">error rate</div>
+  </div>
+  <div class="signal-panel">
+    <h4 style="color:var(--accent-yellow)">Duration</h4>
+    <div class="value" id="red-latency" style="color:var(--accent-green)">45ms</div>
+    <div class="label-sm">p99 latency</div>
+  </div>
+</div>
+
+<!-- USE panels -->
+<h4 style="color:var(--accent-purple); margin-bottom:8px;">USE metrics (infrastructure)</h4>
+<div class="signals-dashboard">
+  <div class="signal-panel">
+    <h4 style="color:var(--accent-purple)">Utilization</h4>
+    <div class="value" id="use-util" style="color:var(--accent-green)">42%</div>
+    <div class="label-sm">CPU busy</div>
+  </div>
+  <div class="signal-panel">
+    <h4 style="color:var(--accent-orange)">Saturation</h4>
+    <div class="value" id="use-sat" style="color:var(--accent-green)">3</div>
+    <div class="label-sm">queue depth</div>
+  </div>
+  <div class="signal-panel">
+    <h4 style="color:var(--accent-red)">Errors</h4>
+    <div class="value" id="use-err" style="color:var(--accent-green)">0</div>
+    <div class="label-sm">resource errors</div>
+  </div>
+</div>
+
+<div class="commentary" id="golden-commentary">
+  Normal operation: all metrics green. Click "Latency spike" to see how RED detects the symptom and USE reveals the cause. Click "CPU overload" to see resource saturation driving user-visible errors.
+</div>
+
+<div class="takeaway">
+  <strong>Takeaway:</strong> RED for the user view. USE for the resource view. Together they tell you the <em>what</em> and the <em>why</em>. "Latency spiked" (RED) because "CPU is at 100% and queue depth is 847" (USE).
+</div>
+
+<!-- ================================================================ -->
+<!-- SECTION 5: ALERT DESIGN                                           -->
+<!-- ================================================================ -->
+<h2>5. Alert design -- antipatterns and fixes</h2>
+
+<p>Every alert must be: <strong style="color:var(--accent-green)">(1) actionable</strong>, <strong style="color:var(--accent-green)">(2) urgent</strong>, <strong style="color:var(--accent-green)">(3) symptomatic</strong>. If it is not all three, it is a ticket or a log line, not a page.</p>
+
+<div class="antipattern-grid">
+  <div class="antipattern-card">
+    <p class="bad"><strong>Bad:</strong> Single-threshold alert</p>
+    <p style="font-size:12px; color:var(--text-3); margin: 4px 0 8px;">"error rate &gt; 1%" -- noisy at low QPS, 5 errors in 500 requests triggers it.</p>
+    <p class="fix"><strong>Fix:</strong> Burn rate over multi-windows. Alert on budget consumption rate, not raw error percentage.</p>
+  </div>
+  <div class="antipattern-card">
+    <p class="bad"><strong>Bad:</strong> Cause-based alert</p>
+    <p style="font-size:12px; color:var(--text-3); margin: 4px 0 8px;">"CPU &gt; 80%" -- triggers on benign load spikes, batch jobs, and compaction.</p>
+    <p class="fix"><strong>Fix:</strong> Symptom-based alerting. "User-facing latency exceeds target" -- alert on what users experience.</p>
+  </div>
+  <div class="antipattern-card">
+    <p class="bad"><strong>Bad:</strong> No deduplication</p>
+    <p style="font-size:12px; color:var(--text-3); margin: 4px 0 8px;">100 alerts for one incident. Engineer drowns in noise while trying to respond.</p>
+    <p class="fix"><strong>Fix:</strong> Aggregate at Alertmanager level. Group by service + alert name. One page per incident.</p>
+  </div>
+  <div class="antipattern-card">
+    <p class="bad"><strong>Bad:</strong> No runbook link</p>
+    <p style="font-size:12px; color:var(--text-3); margin: 4px 0 8px;">Alert wakes engineer at 3am with no context. "HTTP 500 rate high." Now what?</p>
+    <p class="fix"><strong>Fix:</strong> Every alert includes link to runbook with clear "if X then Y" diagnostic steps.</p>
+  </div>
+  <div class="antipattern-card">
+    <p class="bad"><strong>Bad:</strong> Severity creep</p>
+    <p style="font-size:12px; color:var(--text-3); margin: 4px 0 8px;">Everything is P1. Engineers get desensitized; real P1s get lost in the noise.</p>
+    <p class="fix"><strong>Fix:</strong> 3 strict tiers: <strong>Page</strong> (wake up) / <strong>Ticket</strong> (next business day) / <strong>Log</strong> (informational). Guard the page tier.</p>
+  </div>
+  <div class="antipattern-card">
+    <p class="bad"><strong>Bad:</strong> No auto-resolution</p>
+    <p style="font-size:12px; color:var(--text-3); margin: 4px 0 8px;">Alert stays firing after issue clears. Dashboard stays red. Trust erodes.</p>
+    <p class="fix"><strong>Fix:</strong> Time-bound or recovery-detected resolution. Alert clears when condition clears.</p>
+  </div>
+  <div class="antipattern-card">
+    <p class="bad"><strong>Bad:</strong> Untested alerts</p>
+    <p style="font-size:12px; color:var(--text-3); margin: 4px 0 8px;">Alert rule written once, never validated. When the incident arrives, alert doesn't fire.</p>
+    <p class="fix"><strong>Fix:</strong> Regular fire drills. Alert validity tests. Inject synthetic failures to verify detection.</p>
+  </div>
+  <div class="antipattern-card">
+    <p class="bad"><strong>Bad:</strong> Flapping alerts</p>
+    <p style="font-size:12px; color:var(--text-3); margin: 4px 0 8px;">Alert constantly toggling firing/resolved/firing/resolved every few minutes.</p>
+    <p class="fix"><strong>Fix:</strong> Hysteresis -- different thresholds for fire and clear. Longer evaluation windows. Debounce.</p>
+  </div>
+</div>
+
+<div class="takeaway">
+  <strong>Takeaway:</strong> Alert criteria: (1) actionable, (2) urgent, (3) symptomatic. If it is not all three, it is a ticket or a log line, not a page. The goal is that every page results in a human doing something that only a human can do, right now.
+</div>
+
+<!-- ================================================================ -->
+<!-- SECTION 6: ON-CALL ROTATION                                       -->
+<!-- ================================================================ -->
+<h2>6. On-call rotation patterns</h2>
+
+<div class="def-cards" style="grid-template-columns: 1fr 1fr;">
+  <div class="def-card">
+    <h4 style="color:var(--accent-blue)">Follow-the-sun</h4>
+    <p>Rotate by region: US daytime -> EU daytime -> APAC daytime. No night pages. Trade-off: harder context handoff between regions; requires 3+ geographically distributed teams.</p>
+  </div>
+  <div class="def-card">
+    <h4 style="color:var(--accent-purple)">Primary + secondary</h4>
+    <p>Backup engineer for escalation if primary is unresponsive within N minutes. Reduces single-point-of-failure risk. Both carry pagers but secondary only activates on escalation.</p>
+  </div>
+</div>
+<div class="def-cards" style="grid-template-columns: 1fr 1fr; margin-top:0;">
+  <div class="def-card">
+    <h4 style="color:var(--accent-green)">In-hours / after-hours split</h4>
+    <p>Business hours: broader team rotates. After-hours: strict on-call with explicit compensation. Reduces unnecessary night interruptions for non-critical issues.</p>
+  </div>
+  <div class="def-card">
+    <h4 style="color:var(--accent-yellow)">Compensation</h4>
+    <p>Pay or comp days for after-hours on-call. Not optional -- sustained unpaid on-call causes attrition. Budget for it explicitly as a cost of running a production service.</p>
+  </div>
+</div>
+
+<h3>Follow-the-sun: 6 engineers, 3 regions, 7-day schedule</h3>
+
+<div id="schedule-container"></div>
+
+<div class="takeaway">
+  <strong>Takeaway:</strong> On-call is a tax on engineering time and well-being. Pay it explicitly; rotate fairly; respect off-time. Follow-the-sun eliminates night pages but requires distributed teams. Primary + secondary eliminates single-point-of-failure.
+</div>
+
+<!-- ================================================================ -->
+<!-- SECTION 7: INCIDENT PROCESS                                       -->
+<!-- ================================================================ -->
+<h2>7. Incident process -- 5 stages</h2>
+
+<p>Every incident flows through 5 stages. The key insight: <strong style="color:var(--accent-yellow)">TTM (time to mitigate) is the metric that matters to users</strong> -- minimize it at all costs. Roll back before debugging. Root cause and lasting fix come after service is restored.</p>
+
+<div style="overflow-x:auto;">
+<table class="nines-table">
+  <thead>
+    <tr>
+      <th>Stage</th>
+      <th>Action</th>
+      <th>Metric</th>
+      <th>Goal</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="color:var(--accent-red); font-weight:600;">1. Detect</td>
+      <td>Alert fires (or external report arrives)</td>
+      <td><code>TTD</code> -- time to detection</td>
+      <td>&lt; 5 min via monitoring</td>
+    </tr>
+    <tr>
+      <td style="color:var(--accent-orange); font-weight:600;">2. Triage</td>
+      <td>Assess severity, page responders, assemble team</td>
+      <td><code>TTT</code> -- time to triage</td>
+      <td>&lt; 10 min for P1</td>
+    </tr>
+    <tr>
+      <td style="color:var(--accent-yellow); font-weight:600;">3. Mitigate</td>
+      <td>Restore service: rollback, traffic shift, scale up</td>
+      <td><code>TTM</code> -- time to mitigate</td>
+      <td>&lt; 30 min (user-facing)</td>
+    </tr>
+    <tr>
+      <td style="color:var(--accent-green); font-weight:600;">4. Resolve</td>
+      <td>Root-cause analysis and full fix deployed</td>
+      <td><code>TTR</code> -- time to resolve</td>
+      <td>Hours to days</td>
+    </tr>
+    <tr>
+      <td style="color:var(--accent-blue); font-weight:600;">5. Postmortem</td>
+      <td>Blameless review, action items, share-out</td>
+      <td><code>TTP</code> -- time to postmortem</td>
+      <td>&lt; 72 hours</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<h3>Incident timeline demo</h3>
+
+<div class="controls">
+  <button id="incident-play-btn" onclick="playIncidentTimeline()">Play timeline</button>
+  <button onclick="resetIncidentTimeline()">Reset</button>
+</div>
+
+<canvas id="incident-canvas" height="280"></canvas>
+
+<div class="commentary" id="incident-commentary">
+  Press "Play timeline" to see an incident unfold: outage at t=0 -> alert at t+2min (TTD) -> engineer engaged at t+5min (TTT) -> rolled back at t+15min (TTM, users happy) -> root cause at t+24h (TTR) -> postmortem at t+72h (TTP).
+</div>
+
+<div class="takeaway">
+  <strong>Takeaway:</strong> TTM is the metric that matters to users -- minimize at all costs. Roll back before debugging. The instinct to "understand the problem first" is the enemy of fast mitigation. Restore service, then investigate.
+</div>
+
+<!-- ================================================================ -->
+<!-- SECTION 8: INTERVIEW QUICK REFERENCE                              -->
+<!-- ================================================================ -->
+<h2>8. Quick reference -- interview-tier answers</h2>
+
+<div class="interview-cards">
+  <div class="interview-card">
+    <p class="q">"How would you set SLOs?"</p>
+    <p class="a">Start from user expectation, not engineering capability. Identify 2-3 SLIs (availability, latency, sometimes correctness/freshness). Set SLO targets that reflect what users actually need. Ratchet SLO stricter than any external SLA -- the gap is your safety margin. Review quarterly; tighten if you're always exceeding, loosen if you're burning too much engineering time defending them.</p>
+  </div>
+  <div class="interview-card">
+    <p class="q">"How would you alert?"</p>
+    <p class="a">Multi-window burn rate, not raw threshold. Symptom-based (user-facing latency/error rate), not cause-based (CPU/memory). Every alert gets a runbook link. Three severity tiers: page (wake up now), ticket (next business day), log (informational). Test alerts regularly with synthetic failures. Group by service + alert name to prevent alert storms.</p>
+  </div>
+  <div class="interview-card">
+    <p class="q">"Why isn't 100% availability the goal?"</p>
+    <p class="a">Chasing the 9s costs exponentially more. Users can't perceive the difference beyond a point -- their own ISP, device, and client-side code are less reliable than your 4+ nines. You need room for risk-taking: deploying new features, running migrations, experimenting. Error budget formalizes this: the gap between 100% and your SLO is your innovation budget.</p>
+  </div>
+  <div class="interview-card">
+    <p class="q">"What's the difference between latency and saturation?"</p>
+    <p class="a">Latency = how long <em>this request</em> took (RED metric, user-visible). Saturation = how much queueing exists in the system right now (USE metric, infra-visible). They're correlated but distinct: saturation is a leading indicator -- queue depth grows before latency spikes. By the time latency is bad, saturation has been bad for a while.</p>
+  </div>
+  <div class="interview-card">
+    <p class="q">"Walk me through an incident process."</p>
+    <p class="a">Five stages: Detect (TTD) -> Triage (TTT) -> Mitigate (TTM) -> Resolve (TTR) -> Postmortem (TTP). The critical insight: TTM is the user-facing metric. Roll back or shed traffic immediately; do not debug in production while users suffer. Root cause analysis comes after service is restored. Postmortem is blameless, action-item-driven, and published within 72 hours.</p>
+  </div>
+</div>
+
+<div class="takeaway" style="border-left-color: var(--accent-yellow);">
+  <strong style="color: var(--accent-yellow);">The senior tell.</strong> Talk in error budgets, not "is everything green?" The right vocabulary is: "we're at 30% burn this month -- we can ship with confidence" or "we're at 110% -- this PR waits." The junior says "uptime looks fine." The senior says "we've consumed 40% of our error budget with 60% of the month remaining -- we have room to ship the migration."
+</div>
+
+<!-- ================================================================ -->
+<!-- JAVASCRIPT                                                        -->
+<!-- ================================================================ -->
+<script>
+/* ---- Nines slider ---- */
+(function() {
+  var slider = document.getElementById('nines-slider');
+  var display = document.getElementById('nines-display');
+  var commentary = document.getElementById('nines-commentary');
+  var table = document.getElementById('nines-table');
+
+  var data = [
+    { nines: 1, pct: '90%', label: '1 nine', commentary: 'At 1 nine (90%), you have 72 hours of downtime per month. Acceptable for internal tools, dev environments, and batch pipelines where users retry naturally.' },
+    { nines: 2, pct: '99%', label: '2 nines', commentary: 'At 2 nines (99%), you have 7.2 hours of downtime per month. Common for internal business applications. Basic redundancy (primary + standby) gets you here.' },
+    { nines: 3, pct: '99.9%', label: '3 nines', commentary: 'At 3 nines (99.9%), you have 43.2 minutes of downtime per month. This is the sweet spot for most SaaS services: achievable with multi-AZ deployment, health checks, and auto-failover. Every additional nine costs roughly 10x more engineering effort.' },
+    { nines: 4, pct: '99.99%', label: '4 nines', commentary: 'At 4 nines (99.99%), you have 4.32 minutes of downtime per month. Requires multi-region deployment, zero-downtime deploys, sophisticated health checking, and significant on-call investment. Reserved for payment systems, auth services, core infrastructure.' },
+    { nines: 5, pct: '99.999%', label: '5 nines', commentary: 'At 5 nines (99.999%), you have 26 seconds of downtime per month. Heroic territory: custom infrastructure, redundant everything, extreme testing discipline. Few services genuinely need this. Even cloud providers rarely guarantee it.' }
+  ];
+
+  function update() {
+    var val = parseInt(slider.value);
+    var d = data[val - 1];
+    display.textContent = d.pct + ' (' + d.label + ')';
+    commentary.textContent = d.commentary;
+
+    var rows = table.querySelectorAll('tbody tr');
+    rows.forEach(function(row) {
+      var rowNine = parseInt(row.getAttribute('data-nine'));
+      if (rowNine === val) {
+        row.classList.add('active-nine');
+        row.querySelectorAll('td').forEach(function(td) {
+          if (!td.style.color) td.classList.add('highlight');
+        });
+      } else {
+        row.classList.remove('active-nine');
+        row.querySelectorAll('td').forEach(function(td) {
+          td.classList.remove('highlight');
+        });
+      }
+    });
+  }
+
+  slider.addEventListener('input', update);
+  update();
+})();
+
+/* ---- Error Budget Animation ---- */
+var budgetState = {
+  playing: false,
+  animId: null,
+  day: 0,
+  sloPercent: 99.9,
+  totalBudgetMin: 43.2,
+  burnedMin: 0,
+  history: [],
+  incidents: []
+};
+
+function updateBudgetSLO() {
+  var slider = document.getElementById('budget-slo-slider');
+  var display = document.getElementById('budget-slo-display');
+  var val = parseInt(slider.value);
+  budgetState.sloPercent = val / 10;
+  display.textContent = budgetState.sloPercent.toFixed(1) + '%';
+  budgetState.totalBudgetMin = (1 - budgetState.sloPercent / 100) * 30 * 24 * 60;
+  resetBudgetAnim();
+}
+
+function generateBudgetIncidents() {
+  // Generate realistic incident pattern: a few small ones and one big one around day 15-20
+  var incidents = [];
+  // Small incidents
+  incidents.push({ day: 3, durationMin: 2, label: 'Brief 500s' });
+  incidents.push({ day: 7, durationMin: 5, label: 'Slow query' });
+  incidents.push({ day: 11, durationMin: 3, label: 'Deploy hiccup' });
+  // Big incident
+  incidents.push({ day: 16, durationMin: 18, label: 'DB failover' });
+  // More small
+  incidents.push({ day: 22, durationMin: 8, label: 'Cache miss storm' });
+  incidents.push({ day: 26, durationMin: 4, label: 'GC pause' });
+  incidents.push({ day: 28, durationMin: 3, label: 'Cert renewal' });
+  return incidents;
+}
+
+function resetBudgetAnim() {
+  budgetState.playing = false;
+  budgetState.day = 0;
+  budgetState.burnedMin = 0;
+  budgetState.history = [];
+  budgetState.incidents = generateBudgetIncidents();
+  if (budgetState.animId) cancelAnimationFrame(budgetState.animId);
+  budgetState.animId = null;
+  document.getElementById('budget-play').textContent = 'Play simulation';
+  updateBudgetBar(100);
+  document.getElementById('budget-commentary').textContent = 'Press "Play simulation" to watch errors consume the budget over a 30-day window. When the budget runs out, feature work freezes until reliability is restored.';
+  drawBudgetChart();
+}
+
+function toggleBudgetAnim() {
+  if (budgetState.playing) {
+    budgetState.playing = false;
+    document.getElementById('budget-play').textContent = 'Play simulation';
+    if (budgetState.animId) cancelAnimationFrame(budgetState.animId);
+  } else {
+    if (budgetState.day >= 30) resetBudgetAnim();
+    budgetState.playing = true;
+    document.getElementById('budget-play').textContent = 'Pause';
+    budgetAnimStep();
+  }
+}
+
+function budgetAnimStep() {
+  if (!budgetState.playing || budgetState.day >= 30) {
+    budgetState.playing = false;
+    document.getElementById('budget-play').textContent = 'Play simulation';
+    if (budgetState.day >= 30) {
+      var remaining = Math.max(0, ((budgetState.totalBudgetMin - budgetState.burnedMin) / budgetState.totalBudgetMin) * 100);
+      if (remaining <= 0) {
+        document.getElementById('budget-commentary').textContent = 'Budget exhausted! Feature freeze in effect. All engineering effort redirects to reliability improvements until the budget resets next month.';
+      } else {
+        document.getElementById('budget-commentary').textContent = 'Month complete. ' + remaining.toFixed(1) + '% of error budget remaining. You can ship with confidence next month.';
+      }
+    }
+    return;
+  }
+
+  budgetState.day += 0.15;
+  if (budgetState.day > 30) budgetState.day = 30;
+
+  // Check for incidents at current day
+  var dayFloor = budgetState.day;
+  for (var i = 0; i < budgetState.incidents.length; i++) {
+    var inc = budgetState.incidents[i];
+    if (Math.abs(dayFloor - inc.day) < 0.2 && !inc.triggered) {
+      budgetState.burnedMin += inc.durationMin;
+      inc.triggered = true;
+      document.getElementById('budget-commentary').textContent = 'Day ' + inc.day + ': ' + inc.label + ' -- ' + inc.durationMin + ' min of errors. Budget burned: ' + budgetState.burnedMin.toFixed(1) + ' / ' + budgetState.totalBudgetMin.toFixed(1) + ' min.';
+    }
+  }
+
+  var remaining = Math.max(0, ((budgetState.totalBudgetMin - budgetState.burnedMin) / budgetState.totalBudgetMin) * 100);
+  budgetState.history.push({ day: budgetState.day, remaining: remaining });
+  updateBudgetBar(remaining);
+  drawBudgetChart();
+
+  if (remaining <= 0) {
+    document.getElementById('budget-commentary').textContent = 'Budget exhausted at day ' + Math.floor(budgetState.day) + '! Feature freeze in effect. All engineering effort redirects to reliability until the budget resets.';
+    budgetState.playing = false;
+    document.getElementById('budget-play').textContent = 'Play simulation';
+    return;
+  }
+
+  budgetState.animId = requestAnimationFrame(function() {
+    setTimeout(budgetAnimStep, 40);
+  });
+}
+
+function updateBudgetBar(pct) {
+  var bar = document.getElementById('budget-bar');
+  var display = document.getElementById('budget-pct-display');
+  bar.style.width = Math.max(0, pct) + '%';
+  bar.textContent = Math.max(0, pct).toFixed(1) + '%';
+  display.textContent = Math.max(0, pct).toFixed(1) + '%';
+
+  if (pct > 50) {
+    bar.style.background = 'var(--accent-green)';
+  } else if (pct > 20) {
+    bar.style.background = 'var(--accent-yellow)';
+  } else if (pct > 0) {
+    bar.style.background = 'var(--accent-orange)';
+  } else {
+    bar.style.background = 'var(--accent-red)';
+  }
+}
+
+function drawBudgetChart() {
+  var canvas = document.getElementById('budget-canvas');
+  var ctx = canvas.getContext('2d');
+  var dpr = window.devicePixelRatio || 1;
+  var rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  ctx.scale(dpr, dpr);
+  var W = rect.width;
+  var H = rect.height;
+
+  var padL = 55, padR = 20, padT = 30, padB = 40;
+  var chartW = W - padL - padR;
+  var chartH = H - padT - padB;
+
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = '#181820';
+  ctx.fillRect(0, 0, W, H);
+
+  // Grid
+  ctx.strokeStyle = '#1a1a25';
+  ctx.lineWidth = 0.5;
+  for (var i = 0; i <= 4; i++) {
+    var y = padT + (chartH / 4) * i;
+    ctx.beginPath();
+    ctx.moveTo(padL, y);
+    ctx.lineTo(W - padR, y);
+    ctx.stroke();
+  }
+
+  // Y axis labels
+  ctx.fillStyle = '#888';
+  ctx.font = '11px -apple-system, sans-serif';
+  ctx.textAlign = 'right';
+  ctx.fillText('100%', padL - 6, padT + 4);
+  ctx.fillText('75%', padL - 6, padT + chartH * 0.25 + 4);
+  ctx.fillText('50%', padL - 6, padT + chartH * 0.5 + 4);
+  ctx.fillText('25%', padL - 6, padT + chartH * 0.75 + 4);
+  ctx.fillText('0%', padL - 6, padT + chartH + 4);
+
+  // X axis labels
+  ctx.textAlign = 'center';
+  for (var d = 0; d <= 30; d += 5) {
+    var x = padL + (d / 30) * chartW;
+    ctx.fillText('Day ' + d, x, H - padB + 18);
+  }
+
+  // Title
+  ctx.fillStyle = '#cfcfd6';
+  ctx.font = '12px -apple-system, sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillText('Error budget remaining over 30 days', padL, padT - 12);
+
+  // Danger zone
+  ctx.fillStyle = 'rgba(255, 107, 107, 0.06)';
+  ctx.fillRect(padL, padT + chartH * 0.8, chartW, chartH * 0.2);
+
+  // 20% line
+  ctx.strokeStyle = 'rgba(255, 107, 107, 0.3)';
+  ctx.setLineDash([4, 4]);
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(padL, padT + chartH * 0.8);
+  ctx.lineTo(W - padR, padT + chartH * 0.8);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  ctx.fillStyle = 'rgba(255, 107, 107, 0.6)';
+  ctx.font = '10px -apple-system, sans-serif';
+  ctx.textAlign = 'right';
+  ctx.fillText('danger zone (< 20%)', W - padR - 4, padT + chartH * 0.8 - 4);
+
+  // Budget line
+  if (budgetState.history.length > 1) {
+    ctx.beginPath();
+    ctx.strokeStyle = '#51cf66';
+    ctx.lineWidth = 2.5;
+    for (var i = 0; i < budgetState.history.length; i++) {
+      var h = budgetState.history[i];
+      var x = padL + (h.day / 30) * chartW;
+      var y = padT + (1 - h.remaining / 100) * chartH;
+
+      if (h.remaining <= 20) ctx.strokeStyle = '#ff6b6b';
+      else if (h.remaining <= 50) ctx.strokeStyle = '#ffd43b';
+
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+
+    // Current point
+    var last = budgetState.history[budgetState.history.length - 1];
+    var cx = padL + (last.day / 30) * chartW;
+    var cy = padT + (1 - last.remaining / 100) * chartH;
+    ctx.beginPath();
+    ctx.arc(cx, cy, 4, 0, Math.PI * 2);
+    ctx.fillStyle = last.remaining <= 0 ? '#ff6b6b' : last.remaining <= 20 ? '#ff6b6b' : last.remaining <= 50 ? '#ffd43b' : '#51cf66';
+    ctx.fill();
+  }
+
+  // Draw incident markers
+  for (var i = 0; i < budgetState.incidents.length; i++) {
+    var inc = budgetState.incidents[i];
+    if (inc.triggered) {
+      var ix = padL + (inc.day / 30) * chartW;
+      ctx.beginPath();
+      ctx.strokeStyle = 'rgba(255, 107, 107, 0.5)';
+      ctx.setLineDash([2, 2]);
+      ctx.lineWidth = 1;
+      ctx.moveTo(ix, padT);
+      ctx.lineTo(ix, padT + chartH);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      ctx.fillStyle = 'rgba(255, 107, 107, 0.7)';
+      ctx.font = '9px -apple-system, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(inc.label, ix, padT + chartH + 12);
+    }
+  }
+}
+
+// Init budget chart
+resetBudgetAnim();
+
+/* ---- Burn Rate Demo ---- */
+var burnState = {
+  scenario: null,
+  animId: null,
+  tick: 0,
+  maxTick: 360,
+  errorData: [],
+  fastBurnData: [],
+  slowBurnData: [],
+  fastAlert: null,
+  slowAlert: null
+};
+
+function resetBurnDemo() {
+  burnState.scenario = null;
+  burnState.tick = 0;
+  burnState.errorData = [];
+  burnState.fastBurnData = [];
+  burnState.slowBurnData = [];
+  burnState.fastAlert = null;
+  burnState.slowAlert = null;
+  if (burnState.animId) cancelAnimationFrame(burnState.animId);
+  burnState.animId = null;
+  document.getElementById('burn-spike-btn').classList.remove('active-btn');
+  document.getElementById('burn-slow-btn').classList.remove('active-btn');
+  document.getElementById('burn-commentary').textContent = 'Click "Simulate spike" to see a sudden error burst detected quickly by the 1h fast-burn window. Click "Simulate slow degradation" to see a gradual increase that only the 6h slow-burn window catches.';
+  drawBurnChart();
+}
+
+function startBurnScenario(type) {
+  resetBurnDemo();
+  burnState.scenario = type;
+  if (type === 'spike') {
+    document.getElementById('burn-spike-btn').classList.add('active-btn');
+  } else {
+    document.getElementById('burn-slow-btn').classList.add('active-btn');
+  }
+  burnAnimStep();
+}
+
+function getErrorRate(tick, scenario) {
+  // Baseline: ~0.05% error rate
+  var base = 0.05;
+  if (scenario === 'spike') {
+    // Spike at tick 60-90 (representing minutes 60-90)
+    if (tick >= 60 && tick < 90) {
+      return base + 4.0 * Math.sin((tick - 60) / 30 * Math.PI);
+    }
+    if (tick >= 90 && tick < 120) {
+      return base + 1.0 * Math.max(0, 1 - (tick - 90) / 30);
+    }
+    return base + Math.random() * 0.03;
+  } else {
+    // Slow degradation: gradual climb from tick 30 to tick 300
+    if (tick < 30) return base + Math.random() * 0.02;
+    var progress = Math.min(1, (tick - 30) / 270);
+    return base + progress * 0.8 + Math.random() * 0.05;
+  }
+}
+
+function burnAnimStep() {
+  if (burnState.tick >= burnState.maxTick) {
+    if (burnState.animId) cancelAnimationFrame(burnState.animId);
+    return;
+  }
+
+  burnState.tick++;
+  var errRate = getErrorRate(burnState.tick, burnState.scenario);
+  burnState.errorData.push(errRate);
+
+  // Compute burn rates
+  // Normal burn rate for 99.9% SLO over 30 days = 0.1% per 30 days
+  // Per minute: 0.001 / (30*24*60) = ~2.3e-8 => per "tick" we normalize differently
+  // We'll work with: "expected error rate" = 0.1% = 0.001 fraction
+  // Burn rate = (actual error rate in window) / (expected error rate)
+  var expectedRate = 0.1; // 0.1% = SLO budget rate
+
+  // Fast burn: 1h window (60 ticks)
+  var fastWindowSize = 60;
+  var fastWindowStart = Math.max(0, burnState.errorData.length - fastWindowSize);
+  var fastSum = 0;
+  for (var i = fastWindowStart; i < burnState.errorData.length; i++) {
+    fastSum += burnState.errorData[i];
+  }
+  var fastAvg = fastSum / Math.min(fastWindowSize, burnState.errorData.length);
+  var fastBurn = fastAvg / expectedRate;
+  burnState.fastBurnData.push(fastBurn);
+
+  // Slow burn: 6h window (360 ticks, but we'll use actual length if less)
+  var slowWindowSize = 360;
+  var slowWindowStart = Math.max(0, burnState.errorData.length - slowWindowSize);
+  var slowSum = 0;
+  for (var i = slowWindowStart; i < burnState.errorData.length; i++) {
+    slowSum += burnState.errorData[i];
+  }
+  var slowAvg = slowSum / Math.min(slowWindowSize, burnState.errorData.length);
+  var slowBurn = slowAvg / expectedRate;
+  burnState.slowBurnData.push(slowBurn);
+
+  // Check alert thresholds
+  if (!burnState.fastAlert && fastBurn > 14) {
+    burnState.fastAlert = burnState.tick;
+    document.getElementById('burn-commentary').textContent = 'FAST BURN ALERT at minute ' + burnState.tick + '! 1h burn rate = ' + fastBurn.toFixed(1) + 'x (threshold: 14x). Paging on-call immediately. Budget would be consumed in ~' + Math.round(30 * 24 / fastBurn) + ' hours at this rate.';
+  }
+  if (!burnState.slowAlert && slowBurn > 6 && burnState.tick > 60) {
+    burnState.slowAlert = burnState.tick;
+    if (!burnState.fastAlert) {
+      document.getElementById('burn-commentary').textContent = 'SLOW BURN ALERT at minute ' + burnState.tick + '! 6h burn rate = ' + slowBurn.toFixed(1) + 'x (threshold: 6x). The 1h window missed this gradual degradation, but the 6h window caught it. Paging on-call.';
+    }
+  }
+
+  drawBurnChart();
+
+  burnState.animId = requestAnimationFrame(function() {
+    setTimeout(burnAnimStep, 25);
+  });
+}
+
+function drawBurnChart() {
+  var canvas = document.getElementById('burn-canvas');
+  var ctx = canvas.getContext('2d');
+  var dpr = window.devicePixelRatio || 1;
+  var rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  ctx.scale(dpr, dpr);
+  var W = rect.width;
+  var H = rect.height;
+
+  var padL = 55, padR = 20, padT = 30, padB = 40;
+  var chartW = W - padL - padR;
+  // Split into two charts: error rate (top half) and burn rate (bottom half)
+  var topH = (H - padT - padB - 20) * 0.4;
+  var botH = (H - padT - padB - 20) * 0.6;
+  var topY = padT;
+  var botY = padT + topH + 20;
+
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = '#181820';
+  ctx.fillRect(0, 0, W, H);
+
+  // --- Top chart: Error rate ---
+  ctx.fillStyle = '#cfcfd6';
+  ctx.font = '11px -apple-system, sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillText('Error rate (%)', padL, topY - 8);
+
+  // Grid
+  ctx.strokeStyle = '#1a1a25';
+  ctx.lineWidth = 0.5;
+  for (var i = 0; i <= 3; i++) {
+    var y = topY + (topH / 3) * i;
+    ctx.beginPath();
+    ctx.moveTo(padL, y);
+    ctx.lineTo(W - padR, y);
+    ctx.stroke();
+  }
+
+  // Y labels for error rate (0% to 5%)
+  ctx.fillStyle = '#888';
+  ctx.font = '10px -apple-system, sans-serif';
+  ctx.textAlign = 'right';
+  ctx.fillText('5%', padL - 6, topY + 4);
+  ctx.fillText('2.5%', padL - 6, topY + topH * 0.5 + 4);
+  ctx.fillText('0%', padL - 6, topY + topH + 4);
+
+  // Error rate line
+  if (burnState.errorData.length > 1) {
+    ctx.beginPath();
+    ctx.strokeStyle = '#ff6b6b';
+    ctx.lineWidth = 1.5;
+    for (var i = 0; i < burnState.errorData.length; i++) {
+      var x = padL + (i / burnState.maxTick) * chartW;
+      var y = topY + topH - (burnState.errorData[i] / 5) * topH;
+      y = Math.max(topY, Math.min(topY + topH, y));
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+
+  // --- Bottom chart: Burn rates ---
+  ctx.fillStyle = '#cfcfd6';
+  ctx.font = '11px -apple-system, sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillText('Burn rate (multiples of expected)', padL, botY - 8);
+
+  // Grid
+  ctx.strokeStyle = '#1a1a25';
+  ctx.lineWidth = 0.5;
+  for (var i = 0; i <= 4; i++) {
+    var y = botY + (botH / 4) * i;
+    ctx.beginPath();
+    ctx.moveTo(padL, y);
+    ctx.lineTo(W - padR, y);
+    ctx.stroke();
+  }
+
+  // Y labels for burn rate (0 to 20x)
+  ctx.fillStyle = '#888';
+  ctx.font = '10px -apple-system, sans-serif';
+  ctx.textAlign = 'right';
+  ctx.fillText('20x', padL - 6, botY + 4);
+  ctx.fillText('15x', padL - 6, botY + botH * 0.25 + 4);
+  ctx.fillText('10x', padL - 6, botY + botH * 0.5 + 4);
+  ctx.fillText('5x', padL - 6, botY + botH * 0.75 + 4);
+  ctx.fillText('0x', padL - 6, botY + botH + 4);
+
+  // 14x threshold (fast burn)
+  ctx.strokeStyle = 'rgba(255, 107, 107, 0.4)';
+  ctx.setLineDash([4, 4]);
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  var threshY14 = botY + botH - (14 / 20) * botH;
+  ctx.moveTo(padL, threshY14);
+  ctx.lineTo(W - padR, threshY14);
+  ctx.stroke();
+  ctx.fillStyle = 'rgba(255, 107, 107, 0.6)';
+  ctx.font = '10px -apple-system, sans-serif';
+  ctx.textAlign = 'right';
+  ctx.fillText('14x fast burn threshold', W - padR - 4, threshY14 - 4);
+
+  // 6x threshold (slow burn)
+  ctx.strokeStyle = 'rgba(255, 169, 77, 0.4)';
+  ctx.beginPath();
+  var threshY6 = botY + botH - (6 / 20) * botH;
+  ctx.moveTo(padL, threshY6);
+  ctx.lineTo(W - padR, threshY6);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = 'rgba(255, 169, 77, 0.6)';
+  ctx.textAlign = 'right';
+  ctx.fillText('6x slow burn threshold', W - padR - 4, threshY6 - 4);
+
+  // Fast burn line (1h window)
+  if (burnState.fastBurnData.length > 1) {
+    ctx.beginPath();
+    ctx.strokeStyle = '#ff6b6b';
+    ctx.lineWidth = 2;
+    for (var i = 0; i < burnState.fastBurnData.length; i++) {
+      var x = padL + (i / burnState.maxTick) * chartW;
+      var y = botY + botH - (Math.min(20, burnState.fastBurnData[i]) / 20) * botH;
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+
+  // Slow burn line (6h window)
+  if (burnState.slowBurnData.length > 1) {
+    ctx.beginPath();
+    ctx.strokeStyle = '#ffa94d';
+    ctx.lineWidth = 2;
+    for (var i = 0; i < burnState.slowBurnData.length; i++) {
+      var x = padL + (i / burnState.maxTick) * chartW;
+      var y = botY + botH - (Math.min(20, burnState.slowBurnData[i]) / 20) * botH;
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+
+  // Alert markers
+  if (burnState.fastAlert) {
+    var ax = padL + (burnState.fastAlert / burnState.maxTick) * chartW;
+    ctx.strokeStyle = '#ff6b6b';
+    ctx.setLineDash([3, 3]);
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(ax, botY);
+    ctx.lineTo(ax, botY + botH);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = '#ff6b6b';
+    ctx.font = 'bold 10px -apple-system, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('FAST ALERT', ax, botY - 2);
+  }
+  if (burnState.slowAlert) {
+    var ax = padL + (burnState.slowAlert / burnState.maxTick) * chartW;
+    ctx.strokeStyle = '#ffa94d';
+    ctx.setLineDash([3, 3]);
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(ax, botY);
+    ctx.lineTo(ax, botY + botH);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = '#ffa94d';
+    ctx.font = 'bold 10px -apple-system, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('SLOW ALERT', ax, botY - 2);
+  }
+
+  // X axis labels
+  ctx.fillStyle = '#888';
+  ctx.font = '10px -apple-system, sans-serif';
+  ctx.textAlign = 'center';
+  for (var m = 0; m <= 360; m += 60) {
+    var x = padL + (m / burnState.maxTick) * chartW;
+    ctx.fillText(m + 'min', x, botY + botH + 16);
+  }
+
+  // Legend
+  ctx.font = '11px -apple-system, sans-serif';
+  ctx.textAlign = 'left';
+  var legX = padL + 10;
+  var legY = botY + botH + 32;
+  ctx.fillStyle = '#ff6b6b';
+  ctx.fillRect(legX, legY - 8, 14, 3);
+  ctx.fillText('1h window (fast burn)', legX + 20, legY - 3);
+  ctx.fillStyle = '#ffa94d';
+  ctx.fillRect(legX + 180, legY - 8, 14, 3);
+  ctx.fillText('6h window (slow burn)', legX + 200, legY - 3);
+}
+
+drawBurnChart();
+
+/* ---- Golden Signals ---- */
+function setGoldenState(state) {
+  document.getElementById('golden-normal-btn').classList.remove('active-btn');
+  document.getElementById('golden-spike-btn').classList.remove('active-btn');
+  document.getElementById('golden-overload-btn').classList.remove('active-btn');
+
+  var rateEl = document.getElementById('red-rate');
+  var errEl = document.getElementById('red-errors');
+  var latEl = document.getElementById('red-latency');
+  var utilEl = document.getElementById('use-util');
+  var satEl = document.getElementById('use-sat');
+  var useErrEl = document.getElementById('use-err');
+  var commentary = document.getElementById('golden-commentary');
+
+  if (state === 'normal') {
+    document.getElementById('golden-normal-btn').classList.add('active-btn');
+    rateEl.textContent = '1,240';
+    rateEl.style.color = 'var(--accent-blue)';
+    errEl.textContent = '0.12%';
+    errEl.style.color = 'var(--accent-green)';
+    latEl.textContent = '45ms';
+    latEl.style.color = 'var(--accent-green)';
+    utilEl.textContent = '42%';
+    utilEl.style.color = 'var(--accent-green)';
+    satEl.textContent = '3';
+    satEl.style.color = 'var(--accent-green)';
+    useErrEl.textContent = '0';
+    useErrEl.style.color = 'var(--accent-green)';
+    commentary.textContent = 'Normal operation: all metrics green. Request rate stable, errors minimal, latency well within SLO. CPU utilization comfortable at 42%, no saturation.';
+  } else if (state === 'spike') {
+    document.getElementById('golden-spike-btn').classList.add('active-btn');
+    rateEl.textContent = '1,180';
+    rateEl.style.color = 'var(--accent-blue)';
+    errEl.textContent = '0.15%';
+    errEl.style.color = 'var(--accent-yellow)';
+    latEl.textContent = '1,240ms';
+    latEl.style.color = 'var(--accent-red)';
+    utilEl.textContent = '94%';
+    utilEl.style.color = 'var(--accent-red)';
+    satEl.textContent = '847';
+    satEl.style.color = 'var(--accent-red)';
+    useErrEl.textContent = '0';
+    useErrEl.style.color = 'var(--accent-green)';
+    commentary.textContent = 'Latency spike detected! RED shows the symptom: p99 latency jumped to 1,240ms (SLO target: 500ms). USE reveals the cause: CPU at 94%, queue depth at 847. The bottleneck is CPU -- requests are queueing faster than they can be processed. Action: scale horizontally or identify the hot code path.';
+  } else if (state === 'overload') {
+    document.getElementById('golden-overload-btn').classList.add('active-btn');
+    rateEl.textContent = '3,800';
+    rateEl.style.color = 'var(--accent-orange)';
+    errEl.textContent = '12.4%';
+    errEl.style.color = 'var(--accent-red)';
+    latEl.textContent = '4,200ms';
+    latEl.style.color = 'var(--accent-red)';
+    utilEl.textContent = '100%';
+    utilEl.style.color = 'var(--accent-red)';
+    satEl.textContent = '2,341';
+    satEl.style.color = 'var(--accent-red)';
+    useErrEl.textContent = '142';
+    useErrEl.style.color = 'var(--accent-red)';
+    commentary.textContent = 'CPU overload! Traffic tripled (3,800 req/s), CPU pegged at 100%, queue depth at 2,341, resource errors appearing. RED confirms: 12.4% error rate, 4.2s p99 latency -- service is effectively down for many users. USE confirms: total CPU saturation is the root cause. Action: shed load (rate limiting / circuit breaker), then scale out.';
+  }
+}
+
+/* ---- On-Call Schedule ---- */
+(function() {
+  var container = document.getElementById('schedule-container');
+  var engineers = [
+    { name: 'Alice', region: 'US West', color: '#339af0' },
+    { name: 'Bob', region: 'US West', color: '#5c7cfa' },
+    { name: 'Clara', region: 'EU', color: '#51cf66' },
+    { name: 'Dan', region: 'EU', color: '#94d82d' },
+    { name: 'Eiko', region: 'APAC', color: '#cc5de8' },
+    { name: 'Fei', region: 'APAC', color: '#e599f7' }
+  ];
+
+  var days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  var regions = ['US West', 'EU', 'APAC'];
+  var shifts = ['06:00-14:00', '14:00-22:00', '22:00-06:00'];
+
+  // Build schedule: each region covers its business hours, 2 engineers rotate
+  // US West: 06:00-14:00 UTC (evening/night US = daytime APAC handoff)
+  // EU: 06:00-14:00 local = ~06:00-14:00 UTC
+  // APAC: 22:00-06:00 UTC
+
+  var html = '<table class="nines-table" style="font-size:12px;">';
+  html += '<thead><tr><th>Shift (UTC)</th>';
+  for (var d = 0; d < 7; d++) html += '<th>' + days[d] + '</th>';
+  html += '</tr></thead><tbody>';
+
+  var regionMap = {
+    'US West': [engineers[0], engineers[1]],
+    'EU': [engineers[2], engineers[3]],
+    'APAC': [engineers[4], engineers[5]]
+  };
+
+  for (var r = 0; r < regions.length; r++) {
+    var region = regions[r];
+    var pair = regionMap[region];
+    html += '<tr>';
+    html += '<td style="white-space:nowrap;"><span style="color:' + pair[0].color + '">' + region + '</span><br><span style="color:var(--text-3);font-size:10px;">' + shifts[r] + '</span></td>';
+    for (var d = 0; d < 7; d++) {
+      var eng = pair[d % 2];
+      var isPrimary = d % 2 === 0;
+      html += '<td style="background:' + eng.color + '22; color:' + eng.color + '; font-weight:600; font-size:11px;">';
+      html += eng.name;
+      html += '<br><span style="font-size:9px; color:var(--text-3);">' + (isPrimary ? 'primary' : 'secondary') + '</span>';
+      html += '</td>';
+    }
+    html += '</tr>';
+  }
+
+  html += '</tbody></table>';
+  html += '<p style="font-size:12px; color:var(--text-3); margin-top:8px;">Follow-the-sun: each region covers an 8-hour shift. Engineers rotate primary/secondary daily within their region pair. No engineer is paged during their night hours. Handoff notes passed at shift boundaries.</p>';
+  container.innerHTML = html;
+})();
+
+/* ---- Incident Timeline ---- */
+var incidentState = {
+  playing: false,
+  animId: null,
+  tick: 0,
+  maxTick: 200,
+  stages: [
+    { name: 'Outage', time: 0, color: '#888', desc: 'Service goes down' },
+    { name: 'Detect', time: 2, color: '#ff6b6b', desc: 'Alert fires (TTD=2min)' },
+    { name: 'Triage', time: 5, color: '#ffa94d', desc: 'Engineer engaged (TTT=5min)' },
+    { name: 'Mitigate', time: 15, color: '#ffd43b', desc: 'Rollback deployed (TTM=15min)' },
+    { name: 'Resolve', time: 100, color: '#51cf66', desc: 'Root cause fixed (TTR=24h)' },
+    { name: 'Postmortem', time: 180, color: '#339af0', desc: 'Published (TTP=72h)' }
+  ],
+  currentStage: -1
+};
+
+function resetIncidentTimeline() {
+  incidentState.playing = false;
+  incidentState.tick = 0;
+  incidentState.currentStage = -1;
+  if (incidentState.animId) cancelAnimationFrame(incidentState.animId);
+  incidentState.animId = null;
+  document.getElementById('incident-play-btn').textContent = 'Play timeline';
+  document.getElementById('incident-commentary').textContent = 'Press "Play timeline" to see an incident unfold: outage at t=0 -> alert at t+2min (TTD) -> engineer engaged at t+5min (TTT) -> rolled back at t+15min (TTM, users happy) -> root cause at t+24h (TTR) -> postmortem at t+72h (TTP).';
+  drawIncidentChart();
+}
+
+function playIncidentTimeline() {
+  if (incidentState.playing) {
+    incidentState.playing = false;
+    document.getElementById('incident-play-btn').textContent = 'Play timeline';
+    if (incidentState.animId) cancelAnimationFrame(incidentState.animId);
+    return;
+  }
+  if (incidentState.tick >= incidentState.maxTick) resetIncidentTimeline();
+  incidentState.playing = true;
+  document.getElementById('incident-play-btn').textContent = 'Pause';
+  incidentAnimStep();
+}
+
+function incidentAnimStep() {
+  if (!incidentState.playing || incidentState.tick >= incidentState.maxTick) {
+    incidentState.playing = false;
+    document.getElementById('incident-play-btn').textContent = 'Play timeline';
+    return;
+  }
+
+  incidentState.tick += 0.8;
+
+  // Check which stage we're at
+  for (var i = incidentState.stages.length - 1; i >= 0; i--) {
+    if (incidentState.tick >= incidentState.stages[i].time) {
+      if (incidentState.currentStage !== i) {
+        incidentState.currentStage = i;
+        var s = incidentState.stages[i];
+        var timeLabel = '';
+        if (i === 0) timeLabel = 't=0';
+        else if (i <= 3) timeLabel = 't+' + s.time + 'min';
+        else if (i === 4) timeLabel = 't+24h';
+        else timeLabel = 't+72h';
+        document.getElementById('incident-commentary').textContent = s.name + ' (' + timeLabel + '): ' + s.desc + (i === 3 ? '. Users are happy -- service restored. Root cause investigation begins (but users do not wait for it).' : '');
+      }
+      break;
+    }
+  }
+
+  drawIncidentChart();
+
+  incidentState.animId = requestAnimationFrame(function() {
+    setTimeout(incidentAnimStep, 30);
+  });
+}
+
+function drawIncidentChart() {
+  var canvas = document.getElementById('incident-canvas');
+  var ctx = canvas.getContext('2d');
+  var dpr = window.devicePixelRatio || 1;
+  var rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  ctx.scale(dpr, dpr);
+  var W = rect.width;
+  var H = rect.height;
+
+  var padL = 55, padR = 30, padT = 40, padB = 50;
+  var chartW = W - padL - padR;
+  var chartH = H - padT - padB;
+
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = '#181820';
+  ctx.fillRect(0, 0, W, H);
+
+  // Title
+  ctx.fillStyle = '#cfcfd6';
+  ctx.font = '12px -apple-system, sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillText('Incident timeline -- service health over time', padL, padT - 18);
+
+  // Y axis: service health (0% to 100%)
+  ctx.fillStyle = '#888';
+  ctx.font = '10px -apple-system, sans-serif';
+  ctx.textAlign = 'right';
+  ctx.fillText('100%', padL - 6, padT + 4);
+  ctx.fillText('50%', padL - 6, padT + chartH * 0.5 + 4);
+  ctx.fillText('0%', padL - 6, padT + chartH + 4);
+
+  ctx.fillStyle = '#555';
+  ctx.font = '10px -apple-system, sans-serif';
+  ctx.textAlign = 'right';
+  ctx.save();
+  ctx.translate(14, padT + chartH / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.textAlign = 'center';
+  ctx.fillText('Service health', 0, 0);
+  ctx.restore();
+
+  // Grid
+  ctx.strokeStyle = '#1a1a25';
+  ctx.lineWidth = 0.5;
+  for (var i = 0; i <= 4; i++) {
+    var y = padT + (chartH / 4) * i;
+    ctx.beginPath();
+    ctx.moveTo(padL, y);
+    ctx.lineTo(W - padR, y);
+    ctx.stroke();
+  }
+
+  // X axis labels (compressed timeline)
+  var xLabels = [
+    { tick: 0, label: 't=0' },
+    { tick: 2, label: '+2min' },
+    { tick: 5, label: '+5min' },
+    { tick: 15, label: '+15min' },
+    { tick: 100, label: '+24h' },
+    { tick: 180, label: '+72h' }
+  ];
+
+  ctx.fillStyle = '#888';
+  ctx.font = '10px -apple-system, sans-serif';
+  ctx.textAlign = 'center';
+  for (var i = 0; i < xLabels.length; i++) {
+    var x = padL + (xLabels[i].tick / incidentState.maxTick) * chartW;
+    ctx.fillText(xLabels[i].label, x, padT + chartH + 18);
+  }
+
+  // Service health curve
+  function healthAt(t) {
+    if (t < 0) return 100;
+    if (t < 2) return Math.max(5, 100 - t * 47.5); // Drop to ~5% at outage
+    if (t < 5) return 5; // Down during triage
+    if (t < 15) return 5 + (t - 5) / 10 * 10; // Slight improvement during mitigation effort
+    if (t < 20) return 15 + (t - 15) / 5 * 80; // Rapid recovery from rollback
+    if (t < 100) return 95; // Recovered but not fully resolved
+    return 100; // Fully resolved
+  }
+
+  // Draw health line up to current tick
+  var maxT = Math.min(incidentState.tick, incidentState.maxTick);
+  if (maxT > 0) {
+    ctx.beginPath();
+    ctx.strokeStyle = '#51cf66';
+    ctx.lineWidth = 2.5;
+    var steps = Math.floor(maxT * 2);
+    for (var i = 0; i <= steps; i++) {
+      var t = (i / steps) * maxT;
+      var h = healthAt(t);
+      var x = padL + (t / incidentState.maxTick) * chartW;
+      var y = padT + (1 - h / 100) * chartH;
+
+      if (h < 30) ctx.strokeStyle = '#ff6b6b';
+      else if (h < 80) ctx.strokeStyle = '#ffd43b';
+      else ctx.strokeStyle = '#51cf66';
+
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+
+  // Stage markers
+  for (var i = 0; i < incidentState.stages.length; i++) {
+    var s = incidentState.stages[i];
+    if (incidentState.tick >= s.time) {
+      var x = padL + (s.time / incidentState.maxTick) * chartW;
+      var h = healthAt(s.time);
+      var y = padT + (1 - h / 100) * chartH;
+
+      // Vertical line
+      ctx.strokeStyle = s.color + '66';
+      ctx.setLineDash([3, 3]);
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(x, padT);
+      ctx.lineTo(x, padT + chartH);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Dot
+      ctx.beginPath();
+      ctx.arc(x, y, 5, 0, Math.PI * 2);
+      ctx.fillStyle = s.color;
+      ctx.fill();
+
+      // Label
+      ctx.fillStyle = s.color;
+      ctx.font = 'bold 10px -apple-system, sans-serif';
+      ctx.textAlign = 'center';
+      var labelY = i % 2 === 0 ? padT + 12 : padT + 24;
+      ctx.fillText(s.name, x, labelY);
+    }
+  }
+
+  // Impact zone shading
+  if (incidentState.tick >= 0) {
+    var outageStart = padL;
+    var outageEnd = padL + (Math.min(incidentState.tick, 15) / incidentState.maxTick) * chartW;
+    if (incidentState.tick > 0 && incidentState.tick <= 20) {
+      ctx.fillStyle = 'rgba(255, 107, 107, 0.05)';
+      ctx.fillRect(outageStart, padT, outageEnd - outageStart, chartH);
+    } else if (incidentState.tick > 20) {
+      var mitigateX = padL + (15 / incidentState.maxTick) * chartW;
+      ctx.fillStyle = 'rgba(255, 107, 107, 0.05)';
+      ctx.fillRect(outageStart, padT, mitigateX - outageStart, chartH);
+    }
+  }
+}
+
+drawIncidentChart();
+
+/* ---- Handle window resize for all canvases ---- */
+window.addEventListener('resize', function() {
+  drawBudgetChart();
+  drawBurnChart();
+  drawIncidentChart();
+});
+</script>
+
+</body>
+</html>

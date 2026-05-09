@@ -1,0 +1,1785 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Distributed Transactions + Sagas</title>
+<style>
+:root {
+  --bg: #0f0f15;
+  --surface: #181820;
+  --surface-2: #20202a;
+  --border: #2a2a35;
+  --text: #e6e6ea;
+  --text-2: #cfcfd6;
+  --text-3: #888;
+  --accent-red: #ff6b6b;
+  --accent-green: #51cf66;
+  --accent-blue: #339af0;
+  --accent-yellow: #ffd43b;
+  --accent-purple: #cc5de8;
+  --accent-cyan: #8be9fd;
+  --accent-orange: #ffa94d;
+}
+*, *::before, *::after { box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  padding: 32px 24px;
+  max-width: 1100px;
+  margin: 0 auto;
+  line-height: 1.55;
+}
+h1 { color: #fff; margin-bottom: 4px; }
+h1 + p.sub { color: var(--text-3); font-style: italic; margin-top: 0; margin-bottom: 24px; }
+h2 { color: #fff; margin-top: 48px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+h3 { color: var(--text-2); margin-top: 20px; }
+p { margin: 10px 0; }
+code {
+  background: var(--surface-2);
+  padding: 2px 6px;
+  border-radius: 3px;
+  color: var(--accent-cyan);
+  font-size: 13px;
+}
+svg {
+  background: var(--surface);
+  border-radius: 8px;
+  display: block;
+  margin: 14px auto;
+  width: 100%;
+  height: auto;
+}
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0;
+  align-items: center;
+}
+.controls button, .btn {
+  padding: 10px 16px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  border-radius: 6px;
+  cursor: pointer;
+  min-height: 44px;
+  font-size: 14px;
+  transition: background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+.controls button:hover, .btn:hover { background: var(--surface); }
+.controls button:disabled, .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.controls button.active-btn { border-color: var(--accent-blue); color: var(--accent-blue); }
+.controls button.danger { border-color: var(--accent-red); color: var(--accent-red); }
+.controls button.danger:hover { background: #2a1520; }
+.commentary {
+  background: var(--surface-2);
+  padding: 14px;
+  border-radius: 6px;
+  font-size: 14px;
+  color: var(--text-2);
+  margin: 12px 0;
+  min-height: 44px;
+  line-height: 1.5;
+}
+.takeaway {
+  background: #1a1a22;
+  border-left: 3px solid var(--accent-green);
+  padding: 12px 16px;
+  margin: 14px 0;
+  font-size: 14px;
+}
+.takeaway strong { color: var(--accent-green); }
+.takeaway ul { margin: 6px 0 0 0; padding-left: 18px; }
+.takeaway li { margin-bottom: 6px; }
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 14px 0;
+  font-size: 14px;
+}
+th {
+  background: var(--surface-2);
+  color: var(--accent-blue);
+  text-align: left;
+  padding: 10px 12px;
+  border-bottom: 2px solid var(--border);
+  font-weight: 600;
+}
+td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-2);
+  vertical-align: top;
+}
+tr:hover td { background: var(--surface); }
+blockquote {
+  background: var(--surface-2);
+  border-left: 3px solid var(--accent-purple);
+  padding: 12px 16px;
+  margin: 14px 0;
+  font-size: 14px;
+  color: var(--text-2);
+}
+blockquote strong { color: var(--accent-purple); }
+.section-divider {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 40px 0;
+}
+@media (max-width: 720px) {
+  body { padding: 20px 14px; }
+  table { font-size: 13px; }
+  th, td { padding: 8px; }
+}
+@media (max-width: 480px) {
+  .controls { flex-direction: column; }
+  .controls button { width: 100%; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Distributed transactions + sagas</h1>
+  <p class="sub">2PC, 3PC, saga (orchestration vs choreography), TCC, outbox. The patterns and the failure modes for multi-service consistency. The interview tell isn't picking one -- it's naming the failure mode you're choosing.</p>
+</header>
+
+<!-- ============================================================ -->
+<!-- SECTION 1: 2PC (Two-Phase Commit)                             -->
+<!-- ============================================================ -->
+<h2>1. Two-Phase Commit (2PC)</h2>
+<p>A coordinator drives atomic commit across participants. Phase 1: every participant votes. Phase 2: coordinator broadcasts the decision. If all voted YES, commit; if any voted NO (or timed out), abort.</p>
+
+<svg id="tpc-svg" viewBox="0 0 860 420" preserveAspectRatio="xMidYMid meet">
+  <defs>
+    <marker id="tpc-arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#555"/>
+    </marker>
+    <marker id="tpc-arrow-green" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,5 L0,10 Z" fill="var(--accent-green)"/>
+    </marker>
+    <marker id="tpc-arrow-red" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,5 L0,10 Z" fill="var(--accent-red)"/>
+    </marker>
+    <marker id="tpc-arrow-blue" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,5 L0,10 Z" fill="var(--accent-blue)"/>
+    </marker>
+    <marker id="tpc-arrow-yellow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,5 L0,10 Z" fill="var(--accent-yellow)"/>
+    </marker>
+  </defs>
+  <g id="tpc-scene"></g>
+</svg>
+
+<div class="controls">
+  <button onclick="TPC.runHappy()" id="tpc-btn-happy">Happy path (all YES)</button>
+  <button onclick="TPC.runAbort()" id="tpc-btn-abort">Participant votes NO</button>
+  <button onclick="TPC.runCoordCrash()" id="tpc-btn-coord-crash" class="danger">Coordinator crash</button>
+  <button onclick="TPC.runPartCrash()" id="tpc-btn-part-crash" class="danger">Participant crash after vote</button>
+  <button onclick="TPC.runPartition()" id="tpc-btn-partition" class="danger">Network partition</button>
+  <button onclick="TPC.reset()">Reset</button>
+</div>
+<div class="commentary" id="tpc-commentary">Two-Phase Commit (2PC): the coordinator sends PREPARE to all participants. Each votes YES or NO. If all YES, the coordinator sends COMMIT. If any NO (or timeout), it sends ABORT. Click a scenario above to animate.</div>
+
+<div class="takeaway">
+  <strong>Takeaway</strong>
+  <ul>
+    <li>2PC provides strong atomicity: all-or-nothing across participants.</li>
+    <li>The coordinator is a single point of failure. If it crashes between Phase 1 and Phase 2, participants are <em>blocked</em> -- holding locks, unable to decide independently.</li>
+    <li>Used in distributed databases (XA protocol); microservices avoid it because the blocking failure mode is unacceptable at scale.</li>
+  </ul>
+</div>
+
+<hr class="section-divider">
+
+<!-- ============================================================ -->
+<!-- SECTION 2: 3PC (Three-Phase Commit)                           -->
+<!-- ============================================================ -->
+<h2>2. Three-Phase Commit (3PC)</h2>
+<p>3PC inserts a <strong>PRE-COMMIT</strong> phase between voting and committing. After all participants vote YES, the coordinator sends PRE-COMMIT (everyone now <em>knows</em> the decision is to commit) before the final COMMIT. This lets participants recover from coordinator failure without blocking -- <em>if</em> the network is synchronous.</p>
+
+<svg id="threepc-svg" viewBox="0 0 860 460" preserveAspectRatio="xMidYMid meet">
+  <defs>
+    <marker id="threepc-arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#555"/>
+    </marker>
+  </defs>
+  <g id="threepc-scene"></g>
+</svg>
+
+<div class="controls">
+  <button onclick="THREEPC.run()">Animate 3PC happy path</button>
+  <button onclick="THREEPC.runCoordCrash()" class="danger">Coordinator crash after PRE-COMMIT</button>
+  <button onclick="THREEPC.reset()">Reset</button>
+</div>
+<div class="commentary" id="threepc-commentary">3PC adds a PRE-COMMIT phase so participants know the decision before the final COMMIT. If the coordinator crashes after PRE-COMMIT, participants can independently proceed to COMMIT (they know everyone voted YES). Click to animate.</div>
+
+<div class="takeaway">
+  <strong>Takeaway</strong>
+  <ul>
+    <li>3PC solves the blocking problem of 2PC -- but only under the assumption of a synchronous network (bounded message delays, no partitions).</li>
+    <li>In real distributed systems with network partitions, 3PC does not help: a partitioned participant in PRE-COMMIT state and a partitioned participant that never received PRE-COMMIT can reach contradictory decisions.</li>
+    <li>The extra round trip adds latency. Rarely used in practice.</li>
+  </ul>
+</div>
+
+<hr class="section-divider">
+
+<!-- ============================================================ -->
+<!-- SECTION 3: Saga - Orchestration                               -->
+<!-- ============================================================ -->
+<h2>3. Saga -- Orchestration</h2>
+<p>A central <strong>orchestrator</strong> (state machine) sequences local transactions across services. Each step either succeeds (advance) or fails (run compensating actions in reverse). No distributed locks -- each service commits locally.</p>
+
+<svg id="orch-svg" viewBox="0 0 860 380" preserveAspectRatio="xMidYMid meet">
+  <defs>
+    <marker id="orch-arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#555"/>
+    </marker>
+  </defs>
+  <g id="orch-scene"></g>
+</svg>
+
+<div class="controls">
+  <button onclick="ORCH.runHappy()">Happy path</button>
+  <button onclick="ORCH.runFail()" class="danger">Payment fails (compensate)</button>
+  <button onclick="ORCH.reset()">Reset</button>
+</div>
+<div class="commentary" id="orch-commentary">The orchestrator drives a saga: Booking -> Payment -> Notification. If any step fails, it runs compensating actions in reverse order. Each compensation must be idempotent (it may be retried). Click a scenario to animate.</div>
+
+<div class="takeaway">
+  <strong>Takeaway</strong>
+  <ul>
+    <li>Orchestration = central state machine that owns the workflow. Easy to reason about, easy to observe (single source of saga state).</li>
+    <li>Compensating actions must be idempotent -- if the orchestrator retries a compensation (e.g., after its own crash), the service must handle duplicates.</li>
+    <li>State persistence: orchestrator writes its progress to a durable store. On crash, it recovers from the log and resumes from the last completed step.</li>
+    <li>Examples: AWS Step Functions, Temporal, Camunda, Netflix Conductor.</li>
+  </ul>
+</div>
+
+<hr class="section-divider">
+
+<!-- ============================================================ -->
+<!-- SECTION 4: Saga - Choreography                                -->
+<!-- ============================================================ -->
+<h2>4. Saga -- Choreography</h2>
+<p>No central orchestrator. Each service publishes domain events; downstream services react. The saga emerges from the chain of events. Failure triggers compensating events in reverse.</p>
+
+<svg id="chor-svg" viewBox="0 0 860 400" preserveAspectRatio="xMidYMid meet">
+  <defs>
+    <marker id="chor-arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#555"/>
+    </marker>
+  </defs>
+  <g id="chor-scene"></g>
+</svg>
+
+<div class="controls">
+  <button onclick="CHOR.runHappy()">Happy path</button>
+  <button onclick="CHOR.runFail()" class="danger">Payment fails (compensate)</button>
+  <button onclick="CHOR.reset()">Reset</button>
+</div>
+<div class="commentary" id="chor-commentary">Choreography: each service publishes events, others react. No central coordinator -- the saga is the emergent chain of events. Click a scenario to animate.</div>
+
+<h3>Orchestration vs Choreography</h3>
+<table>
+  <thead>
+    <tr><th>Dimension</th><th>Orchestration</th><th>Choreography</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Observability</td><td>High -- orchestrator owns all state</td><td>Low -- state scattered across service logs</td></tr>
+    <tr><td>Coupling</td><td>Orchestrator coupled to all services</td><td>Services only know their own events</td></tr>
+    <tr><td>Complexity</td><td>Centralized, easier to reason about</td><td>Distributed, harder to trace</td></tr>
+    <tr><td>Debugging</td><td>Single log, single state machine</td><td>Distributed tracing required (correlation IDs)</td></tr>
+    <tr><td>Scalability</td><td>Orchestrator can be bottleneck</td><td>Scales independently per service</td></tr>
+    <tr><td>Failure handling</td><td>Central compensation logic</td><td>Each service handles its own compensation</td></tr>
+  </tbody>
+</table>
+
+<div class="takeaway">
+  <strong>Takeaway</strong>
+  <ul>
+    <li>Choreography = fully event-driven, no coordinator SPOF. Easier to scale, harder to reason about.</li>
+    <li>Risk of cyclic event chains and implicit coupling (service A reacts to B's event which reacts to A's event).</li>
+    <li>Orchestration is the senior default unless coupling is truly intolerable or the flow is very simple (2-3 services, linear chain).</li>
+  </ul>
+</div>
+
+<hr class="section-divider">
+
+<!-- ============================================================ -->
+<!-- SECTION 5: TCC (Try-Confirm-Cancel)                           -->
+<!-- ============================================================ -->
+<h2>5. TCC (Try-Confirm-Cancel)</h2>
+<p>Each business operation exposes three APIs: <strong>Try</strong> (reserve resources without finalizing), <strong>Confirm</strong> (finalize the reservation), <strong>Cancel</strong> (release it). The coordinator calls Try on all, then Confirm (or Cancel if any Try failed).</p>
+
+<svg id="tcc-svg" viewBox="0 0 860 380" preserveAspectRatio="xMidYMid meet">
+  <defs>
+    <marker id="tcc-arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#555"/>
+    </marker>
+  </defs>
+  <g id="tcc-scene"></g>
+</svg>
+
+<div class="controls">
+  <button onclick="TCC.runHappy()">Happy path (all Try succeed)</button>
+  <button onclick="TCC.runFail()" class="danger">Try fails (Cancel others)</button>
+  <button onclick="TCC.reset()">Reset</button>
+</div>
+<div class="commentary" id="tcc-commentary">TCC: each service implements Try/Confirm/Cancel. The coordinator calls Try on all services; if all succeed, Confirm all. If any Try fails, Cancel those that succeeded. Click to animate.</div>
+
+<div class="takeaway">
+  <strong>Takeaway</strong>
+  <ul>
+    <li>TCC is application-level 2PC: services explicitly design reservation semantics (Try = hold seat, Confirm = issue ticket, Cancel = release seat).</li>
+    <li>More predictable than naked saga compensation because the reservation phase is explicit -- you know exactly what to undo.</li>
+    <li>Trade-off: every service must implement 3 APIs per operation. Higher development cost, but cleaner failure modes.</li>
+    <li>Compared to DB-level 2PC: TCC operates at the business logic layer; 2PC operates at the transaction manager layer.</li>
+  </ul>
+</div>
+
+<hr class="section-divider">
+
+<!-- ============================================================ -->
+<!-- SECTION 6: Outbox Pattern                                     -->
+<!-- ============================================================ -->
+<h2>6. Outbox Pattern (the dual-write fix)</h2>
+<p>The core problem: a service needs to write to its database AND publish an event to a message broker. Doing both individually risks inconsistency -- one can succeed while the other fails.</p>
+
+<h3>The dual-write failure modes</h3>
+
+<svg id="dw-svg" viewBox="0 0 860 320" preserveAspectRatio="xMidYMid meet">
+  <defs>
+    <marker id="dw-arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#555"/>
+    </marker>
+  </defs>
+  <g id="dw-scene"></g>
+</svg>
+
+<div class="controls">
+  <button onclick="DW.runDBFirst()">DB-first failure</button>
+  <button onclick="DW.runBrokerFirst()">Broker-first failure</button>
+  <button onclick="DW.reset()">Reset</button>
+</div>
+<div class="commentary" id="dw-commentary">Two failure modes. DB-first: DB write succeeds, broker publish fails -- other services miss the event. Broker-first: event published, DB write fails -- other services see a ghost event for data that doesn't exist. Click to animate.</div>
+
+<h3>The Outbox solution</h3>
+
+<svg id="outbox-svg" viewBox="0 0 860 380" preserveAspectRatio="xMidYMid meet">
+  <defs>
+    <marker id="outbox-arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#555"/>
+    </marker>
+  </defs>
+  <g id="outbox-scene"></g>
+</svg>
+
+<div class="controls">
+  <button onclick="OUTBOX.run()">Animate outbox flow</button>
+  <button onclick="OUTBOX.reset()">Reset</button>
+</div>
+<div class="commentary" id="outbox-commentary">Outbox pattern: App writes the business row + an outbox row in the SAME database transaction (atomic). A relay process (polling or CDC/Debezium) reads the outbox table and publishes to the broker. Consumer deduplicates via inbox table. Click to animate.</div>
+
+<div class="takeaway">
+  <strong>Takeaway</strong>
+  <ul>
+    <li>The dual-write problem appears everywhere microservices touch databases AND brokers. It is a fundamental consistency challenge.</li>
+    <li>Outbox pattern: business data + outbox event in ONE transaction. Relay (poll or CDC) publishes from outbox to broker.</li>
+    <li>Inbox pattern (consumer side): consumer stores event ID in an inbox table. If the same event arrives twice, it's a no-op (idempotent consumer).</li>
+    <li>Both ends must be idempotent: producer retries publish, consumer deduplicates on receive.</li>
+  </ul>
+</div>
+
+<hr class="section-divider">
+
+<!-- ============================================================ -->
+<!-- SECTION 7: When to use which                                  -->
+<!-- ============================================================ -->
+<h2>7. Decision Matrix -- When to Use Which</h2>
+
+<table>
+  <thead>
+    <tr><th>Scenario</th><th>Pattern</th><th>Why</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>2-service atomicity, both DBs, willing to block on failure</td>
+      <td><strong>2PC</strong></td>
+      <td>Strongest guarantee, but coordinator SPOF and blocking. Rare in microservices; common in distributed DBs (XA).</td>
+    </tr>
+    <tr>
+      <td>Multi-service workflow, want central control and observability</td>
+      <td><strong>Saga (orchestration)</strong></td>
+      <td>Central state machine, clear failure handling, easy to monitor. Senior default for complex workflows.</td>
+    </tr>
+    <tr>
+      <td>Multi-service, fully decoupled, simple linear flow</td>
+      <td><strong>Saga (choreography)</strong></td>
+      <td>No coordinator SPOF, scales independently. Use for simple 2-3 service chains where coupling is intolerable.</td>
+    </tr>
+    <tr>
+      <td>Need explicit "reservation" semantics, predictable failure</td>
+      <td><strong>TCC</strong></td>
+      <td>Each service defines Try/Confirm/Cancel. More development cost, cleaner undo semantics than ad-hoc compensation.</td>
+    </tr>
+    <tr>
+      <td>DB write + event publish must be atomic</td>
+      <td><strong>Outbox + Inbox</strong></td>
+      <td>Solves the dual-write problem. Works with any saga variant. The foundational pattern for event-driven architectures.</td>
+    </tr>
+  </tbody>
+</table>
+
+<blockquote>
+  <strong>The senior tell.</strong> When asked "how do you handle multi-service consistency?", the right opening is: "I'd avoid distributed transactions where possible -- saga with compensating actions OR outbox pattern. Distributed 2PC only when I control both sides and can tolerate the blocking failure mode." Then name the specific failure mode you're accepting. That's what separates senior from mid-level: not picking the "right" pattern, but articulating the trade-off you're choosing.
+</blockquote>
+
+<!-- ============================================================ -->
+<!-- JAVASCRIPT                                                     -->
+<!-- ============================================================ -->
+<script>
+/* ================================================================
+   Utility helpers
+   ================================================================ */
+function el(id) { return document.getElementById(id); }
+function setComment(id, text) { el(id).textContent = text; }
+
+function animateMsg(svg, x1, y1, x2, y2, color, label, duration, onDone) {
+  var ns = 'http://www.w3.org/2000/svg';
+  var g = document.createElementNS(ns, 'g');
+
+  var circle = document.createElementNS(ns, 'circle');
+  circle.setAttribute('r', '6');
+  circle.setAttribute('fill', color);
+  circle.setAttribute('cx', x1);
+  circle.setAttribute('cy', y1);
+
+  var txt = document.createElementNS(ns, 'text');
+  txt.setAttribute('x', x1);
+  txt.setAttribute('y', y1 - 12);
+  txt.setAttribute('text-anchor', 'middle');
+  txt.setAttribute('fill', color);
+  txt.setAttribute('font-size', '11');
+  txt.setAttribute('font-weight', '600');
+  txt.textContent = label;
+
+  g.appendChild(circle);
+  g.appendChild(txt);
+  svg.appendChild(g);
+
+  var start = null;
+  function step(ts) {
+    if (!start) start = ts;
+    var p = Math.min((ts - start) / duration, 1);
+    var cx = x1 + (x2 - x1) * p;
+    var cy = y1 + (y2 - y1) * p;
+    circle.setAttribute('cx', cx);
+    circle.setAttribute('cy', cy);
+    txt.setAttribute('x', cx);
+    txt.setAttribute('y', cy - 12);
+    if (p < 1) {
+      requestAnimationFrame(step);
+    } else {
+      g.remove();
+      if (onDone) onDone();
+    }
+  }
+  requestAnimationFrame(step);
+  return g;
+}
+
+function drawBox(scene, x, y, w, h, stroke, label, sublabel, fontSize) {
+  var ns = 'http://www.w3.org/2000/svg';
+  var r = document.createElementNS(ns, 'rect');
+  r.setAttribute('x', x);
+  r.setAttribute('y', y);
+  r.setAttribute('width', w);
+  r.setAttribute('height', h);
+  r.setAttribute('rx', '8');
+  r.setAttribute('fill', 'var(--surface-2)');
+  r.setAttribute('stroke', stroke);
+  r.setAttribute('stroke-width', '2');
+  scene.appendChild(r);
+
+  var t = document.createElementNS(ns, 'text');
+  t.setAttribute('x', x + w / 2);
+  t.setAttribute('y', y + (sublabel ? h / 2 - 4 : h / 2 + 5));
+  t.setAttribute('text-anchor', 'middle');
+  t.setAttribute('fill', stroke);
+  t.setAttribute('font-size', fontSize || '13');
+  t.setAttribute('font-weight', '600');
+  t.textContent = label;
+  scene.appendChild(t);
+
+  if (sublabel) {
+    var s = document.createElementNS(ns, 'text');
+    s.setAttribute('x', x + w / 2);
+    s.setAttribute('y', y + h / 2 + 14);
+    s.setAttribute('text-anchor', 'middle');
+    s.setAttribute('fill', 'var(--text-3)');
+    s.setAttribute('font-size', '11');
+    s.textContent = sublabel;
+    scene.appendChild(s);
+  }
+
+  return r;
+}
+
+function drawLine(scene, x1, y1, x2, y2, color, dashed) {
+  var ns = 'http://www.w3.org/2000/svg';
+  var l = document.createElementNS(ns, 'line');
+  l.setAttribute('x1', x1);
+  l.setAttribute('y1', y1);
+  l.setAttribute('x2', x2);
+  l.setAttribute('y2', y2);
+  l.setAttribute('stroke', color || '#333');
+  l.setAttribute('stroke-width', '1');
+  if (dashed) l.setAttribute('stroke-dasharray', '4,4');
+  scene.appendChild(l);
+  return l;
+}
+
+function drawStatusBadge(scene, x, y, text, color) {
+  var ns = 'http://www.w3.org/2000/svg';
+  var g = document.createElementNS(ns, 'g');
+  g.setAttribute('class', 'status-badge');
+
+  var w = text.length * 7.5 + 16;
+  var r = document.createElementNS(ns, 'rect');
+  r.setAttribute('x', x - w / 2);
+  r.setAttribute('y', y - 10);
+  r.setAttribute('width', w);
+  r.setAttribute('height', 20);
+  r.setAttribute('rx', '4');
+  r.setAttribute('fill', color);
+  r.setAttribute('fill-opacity', '0.15');
+  r.setAttribute('stroke', color);
+  r.setAttribute('stroke-width', '1');
+  g.appendChild(r);
+
+  var t = document.createElementNS(ns, 'text');
+  t.setAttribute('x', x);
+  t.setAttribute('y', y + 4);
+  t.setAttribute('text-anchor', 'middle');
+  t.setAttribute('fill', color);
+  t.setAttribute('font-size', '11');
+  t.setAttribute('font-weight', '600');
+  t.textContent = text;
+  g.appendChild(t);
+
+  scene.appendChild(g);
+  return g;
+}
+
+function clearBadges(scene) {
+  scene.querySelectorAll('.status-badge').forEach(function(b) { b.remove(); });
+}
+
+function drawCrashX(scene, cx, cy, size) {
+  var ns = 'http://www.w3.org/2000/svg';
+  var g = document.createElementNS(ns, 'g');
+  g.setAttribute('class', 'crash-marker');
+  var s = size || 18;
+
+  var l1 = document.createElementNS(ns, 'line');
+  l1.setAttribute('x1', cx - s);
+  l1.setAttribute('y1', cy - s);
+  l1.setAttribute('x2', cx + s);
+  l1.setAttribute('y2', cy + s);
+  l1.setAttribute('stroke', 'var(--accent-red)');
+  l1.setAttribute('stroke-width', '4');
+  l1.setAttribute('stroke-linecap', 'round');
+  g.appendChild(l1);
+
+  var l2 = document.createElementNS(ns, 'line');
+  l2.setAttribute('x1', cx + s);
+  l2.setAttribute('y1', cy - s);
+  l2.setAttribute('x2', cx - s);
+  l2.setAttribute('y2', cy + s);
+  l2.setAttribute('stroke', 'var(--accent-red)');
+  l2.setAttribute('stroke-width', '4');
+  l2.setAttribute('stroke-linecap', 'round');
+  g.appendChild(l2);
+
+  scene.appendChild(g);
+  return g;
+}
+
+function delay(ms) { return new Promise(function(r) { setTimeout(r, ms); }); }
+
+/* ================================================================
+   SECTION 1: 2PC
+   ================================================================ */
+var TPC = (function() {
+  var scene = null;
+  var running = false;
+
+  var coordX = 380, coordY = 40;
+  var partPositions = [
+    { x: 100, y: 240, label: 'Service A', color: 'var(--accent-red)' },
+    { x: 380, y: 280, label: 'Service B', color: 'var(--accent-green)' },
+    { x: 660, y: 240, label: 'Service C', color: 'var(--accent-yellow)' }
+  ];
+
+  function drawBase() {
+    scene = el('tpc-scene');
+    scene.innerHTML = '';
+    // Coordinator
+    drawBox(scene, coordX - 70, coordY, 140, 60, 'var(--accent-blue)', 'Coordinator', 'txn-42');
+    // Participants
+    partPositions.forEach(function(p) {
+      drawBox(scene, p.x - 60, p.y, 120, 60, p.color, p.label);
+      drawLine(scene, coordX, coordY + 60, p.x, p.y, '#333', true);
+    });
+    // Phase labels
+    var ns = 'http://www.w3.org/2000/svg';
+    var ph1 = document.createElementNS(ns, 'text');
+    ph1.setAttribute('x', '30');
+    ph1.setAttribute('y', '160');
+    ph1.setAttribute('fill', 'var(--text-3)');
+    ph1.setAttribute('font-size', '12');
+    ph1.setAttribute('font-style', 'italic');
+    ph1.textContent = 'Phase 1: Prepare';
+    ph1.setAttribute('id', 'tpc-phase1-label');
+    ph1.setAttribute('opacity', '0.3');
+    scene.appendChild(ph1);
+
+    var ph2 = document.createElementNS(ns, 'text');
+    ph2.setAttribute('x', '30');
+    ph2.setAttribute('y', '370');
+    ph2.setAttribute('fill', 'var(--text-3)');
+    ph2.setAttribute('font-size', '12');
+    ph2.setAttribute('font-style', 'italic');
+    ph2.textContent = 'Phase 2: Decide';
+    ph2.setAttribute('id', 'tpc-phase2-label');
+    ph2.setAttribute('opacity', '0.3');
+    scene.appendChild(ph2);
+  }
+
+  function disableButtons(disabled) {
+    document.querySelectorAll('#tpc-btn-happy,#tpc-btn-abort,#tpc-btn-coord-crash,#tpc-btn-part-crash,#tpc-btn-partition').forEach(function(b) {
+      b.disabled = disabled;
+    });
+  }
+
+  function sendToParticipant(pIdx, label, color, dur) {
+    var p = partPositions[pIdx];
+    var svg = el('tpc-svg');
+    return new Promise(function(resolve) {
+      animateMsg(svg, coordX, coordY + 60, p.x, p.y, color, label, dur || 500, resolve);
+    });
+  }
+
+  function sendToCoordinator(pIdx, label, color, dur) {
+    var p = partPositions[pIdx];
+    var svg = el('tpc-svg');
+    return new Promise(function(resolve) {
+      animateMsg(svg, p.x, p.y, coordX, coordY + 60, color, label, dur || 500, resolve);
+    });
+  }
+
+  async function runHappy() {
+    if (running) return;
+    running = true;
+    disableButtons(true);
+    drawBase();
+    setComment('tpc-commentary', 'Phase 1: Coordinator sends PREPARE to all participants...');
+    el('tpc-phase1-label').setAttribute('opacity', '1');
+
+    // Phase 1: send PREPARE
+    await Promise.all([
+      sendToParticipant(0, 'PREPARE', 'var(--accent-blue)'),
+      sendToParticipant(1, 'PREPARE', 'var(--accent-blue)'),
+      sendToParticipant(2, 'PREPARE', 'var(--accent-blue)')
+    ]);
+
+    // Participants vote YES
+    setComment('tpc-commentary', 'All participants write to WAL, hold locks, vote YES...');
+    partPositions.forEach(function(p, i) {
+      drawStatusBadge(scene, p.x, p.y + 75, 'VOTE_YES', 'var(--accent-green)');
+    });
+    await delay(600);
+
+    // Send votes back
+    await Promise.all([
+      sendToCoordinator(0, 'YES', 'var(--accent-green)'),
+      sendToCoordinator(1, 'YES', 'var(--accent-green)'),
+      sendToCoordinator(2, 'YES', 'var(--accent-green)')
+    ]);
+
+    drawStatusBadge(scene, coordX, coordY + 115, 'DECISION: COMMIT', 'var(--accent-green)');
+    setComment('tpc-commentary', 'Phase 2: All voted YES. Coordinator decides COMMIT, broadcasts to all...');
+    el('tpc-phase2-label').setAttribute('opacity', '1');
+    await delay(600);
+
+    // Phase 2: send COMMIT
+    clearBadges(scene);
+    await Promise.all([
+      sendToParticipant(0, 'COMMIT', 'var(--accent-green)'),
+      sendToParticipant(1, 'COMMIT', 'var(--accent-green)'),
+      sendToParticipant(2, 'COMMIT', 'var(--accent-green)')
+    ]);
+
+    partPositions.forEach(function(p) {
+      drawStatusBadge(scene, p.x, p.y + 75, 'COMMITTED', 'var(--accent-green)');
+    });
+    drawStatusBadge(scene, coordX, coordY + 115, 'TXN COMPLETE', 'var(--accent-green)');
+    setComment('tpc-commentary', 'All participants committed. Transaction complete. Locks released. Strong atomicity achieved across all three services.');
+    running = false;
+    disableButtons(false);
+  }
+
+  async function runAbort() {
+    if (running) return;
+    running = true;
+    disableButtons(true);
+    drawBase();
+    setComment('tpc-commentary', 'Phase 1: Coordinator sends PREPARE to all participants...');
+    el('tpc-phase1-label').setAttribute('opacity', '1');
+
+    await Promise.all([
+      sendToParticipant(0, 'PREPARE', 'var(--accent-blue)'),
+      sendToParticipant(1, 'PREPARE', 'var(--accent-blue)'),
+      sendToParticipant(2, 'PREPARE', 'var(--accent-blue)')
+    ]);
+
+    setComment('tpc-commentary', 'Service A and C vote YES, but Service B has a constraint violation -- votes NO...');
+    drawStatusBadge(scene, partPositions[0].x, partPositions[0].y + 75, 'VOTE_YES', 'var(--accent-green)');
+    drawStatusBadge(scene, partPositions[1].x, partPositions[1].y + 75, 'VOTE_NO', 'var(--accent-red)');
+    drawStatusBadge(scene, partPositions[2].x, partPositions[2].y + 75, 'VOTE_YES', 'var(--accent-green)');
+    await delay(600);
+
+    await Promise.all([
+      sendToCoordinator(0, 'YES', 'var(--accent-green)'),
+      sendToCoordinator(1, 'NO', 'var(--accent-red)'),
+      sendToCoordinator(2, 'YES', 'var(--accent-green)')
+    ]);
+
+    drawStatusBadge(scene, coordX, coordY + 115, 'DECISION: ABORT', 'var(--accent-red)');
+    setComment('tpc-commentary', 'Phase 2: At least one NO vote. Coordinator decides ABORT, broadcasts to all...');
+    el('tpc-phase2-label').setAttribute('opacity', '1');
+    await delay(600);
+
+    clearBadges(scene);
+    await Promise.all([
+      sendToParticipant(0, 'ABORT', 'var(--accent-red)'),
+      sendToParticipant(1, 'ABORT', 'var(--accent-red)'),
+      sendToParticipant(2, 'ABORT', 'var(--accent-red)')
+    ]);
+
+    partPositions.forEach(function(p) {
+      drawStatusBadge(scene, p.x, p.y + 75, 'ROLLED BACK', 'var(--accent-red)');
+    });
+    drawStatusBadge(scene, coordX, coordY + 115, 'TXN ABORTED', 'var(--accent-red)');
+    setComment('tpc-commentary', 'All participants rolled back. Locks released. No partial state -- the NO vote from Service B caused all services to abort. This is atomicity.');
+    running = false;
+    disableButtons(false);
+  }
+
+  async function runCoordCrash() {
+    if (running) return;
+    running = true;
+    disableButtons(true);
+    drawBase();
+    setComment('tpc-commentary', 'Phase 1: Coordinator sends PREPARE to all...');
+    el('tpc-phase1-label').setAttribute('opacity', '1');
+
+    await Promise.all([
+      sendToParticipant(0, 'PREPARE', 'var(--accent-blue)'),
+      sendToParticipant(1, 'PREPARE', 'var(--accent-blue)'),
+      sendToParticipant(2, 'PREPARE', 'var(--accent-blue)')
+    ]);
+
+    partPositions.forEach(function(p) {
+      drawStatusBadge(scene, p.x, p.y + 75, 'VOTE_YES', 'var(--accent-green)');
+    });
+    setComment('tpc-commentary', 'All participants voted YES and are holding locks, waiting for Phase 2 decision...');
+    await delay(600);
+
+    await Promise.all([
+      sendToCoordinator(0, 'YES', 'var(--accent-green)'),
+      sendToCoordinator(1, 'YES', 'var(--accent-green)'),
+      sendToCoordinator(2, 'YES', 'var(--accent-green)')
+    ]);
+
+    await delay(400);
+    setComment('tpc-commentary', 'COORDINATOR CRASHES before sending Phase 2 decision! Participants are BLOCKED -- they voted YES, hold locks, but cannot proceed without hearing COMMIT or ABORT.');
+    drawCrashX(scene, coordX, coordY + 30, 22);
+    drawStatusBadge(scene, coordX, coordY + 115, 'CRASHED', 'var(--accent-red)');
+
+    await delay(800);
+    clearBadges(scene);
+    drawCrashX(scene, coordX, coordY + 30, 22);
+    drawStatusBadge(scene, coordX, coordY + 115, 'CRASHED', 'var(--accent-red)');
+    partPositions.forEach(function(p) {
+      drawStatusBadge(scene, p.x, p.y + 75, 'BLOCKED (locks held)', 'var(--accent-orange)');
+    });
+
+    setComment('tpc-commentary', 'THE BLOCKING PROBLEM: All participants hold locks indefinitely. They voted YES so they cannot unilaterally abort (another participant might have received COMMIT before the crash). They cannot commit (they never heard the decision). They are stuck until the coordinator recovers. This is the fundamental weakness of 2PC.');
+    running = false;
+    disableButtons(false);
+  }
+
+  async function runPartCrash() {
+    if (running) return;
+    running = true;
+    disableButtons(true);
+    drawBase();
+    setComment('tpc-commentary', 'Phase 1: Coordinator sends PREPARE...');
+    el('tpc-phase1-label').setAttribute('opacity', '1');
+
+    await Promise.all([
+      sendToParticipant(0, 'PREPARE', 'var(--accent-blue)'),
+      sendToParticipant(1, 'PREPARE', 'var(--accent-blue)'),
+      sendToParticipant(2, 'PREPARE', 'var(--accent-blue)')
+    ]);
+
+    drawStatusBadge(scene, partPositions[0].x, partPositions[0].y + 75, 'VOTE_YES', 'var(--accent-green)');
+    drawStatusBadge(scene, partPositions[2].x, partPositions[2].y + 75, 'VOTE_YES', 'var(--accent-green)');
+    setComment('tpc-commentary', 'Service A and C vote YES. Service B votes YES then CRASHES before Phase 2...');
+    drawStatusBadge(scene, partPositions[1].x, partPositions[1].y + 75, 'VOTE_YES', 'var(--accent-green)');
+    await delay(400);
+
+    await Promise.all([
+      sendToCoordinator(0, 'YES', 'var(--accent-green)'),
+      sendToCoordinator(1, 'YES', 'var(--accent-green)'),
+      sendToCoordinator(2, 'YES', 'var(--accent-green)')
+    ]);
+
+    drawStatusBadge(scene, coordX, coordY + 115, 'DECISION: COMMIT', 'var(--accent-green)');
+    el('tpc-phase2-label').setAttribute('opacity', '1');
+    setComment('tpc-commentary', 'Coordinator decides COMMIT. Sends to all, but Service B has crashed...');
+    await delay(600);
+
+    clearBadges(scene);
+    drawCrashX(scene, partPositions[1].x, partPositions[1].y + 30, 16);
+
+    await Promise.all([
+      sendToParticipant(0, 'COMMIT', 'var(--accent-green)'),
+      sendToParticipant(2, 'COMMIT', 'var(--accent-green)')
+    ]);
+
+    drawStatusBadge(scene, partPositions[0].x, partPositions[0].y + 75, 'COMMITTED', 'var(--accent-green)');
+    drawStatusBadge(scene, partPositions[1].x, partPositions[1].y + 75, 'CRASHED', 'var(--accent-red)');
+    drawStatusBadge(scene, partPositions[2].x, partPositions[2].y + 75, 'COMMITTED', 'var(--accent-green)');
+    await delay(800);
+
+    setComment('tpc-commentary', 'Service B recovers, checks its WAL: it voted YES for txn-42. It contacts the coordinator (or another participant) and learns the decision was COMMIT. It commits. Recovery is possible because the vote is durable in the log. This is why participants write to WAL before voting.');
+    drawCrashX(scene, partPositions[1].x, partPositions[1].y + 30, 16);
+    clearBadges(scene);
+    drawStatusBadge(scene, partPositions[0].x, partPositions[0].y + 75, 'COMMITTED', 'var(--accent-green)');
+    drawStatusBadge(scene, partPositions[2].x, partPositions[2].y + 75, 'COMMITTED', 'var(--accent-green)');
+
+    await delay(1200);
+    scene.querySelectorAll('.crash-marker').forEach(function(m) { m.remove(); });
+    drawStatusBadge(scene, partPositions[1].x, partPositions[1].y + 75, 'RECOVERED + COMMITTED', 'var(--accent-green)');
+
+    running = false;
+    disableButtons(false);
+  }
+
+  async function runPartition() {
+    if (running) return;
+    running = true;
+    disableButtons(true);
+    drawBase();
+    setComment('tpc-commentary', 'Phase 1: Coordinator sends PREPARE...');
+    el('tpc-phase1-label').setAttribute('opacity', '1');
+
+    await Promise.all([
+      sendToParticipant(0, 'PREPARE', 'var(--accent-blue)'),
+      sendToParticipant(1, 'PREPARE', 'var(--accent-blue)'),
+      sendToParticipant(2, 'PREPARE', 'var(--accent-blue)')
+    ]);
+
+    partPositions.forEach(function(p) {
+      drawStatusBadge(scene, p.x, p.y + 75, 'VOTE_YES', 'var(--accent-green)');
+    });
+    await delay(400);
+
+    await Promise.all([
+      sendToCoordinator(0, 'YES', 'var(--accent-green)'),
+      sendToCoordinator(1, 'YES', 'var(--accent-green)'),
+      sendToCoordinator(2, 'YES', 'var(--accent-green)')
+    ]);
+
+    setComment('tpc-commentary', 'NETWORK PARTITION forms between coordinator and Service C. Coordinator can still reach A and B but not C...');
+    await delay(400);
+
+    // Draw partition line
+    var ns = 'http://www.w3.org/2000/svg';
+    var partLine = document.createElementNS(ns, 'line');
+    partLine.setAttribute('x1', '580');
+    partLine.setAttribute('y1', '30');
+    partLine.setAttribute('x2', '580');
+    partLine.setAttribute('y2', '400');
+    partLine.setAttribute('stroke', 'var(--accent-red)');
+    partLine.setAttribute('stroke-width', '3');
+    partLine.setAttribute('stroke-dasharray', '8,6');
+    partLine.setAttribute('opacity', '0.7');
+    scene.appendChild(partLine);
+
+    var partText = document.createElementNS(ns, 'text');
+    partText.setAttribute('x', '600');
+    partText.setAttribute('y', '400');
+    partText.setAttribute('fill', 'var(--accent-red)');
+    partText.setAttribute('font-size', '11');
+    partText.setAttribute('font-weight', '600');
+    partText.textContent = 'PARTITION';
+    scene.appendChild(partText);
+
+    drawStatusBadge(scene, coordX, coordY + 115, 'DECISION: COMMIT', 'var(--accent-green)');
+    el('tpc-phase2-label').setAttribute('opacity', '1');
+    await delay(600);
+
+    clearBadges(scene);
+    drawStatusBadge(scene, coordX, coordY + 115, 'DECISION: COMMIT', 'var(--accent-green)');
+    scene.appendChild(partLine);
+    scene.appendChild(partText);
+
+    await Promise.all([
+      sendToParticipant(0, 'COMMIT', 'var(--accent-green)'),
+      sendToParticipant(1, 'COMMIT', 'var(--accent-green)')
+    ]);
+
+    drawStatusBadge(scene, partPositions[0].x, partPositions[0].y + 75, 'COMMITTED', 'var(--accent-green)');
+    drawStatusBadge(scene, partPositions[1].x, partPositions[1].y + 75, 'COMMITTED', 'var(--accent-green)');
+    drawStatusBadge(scene, partPositions[2].x, partPositions[2].y + 75, 'BLOCKED (partitioned)', 'var(--accent-orange)');
+
+    setComment('tpc-commentary', 'Service C is partitioned: it voted YES, holds locks, but cannot hear the COMMIT decision. It is BLOCKED until the partition heals. Services A and B committed -- the system is in an inconsistent intermediate state from C\'s perspective. This is why 2PC requires reliable networks or human intervention timeouts.');
+    running = false;
+    disableButtons(false);
+  }
+
+  function reset() {
+    running = false;
+    disableButtons(false);
+    drawBase();
+    setComment('tpc-commentary', 'Two-Phase Commit (2PC): the coordinator sends PREPARE to all participants. Each votes YES or NO. If all YES, the coordinator sends COMMIT. If any NO (or timeout), it sends ABORT. Click a scenario above to animate.');
+  }
+
+  drawBase();
+
+  return { runHappy: runHappy, runAbort: runAbort, runCoordCrash: runCoordCrash, runPartCrash: runPartCrash, runPartition: runPartition, reset: reset };
+})();
+
+/* ================================================================
+   SECTION 2: 3PC
+   ================================================================ */
+var THREEPC = (function() {
+  var scene = null;
+  var running = false;
+
+  var coordX = 380, coordY = 30;
+  var parts = [
+    { x: 100, y: 260, label: 'Service A', color: 'var(--accent-red)' },
+    { x: 380, y: 300, label: 'Service B', color: 'var(--accent-green)' },
+    { x: 660, y: 260, label: 'Service C', color: 'var(--accent-yellow)' }
+  ];
+
+  function drawBase() {
+    scene = el('threepc-scene');
+    scene.innerHTML = '';
+    drawBox(scene, coordX - 70, coordY, 140, 60, 'var(--accent-blue)', 'Coordinator', 'txn-99');
+    parts.forEach(function(p) {
+      drawBox(scene, p.x - 60, p.y, 120, 60, p.color, p.label);
+      drawLine(scene, coordX, coordY + 60, p.x, p.y, '#333', true);
+    });
+
+    var ns = 'http://www.w3.org/2000/svg';
+    ['Phase 1: Prepare', 'Phase 2: Pre-Commit', 'Phase 3: Commit'].forEach(function(label, i) {
+      var t = document.createElementNS(ns, 'text');
+      t.setAttribute('x', '30');
+      t.setAttribute('y', 145 + i * 100);
+      t.setAttribute('fill', 'var(--text-3)');
+      t.setAttribute('font-size', '12');
+      t.setAttribute('font-style', 'italic');
+      t.setAttribute('opacity', '0.3');
+      t.setAttribute('id', 'threepc-phase' + (i + 1));
+      t.textContent = label;
+      scene.appendChild(t);
+    });
+  }
+
+  function sendTo(pIdx, label, color, dur) {
+    var p = parts[pIdx];
+    return new Promise(function(resolve) {
+      animateMsg(el('threepc-svg'), coordX, coordY + 60, p.x, p.y, color, label, dur || 450, resolve);
+    });
+  }
+
+  function sendFrom(pIdx, label, color, dur) {
+    var p = parts[pIdx];
+    return new Promise(function(resolve) {
+      animateMsg(el('threepc-svg'), p.x, p.y, coordX, coordY + 60, color, label, dur || 450, resolve);
+    });
+  }
+
+  function disableButtons(d) {
+    document.querySelectorAll('#threepc-scene').forEach(function() {});
+  }
+
+  async function run() {
+    if (running) return;
+    running = true;
+    drawBase();
+
+    setComment('threepc-commentary', 'Phase 1 (Prepare): Coordinator sends PREPARE, participants vote...');
+    el('threepc-phase1').setAttribute('opacity', '1');
+
+    await Promise.all([sendTo(0, 'PREPARE', 'var(--accent-blue)'), sendTo(1, 'PREPARE', 'var(--accent-blue)'), sendTo(2, 'PREPARE', 'var(--accent-blue)')]);
+    parts.forEach(function(p) { drawStatusBadge(scene, p.x, p.y + 75, 'VOTE_YES', 'var(--accent-green)'); });
+    await delay(400);
+    await Promise.all([sendFrom(0, 'YES', 'var(--accent-green)'), sendFrom(1, 'YES', 'var(--accent-green)'), sendFrom(2, 'YES', 'var(--accent-green)')]);
+
+    setComment('threepc-commentary', 'Phase 2 (Pre-Commit): All voted YES. Coordinator sends PRE-COMMIT -- participants now KNOW the decision is to commit...');
+    el('threepc-phase2').setAttribute('opacity', '1');
+    clearBadges(scene);
+    await delay(300);
+
+    await Promise.all([sendTo(0, 'PRE-COMMIT', 'var(--accent-purple)'), sendTo(1, 'PRE-COMMIT', 'var(--accent-purple)'), sendTo(2, 'PRE-COMMIT', 'var(--accent-purple)')]);
+    parts.forEach(function(p) { drawStatusBadge(scene, p.x, p.y + 75, 'PRE-COMMITTED', 'var(--accent-purple)'); });
+    await delay(400);
+    await Promise.all([sendFrom(0, 'ACK', 'var(--accent-purple)'), sendFrom(1, 'ACK', 'var(--accent-purple)'), sendFrom(2, 'ACK', 'var(--accent-purple)')]);
+
+    setComment('threepc-commentary', 'Phase 3 (Commit): Coordinator sends final COMMIT. Participants commit and release locks.');
+    el('threepc-phase3').setAttribute('opacity', '1');
+    clearBadges(scene);
+    await delay(300);
+
+    await Promise.all([sendTo(0, 'COMMIT', 'var(--accent-green)'), sendTo(1, 'COMMIT', 'var(--accent-green)'), sendTo(2, 'COMMIT', 'var(--accent-green)')]);
+    parts.forEach(function(p) { drawStatusBadge(scene, p.x, p.y + 75, 'COMMITTED', 'var(--accent-green)'); });
+    drawStatusBadge(scene, coordX, coordY + 110, 'TXN COMPLETE', 'var(--accent-green)');
+
+    setComment('threepc-commentary', 'Transaction complete. The extra PRE-COMMIT phase means: if the coordinator crashes after PRE-COMMIT, participants know the decision was to commit and can proceed independently. This solves the blocking problem of 2PC -- in theory.');
+    running = false;
+  }
+
+  async function runCoordCrash() {
+    if (running) return;
+    running = true;
+    drawBase();
+
+    setComment('threepc-commentary', 'Phase 1: Coordinator sends PREPARE...');
+    el('threepc-phase1').setAttribute('opacity', '1');
+
+    await Promise.all([sendTo(0, 'PREPARE', 'var(--accent-blue)'), sendTo(1, 'PREPARE', 'var(--accent-blue)'), sendTo(2, 'PREPARE', 'var(--accent-blue)')]);
+    parts.forEach(function(p) { drawStatusBadge(scene, p.x, p.y + 75, 'VOTE_YES', 'var(--accent-green)'); });
+    await delay(400);
+    await Promise.all([sendFrom(0, 'YES', 'var(--accent-green)'), sendFrom(1, 'YES', 'var(--accent-green)'), sendFrom(2, 'YES', 'var(--accent-green)')]);
+
+    clearBadges(scene);
+    setComment('threepc-commentary', 'Phase 2: Coordinator sends PRE-COMMIT to all...');
+    el('threepc-phase2').setAttribute('opacity', '1');
+    await delay(300);
+
+    await Promise.all([sendTo(0, 'PRE-COMMIT', 'var(--accent-purple)'), sendTo(1, 'PRE-COMMIT', 'var(--accent-purple)'), sendTo(2, 'PRE-COMMIT', 'var(--accent-purple)')]);
+    parts.forEach(function(p) { drawStatusBadge(scene, p.x, p.y + 75, 'PRE-COMMITTED', 'var(--accent-purple)'); });
+    await delay(600);
+
+    setComment('threepc-commentary', 'COORDINATOR CRASHES after PRE-COMMIT! But unlike 2PC, participants are NOT blocked. They all received PRE-COMMIT, so they KNOW the decision is to commit. They can elect a new coordinator or proceed independently.');
+    drawCrashX(scene, coordX, coordY + 30, 22);
+    drawStatusBadge(scene, coordX, coordY + 110, 'CRASHED', 'var(--accent-red)');
+    await delay(1000);
+
+    clearBadges(scene);
+    drawCrashX(scene, coordX, coordY + 30, 22);
+    el('threepc-phase3').setAttribute('opacity', '1');
+
+    parts.forEach(function(p) {
+      drawStatusBadge(scene, p.x, p.y + 75, 'COMMIT (independent)', 'var(--accent-green)');
+    });
+
+    setComment('threepc-commentary', 'Participants commit independently -- they all know the decision from PRE-COMMIT. This is the key advantage of 3PC over 2PC. However, this only works in synchronous networks. In a real system with partitions, a participant that missed the PRE-COMMIT could reach a different decision, violating safety.');
+    running = false;
+  }
+
+  function reset() {
+    running = false;
+    drawBase();
+    setComment('threepc-commentary', '3PC adds a PRE-COMMIT phase so participants know the decision before the final COMMIT. If the coordinator crashes after PRE-COMMIT, participants can independently proceed to COMMIT (they know everyone voted YES). Click to animate.');
+  }
+
+  drawBase();
+  return { run: run, runCoordCrash: runCoordCrash, reset: reset };
+})();
+
+/* ================================================================
+   SECTION 3: Saga -- Orchestration
+   ================================================================ */
+var ORCH = (function() {
+  var scene = null;
+  var running = false;
+
+  var orchX = 430, orchY = 30;
+  var services = [
+    { x: 130, y: 220, label: 'Booking', color: 'var(--accent-red)', action: 'Reserve hotel', comp: 'Cancel reservation' },
+    { x: 430, y: 260, label: 'Payment', color: 'var(--accent-green)', action: 'Charge card', comp: 'Refund charge' },
+    { x: 730, y: 220, label: 'Notification', color: 'var(--accent-yellow)', action: 'Send email', comp: 'N/A' }
+  ];
+
+  function drawBase() {
+    scene = el('orch-scene');
+    scene.innerHTML = '';
+    drawBox(scene, orchX - 80, orchY, 160, 60, 'var(--accent-blue)', 'Saga Orchestrator', 'state machine');
+    services.forEach(function(s) {
+      drawBox(scene, s.x - 60, s.y, 120, 60, s.color, s.label);
+      drawLine(scene, orchX, orchY + 60, s.x, s.y, '#333', true);
+    });
+
+    // Step labels under each service
+    var ns = 'http://www.w3.org/2000/svg';
+    services.forEach(function(s, i) {
+      var t = document.createElementNS(ns, 'text');
+      t.setAttribute('x', s.x);
+      t.setAttribute('y', s.y + 80);
+      t.setAttribute('text-anchor', 'middle');
+      t.setAttribute('fill', 'var(--text-3)');
+      t.setAttribute('font-size', '10');
+      t.textContent = 'Step ' + (i + 1) + ': ' + s.action;
+      scene.appendChild(t);
+    });
+  }
+
+  function sendToSvc(idx, label, color, dur) {
+    var s = services[idx];
+    return new Promise(function(resolve) {
+      animateMsg(el('orch-svg'), orchX, orchY + 60, s.x, s.y, color, label, dur || 500, resolve);
+    });
+  }
+
+  function sendFromSvc(idx, label, color, dur) {
+    var s = services[idx];
+    return new Promise(function(resolve) {
+      animateMsg(el('orch-svg'), s.x, s.y, orchX, orchY + 60, color, label, dur || 500, resolve);
+    });
+  }
+
+  async function runHappy() {
+    if (running) return;
+    running = true;
+    drawBase();
+
+    setComment('orch-commentary', 'Step 1: Orchestrator sends "Reserve hotel" to Booking service...');
+    drawStatusBadge(scene, orchX, orchY + 105, 'STATE: booking', 'var(--accent-blue)');
+    await sendToSvc(0, 'Reserve hotel', 'var(--accent-red)');
+    drawStatusBadge(scene, services[0].x, services[0].y - 18, 'OK', 'var(--accent-green)');
+    await delay(300);
+    await sendFromSvc(0, 'ACK', 'var(--accent-green)');
+
+    clearBadges(scene);
+    setComment('orch-commentary', 'Step 2: Booking succeeded. Orchestrator sends "Charge card" to Payment...');
+    drawStatusBadge(scene, orchX, orchY + 105, 'STATE: payment', 'var(--accent-blue)');
+    drawStatusBadge(scene, services[0].x, services[0].y - 18, 'DONE', 'var(--accent-green)');
+    await sendToSvc(1, 'Charge card', 'var(--accent-green)');
+    drawStatusBadge(scene, services[1].x, services[1].y - 18, 'OK', 'var(--accent-green)');
+    await delay(300);
+    await sendFromSvc(1, 'ACK', 'var(--accent-green)');
+
+    clearBadges(scene);
+    setComment('orch-commentary', 'Step 3: Payment succeeded. Orchestrator sends "Send email" to Notification...');
+    drawStatusBadge(scene, orchX, orchY + 105, 'STATE: notification', 'var(--accent-blue)');
+    drawStatusBadge(scene, services[0].x, services[0].y - 18, 'DONE', 'var(--accent-green)');
+    drawStatusBadge(scene, services[1].x, services[1].y - 18, 'DONE', 'var(--accent-green)');
+    await sendToSvc(2, 'Send email', 'var(--accent-yellow)');
+    drawStatusBadge(scene, services[2].x, services[2].y - 18, 'OK', 'var(--accent-green)');
+    await delay(300);
+    await sendFromSvc(2, 'ACK', 'var(--accent-green)');
+
+    clearBadges(scene);
+    drawStatusBadge(scene, orchX, orchY + 105, 'STATE: COMPLETED', 'var(--accent-green)');
+    services.forEach(function(s) { drawStatusBadge(scene, s.x, s.y - 18, 'DONE', 'var(--accent-green)'); });
+    setComment('orch-commentary', 'Saga completed successfully. All three steps executed in order. Orchestrator state machine is now in COMPLETED state. Each service committed locally -- no distributed locks were held.');
+
+    running = false;
+  }
+
+  async function runFail() {
+    if (running) return;
+    running = true;
+    drawBase();
+
+    setComment('orch-commentary', 'Step 1: Orchestrator sends "Reserve hotel" to Booking...');
+    drawStatusBadge(scene, orchX, orchY + 105, 'STATE: booking', 'var(--accent-blue)');
+    await sendToSvc(0, 'Reserve hotel', 'var(--accent-red)');
+    drawStatusBadge(scene, services[0].x, services[0].y - 18, 'OK', 'var(--accent-green)');
+    await delay(300);
+    await sendFromSvc(0, 'ACK', 'var(--accent-green)');
+
+    clearBadges(scene);
+    setComment('orch-commentary', 'Step 2: Booking succeeded. Orchestrator sends "Charge card" to Payment...');
+    drawStatusBadge(scene, orchX, orchY + 105, 'STATE: payment', 'var(--accent-blue)');
+    drawStatusBadge(scene, services[0].x, services[0].y - 18, 'DONE', 'var(--accent-green)');
+    await sendToSvc(1, 'Charge card', 'var(--accent-green)');
+    drawStatusBadge(scene, services[1].x, services[1].y - 18, 'FAILED', 'var(--accent-red)');
+    await delay(300);
+    await sendFromSvc(1, 'FAIL', 'var(--accent-red)');
+
+    clearBadges(scene);
+    setComment('orch-commentary', 'Payment FAILED! Orchestrator enters COMPENSATING state. Running compensating actions in reverse order...');
+    drawStatusBadge(scene, orchX, orchY + 105, 'STATE: compensating', 'var(--accent-orange)');
+    drawStatusBadge(scene, services[0].x, services[0].y - 18, 'DONE', 'var(--accent-green)');
+    drawStatusBadge(scene, services[1].x, services[1].y - 18, 'FAILED', 'var(--accent-red)');
+    await delay(600);
+
+    setComment('orch-commentary', 'Payment failed -- nothing to compensate there. Compensating Booking: cancel reservation (idempotent)...');
+    await sendToSvc(0, 'Cancel reservation', 'var(--accent-orange)');
+    await delay(300);
+    await sendFromSvc(0, 'ACK', 'var(--accent-orange)');
+
+    clearBadges(scene);
+    drawStatusBadge(scene, orchX, orchY + 105, 'STATE: FAILED (compensated)', 'var(--accent-red)');
+    drawStatusBadge(scene, services[0].x, services[0].y - 18, 'COMPENSATED', 'var(--accent-orange)');
+    drawStatusBadge(scene, services[1].x, services[1].y - 18, 'FAILED', 'var(--accent-red)');
+    drawStatusBadge(scene, services[2].x, services[2].y - 18, 'NEVER CALLED', 'var(--text-3)');
+
+    setComment('orch-commentary', 'Saga completed with failure. Booking was compensated (reservation cancelled). Payment failed so nothing to undo. Notification was never called. The system is back to a consistent state -- no partial booking exists. Compensation must be idempotent: if the orchestrator crashed mid-compensation and retried, the cancel would be a no-op.');
+    running = false;
+  }
+
+  function reset() {
+    running = false;
+    drawBase();
+    setComment('orch-commentary', 'The orchestrator drives a saga: Booking -> Payment -> Notification. If any step fails, it runs compensating actions in reverse order. Each compensation must be idempotent (it may be retried). Click a scenario to animate.');
+  }
+
+  drawBase();
+  return { runHappy: runHappy, runFail: runFail, reset: reset };
+})();
+
+/* ================================================================
+   SECTION 4: Saga -- Choreography
+   ================================================================ */
+var CHOR = (function() {
+  var scene = null;
+  var running = false;
+
+  var busY = 180;
+  var services = [
+    { x: 130, y: 60, label: 'Booking', color: 'var(--accent-red)' },
+    { x: 430, y: 60, label: 'Payment', color: 'var(--accent-green)' },
+    { x: 730, y: 60, label: 'Notification', color: 'var(--accent-yellow)' }
+  ];
+
+  function drawBase() {
+    scene = el('chor-scene');
+    scene.innerHTML = '';
+
+    // Event bus
+    var ns = 'http://www.w3.org/2000/svg';
+    var busRect = document.createElementNS(ns, 'rect');
+    busRect.setAttribute('x', '60');
+    busRect.setAttribute('y', busY - 20);
+    busRect.setAttribute('width', '740');
+    busRect.setAttribute('height', '40');
+    busRect.setAttribute('rx', '6');
+    busRect.setAttribute('fill', 'var(--surface-2)');
+    busRect.setAttribute('stroke', 'var(--accent-purple)');
+    busRect.setAttribute('stroke-width', '2');
+    busRect.setAttribute('stroke-dasharray', '6,3');
+    scene.appendChild(busRect);
+
+    var busLabel = document.createElementNS(ns, 'text');
+    busLabel.setAttribute('x', '430');
+    busLabel.setAttribute('y', busY + 5);
+    busLabel.setAttribute('text-anchor', 'middle');
+    busLabel.setAttribute('fill', 'var(--accent-purple)');
+    busLabel.setAttribute('font-size', '13');
+    busLabel.setAttribute('font-weight', '600');
+    busLabel.textContent = 'Event Bus (Kafka / SQS / etc.)';
+    scene.appendChild(busLabel);
+
+    services.forEach(function(s) {
+      drawBox(scene, s.x - 60, s.y, 120, 60, s.color, s.label);
+      drawLine(scene, s.x, s.y + 60, s.x, busY - 20, '#333', true);
+    });
+
+    // "No orchestrator" label
+    var noOrch = document.createElementNS(ns, 'text');
+    noOrch.setAttribute('x', '430');
+    noOrch.setAttribute('y', '310');
+    noOrch.setAttribute('text-anchor', 'middle');
+    noOrch.setAttribute('fill', 'var(--text-3)');
+    noOrch.setAttribute('font-size', '12');
+    noOrch.setAttribute('font-style', 'italic');
+    noOrch.textContent = 'No central orchestrator -- services react to events';
+    scene.appendChild(noOrch);
+  }
+
+  function publishEvent(fromX, label, color, toX, dur) {
+    return new Promise(function(resolve) {
+      animateMsg(el('chor-svg'), fromX, busY, toX, busY, color, label, dur || 600, resolve);
+    });
+  }
+
+  function svcToBus(svcIdx, label, color, dur) {
+    var s = services[svcIdx];
+    return new Promise(function(resolve) {
+      animateMsg(el('chor-svg'), s.x, s.y + 60, s.x, busY - 20, color, label, dur || 300, resolve);
+    });
+  }
+
+  function busToSvc(svcIdx, label, color, dur) {
+    var s = services[svcIdx];
+    return new Promise(function(resolve) {
+      animateMsg(el('chor-svg'), s.x, busY - 20, s.x, s.y + 60, color, label, dur || 300, resolve);
+    });
+  }
+
+  async function runHappy() {
+    if (running) return;
+    running = true;
+    drawBase();
+
+    setComment('chor-commentary', 'Request arrives at Booking. Booking reserves hotel, publishes BookingCreated event to the bus...');
+    drawStatusBadge(scene, services[0].x, services[0].y - 18, 'RESERVED', 'var(--accent-green)');
+    await svcToBus(0, 'BookingCreated', 'var(--accent-red)');
+    await delay(200);
+
+    setComment('chor-commentary', 'Payment listens for BookingCreated. It charges the card, publishes PaymentSucceeded...');
+    await busToSvc(1, 'BookingCreated', 'var(--accent-red)');
+    await delay(300);
+    drawStatusBadge(scene, services[1].x, services[1].y - 18, 'CHARGED', 'var(--accent-green)');
+    await svcToBus(1, 'PaymentSucceeded', 'var(--accent-green)');
+    await delay(200);
+
+    setComment('chor-commentary', 'Notification listens for PaymentSucceeded. It sends the confirmation email, publishes NotificationSent...');
+    await busToSvc(2, 'PaymentSucceeded', 'var(--accent-green)');
+    await delay(300);
+    drawStatusBadge(scene, services[2].x, services[2].y - 18, 'SENT', 'var(--accent-green)');
+    await svcToBus(2, 'NotificationSent', 'var(--accent-yellow)');
+
+    setComment('chor-commentary', 'Saga complete. Each service only knows about its own events. No central coordinator -- the workflow emerged from the chain of events. Simple and fully decoupled, but tracing the full saga requires correlating events across services.');
+    running = false;
+  }
+
+  async function runFail() {
+    if (running) return;
+    running = true;
+    drawBase();
+
+    setComment('chor-commentary', 'Request arrives at Booking. Booking reserves hotel, publishes BookingCreated...');
+    drawStatusBadge(scene, services[0].x, services[0].y - 18, 'RESERVED', 'var(--accent-green)');
+    await svcToBus(0, 'BookingCreated', 'var(--accent-red)');
+    await delay(200);
+
+    setComment('chor-commentary', 'Payment listens for BookingCreated. It tries to charge the card -- FAILS! Publishes PaymentFailed...');
+    await busToSvc(1, 'BookingCreated', 'var(--accent-red)');
+    await delay(300);
+    clearBadges(scene);
+    drawStatusBadge(scene, services[0].x, services[0].y - 18, 'RESERVED', 'var(--accent-green)');
+    drawStatusBadge(scene, services[1].x, services[1].y - 18, 'FAILED', 'var(--accent-red)');
+    await svcToBus(1, 'PaymentFailed', 'var(--accent-red)');
+    await delay(200);
+
+    setComment('chor-commentary', 'Booking listens for PaymentFailed. It runs compensation: cancel reservation, publishes BookingCancelled...');
+    await busToSvc(0, 'PaymentFailed', 'var(--accent-red)');
+    await delay(400);
+    clearBadges(scene);
+    drawStatusBadge(scene, services[0].x, services[0].y - 18, 'CANCELLED', 'var(--accent-orange)');
+    drawStatusBadge(scene, services[1].x, services[1].y - 18, 'FAILED', 'var(--accent-red)');
+    drawStatusBadge(scene, services[2].x, services[2].y - 18, 'NEVER CALLED', 'var(--text-3)');
+    await svcToBus(0, 'BookingCancelled', 'var(--accent-orange)');
+
+    setComment('chor-commentary', 'Saga compensated via events. Booking cancelled its reservation after hearing PaymentFailed. No central coordinator was involved -- each service decided for itself based on events. The challenge: debugging this requires distributed tracing across the event bus to reconstruct the full saga flow.');
+    running = false;
+  }
+
+  function reset() {
+    running = false;
+    drawBase();
+    setComment('chor-commentary', 'Choreography: each service publishes events, others react. No central coordinator -- the saga is the emergent chain of events. Click a scenario to animate.');
+  }
+
+  drawBase();
+  return { runHappy: runHappy, runFail: runFail, reset: reset };
+})();
+
+/* ================================================================
+   SECTION 5: TCC (Try-Confirm-Cancel)
+   ================================================================ */
+var TCC = (function() {
+  var scene = null;
+  var running = false;
+
+  var coordX = 430, coordY = 30;
+  var services = [
+    { x: 130, y: 220, label: 'Seat Service', color: 'var(--accent-red)' },
+    { x: 430, y: 260, label: 'Payment', color: 'var(--accent-green)' },
+    { x: 730, y: 220, label: 'Inventory', color: 'var(--accent-yellow)' }
+  ];
+
+  function drawBase() {
+    scene = el('tcc-scene');
+    scene.innerHTML = '';
+    drawBox(scene, coordX - 70, coordY, 140, 60, 'var(--accent-blue)', 'Coordinator', 'TCC');
+    services.forEach(function(s) {
+      drawBox(scene, s.x - 60, s.y, 120, 60, s.color, s.label);
+      drawLine(scene, coordX, coordY + 60, s.x, s.y, '#333', true);
+    });
+
+    var ns = 'http://www.w3.org/2000/svg';
+    ['Try phase', 'Confirm / Cancel'].forEach(function(label, i) {
+      var t = document.createElementNS(ns, 'text');
+      t.setAttribute('x', '30');
+      t.setAttribute('y', 145 + i * 120);
+      t.setAttribute('fill', 'var(--text-3)');
+      t.setAttribute('font-size', '12');
+      t.setAttribute('font-style', 'italic');
+      t.setAttribute('opacity', '0.3');
+      t.setAttribute('id', 'tcc-phase' + (i + 1));
+      t.textContent = label;
+      scene.appendChild(t);
+    });
+  }
+
+  function sendTo(idx, label, color) {
+    var s = services[idx];
+    return new Promise(function(resolve) {
+      animateMsg(el('tcc-svg'), coordX, coordY + 60, s.x, s.y, color, label, 500, resolve);
+    });
+  }
+
+  function sendFrom(idx, label, color) {
+    var s = services[idx];
+    return new Promise(function(resolve) {
+      animateMsg(el('tcc-svg'), s.x, s.y, coordX, coordY + 60, color, label, 500, resolve);
+    });
+  }
+
+  async function runHappy() {
+    if (running) return;
+    running = true;
+    drawBase();
+
+    setComment('tcc-commentary', 'Try phase: Coordinator sends TRY to all services -- reserve resources without finalizing...');
+    el('tcc-phase1').setAttribute('opacity', '1');
+
+    await Promise.all([
+      sendTo(0, 'TRY (hold seat)', 'var(--accent-blue)'),
+      sendTo(1, 'TRY (hold funds)', 'var(--accent-blue)'),
+      sendTo(2, 'TRY (reserve stock)', 'var(--accent-blue)')
+    ]);
+
+    services.forEach(function(s) { drawStatusBadge(scene, s.x, s.y + 75, 'RESERVED', 'var(--accent-purple)'); });
+    setComment('tcc-commentary', 'All services reserved resources. Seat held (not ticketed), funds held (not charged), stock reserved (not decremented).');
+    await delay(500);
+
+    await Promise.all([
+      sendFrom(0, 'TRY_OK', 'var(--accent-green)'),
+      sendFrom(1, 'TRY_OK', 'var(--accent-green)'),
+      sendFrom(2, 'TRY_OK', 'var(--accent-green)')
+    ]);
+
+    clearBadges(scene);
+    setComment('tcc-commentary', 'All TRY succeeded. Coordinator sends CONFIRM to all -- finalize the reservations...');
+    el('tcc-phase2').setAttribute('opacity', '1');
+    drawStatusBadge(scene, coordX, coordY + 105, 'ALL TRY OK', 'var(--accent-green)');
+    await delay(400);
+
+    clearBadges(scene);
+    await Promise.all([
+      sendTo(0, 'CONFIRM', 'var(--accent-green)'),
+      sendTo(1, 'CONFIRM', 'var(--accent-green)'),
+      sendTo(2, 'CONFIRM', 'var(--accent-green)')
+    ]);
+
+    services.forEach(function(s) { drawStatusBadge(scene, s.x, s.y + 75, 'CONFIRMED', 'var(--accent-green)'); });
+    drawStatusBadge(scene, coordX, coordY + 105, 'TXN COMPLETE', 'var(--accent-green)');
+    setComment('tcc-commentary', 'All confirmed. Seat ticketed, funds charged, stock decremented. Each service moved from "reserved" to "finalized." The reservation phase made this predictable -- we knew all resources were available before committing any.');
+    running = false;
+  }
+
+  async function runFail() {
+    if (running) return;
+    running = true;
+    drawBase();
+
+    setComment('tcc-commentary', 'Try phase: Coordinator sends TRY to all services...');
+    el('tcc-phase1').setAttribute('opacity', '1');
+
+    await Promise.all([
+      sendTo(0, 'TRY (hold seat)', 'var(--accent-blue)'),
+      sendTo(1, 'TRY (hold funds)', 'var(--accent-blue)'),
+      sendTo(2, 'TRY (reserve stock)', 'var(--accent-blue)')
+    ]);
+
+    drawStatusBadge(scene, services[0].x, services[0].y + 75, 'RESERVED', 'var(--accent-purple)');
+    drawStatusBadge(scene, services[1].x, services[1].y + 75, 'TRY FAILED', 'var(--accent-red)');
+    drawStatusBadge(scene, services[2].x, services[2].y + 75, 'RESERVED', 'var(--accent-purple)');
+    setComment('tcc-commentary', 'Seat reserved, but Payment TRY FAILED (insufficient funds). Inventory reserved. Since one TRY failed, coordinator must CANCEL all that succeeded.');
+    await delay(400);
+
+    await Promise.all([
+      sendFrom(0, 'TRY_OK', 'var(--accent-green)'),
+      sendFrom(1, 'TRY_FAIL', 'var(--accent-red)'),
+      sendFrom(2, 'TRY_OK', 'var(--accent-green)')
+    ]);
+
+    clearBadges(scene);
+    drawStatusBadge(scene, coordX, coordY + 105, 'TRY FAILED', 'var(--accent-red)');
+    el('tcc-phase2').setAttribute('opacity', '1');
+    setComment('tcc-commentary', 'Coordinator sends CANCEL to Seat Service and Inventory (they had successful TRYs). Payment is already failed, nothing to cancel.');
+    await delay(500);
+
+    clearBadges(scene);
+    await Promise.all([
+      sendTo(0, 'CANCEL', 'var(--accent-orange)'),
+      sendTo(2, 'CANCEL', 'var(--accent-orange)')
+    ]);
+
+    drawStatusBadge(scene, services[0].x, services[0].y + 75, 'CANCELLED', 'var(--accent-orange)');
+    drawStatusBadge(scene, services[1].x, services[1].y + 75, 'FAILED', 'var(--accent-red)');
+    drawStatusBadge(scene, services[2].x, services[2].y + 75, 'CANCELLED', 'var(--accent-orange)');
+    drawStatusBadge(scene, coordX, coordY + 105, 'TXN CANCELLED', 'var(--accent-red)');
+    setComment('tcc-commentary', 'Seat released, stock unreserved. Clean rollback because TRY only reserved -- no side effects to undo. This is cleaner than ad-hoc saga compensation: the "undo" is just releasing a hold, not reversing a completed action.');
+    running = false;
+  }
+
+  function reset() {
+    running = false;
+    drawBase();
+    setComment('tcc-commentary', 'TCC: each service implements Try/Confirm/Cancel. The coordinator calls Try on all services; if all succeed, Confirm all. If any Try fails, Cancel those that succeeded. Click to animate.');
+  }
+
+  drawBase();
+  return { runHappy: runHappy, runFail: runFail, reset: reset };
+})();
+
+/* ================================================================
+   SECTION 6A: Dual-Write Failure Modes
+   ================================================================ */
+var DW = (function() {
+  var scene = null;
+  var running = false;
+
+  var appX = 130, appY = 110;
+  var dbX = 430, dbY = 110;
+  var brokerX = 730, brokerY = 110;
+
+  function drawBase() {
+    scene = el('dw-scene');
+    scene.innerHTML = '';
+    drawBox(scene, appX - 60, appY, 120, 60, 'var(--accent-blue)', 'App Service');
+    drawBox(scene, dbX - 60, dbY, 120, 60, 'var(--accent-green)', 'Database');
+    drawBox(scene, brokerX - 60, brokerY, 120, 60, 'var(--accent-purple)', 'Message Broker');
+    drawLine(scene, appX + 60, appY + 30, dbX - 60, dbY + 30, '#333', true);
+    drawLine(scene, appX + 60, appY + 30, brokerX - 60, brokerY + 30, '#333', true);
+
+    var ns = 'http://www.w3.org/2000/svg';
+    var t = document.createElementNS(ns, 'text');
+    t.setAttribute('x', '430');
+    t.setAttribute('y', '40');
+    t.setAttribute('text-anchor', 'middle');
+    t.setAttribute('fill', 'var(--text-3)');
+    t.setAttribute('font-size', '14');
+    t.setAttribute('font-weight', '600');
+    t.textContent = 'The Dual-Write Problem';
+    scene.appendChild(t);
+
+    var t2 = document.createElementNS(ns, 'text');
+    t2.setAttribute('x', '430');
+    t2.setAttribute('y', '60');
+    t2.setAttribute('text-anchor', 'middle');
+    t2.setAttribute('fill', 'var(--text-3)');
+    t2.setAttribute('font-size', '12');
+    t2.textContent = 'App must write to DB AND publish event -- two independent operations';
+    scene.appendChild(t2);
+  }
+
+  function sendMsg(x1, y1, x2, y2, label, color, dur) {
+    return new Promise(function(resolve) {
+      animateMsg(el('dw-svg'), x1, y1, x2, y2, color, label, dur || 500, resolve);
+    });
+  }
+
+  async function runDBFirst() {
+    if (running) return;
+    running = true;
+    drawBase();
+
+    setComment('dw-commentary', 'DB-first approach: App writes to database first, then publishes event...');
+    drawStatusBadge(scene, appX, appY + 80, 'Step 1: Write DB', 'var(--accent-blue)');
+    await sendMsg(appX + 60, appY + 30, dbX - 60, dbY + 30, 'INSERT order', 'var(--accent-green)');
+    drawStatusBadge(scene, dbX, dbY + 80, 'WRITTEN', 'var(--accent-green)');
+    await delay(400);
+
+    clearBadges(scene);
+    setComment('dw-commentary', 'DB write succeeded. Now App tries to publish event to broker... but the network fails / App crashes!');
+    drawStatusBadge(scene, dbX, dbY + 80, 'WRITTEN', 'var(--accent-green)');
+    drawStatusBadge(scene, appX, appY + 80, 'Step 2: Publish event', 'var(--accent-blue)');
+    await delay(300);
+
+    // Show failure
+    drawCrashX(scene, (appX + 60 + brokerX - 60) / 2, brokerY + 30, 14);
+    drawStatusBadge(scene, brokerX, brokerY + 80, 'NEVER RECEIVED', 'var(--accent-red)');
+    await delay(600);
+
+    setComment('dw-commentary', 'INCONSISTENCY: Database has the order, but the broker never got the event. Downstream services (shipping, analytics, notifications) will never learn about this order. The data exists but the system doesn\'t react to it.');
+    drawStatusBadge(scene, 430, 260, 'DB has data, broker does not -- other services miss the event', 'var(--accent-red)');
+    running = false;
+  }
+
+  async function runBrokerFirst() {
+    if (running) return;
+    running = true;
+    drawBase();
+
+    setComment('dw-commentary', 'Broker-first approach: App publishes event first, then writes to database...');
+    drawStatusBadge(scene, appX, appY + 80, 'Step 1: Publish event', 'var(--accent-blue)');
+    await sendMsg(appX + 60, appY + 30, brokerX - 60, brokerY + 30, 'OrderCreated', 'var(--accent-purple)');
+    drawStatusBadge(scene, brokerX, brokerY + 80, 'PUBLISHED', 'var(--accent-green)');
+    await delay(400);
+
+    clearBadges(scene);
+    setComment('dw-commentary', 'Event published. Now App tries to write to database... but the DB is down / constraint violation!');
+    drawStatusBadge(scene, brokerX, brokerY + 80, 'PUBLISHED', 'var(--accent-green)');
+    drawStatusBadge(scene, appX, appY + 80, 'Step 2: Write DB', 'var(--accent-blue)');
+    await delay(300);
+
+    drawCrashX(scene, (appX + 60 + dbX - 60) / 2, dbY + 30, 14);
+    drawStatusBadge(scene, dbX, dbY + 80, 'WRITE FAILED', 'var(--accent-red)');
+    await delay(600);
+
+    setComment('dw-commentary', 'INCONSISTENCY: Broker has the event, but database does not have the data. Downstream services will process a "ghost" event -- shipping an order that doesn\'t exist, sending a confirmation for a booking that was never made.');
+    drawStatusBadge(scene, 430, 260, 'Broker has event, DB does not -- ghost event, phantom processing', 'var(--accent-red)');
+    running = false;
+  }
+
+  function reset() {
+    running = false;
+    drawBase();
+    setComment('dw-commentary', 'Two failure modes. DB-first: DB write succeeds, broker publish fails -- other services miss the event. Broker-first: event published, DB write fails -- other services see a ghost event for data that doesn\'t exist. Click to animate.');
+  }
+
+  drawBase();
+  return { runDBFirst: runDBFirst, runBrokerFirst: runBrokerFirst, reset: reset };
+})();
+
+/* ================================================================
+   SECTION 6B: Outbox Pattern
+   ================================================================ */
+var OUTBOX = (function() {
+  var scene = null;
+  var running = false;
+
+  var appX = 100, appY = 50;
+  var dbX = 330, dbY = 50;
+  var outboxX = 330, outboxY = 180;
+  var relayX = 530, relayY = 180;
+  var brokerX = 730, brokerY = 180;
+  var consumerX = 730, consumerY = 50;
+  var inboxX = 730, inboxY = 300;
+
+  function drawBase() {
+    scene = el('outbox-scene');
+    scene.innerHTML = '';
+
+    drawBox(scene, appX - 55, appY, 110, 55, 'var(--accent-blue)', 'App Service');
+    drawBox(scene, dbX - 55, dbY, 110, 55, 'var(--accent-green)', 'Database');
+
+    // Draw the "same transaction" bracket
+    var ns = 'http://www.w3.org/2000/svg';
+    var txnRect = document.createElementNS(ns, 'rect');
+    txnRect.setAttribute('x', dbX - 70);
+    txnRect.setAttribute('y', dbY - 15);
+    txnRect.setAttribute('width', '140');
+    txnRect.setAttribute('height', '180');
+    txnRect.setAttribute('rx', '8');
+    txnRect.setAttribute('fill', 'none');
+    txnRect.setAttribute('stroke', 'var(--accent-cyan)');
+    txnRect.setAttribute('stroke-width', '1.5');
+    txnRect.setAttribute('stroke-dasharray', '6,3');
+    scene.appendChild(txnRect);
+
+    var txnLabel = document.createElementNS(ns, 'text');
+    txnLabel.setAttribute('x', dbX);
+    txnLabel.setAttribute('y', dbY + 155);
+    txnLabel.setAttribute('text-anchor', 'middle');
+    txnLabel.setAttribute('fill', 'var(--accent-cyan)');
+    txnLabel.setAttribute('font-size', '10');
+    txnLabel.textContent = 'Same DB transaction';
+    scene.appendChild(txnLabel);
+
+    drawBox(scene, outboxX - 55, outboxY, 110, 55, 'var(--accent-orange)', 'Outbox Table');
+    drawBox(scene, relayX - 55, relayY, 110, 55, 'var(--accent-purple)', 'Relay / CDC');
+    drawBox(scene, brokerX - 55, brokerY, 110, 55, 'var(--accent-purple)', 'Broker');
+    drawBox(scene, consumerX - 55, consumerY, 110, 55, 'var(--accent-yellow)', 'Consumer');
+    drawBox(scene, inboxX - 55, inboxY, 110, 55, 'var(--accent-cyan)', 'Inbox Table');
+
+    drawLine(scene, appX + 55, appY + 27, dbX - 55, dbY + 27, '#333', true);
+    drawLine(scene, outboxX + 55, outboxY + 27, relayX - 55, relayY + 27, '#333', true);
+    drawLine(scene, relayX + 55, relayY + 27, brokerX - 55, brokerY + 27, '#333', true);
+    drawLine(scene, brokerX, brokerY, consumerX, consumerY + 55, '#333', true);
+    drawLine(scene, consumerX, consumerY + 55, inboxX, inboxY, '#333', true);
+  }
+
+  function sendMsg(x1, y1, x2, y2, label, color, dur) {
+    return new Promise(function(resolve) {
+      animateMsg(el('outbox-svg'), x1, y1, x2, y2, color, label, dur || 500, resolve);
+    });
+  }
+
+  async function run() {
+    if (running) return;
+    running = true;
+    drawBase();
+
+    setComment('outbox-commentary', 'Step 1: App writes business data + outbox event in ONE database transaction (atomic)...');
+    await sendMsg(appX + 55, appY + 27, dbX - 55, dbY + 27, 'INSERT order', 'var(--accent-green)');
+    drawStatusBadge(scene, dbX, dbY + 68, 'Order row WRITTEN', 'var(--accent-green)');
+    await delay(200);
+    drawStatusBadge(scene, outboxX, outboxY + 68, 'Event row WRITTEN', 'var(--accent-orange)');
+    await delay(400);
+
+    setComment('outbox-commentary', 'Both rows written atomically. If the transaction fails, NEITHER is written -- no inconsistency possible. Now the relay process picks up the outbox row...');
+    await delay(500);
+
+    clearBadges(scene);
+    setComment('outbox-commentary', 'Step 2: Relay (polling or CDC/Debezium) reads the outbox table and publishes to the broker...');
+    await sendMsg(outboxX + 55, outboxY + 27, relayX - 55, relayY + 27, 'Poll outbox', 'var(--accent-purple)');
+    drawStatusBadge(scene, outboxX, outboxY + 68, 'Row read', 'var(--accent-purple)');
+    await delay(300);
+    await sendMsg(relayX + 55, relayY + 27, brokerX - 55, brokerY + 27, 'Publish event', 'var(--accent-purple)');
+    drawStatusBadge(scene, brokerX, brokerY + 68, 'Event published', 'var(--accent-green)');
+    await delay(400);
+
+    clearBadges(scene);
+    setComment('outbox-commentary', 'Step 3: Consumer receives event. Before processing, it checks the inbox table for deduplication...');
+    await sendMsg(brokerX, brokerY, consumerX, consumerY + 55, 'OrderCreated', 'var(--accent-yellow)');
+    drawStatusBadge(scene, consumerX, consumerY - 18, 'Check inbox', 'var(--accent-cyan)');
+    await delay(300);
+
+    await sendMsg(consumerX, consumerY + 55, inboxX, inboxY, 'Store event ID', 'var(--accent-cyan)');
+    drawStatusBadge(scene, inboxX, inboxY - 18, 'Event ID stored', 'var(--accent-cyan)');
+    await delay(300);
+
+    clearBadges(scene);
+    drawStatusBadge(scene, dbX, dbY - 18, 'Order persisted', 'var(--accent-green)');
+    drawStatusBadge(scene, brokerX, brokerY + 68, 'Event delivered', 'var(--accent-green)');
+    drawStatusBadge(scene, inboxX, inboxY - 18, 'Deduped', 'var(--accent-cyan)');
+    drawStatusBadge(scene, consumerX, consumerY - 18, 'Processed', 'var(--accent-green)');
+
+    setComment('outbox-commentary', 'Outbox pattern complete. The dual-write problem is solved: business data and event are atomic (same DB transaction). Relay publishes with retries (at-least-once). Consumer deduplicates via inbox table (exactly-once processing). Both ends idempotent.');
+    running = false;
+  }
+
+  function reset() {
+    running = false;
+    drawBase();
+    setComment('outbox-commentary', 'Outbox pattern: App writes the business row + an outbox row in the SAME database transaction (atomic). A relay process (polling or CDC/Debezium) reads the outbox table and publishes to the broker. Consumer deduplicates via inbox table. Click to animate.');
+  }
+
+  drawBase();
+  return { run: run, reset: reset };
+})();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,1493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LSM Trees vs B+ Trees -- Storage Engine Internals</title>
+<style>
+:root {
+  --bg: #0f0f15;
+  --surface: #181820;
+  --surface-2: #20202a;
+  --border: #2a2a35;
+  --text: #e6e6ea;
+  --text-2: #cfcfd6;
+  --text-3: #888;
+  --accent-red: #ff6b6b;
+  --accent-green: #51cf66;
+  --accent-blue: #339af0;
+  --accent-yellow: #ffd43b;
+  --accent-purple: #cc5de8;
+  --accent-cyan: #8be9fd;
+  --accent-orange: #ffa94d;
+}
+*, *::before, *::after { box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  padding: 32px 24px;
+  max-width: 1100px;
+  margin: 0 auto;
+  line-height: 1.55;
+}
+h1 { color: #fff; margin-bottom: 4px; }
+h1 + p.sub { color: var(--text-3); font-style: italic; margin-top: 0; margin-bottom: 24px; }
+h2 { color: #fff; margin-top: 40px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+h3 { color: var(--text-2); margin-top: 20px; }
+p { color: var(--text-2); }
+code {
+  background: var(--surface-2);
+  padding: 2px 6px;
+  border-radius: 3px;
+  color: var(--accent-cyan);
+  font-size: 13px;
+}
+svg {
+  background: var(--surface);
+  border-radius: 8px;
+  display: block;
+  margin: 14px auto;
+  width: 100%;
+  height: auto;
+}
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0;
+  align-items: center;
+}
+.controls button, .btn {
+  padding: 10px 16px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  border-radius: 6px;
+  cursor: pointer;
+  min-height: 44px;
+  font-size: 14px;
+  transition: background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+.controls button:hover, .btn:hover { background: var(--surface); }
+.controls button:disabled, .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.controls button.active-btn { border-color: var(--accent-blue); color: var(--accent-blue); }
+.commentary {
+  background: var(--surface-2);
+  padding: 14px;
+  border-radius: 6px;
+  font-size: 14px;
+  color: var(--text-2);
+  margin: 12px 0;
+  min-height: 44px;
+  line-height: 1.5;
+}
+.takeaway {
+  background: #1a1a22;
+  border-left: 3px solid var(--accent-green);
+  padding: 12px 16px;
+  margin: 14px 0;
+  font-size: 14px;
+}
+.takeaway strong { color: var(--accent-green); }
+.takeaway ul { margin: 6px 0 0 0; padding-left: 18px; }
+.takeaway li { margin-bottom: 6px; }
+.metric-card {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px 20px;
+  margin: 8px 0;
+}
+.metric-card h4 {
+  margin: 0 0 6px 0;
+  font-size: 15px;
+}
+.metric-card p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-3);
+}
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin: 16px 0;
+}
+.cmp-table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin: 16px 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.cmp-table {
+  width: 100%;
+  min-width: 700px;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.cmp-table th {
+  background: var(--surface-2);
+  color: #fff;
+  padding: 10px 14px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  white-space: nowrap;
+}
+.cmp-table td {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-2);
+  vertical-align: top;
+}
+.cmp-table tr:last-child td { border-bottom: none; }
+.cmp-table tr:hover td { background: rgba(255,255,255,0.02); }
+.cmp-table td:first-child { color: var(--text); font-weight: 600; white-space: nowrap; }
+.rating-low { color: var(--accent-green); }
+.rating-med { color: var(--accent-yellow); }
+.rating-high { color: var(--accent-red); }
+.rating-vhigh { color: var(--accent-orange); }
+.def-list { margin: 12px 0; }
+.def-list dt {
+  color: var(--accent-cyan);
+  font-weight: 600;
+  margin-top: 8px;
+  font-size: 14px;
+}
+.def-list dd {
+  margin-left: 0;
+  padding-left: 16px;
+  color: var(--text-2);
+  font-size: 13px;
+  border-left: 2px solid var(--border);
+}
+.step-indicator {
+  display: inline-block;
+  background: var(--accent-blue);
+  color: #fff;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 700;
+  margin-right: 6px;
+}
+@media (max-width: 720px) {
+  body { padding: 20px 14px; }
+  .metrics-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 480px) {
+  .controls { flex-direction: column; }
+  .controls button { width: 100%; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>LSM trees vs B+ trees</h1>
+  <p class="sub">Write amplification, read amplification, space amplification. Compaction strategies. The storage engine choices underlying every distributed DB. Pick 2 of 3.</p>
+</header>
+
+<!-- ================================================================ -->
+<!-- SECTION 1: THE 3 AMPLIFICATION METRICS                           -->
+<!-- ================================================================ -->
+<section id="sec-amplification">
+<h2>1. The Three Amplification Metrics</h2>
+<p>Any storage engine has three costs. You can optimize two of three. The fourth constraint (durability) is non-negotiable. Every design decision is a point on this triangle.</p>
+
+<div class="metrics-grid">
+  <div class="metric-card">
+    <h4 style="color:var(--accent-red)">Write Amplification (WA)</h4>
+    <p>Physical bytes written / logical bytes inserted. Higher = SSD wears out faster, throughput drops. B+ trees rewrite full pages; LSM compaction rewrites data multiple times across levels.</p>
+  </div>
+  <div class="metric-card">
+    <h4 style="color:var(--accent-blue)">Read Amplification (RA)</h4>
+    <p>Physical bytes read / bytes returned. Higher = slower reads, more I/O. B+ trees descend 3-5 levels. LSM must check memtable + multiple SSTables (Bloom filters help).</p>
+  </div>
+  <div class="metric-card">
+    <h4 style="color:var(--accent-yellow)">Space Amplification (SA)</h4>
+    <p>Physical bytes on disk / logical data bytes. Higher = more disk needed. B+ trees: 50-70% fill factor. LSM STCS: 2x during compaction merges.</p>
+  </div>
+</div>
+
+<svg id="triangle-svg" viewBox="0 0 700 440" style="max-height:440px">
+  <!-- Triangle -->
+  <polygon points="350,40 80,380 620,380" fill="none" stroke="#2a2a35" stroke-width="2"/>
+  <!-- Vertex labels -->
+  <text x="350" y="28" text-anchor="middle" fill="#fff" font-size="14" font-weight="700">Low WA</text>
+  <text x="50" y="400" text-anchor="middle" fill="#fff" font-size="14" font-weight="700">Low RA</text>
+  <text x="650" y="400" text-anchor="middle" fill="#fff" font-size="14" font-weight="700">Low SA</text>
+  <!-- Engine placements -->
+  <circle id="tri-bplus" cx="240" cy="200" r="10" fill="#339af0" opacity="0.9"/>
+  <text x="240" y="185" text-anchor="middle" fill="#339af0" font-size="12" font-weight="600">B+ tree</text>
+  <circle id="tri-lcs" cx="200" cy="330" r="10" fill="#51cf66" opacity="0.9"/>
+  <text x="200" y="358" text-anchor="middle" fill="#51cf66" font-size="12" font-weight="600">LSM (LCS)</text>
+  <circle id="tri-stcs" cx="480" cy="290" r="10" fill="#ffa94d" opacity="0.9"/>
+  <text x="480" y="278" text-anchor="middle" fill="#ffa94d" font-size="12" font-weight="600">LSM (STCS)</text>
+  <circle id="tri-twcs" cx="440" cy="350" r="10" fill="#cc5de8" opacity="0.9"/>
+  <text x="440" y="380" text-anchor="middle" fill="#cc5de8" font-size="12" font-weight="600">LSM (TWCS)</text>
+  <!-- Edge annotations -->
+  <text x="180" y="220" text-anchor="middle" fill="var(--text-3)" font-size="11" transform="rotate(-52,180,220)">Optimize WA + RA</text>
+  <text x="350" y="398" text-anchor="middle" fill="var(--text-3)" font-size="11">Optimize RA + SA</text>
+  <text x="520" y="220" text-anchor="middle" fill="var(--text-3)" font-size="11" transform="rotate(52,520,220)">Optimize WA + SA</text>
+  <!-- "Pick 2" center label -->
+  <text x="350" y="280" text-anchor="middle" fill="var(--text-3)" font-size="13" font-style="italic">Pick 2 of 3</text>
+</svg>
+
+<div class="takeaway">
+  <strong>Takeaway:</strong> Pick 2 of 3. The interview tell is naming this trade-off explicitly. "We chose LSM with leveled compaction because our workload is read-heavy after ingest, so we accept higher write amplification for lower read and space amplification."
+</div>
+</section>
+
+<!-- ================================================================ -->
+<!-- SECTION 2: B+ TREE MECHANICS                                     -->
+<!-- ================================================================ -->
+<section id="sec-bplus">
+<h2>2. B+ Tree Mechanics</h2>
+<p>The workhorse of relational databases. Internal nodes hold keys + child pointers for navigation. Leaf nodes hold the actual key-value data (or key + row-pointer). All leaves sit at the same depth. Leaves link horizontally for efficient range scans.</p>
+
+<div class="controls">
+  <button onclick="bplusInsert()" id="btn-bp-insert">Insert Key</button>
+  <button onclick="bplusLookup()" id="btn-bp-lookup">Lookup Key</button>
+  <button onclick="bplusRange()" id="btn-bp-range">Range Scan</button>
+  <button onclick="bplusReset()" id="btn-bp-reset">Reset</button>
+</div>
+<div class="commentary" id="bplus-commentary">Click an operation to see B+ tree mechanics in action. Insert triggers page splits when a leaf is full.</div>
+
+<svg id="bplus-svg" viewBox="0 0 900 420" style="max-height:420px"></svg>
+
+<h3>Key Properties</h3>
+<dl class="def-list">
+  <dt>Fanout</dt>
+  <dd>Each internal node holds ~100-1000 keys (in practice). A tree with fanout 500 and 3 levels indexes 125 million keys. 4 levels: 62.5 billion.</dd>
+  <dt>Fill Factor</dt>
+  <dd>Leaves filled 50-70% (Postgres default ~90% for sequential inserts, but splits reduce it). Empty space absorbs future inserts before triggering splits.</dd>
+  <dt>Page Splits</dt>
+  <dd>When a leaf overflows: allocate a new sibling, split keys at the median, push the median up to the parent. If the parent overflows, cascade the split upward. This is the primary source of write amplification.</dd>
+  <dt>Range Scans</dt>
+  <dd>Descend to the start key, then follow the leaf chain horizontally. No further tree traversal needed. This is why B+ trees dominate OLTP: point reads AND range scans are efficient.</dd>
+</dl>
+
+<h3>Amplification Profile</h3>
+<div class="metrics-grid">
+  <div class="metric-card">
+    <h4 style="color:var(--accent-yellow)">WA: Moderate</h4>
+    <p>Random page rewrites. A single row insert may rewrite a full 8-16KB page. Full-page writes for crash safety (WAL + dirty page flush).</p>
+  </div>
+  <div class="metric-card">
+    <h4 style="color:var(--accent-green)">RA: Low</h4>
+    <p>~3-5 page reads per point lookup (tree depth). Top levels are cached in buffer pool in practice, so often 1-2 disk reads.</p>
+  </div>
+  <div class="metric-card">
+    <h4 style="color:var(--accent-yellow)">SA: Moderate</h4>
+    <p>50-70% average fill factor = up to 1.5-2x logical data size on disk. Dead tuples (MVCC) add more in Postgres.</p>
+  </div>
+</div>
+
+<p style="color:var(--text-3); font-size:13px;"><strong>Used by:</strong> Postgres, MySQL InnoDB, SQLite, MongoDB WiredTiger (page-based, B+-ish), most filesystems (ext4, NTFS, APFS).</p>
+
+<div class="takeaway">
+  <strong>Takeaway:</strong> B+ tree = balanced read/write/space. The default for OLTP relational. Random-write cost is mitigated by page caching (buffer pool keeps hot pages in memory, batches flushes). When the working set fits in memory, B+ tree write performance is excellent.
+</div>
+</section>
+
+<!-- ================================================================ -->
+<!-- SECTION 3: LSM TREE MECHANICS                                    -->
+<!-- ================================================================ -->
+<section id="sec-lsm">
+<h2>3. LSM Tree Mechanics</h2>
+<p>Log-Structured Merge tree. Every write is sequential: append to WAL, insert into in-memory sorted structure (memtable), periodically flush to immutable sorted files (SSTables) on disk. Reads must check multiple locations. Compaction merges SSTables in the background to bound read amplification.</p>
+
+<div class="controls">
+  <button onclick="lsmWrite()" id="btn-lsm-write">Write Key</button>
+  <button onclick="lsmFlush()" id="btn-lsm-flush">Flush Memtable</button>
+  <button onclick="lsmCompact()" id="btn-lsm-compact">Compact L0 to L1</button>
+  <button onclick="lsmLookup()" id="btn-lsm-lookup">Lookup Key</button>
+  <button onclick="lsmDelete()" id="btn-lsm-delete">Delete (Tombstone)</button>
+  <button onclick="lsmReset()" id="btn-lsm-reset">Reset</button>
+</div>
+<div class="commentary" id="lsm-commentary">Click an operation to see LSM tree mechanics. Writes are always sequential. Reads must check multiple SSTables.</div>
+
+<svg id="lsm-svg" viewBox="0 0 900 500" style="max-height:500px"></svg>
+
+<h3>Write Path</h3>
+<dl class="def-list">
+  <dt>1. Append to WAL</dt>
+  <dd>Write-ahead log on disk. Sequential append. Ensures durability even if process crashes before memtable flushes.</dd>
+  <dt>2. Insert into Memtable</dt>
+  <dd>In-memory sorted structure (skip list or red-black tree). O(log N) insert. Fast because it is entirely in memory.</dd>
+  <dt>3. Flush to SSTable</dt>
+  <dd>When memtable reaches size threshold (typically 64-256MB), freeze it, write as a new immutable SSTable to L0. Sequential write to disk. Old WAL segment can be discarded.</dd>
+  <dt>4. Background Compaction</dt>
+  <dd>Merges multiple SSTables into fewer, removing duplicates and expired tombstones. This is the ongoing operational cost -- the constant background hum of LSM.</dd>
+</dl>
+
+<h3>Read Path</h3>
+<dl class="def-list">
+  <dt>1. Check Memtable</dt>
+  <dd>Most recent writes are here. O(log N) lookup.</dd>
+  <dt>2. Check L0 SSTables</dt>
+  <dd>L0 SSTables may have overlapping key ranges. Must check each one (newest first). Bloom filter per SSTable to skip those that definitely do not contain the key.</dd>
+  <dt>3. Check L1, L2, ...</dt>
+  <dd>Each level has non-overlapping SSTables (in leveled compaction). Binary search on SSTable boundaries, then binary search within SSTable. Bloom filter skips most disk reads.</dd>
+  <dt>4. Merge Results</dt>
+  <dd>First match wins (most recent write). Tombstone = key was deleted.</dd>
+</dl>
+
+<p style="color:var(--text-3); font-size:13px;"><strong>Used by:</strong> RocksDB (Cassandra, ScyllaDB, MyRocks, CockroachDB, TiDB, YugabyteDB), LevelDB, BadgerDB, ClickHouse MergeTree.</p>
+
+<div class="takeaway">
+  <strong>Takeaway:</strong> LSM = sequential writes everywhere. Reads pay the cost (multiple SSTables to check). Compaction is the operational cost -- the constant background hum. Every write-heavy system interview should mention LSM as the storage engine choice and name the compaction strategy.
+</div>
+</section>
+
+<!-- ================================================================ -->
+<!-- SECTION 4: COMPACTION STRATEGIES                                  -->
+<!-- ================================================================ -->
+<section id="sec-compaction">
+<h2>4. Compaction Strategies</h2>
+<p>Three flavors with very different trade-off profiles. The compaction strategy is the single most important tuning knob in an LSM-based system. Picking the wrong one for your workload is a production incident waiting to happen.</p>
+
+<div class="controls">
+  <button class="active-btn" onclick="showCompaction('stcs')" id="btn-stcs">Size-Tiered (STCS)</button>
+  <button onclick="showCompaction('lcs')" id="btn-lcs">Leveled (LCS)</button>
+  <button onclick="showCompaction('twcs')" id="btn-twcs">Time-Window (TWCS)</button>
+</div>
+
+<!-- STCS -->
+<div id="compaction-stcs">
+<h3>Size-Tiered Compaction (STCS)</h3>
+<p>When N similar-sized SSTables accumulate, merge them into one larger SSTable. Historically the Cassandra default. Optimizes for write throughput at the cost of space and read performance.</p>
+
+<div class="controls">
+  <button onclick="stcsAnimate()" id="btn-stcs-anim">Animate Merge</button>
+  <button onclick="stcsReset()">Reset</button>
+</div>
+<div class="commentary" id="stcs-commentary">4 small SSTables of similar size merge into 1 medium SSTable. Then 4 mediums merge into 1 large. Each row is rewritten O(log N) times total.</div>
+
+<svg id="stcs-svg" viewBox="0 0 900 340" style="max-height:340px"></svg>
+
+<div class="metrics-grid">
+  <div class="metric-card">
+    <h4 style="color:var(--accent-green)">WA: Low</h4>
+    <p>Each row written ~log N times across the lifetime of the data. Minimal rewrites compared to leveled.</p>
+  </div>
+  <div class="metric-card">
+    <h4 style="color:var(--accent-yellow)">RA: Medium-High</h4>
+    <p>Multiple overlapping SSTables at each "tier." Must check all of them for a point read. Bloom filters help but cannot eliminate all reads.</p>
+  </div>
+  <div class="metric-card">
+    <h4 style="color:var(--accent-red)">SA: High</h4>
+    <p>During merge, both old and new SSTables exist temporarily. Peak disk usage can reach 2x steady state. This is the operational killer.</p>
+  </div>
+</div>
+</div>
+
+<!-- LCS -->
+<div id="compaction-lcs" style="display:none">
+<h3>Leveled Compaction (LCS)</h3>
+<p>SSTables organized into levels. L0 allows overlap. L1+ has non-overlapping key ranges. Each level is ~10x the size of the previous. When a level is full, one SSTable is pushed down and merge-sorted with overlapping SSTables in the next level. The RocksDB default.</p>
+
+<div class="controls">
+  <button onclick="lcsAnimate()" id="btn-lcs-anim">Animate Push-Down</button>
+  <button onclick="lcsReset()">Reset</button>
+</div>
+<div class="commentary" id="lcs-commentary">L0 SSTables (may overlap) get pushed down to L1. Each L1 SSTable covers a disjoint key range. When L1 is full, one SSTable merges down into L2, and so on.</div>
+
+<svg id="lcs-svg" viewBox="0 0 900 380" style="max-height:380px"></svg>
+
+<div class="metrics-grid">
+  <div class="metric-card">
+    <h4 style="color:var(--accent-red)">WA: Medium-High</h4>
+    <p>Each row rewritten O(L) times where L is the number of levels. Typically 5-10x in practice. This is the cost you pay for read efficiency.</p>
+  </div>
+  <div class="metric-card">
+    <h4 style="color:var(--accent-green)">RA: Low-Medium</h4>
+    <p>At most 1 SSTable per level (non-overlapping). L0 may have a few overlapping. With Bloom filters, usually 1-2 disk reads for a point lookup.</p>
+  </div>
+  <div class="metric-card">
+    <h4 style="color:var(--accent-green)">SA: Low</h4>
+    <p>10-15% overhead typical. Non-overlapping keys at each level means minimal duplication. Predictable disk usage.</p>
+  </div>
+</div>
+</div>
+
+<!-- TWCS -->
+<div id="compaction-twcs" style="display:none">
+<h3>Time-Window Compaction (TWCS)</h3>
+<p>Each time window (e.g., 1 day, 1 hour) produces its own SSTable. SSTables within a window are compacted together (using STCS). SSTables are never merged across windows. When the retention period expires, the entire SSTable is dropped. The perfect strategy for time-series data with TTL.</p>
+
+<div class="controls">
+  <button onclick="twcsAnimate()" id="btn-twcs-anim">Animate TTL Drop</button>
+  <button onclick="twcsReset()">Reset</button>
+</div>
+<div class="commentary" id="twcs-commentary">7 SSTables, one per day. After the 90-day retention period, the oldest SSTable is simply deleted -- no merge, no rewrite, no compaction overhead.</div>
+
+<svg id="twcs-svg" viewBox="0 0 900 300" style="max-height:300px"></svg>
+
+<div class="metrics-grid">
+  <div class="metric-card">
+    <h4 style="color:var(--accent-green)">WA: Low</h4>
+    <p>Compaction only within a time window. Old data is never rewritten -- it is dropped wholesale when its TTL expires.</p>
+  </div>
+  <div class="metric-card">
+    <h4 style="color:var(--accent-green)">RA: Low</h4>
+    <p>Queries are almost always scoped to a time window. Within a window, 1 compacted SSTable per window means 1 read.</p>
+  </div>
+  <div class="metric-card">
+    <h4 style="color:var(--accent-green)">SA: Low</h4>
+    <p>No cross-window duplication. Each window is compacted independently. TTL drop = instant space reclaim with no temporary spike.</p>
+  </div>
+</div>
+</div>
+
+<h3 style="margin-top:28px">Compaction Strategy Comparison</h3>
+<div class="cmp-table-wrap">
+<table class="cmp-table">
+<thead>
+<tr><th>Property</th><th>STCS</th><th>LCS</th><th>TWCS</th></tr>
+</thead>
+<tbody>
+<tr><td>Write Amplification</td><td class="rating-low">Low (log N)</td><td class="rating-high">Medium-High (O(L))</td><td class="rating-low">Low</td></tr>
+<tr><td>Read Amplification</td><td class="rating-med">Medium-High</td><td class="rating-low">Low-Medium</td><td class="rating-low">Low</td></tr>
+<tr><td>Space Amplification</td><td class="rating-high">High (2x peak)</td><td class="rating-low">Low (10-15%)</td><td class="rating-low">Low</td></tr>
+<tr><td>Write Throughput</td><td class="rating-low">Very High</td><td class="rating-med">Medium</td><td class="rating-low">Very High</td></tr>
+<tr><td>Read Latency</td><td class="rating-med">Medium</td><td class="rating-low">Low</td><td class="rating-low">Low (in-window)</td></tr>
+<tr><td>Disk Predictability</td><td class="rating-high">Poor (spikes)</td><td class="rating-low">Good</td><td class="rating-low">Excellent</td></tr>
+<tr><td>Best For</td><td>Write-heavy, space not constrained</td><td>Read-heavy after ingest, general purpose</td><td>Time-series with TTL</td></tr>
+<tr><td>Used By</td><td>Cassandra (legacy default)</td><td>RocksDB (default), CockroachDB</td><td>Cassandra/ScyllaDB (time-series)</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="takeaway">
+  <strong>Takeaway:</strong> STCS = low write amp, high space amp. LCS = low read amp, higher write amp. TWCS = time-series killer feature. In an interview, naming the compaction strategy and its trade-off profile is the signal that you understand LSM at a production level.
+</div>
+</section>
+
+<!-- ================================================================ -->
+<!-- SECTION 5: BLOOM FILTERS IN LSM                                  -->
+<!-- ================================================================ -->
+<section id="sec-bloom">
+<h2>5. Bloom Filters in LSM</h2>
+<p>Each SSTable has a Bloom filter built over its keys during flush/compaction. On read, the filter answers: "Is this key <em>possibly</em> in this SSTable?" If no, skip the disk read entirely. If yes, read the SSTable (may be a false positive).</p>
+
+<div class="controls">
+  <button onclick="bloomAnimate()" id="btn-bloom-anim">Lookup Non-Existent Key</button>
+  <button onclick="bloomReset()">Reset</button>
+</div>
+<div class="commentary" id="bloom-commentary">Without Bloom filters, looking up a key that does not exist requires reading every SSTable across every level -- the worst-case read path. With Bloom filters at 1% false-positive rate, ~99% of SSTables are skipped.</div>
+
+<svg id="bloom-svg" viewBox="0 0 900 360" style="max-height:360px"></svg>
+
+<h3>How It Helps</h3>
+<dl class="def-list">
+  <dt>Negative Lookups</dt>
+  <dd>The worst case for LSM without Bloom filters. A key that does not exist must be checked against every SSTable. With Bloom filters, 99%+ of SSTables return "definitely not here" instantly.</dd>
+  <dt>Tunable False-Positive Rate</dt>
+  <dd>RocksDB default: ~1% per SSTable. 10 bits per key = ~1% FPR. You can trade memory for lower FPR. At 0.1% FPR, the read amplification of LSM approaches B+ tree levels.</dd>
+  <dt>No False Negatives</dt>
+  <dd>If the filter says "not here," it is guaranteed correct. If it says "maybe here," you read the SSTable and find out. This asymmetry is what makes Bloom filters useful.</dd>
+  <dt>Memory Cost</dt>
+  <dd>~10 bits per key. For 1 billion keys: ~1.2 GB of memory for all Bloom filters. Cheap relative to the I/O savings.</dd>
+</dl>
+
+<div class="takeaway">
+  <strong>Takeaway:</strong> Bloom filter is the read-amp killer. LSM without Bloom is unusable for negative lookups. In interviews, always mention Bloom filters when discussing LSM read path -- it shows you understand the practical read optimization, not just the theoretical multi-SSTable cost.
+</div>
+</section>
+
+<!-- ================================================================ -->
+<!-- SECTION 6: SIDE-BY-SIDE COMPARISON                               -->
+<!-- ================================================================ -->
+<section id="sec-comparison">
+<h2>6. Side-by-Side Comparison</h2>
+<p>The full picture. Every row is a decision axis for choosing a storage engine.</p>
+
+<div class="cmp-table-wrap">
+<table class="cmp-table">
+<thead>
+<tr><th>Property</th><th>B+ Tree</th><th>LSM (LCS)</th><th>LSM (STCS)</th><th>LSM (TWCS)</th></tr>
+</thead>
+<tbody>
+<tr>
+  <td>Write Amplification</td>
+  <td class="rating-med">Moderate (page rewrites)</td>
+  <td class="rating-high">Medium-High (O(L), 5-10x)</td>
+  <td class="rating-low">Low (log N)</td>
+  <td class="rating-low">Low</td>
+</tr>
+<tr>
+  <td>Read Amplification</td>
+  <td class="rating-low">Low (3-5 page reads)</td>
+  <td class="rating-med">Medium (1-2 with Bloom)</td>
+  <td class="rating-high">Medium-High</td>
+  <td class="rating-low">Low (in-window)</td>
+</tr>
+<tr>
+  <td>Space Amplification</td>
+  <td class="rating-med">Moderate (50-70% fill)</td>
+  <td class="rating-low">Low (10-15% overhead)</td>
+  <td class="rating-high">High (2x peak)</td>
+  <td class="rating-low">Low</td>
+</tr>
+<tr>
+  <td>Random Write Throughput</td>
+  <td class="rating-med">Medium (random page I/O)</td>
+  <td class="rating-low">Very High (sequential)</td>
+  <td class="rating-low">Very High (sequential)</td>
+  <td class="rating-low">Very High (sequential)</td>
+</tr>
+<tr>
+  <td>Range Scan</td>
+  <td class="rating-low">Fast (leaf chain)</td>
+  <td class="rating-low">Fast (sorted, merge across levels)</td>
+  <td class="rating-low">Fast (sorted)</td>
+  <td class="rating-low">Fast (within window)</td>
+</tr>
+<tr>
+  <td>Crash Recovery</td>
+  <td>WAL replay</td>
+  <td>WAL replay</td>
+  <td>WAL replay</td>
+  <td>WAL replay</td>
+</tr>
+<tr>
+  <td>SSD Friendliness</td>
+  <td class="rating-med">Medium (random writes)</td>
+  <td class="rating-low">High (sequential)</td>
+  <td class="rating-low">Very High (sequential)</td>
+  <td class="rating-low">Very High (sequential)</td>
+</tr>
+<tr>
+  <td>Disk Usage Predictability</td>
+  <td class="rating-low">Stable</td>
+  <td class="rating-low">Predictable</td>
+  <td class="rating-high">Spiky (during compaction)</td>
+  <td class="rating-low">Predictable</td>
+</tr>
+<tr>
+  <td>Used By</td>
+  <td>Postgres, MySQL, SQLite</td>
+  <td>RocksDB, CockroachDB, MyRocks</td>
+  <td>Cassandra (legacy)</td>
+  <td>Cassandra/Scylla (TS)</td>
+</tr>
+</tbody>
+</table>
+</div>
+
+<div class="takeaway">
+  <strong>Takeaway:</strong> Write-heavy, large data, time-series -- LSM. Read-heavy OLTP, smaller working set -- B+ tree. Both can do everything; pick by dominant access pattern.
+  <ul>
+    <li>Postgres (B+ tree) handles writes fine when the working set fits in shared_buffers.</li>
+    <li>RocksDB (LSM/LCS) handles reads well when Bloom filters are tuned and levels are compacted.</li>
+    <li>The interview move is naming the access pattern first, then the engine, then the amplification trade-off you accept.</li>
+  </ul>
+</div>
+</section>
+
+<!-- ================================================================ -->
+<!-- SECTION 7: HYBRID + ADVANCED                                     -->
+<!-- ================================================================ -->
+<section id="sec-hybrid">
+<h2>7. Hybrid and Advanced Engines</h2>
+<p>Storage engine is one layer. Distribution, consensus, and caching are independent layers above. Many production systems combine engine types or use variations.</p>
+
+<div class="cmp-table-wrap">
+<table class="cmp-table">
+<thead>
+<tr><th>System</th><th>Storage Engine</th><th>Notes</th></tr>
+</thead>
+<tbody>
+<tr><td>MongoDB WiredTiger</td><td>B+ tree (default) or LSM</td><td>B+ tree default since 3.2. LSM available but rarely used. Page-based, B+-ish with compression.</td></tr>
+<tr><td>CockroachDB</td><td>RocksDB / Pebble (LSM, LCS)</td><td>Distributed SQL on top of LSM. Raft consensus for replication. Pebble is CockroachDB's Go rewrite of RocksDB.</td></tr>
+<tr><td>TiDB / TiKV</td><td>RocksDB (LSM, LCS)</td><td>Distributed SQL with Raft. TiKV is the KV layer; TiDB is the SQL layer above.</td></tr>
+<tr><td>Spanner / F1</td><td>Proprietary (B+-like, distributed)</td><td>TrueTime for global consistency. Colossus distributed filesystem underneath.</td></tr>
+<tr><td>DynamoDB</td><td>Proprietary (B-tree based)</td><td>Partitioned B-tree per partition key. SSD-backed. Log-structured storage at the replication layer.</td></tr>
+<tr><td>ClickHouse</td><td>MergeTree (LSM-inspired)</td><td>Columnar + LSM merge semantics. Parts merged in background. Optimized for analytical queries.</td></tr>
+<tr><td>Snowflake / BigQuery</td><td>Columnar (PAX/Parquet-like)</td><td>Different beast -- immutable micro-partitions / columnar segments. Optimized for analytics, not OLTP.</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="takeaway">
+  <strong>Takeaway:</strong> Storage engine is one layer. Distribution + consensus + cache are independent layers above. In interviews: name the storage engine (B+ tree or LSM), name the distribution strategy (partitioning + replication), name the consistency model. Three separate decisions, not one.
+</div>
+</section>
+
+<!-- ================================================================ -->
+<!-- JAVASCRIPT                                                        -->
+<!-- ================================================================ -->
+<script>
+(function() {
+'use strict';
+
+/* ------------------------------------------------------------------ */
+/* B+ TREE VISUALIZATION                                               */
+/* ------------------------------------------------------------------ */
+const BPlusState = {
+  tree: null,
+  insertIdx: 0,
+  insertSequence: [10, 20, 30, 40, 5, 15, 25, 35, 50, 45, 55, 60, 8, 12],
+  animating: false
+};
+
+function createBPlusTree() {
+  // order-3 B+ tree for visualization (max 3 keys per leaf, 3 per internal)
+  return { root: { keys: [10, 20, 30], children: null, next: null, isLeaf: true } };
+}
+
+function drawBPlusTree(highlight) {
+  const svg = document.getElementById('bplus-svg');
+  if (!svg) return;
+  const hl = highlight || {};
+
+  // Static B+ tree for visualization (pre-built states for clarity)
+  // We show a tree that has been built with: 5,8,10,12,15,20,25,30,35,40,45,50
+  const W = 900, H = 420;
+  let html = '';
+
+  // Level 0: Root
+  const rootX = 450, rootY = 50, nodeW = 120, nodeH = 36;
+  const rootKeys = [20, 40];
+  html += drawBPNode(rootX, rootY, rootKeys, nodeW, nodeH, false, hl.path && hl.path.includes('root') ? hl.color : null);
+
+  // Level 1: Internal nodes
+  const int1X = 200, int2X = 450, int3X = 700, intY = 145;
+  const int1Keys = [10];
+  const int2Keys = [25, 30];
+  const int3Keys = [45, 50];
+  html += drawBPNode(int1X, intY, int1Keys, 80, nodeH, false, hl.path && hl.path.includes('int1') ? hl.color : null);
+  html += drawBPNode(int2X, intY, int2Keys, nodeW, nodeH, false, hl.path && hl.path.includes('int2') ? hl.color : null);
+  html += drawBPNode(int3X, intY, int3Keys, nodeW, nodeH, false, hl.path && hl.path.includes('int3') ? hl.color : null);
+
+  // Edges root -> internal
+  html += drawEdge(rootX - 20, rootY + nodeH, int1X, intY);
+  html += drawEdge(rootX + 10, rootY + nodeH, int2X, intY);
+  html += drawEdge(rootX + 40, rootY + nodeH, int3X, intY);
+
+  // Level 2: Leaf nodes
+  const leafY = 260;
+  const leaves = [
+    { x: 80,  keys: [5, 8],       id: 'l0' },
+    { x: 210, keys: [10, 12, 15], id: 'l1' },
+    { x: 340, keys: [20, 22],     id: 'l2' },
+    { x: 470, keys: [25, 28],     id: 'l3' },
+    { x: 580, keys: [30, 35],     id: 'l4' },
+    { x: 690, keys: [40, 42],     id: 'l5' },
+    { x: 790, keys: [45, 48, 50], id: 'l6' }
+  ];
+
+  // Edges internal -> leaves
+  // int1 -> l0, l1
+  html += drawEdge(int1X - 15, intY + nodeH, leaves[0].x + 40, leafY);
+  html += drawEdge(int1X + 15, intY + nodeH, leaves[1].x + 40, leafY);
+  // int2 -> l2, l3, l4
+  html += drawEdge(int2X - 25, intY + nodeH, leaves[2].x + 40, leafY);
+  html += drawEdge(int2X + 5, intY + nodeH, leaves[3].x + 40, leafY);
+  html += drawEdge(int2X + 35, intY + nodeH, leaves[4].x + 40, leafY);
+  // int3 -> l5, l6
+  html += drawEdge(int3X - 15, intY + nodeH, leaves[5].x + 40, leafY);
+  html += drawEdge(int3X + 25, intY + nodeH, leaves[6].x + 45, leafY);
+
+  // Draw leaves with horizontal links
+  for (let i = 0; i < leaves.length; i++) {
+    const lf = leaves[i];
+    const w = Math.max(80, lf.keys.length * 32 + 16);
+    const color = hl.leaf === lf.id ? hl.color : (hl.range && hl.rangeLeaves && hl.rangeLeaves.includes(lf.id) ? hl.color : null);
+    html += drawBPNode(lf.x + w / 2, leafY, lf.keys, w, nodeH, true, color);
+    // Leaf chain arrow
+    if (i < leaves.length - 1) {
+      const nextLf = leaves[i + 1];
+      const nextW = Math.max(80, nextLf.keys.length * 32 + 16);
+      html += `<line x1="${lf.x + w}" y1="${leafY + nodeH / 2}" x2="${nextLf.x}" y2="${leafY + nodeH / 2}" stroke="${hl.range ? hl.color || '#444' : '#333'}" stroke-width="1.5" marker-end="url(#arrow-chain)"/>`;
+    }
+  }
+
+  // Split animation overlay
+  if (hl.split) {
+    const splitLeaf = leaves.find(l => l.id === hl.split.leafId);
+    if (splitLeaf) {
+      const sx = splitLeaf.x + 40, sy = leafY + nodeH + 20;
+      html += `<rect x="${sx - 70}" y="${sy}" width="140" height="${nodeH}" rx="4" fill="none" stroke="${hl.color}" stroke-width="2" stroke-dasharray="4,3"/>`;
+      html += `<text x="${sx}" y="${sy + 22}" text-anchor="middle" fill="${hl.color}" font-size="12" font-weight="600">${hl.split.text}</text>`;
+    }
+  }
+
+  // Arrow marker
+  html = `<defs><marker id="arrow-chain" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6" fill="#444"/></marker></defs>` + html;
+
+  // Labels
+  html += `<text x="20" y="${rootY + 22}" fill="var(--text-3)" font-size="11">Root</text>`;
+  html += `<text x="20" y="${intY + 22}" fill="var(--text-3)" font-size="11">Internal</text>`;
+  html += `<text x="20" y="${leafY + 22}" fill="var(--text-3)" font-size="11">Leaves</text>`;
+
+  // Legend
+  html += `<text x="20" y="${leafY + 80}" fill="var(--text-3)" font-size="11">Horizontal arrows = leaf chain (for range scans)</text>`;
+  html += `<text x="20" y="${leafY + 98}" fill="var(--text-3)" font-size="11">All leaves at same depth: balanced tree</text>`;
+
+  // Fill factor bar
+  html += drawFillBar(100, leafY + 120, 700, 24, 0.65);
+  html += `<text x="100" y="${leafY + 160}" fill="var(--text-3)" font-size="11">Average fill factor: ~65% (room for inserts before splits)</text>`;
+
+  svg.innerHTML = html;
+}
+
+function drawBPNode(cx, y, keys, w, h, isLeaf, highlightColor) {
+  const x = cx - w / 2;
+  const fill = isLeaf ? '#1a2230' : '#1a1a28';
+  const stroke = highlightColor || (isLeaf ? '#2a4060' : '#2a2a45');
+  const sw = highlightColor ? 2.5 : 1.5;
+  let html = `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="4" fill="${fill}" stroke="${stroke}" stroke-width="${sw}"/>`;
+  const keyStr = keys.join(' | ');
+  const textColor = highlightColor || (isLeaf ? 'var(--accent-cyan)' : 'var(--accent-purple)');
+  html += `<text x="${cx}" y="${y + h / 2 + 5}" text-anchor="middle" fill="${textColor}" font-size="13" font-weight="600">${keyStr}</text>`;
+  return html;
+}
+
+function drawEdge(x1, y1, x2, y2) {
+  return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#333" stroke-width="1"/>`;
+}
+
+function drawFillBar(x, y, w, h, fillPct) {
+  let html = `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="4" fill="#111" stroke="#333" stroke-width="1"/>`;
+  const filledW = w * fillPct;
+  html += `<rect x="${x}" y="${y}" width="${filledW}" height="${h}" rx="4" fill="rgba(51,154,240,0.3)"/>`;
+  html += `<text x="${x + filledW + 8}" y="${y + h / 2 + 4}" fill="var(--accent-blue)" font-size="11" font-weight="600">${Math.round(fillPct * 100)}%</text>`;
+  return html;
+}
+
+let bplusAnimStep = 0;
+
+function bplusInsert() {
+  if (BPlusState.animating) return;
+  BPlusState.animating = true;
+  const cmt = document.getElementById('bplus-commentary');
+
+  // Step 1: highlight the path
+  cmt.textContent = 'INSERT 22: Descend root (20 < 22 < 40 -> middle child) -> internal [25,30] (22 < 25 -> left child) -> leaf [20]. Key 22 fits, no split needed.';
+  drawBPlusTree({ path: ['root', 'int2'], color: 'var(--accent-yellow)', leaf: 'l2' });
+
+  setTimeout(() => {
+    cmt.textContent = 'Key 22 inserted into leaf [20]. Leaf becomes [20, 22]. Fill factor increases. If the leaf were full (3 keys), a page split would occur: median pushed to parent, two new sibling leaves created.';
+    drawBPlusTree({ leaf: 'l2', color: 'var(--accent-green)' });
+    BPlusState.animating = false;
+  }, 1800);
+}
+
+function bplusLookup() {
+  if (BPlusState.animating) return;
+  BPlusState.animating = true;
+  const cmt = document.getElementById('bplus-commentary');
+
+  cmt.textContent = 'LOOKUP 35: Start at root. 20 <= 35 < 40 -> middle child [25,30]. 35 >= 30 -> right child leaf [30,35]. Found at leaf. Total: 3 page reads (root + internal + leaf). In practice, root and top internal nodes are cached in buffer pool: 1 disk read.';
+  drawBPlusTree({ path: ['root', 'int2'], color: 'var(--accent-blue)', leaf: 'l4' });
+
+  setTimeout(() => {
+    drawBPlusTree({ leaf: 'l4', color: 'var(--accent-green)' });
+    cmt.textContent = 'Key 35 found in leaf [30, 35]. Read amplification = 3 page reads (tree depth). With buffer pool caching top levels, effectively 1 disk read for the leaf page.';
+    BPlusState.animating = false;
+  }, 2000);
+}
+
+function bplusRange() {
+  if (BPlusState.animating) return;
+  BPlusState.animating = true;
+  const cmt = document.getElementById('bplus-commentary');
+
+  cmt.textContent = 'RANGE SCAN [12..35]: Descend to leaf containing 12 -> [10,12,15]. Then follow the horizontal leaf chain: [20,22] -> [25,28] -> [30,35]. Stop at 35. No further tree traversal needed -- this is why B+ trees dominate range queries.';
+  drawBPlusTree({ range: true, rangeLeaves: ['l1', 'l2', 'l3', 'l4'], color: 'var(--accent-green)' });
+
+  setTimeout(() => {
+    cmt.textContent = 'Range scan complete. 4 leaf reads via horizontal chain. In a B-tree (not B+), range scans require re-traversing from the root for each key -- the leaf chain is the B+ tree advantage.';
+    BPlusState.animating = false;
+  }, 2500);
+}
+
+function bplusReset() {
+  BPlusState.animating = false;
+  document.getElementById('bplus-commentary').textContent = 'Click an operation to see B+ tree mechanics in action. Insert triggers page splits when a leaf is full.';
+  drawBPlusTree({});
+}
+
+/* ------------------------------------------------------------------ */
+/* LSM TREE VISUALIZATION                                              */
+/* ------------------------------------------------------------------ */
+const LSMState = {
+  memtable: [],
+  wal: [],
+  l0: [],
+  l1: [],
+  l2: [],
+  writeIdx: 0,
+  writeSeq: ['k1:v1', 'k5:v5', 'k3:v3', 'k8:v8', 'k2:v2', 'k7:v7', 'k4:v4', 'k6:v6'],
+  animating: false
+};
+
+function lsmReset() {
+  LSMState.memtable = [];
+  LSMState.wal = [];
+  LSMState.l0 = [
+    { keys: ['k10','k15','k20'], range: 'k10-k20', bloom: true },
+    { keys: ['k12','k18','k25'], range: 'k12-k25', bloom: true }
+  ];
+  LSMState.l1 = [
+    { keys: ['k1','k5','k8','k10','k15'], range: 'k1-k15', bloom: true },
+    { keys: ['k18','k20','k25','k30','k35'], range: 'k18-k35', bloom: true }
+  ];
+  LSMState.l2 = [
+    { keys: ['k1','k3','k5','k8','k10','k12','k15','k18','k20'], range: 'k1-k20', bloom: true },
+    { keys: ['k22','k25','k28','k30','k33','k35','k40','k45','k50'], range: 'k22-k50', bloom: true }
+  ];
+  LSMState.writeIdx = 0;
+  LSMState.animating = false;
+  document.getElementById('lsm-commentary').textContent = 'Click an operation to see LSM tree mechanics. Writes are always sequential. Reads must check multiple SSTables.';
+  drawLSM({});
+}
+
+function drawLSM(hl) {
+  const svg = document.getElementById('lsm-svg');
+  if (!svg) return;
+  const W = 900, H = 500;
+  let html = '';
+
+  // WAL
+  const walX = 30, walY = 30, walW = 120, walH = 50;
+  html += drawLSMBox(walX, walY, walW, walH, 'WAL', LSMState.wal.length > 0 ? LSMState.wal.slice(-3).join(', ') : '(append-only)', '#2a1a1a', hl.wal ? 'var(--accent-red)' : '#3a2020');
+
+  // Memtable
+  const mtX = 180, mtY = 30, mtW = 200, mtH = 50;
+  const mtLabel = LSMState.memtable.length > 0 ? LSMState.memtable.join(', ') : '(sorted, in-memory)';
+  html += drawLSMBox(mtX, mtY, mtW, mtH, 'Memtable', mtLabel, '#1a2a1a', hl.memtable ? 'var(--accent-green)' : '#204020');
+
+  // Arrow WAL -> Memtable
+  html += `<line x1="${walX + walW}" y1="${walY + walH / 2}" x2="${mtX}" y2="${mtY + mtH / 2}" stroke="#444" stroke-width="1.5" marker-end="url(#arr)"/>`;
+
+  // Flush arrow
+  html += `<line x1="${mtX + mtW / 2}" y1="${mtY + mtH}" x2="${mtX + mtW / 2}" y2="115" stroke="${hl.flush ? 'var(--accent-yellow)' : '#333'}" stroke-width="${hl.flush ? 2 : 1}" stroke-dasharray="4,3" marker-end="url(#arr)"/>`;
+  html += `<text x="${mtX + mtW / 2 + 10}" y="105" fill="var(--text-3)" font-size="10">flush</text>`;
+
+  // Bloom filter legend
+  html += `<text x="680" y="45" fill="var(--text-3)" font-size="11">BF = Bloom filter per SSTable</text>`;
+  html += `<text x="680" y="62" fill="var(--text-3)" font-size="11">Skip SSTables on negative lookup</text>`;
+
+  // Levels
+  const levels = [
+    { label: 'L0 (overlap allowed)', data: LSMState.l0, y: 120, color: '#1a2535' },
+    { label: 'L1 (non-overlapping, 10x L0)', data: LSMState.l1, y: 220, color: '#1a1a35' },
+    { label: 'L2 (non-overlapping, 10x L1)', data: LSMState.l2, y: 340, color: '#251a35' }
+  ];
+
+  levels.forEach((lvl, li) => {
+    html += `<text x="30" y="${lvl.y - 5}" fill="var(--text-3)" font-size="12" font-weight="600">${lvl.label}</text>`;
+    const sstW = Math.min(360, (W - 80) / Math.max(lvl.data.length, 1) - 10);
+    lvl.data.forEach((sst, si) => {
+      const sx = 30 + si * (sstW + 10);
+      const sy = lvl.y;
+      const sh = lvl.data === LSMState.l2 ? 80 : 60;
+      const isHit = hl.lookup && hl.lookup.hits && hl.lookup.hits.includes(`l${li}-${si}`);
+      const isSkip = hl.lookup && hl.lookup.skips && hl.lookup.skips.includes(`l${li}-${si}`);
+      const borderColor = isHit ? 'var(--accent-green)' : (isSkip ? 'var(--accent-red)' : '#333');
+      html += `<rect x="${sx}" y="${sy}" width="${sstW}" height="${sh}" rx="5" fill="${lvl.color}" stroke="${borderColor}" stroke-width="${isHit || isSkip ? 2 : 1}"/>`;
+      html += `<text x="${sx + 8}" y="${sy + 18}" fill="var(--accent-cyan)" font-size="11" font-weight="600">SSTable</text>`;
+      html += `<text x="${sx + 8}" y="${sy + 34}" fill="var(--text-3)" font-size="10">${sst.range}</text>`;
+      // Bloom filter indicator
+      const bfColor = isSkip ? 'var(--accent-red)' : (isHit ? 'var(--accent-green)' : 'var(--text-3)');
+      html += `<text x="${sx + sstW - 28}" y="${sy + 18}" fill="${bfColor}" font-size="9" font-weight="700">BF</text>`;
+      if (isSkip) {
+        html += `<line x1="${sx}" y1="${sy}" x2="${sx + sstW}" y2="${sy + sh}" stroke="var(--accent-red)" stroke-width="1" opacity="0.4"/>`;
+        html += `<text x="${sx + sstW / 2}" y="${sy + sh / 2 + 4}" text-anchor="middle" fill="var(--accent-red)" font-size="11" font-weight="600">SKIP</text>`;
+      }
+      if (isHit) {
+        html += `<text x="${sx + sstW / 2}" y="${sy + sh - 8}" text-anchor="middle" fill="var(--accent-green)" font-size="10" font-weight="600">FOUND</text>`;
+      }
+      // Show keys inside if there is space
+      if (sh >= 60 && sst.keys) {
+        const kStr = sst.keys.length > 5 ? sst.keys.slice(0, 5).join(', ') + '...' : sst.keys.join(', ');
+        html += `<text x="${sx + 8}" y="${sy + 50}" fill="var(--text-3)" font-size="9">${kStr}</text>`;
+      }
+      if (sh >= 80 && sst.keys && sst.keys.length > 5) {
+        html += `<text x="${sx + 8}" y="${sy + 66}" fill="var(--text-3)" font-size="9">${sst.keys.slice(5).join(', ')}</text>`;
+      }
+    });
+
+    // Compaction arrow between levels
+    if (li < levels.length - 1) {
+      const nextY = levels[li + 1].y;
+      const arrowX = 60;
+      html += `<line x1="${arrowX}" y1="${lvl.y + (lvl.data === LSMState.l2 ? 80 : 60) + 5}" x2="${arrowX}" y2="${nextY - 5}" stroke="${hl.compact && hl.compact.level === li ? 'var(--accent-orange)' : '#333'}" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#arr)"/>`;
+      if (hl.compact && hl.compact.level === li) {
+        html += `<text x="${arrowX + 8}" y="${(lvl.y + 60 + nextY) / 2}" fill="var(--accent-orange)" font-size="10" font-weight="600">compaction</text>`;
+      }
+    }
+  });
+
+  // Tombstone marker if needed
+  if (hl.tombstone) {
+    html += `<rect x="600" y="30" width="180" height="50" rx="5" fill="#2a1520" stroke="var(--accent-red)" stroke-width="1.5"/>`;
+    html += `<text x="690" y="52" text-anchor="middle" fill="var(--accent-red)" font-size="12" font-weight="600">Tombstone: ${hl.tombstone}</text>`;
+    html += `<text x="690" y="70" text-anchor="middle" fill="var(--text-3)" font-size="10">Removed at compaction</text>`;
+  }
+
+  html = `<defs><marker id="arr" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6" fill="#666"/></marker></defs>` + html;
+  svg.innerHTML = html;
+}
+
+function lsmWrite() {
+  if (LSMState.animating) return;
+  LSMState.animating = true;
+  const cmt = document.getElementById('lsm-commentary');
+  const entry = LSMState.writeSeq[LSMState.writeIdx % LSMState.writeSeq.length];
+  LSMState.writeIdx++;
+
+  // Step 1: WAL
+  LSMState.wal.push(entry);
+  cmt.textContent = `WRITE ${entry}: Step 1 -- append to WAL (sequential write, durability). Step 2 -- insert into memtable (in-memory, O(log N)).`;
+  drawLSM({ wal: true });
+
+  setTimeout(() => {
+    LSMState.memtable.push(entry);
+    LSMState.memtable.sort();
+    drawLSM({ memtable: true });
+    cmt.textContent = `${entry} written. WAL ensures durability. Memtable keeps data sorted in memory. When memtable is full, it flushes to disk as a new SSTable in L0 (sequential write).`;
+    LSMState.animating = false;
+  }, 1200);
+}
+
+function lsmFlush() {
+  if (LSMState.animating) return;
+  if (LSMState.memtable.length === 0) {
+    document.getElementById('lsm-commentary').textContent = 'Memtable is empty. Write some keys first.';
+    return;
+  }
+  LSMState.animating = true;
+  const cmt = document.getElementById('lsm-commentary');
+  cmt.textContent = 'FLUSH: Memtable frozen. Writing as new immutable SSTable to L0. Sequential disk write. Old WAL segment discarded.';
+  drawLSM({ flush: true });
+
+  setTimeout(() => {
+    const keys = [...LSMState.memtable];
+    const range = keys[0] + '-' + keys[keys.length - 1];
+    LSMState.l0.unshift({ keys: keys, range: range, bloom: true });
+    LSMState.memtable = [];
+    LSMState.wal = [];
+    drawLSM({});
+    cmt.textContent = `Flush complete. New SSTable [${range}] in L0. L0 now has ${LSMState.l0.length} SSTables (may overlap). Background compaction will merge L0 into L1 when L0 is large enough.`;
+    LSMState.animating = false;
+  }, 1500);
+}
+
+function lsmCompact() {
+  if (LSMState.animating) return;
+  if (LSMState.l0.length === 0) {
+    document.getElementById('lsm-commentary').textContent = 'L0 is empty. Nothing to compact.';
+    return;
+  }
+  LSMState.animating = true;
+  const cmt = document.getElementById('lsm-commentary');
+  cmt.textContent = 'COMPACTION L0 -> L1: Merge all L0 SSTables with overlapping L1 SSTables. Remove duplicates, apply tombstones. Result: non-overlapping SSTables in L1.';
+  drawLSM({ compact: { level: 0 } });
+
+  setTimeout(() => {
+    // Merge L0 into L1 (simplified)
+    const allKeys = new Set();
+    LSMState.l0.forEach(s => s.keys.forEach(k => allKeys.add(k)));
+    LSMState.l1.forEach(s => s.keys.forEach(k => allKeys.add(k)));
+    const sorted = [...allKeys].sort();
+    const mid = Math.ceil(sorted.length / 2);
+    LSMState.l1 = [
+      { keys: sorted.slice(0, mid), range: sorted[0] + '-' + sorted[mid - 1], bloom: true },
+      { keys: sorted.slice(mid), range: sorted[mid] + '-' + sorted[sorted.length - 1], bloom: true }
+    ];
+    LSMState.l0 = [];
+    drawLSM({});
+    cmt.textContent = `Compaction complete. L0 cleared. L1 now has ${LSMState.l1.length} non-overlapping SSTables covering [${sorted[0]}..${sorted[sorted.length - 1]}]. Write amplification cost: every key rewritten once per level transition.`;
+    LSMState.animating = false;
+  }, 2000);
+}
+
+function lsmLookup() {
+  if (LSMState.animating) return;
+  LSMState.animating = true;
+  const cmt = document.getElementById('lsm-commentary');
+  const key = 'k15';
+
+  cmt.textContent = `LOOKUP ${key}: Check memtable first (not found). Then L0 SSTables (Bloom filter each). Then L1, L2. First match wins.`;
+  drawLSM({});
+
+  setTimeout(() => {
+    // Simulate: k15 found in L1 first SSTable, L0 SSTables skipped by bloom
+    const hits = [];
+    const skips = [];
+    // Check L0
+    LSMState.l0.forEach((s, i) => {
+      if (s.keys.includes(key)) { hits.push(`l0-${i}`); }
+      else { skips.push(`l0-${i}`); }
+    });
+    // Check L1
+    let found = false;
+    LSMState.l1.forEach((s, i) => {
+      if (!found && s.keys.includes(key)) { hits.push(`l1-${i}`); found = true; }
+      else if (!found) { skips.push(`l1-${i}`); }
+    });
+    // L2 skipped if already found
+    if (!found) {
+      LSMState.l2.forEach((s, i) => {
+        if (!found && s.keys.includes(key)) { hits.push(`l2-${i}`); found = true; }
+        else if (!found) { skips.push(`l2-${i}`); }
+      });
+    }
+
+    drawLSM({ lookup: { hits, skips } });
+    const totalChecked = hits.length + skips.length;
+    cmt.textContent = `${key} found. Bloom filter skipped ${skips.length} SSTables (red X). Read ${hits.length} SSTable (green). Total I/O: ${totalChecked} Bloom filter checks + 1 SSTable read. Without Bloom: would have read all ${LSMState.l0.length + LSMState.l1.length + LSMState.l2.length} SSTables.`;
+    LSMState.animating = false;
+  }, 1500);
+}
+
+function lsmDelete() {
+  if (LSMState.animating) return;
+  LSMState.animating = true;
+  const cmt = document.getElementById('lsm-commentary');
+  const key = 'k8';
+
+  cmt.textContent = `DELETE ${key}: In LSM, delete = write a tombstone marker. The key is NOT removed from existing SSTables. During compaction, when the tombstone is seen, the key is physically removed.`;
+  LSMState.memtable.push('DEL:' + key);
+  LSMState.wal.push('DEL:' + key);
+  drawLSM({ wal: true, memtable: true, tombstone: key });
+
+  setTimeout(() => {
+    cmt.textContent = `Tombstone for ${key} written. Until compaction runs, both the tombstone and the original value exist on disk. Space amplification increases temporarily. This is why LSM deletes are "lazy" -- immediate space reclaim requires a compaction pass.`;
+    LSMState.animating = false;
+  }, 1500);
+}
+
+/* ------------------------------------------------------------------ */
+/* COMPACTION STRATEGY VISUALIZATIONS                                  */
+/* ------------------------------------------------------------------ */
+function showCompaction(which) {
+  ['stcs', 'lcs', 'twcs'].forEach(id => {
+    document.getElementById('compaction-' + id).style.display = (id === which) ? 'block' : 'none';
+    document.getElementById('btn-' + id).classList.toggle('active-btn', id === which);
+  });
+  if (which === 'stcs') stcsReset();
+  if (which === 'lcs') lcsReset();
+  if (which === 'twcs') twcsReset();
+}
+
+/* STCS */
+function drawSTCS(state) {
+  const svg = document.getElementById('stcs-svg');
+  if (!svg) return;
+  let html = '';
+
+  const tiers = state.tiers || [
+    { label: 'Tier 1 (small)', tables: [1,1,1,1], color: 'var(--accent-cyan)' },
+    { label: 'Tier 2 (medium)', tables: [4], color: 'var(--accent-blue)' },
+    { label: 'Tier 3 (large)', tables: [16], color: 'var(--accent-purple)' }
+  ];
+
+  let y = 30;
+  tiers.forEach((tier, ti) => {
+    html += `<text x="30" y="${y + 12}" fill="var(--text-3)" font-size="12" font-weight="600">${tier.label}</text>`;
+    y += 22;
+    let x = 30;
+    tier.tables.forEach((size, si) => {
+      const w = 30 + size * 15;
+      const h = 40;
+      const isHighlighted = state.highlight && state.highlight.tier === ti && (state.highlight.all || state.highlight.idx === si);
+      const fade = state.fade && state.fade.tier === ti;
+      html += `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="4" fill="${fade ? '#111' : '#1a2030'}" stroke="${isHighlighted ? tier.color : '#333'}" stroke-width="${isHighlighted ? 2 : 1}" opacity="${fade ? 0.3 : 1}"/>`;
+      html += `<text x="${x + w / 2}" y="${y + 24}" text-anchor="middle" fill="${tier.color}" font-size="11" font-weight="600" opacity="${fade ? 0.3 : 1}">${size}x</text>`;
+      x += w + 8;
+    });
+    y += 60;
+  });
+
+  // Merge arrow
+  if (state.mergeArrow) {
+    html += `<line x1="${state.mergeArrow.x1}" y1="${state.mergeArrow.y1}" x2="${state.mergeArrow.x2}" y2="${state.mergeArrow.y2}" stroke="var(--accent-orange)" stroke-width="2" marker-end="url(#arr-stcs)"/>`;
+    html += `<text x="${(state.mergeArrow.x1 + state.mergeArrow.x2) / 2 + 10}" y="${(state.mergeArrow.y1 + state.mergeArrow.y2) / 2}" fill="var(--accent-orange)" font-size="11" font-weight="600">merge</text>`;
+  }
+
+  // Space amp warning
+  html += `<rect x="550" y="40" width="310" height="70" rx="5" fill="#2a1a10" stroke="#4a3020" stroke-width="1"/>`;
+  html += `<text x="565" y="62" fill="var(--accent-orange)" font-size="12" font-weight="700">Space Amplification Warning</text>`;
+  html += `<text x="565" y="80" fill="var(--text-3)" font-size="11">During merge: old + new SSTables coexist.</text>`;
+  html += `<text x="565" y="96" fill="var(--text-3)" font-size="11">Peak disk = 2x steady state.</text>`;
+
+  html = `<defs><marker id="arr-stcs" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6" fill="var(--accent-orange)"/></marker></defs>` + html;
+  svg.innerHTML = html;
+}
+
+let stcsAnimStep = 0;
+function stcsAnimate() {
+  stcsAnimStep = 0;
+  const cmt = document.getElementById('stcs-commentary');
+
+  // Step 1: highlight 4 small
+  cmt.textContent = 'Step 1: 4 similar-sized SSTables accumulate at Tier 1. Trigger: merge them into 1 SSTable at the next tier.';
+  drawSTCS({
+    tiers: [
+      { label: 'Tier 1 (small)', tables: [1,1,1,1], color: 'var(--accent-cyan)' },
+      { label: 'Tier 2 (medium)', tables: [4], color: 'var(--accent-blue)' },
+      { label: 'Tier 3 (large)', tables: [16], color: 'var(--accent-purple)' }
+    ],
+    highlight: { tier: 0, all: true }
+  });
+
+  setTimeout(() => {
+    cmt.textContent = 'Step 2: 4 small SSTables merge into 1 medium. Each row rewritten once for this merge. The 4 originals are deleted after merge completes. Space spike during merge.';
+    drawSTCS({
+      tiers: [
+        { label: 'Tier 1 (small)', tables: [1,1,1,1], color: 'var(--accent-cyan)' },
+        { label: 'Tier 2 (medium)', tables: [4, 4], color: 'var(--accent-blue)' },
+        { label: 'Tier 3 (large)', tables: [16], color: 'var(--accent-purple)' }
+      ],
+      fade: { tier: 0 },
+      highlight: { tier: 1, idx: 1 },
+      mergeArrow: { x1: 130, y1: 75, x2: 155, y2: 120 }
+    });
+  }, 2000);
+
+  setTimeout(() => {
+    cmt.textContent = 'Step 3: Now Tier 2 has 2 mediums. When 4 accumulate, they merge into 1 large at Tier 3. Total write amp across lifetime: each row written log_4(N) times.';
+    drawSTCS({
+      tiers: [
+        { label: 'Tier 1 (small)', tables: [], color: 'var(--accent-cyan)' },
+        { label: 'Tier 2 (medium)', tables: [4, 4], color: 'var(--accent-blue)' },
+        { label: 'Tier 3 (large)', tables: [16], color: 'var(--accent-purple)' }
+      ],
+      highlight: { tier: 1, all: true }
+    });
+  }, 4000);
+}
+
+function stcsReset() {
+  document.getElementById('stcs-commentary').textContent = '4 small SSTables of similar size merge into 1 medium SSTable. Then 4 mediums merge into 1 large. Each row is rewritten O(log N) times total.';
+  drawSTCS({
+    tiers: [
+      { label: 'Tier 1 (small)', tables: [1,1,1,1], color: 'var(--accent-cyan)' },
+      { label: 'Tier 2 (medium)', tables: [4], color: 'var(--accent-blue)' },
+      { label: 'Tier 3 (large)', tables: [16], color: 'var(--accent-purple)' }
+    ]
+  });
+}
+
+/* LCS */
+function drawLCS(state) {
+  const svg = document.getElementById('lcs-svg');
+  if (!svg) return;
+  let html = '';
+
+  const levels = state.levels || [
+    { label: 'L0 (overlap OK)', tables: [{r:'a-m',w:100},{r:'d-r',w:100},{r:'g-z',w:100}], color: 'var(--accent-cyan)', y: 30 },
+    { label: 'L1 (10x, non-overlapping)', tables: [{r:'a-d',w:70},{r:'e-k',w:70},{r:'l-r',w:70},{r:'s-z',w:70}], color: 'var(--accent-blue)', y: 130 },
+    { label: 'L2 (100x, non-overlapping)', tables: [{r:'a-b',w:50},{r:'c-d',w:50},{r:'e-g',w:50},{r:'h-k',w:50},{r:'l-n',w:50},{r:'o-r',w:50},{r:'s-u',w:50},{r:'v-z',w:50}], color: 'var(--accent-purple)', y: 250 }
+  ];
+
+  levels.forEach((lvl, li) => {
+    html += `<text x="30" y="${lvl.y + 12}" fill="var(--text-3)" font-size="12" font-weight="600">${lvl.label}</text>`;
+    let x = 30;
+    lvl.tables.forEach((tbl, ti) => {
+      const w = tbl.w || 80;
+      const h = 50;
+      const isHL = state.highlight && state.highlight.level === li && (state.highlight.all || (state.highlight.indices && state.highlight.indices.includes(ti)));
+      const isFade = state.fade && state.fade.level === li && state.fade.indices && state.fade.indices.includes(ti);
+      html += `<rect x="${x}" y="${lvl.y + 20}" width="${w}" height="${h}" rx="4" fill="${isFade ? '#111' : '#1a2030'}" stroke="${isHL ? lvl.color : '#333'}" stroke-width="${isHL ? 2.5 : 1}" opacity="${isFade ? 0.3 : 1}"/>`;
+      html += `<text x="${x + w / 2}" y="${lvl.y + 45}" text-anchor="middle" fill="${lvl.color}" font-size="11" font-weight="600" opacity="${isFade ? 0.3 : 1}">[${tbl.r}]</text>`;
+      html += `<text x="${x + w / 2}" y="${lvl.y + 60}" text-anchor="middle" fill="var(--text-3)" font-size="9" opacity="${isFade ? 0.3 : 1}">BF</text>`;
+      x += w + 6;
+    });
+  });
+
+  // Push-down arrow
+  if (state.pushArrow) {
+    html += `<line x1="${state.pushArrow.x}" y1="${state.pushArrow.y1}" x2="${state.pushArrow.x}" y2="${state.pushArrow.y2}" stroke="var(--accent-orange)" stroke-width="2" stroke-dasharray="5,3" marker-end="url(#arr-lcs)"/>`;
+    html += `<text x="${state.pushArrow.x + 10}" y="${(state.pushArrow.y1 + state.pushArrow.y2) / 2}" fill="var(--accent-orange)" font-size="11" font-weight="600">push down + merge</text>`;
+  }
+
+  // WA indicator
+  html += `<rect x="600" y="30" width="270" height="60" rx="5" fill="#2a1020" stroke="#4a2030" stroke-width="1"/>`;
+  html += `<text x="615" y="52" fill="var(--accent-red)" font-size="12" font-weight="700">Write Amplification: O(L)</text>`;
+  html += `<text x="615" y="70" fill="var(--text-3)" font-size="11">Each row rewritten 5-10x across levels.</text>`;
+
+  // Non-overlap note
+  html += `<rect x="600" y="100" width="270" height="50" rx="5" fill="#102a10" stroke="#204a20" stroke-width="1"/>`;
+  html += `<text x="615" y="120" fill="var(--accent-green)" font-size="12" font-weight="700">Read Benefit: 1 SSTable/level</text>`;
+  html += `<text x="615" y="138" fill="var(--text-3)" font-size="11">Non-overlapping = at most 1 read per level.</text>`;
+
+  html = `<defs><marker id="arr-lcs" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6" fill="var(--accent-orange)"/></marker></defs>` + html;
+  svg.innerHTML = html;
+}
+
+function lcsAnimate() {
+  const cmt = document.getElementById('lcs-commentary');
+
+  cmt.textContent = 'Step 1: L0 has 3 overlapping SSTables. Key ranges overlap (a-m, d-r, g-z). When L0 fills, pick one SSTable and push it down to L1.';
+  drawLCS({
+    highlight: { level: 0, indices: [0] }
+  });
+
+  setTimeout(() => {
+    cmt.textContent = 'Step 2: SSTable [a-m] from L0 overlaps L1 SSTables [a-d] and [e-k]. Merge all three into new non-overlapping SSTables at L1. This is the write amplification cost: 1 L0 SSTable triggers rewriting 2 L1 SSTables.';
+    drawLCS({
+      highlight: { level: 1, indices: [0, 1] },
+      fade: { level: 0, indices: [0] },
+      pushArrow: { x: 90, y1: 95, y2: 145 }
+    });
+  }, 2500);
+
+  setTimeout(() => {
+    cmt.textContent = 'Step 3: After merge, L1 has updated non-overlapping SSTables. If L1 exceeds its size limit (10x L0), the same process cascades: one L1 SSTable merges down into L2. Each cascade = more write amplification.';
+    drawLCS({
+      levels: [
+        { label: 'L0 (overlap OK)', tables: [{r:'d-r',w:100},{r:'g-z',w:100}], color: 'var(--accent-cyan)', y: 30 },
+        { label: 'L1 (10x, non-overlapping)', tables: [{r:'a-d',w:70},{r:'e-k',w:70},{r:'l-r',w:70},{r:'s-z',w:70}], color: 'var(--accent-blue)', y: 130 },
+        { label: 'L2 (100x, non-overlapping)', tables: [{r:'a-b',w:50},{r:'c-d',w:50},{r:'e-g',w:50},{r:'h-k',w:50},{r:'l-n',w:50},{r:'o-r',w:50},{r:'s-u',w:50},{r:'v-z',w:50}], color: 'var(--accent-purple)', y: 250 }
+      ],
+      highlight: { level: 1, all: true }
+    });
+  }, 5000);
+}
+
+function lcsReset() {
+  document.getElementById('lcs-commentary').textContent = 'L0 SSTables (may overlap) get pushed down to L1. Each L1 SSTable covers a disjoint key range. When L1 is full, one SSTable merges down into L2, and so on.';
+  drawLCS({});
+}
+
+/* TWCS */
+function drawTWCS(state) {
+  const svg = document.getElementById('twcs-svg');
+  if (!svg) return;
+  let html = '';
+
+  const windows = state.windows || [
+    { day: 'Day 1', age: 90, status: 'active' },
+    { day: 'Day 2', age: 89, status: 'active' },
+    { day: 'Day 3', age: 88, status: 'active' },
+    { day: 'Day 4', age: 87, status: 'active' },
+    { day: 'Day 5', age: 86, status: 'active' },
+    { day: 'Day 6', age: 85, status: 'active' },
+    { day: 'Day 7', age: 84, status: 'active' }
+  ];
+
+  const y = 50;
+  const h = 120;
+  const gap = 8;
+  const totalW = 840;
+  const w = (totalW - (windows.length - 1) * gap) / windows.length;
+
+  html += `<text x="30" y="30" fill="var(--text-3)" font-size="12" font-weight="600">Time-Window SSTables (1 per day, 90-day retention)</text>`;
+
+  windows.forEach((win, i) => {
+    const x = 30 + i * (w + gap);
+    const isDrop = win.status === 'dropped';
+    const isDropping = win.status === 'dropping';
+    const fill = isDrop ? '#111' : (isDropping ? '#2a1520' : '#1a2530');
+    const border = isDrop ? '#222' : (isDropping ? 'var(--accent-red)' : '#334');
+    const opacity = isDrop ? 0.2 : 1;
+    html += `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${fill}" stroke="${border}" stroke-width="${isDropping ? 2.5 : 1}" opacity="${opacity}"/>`;
+    html += `<text x="${x + w / 2}" y="${y + 25}" text-anchor="middle" fill="var(--accent-cyan)" font-size="12" font-weight="600" opacity="${opacity}">${win.day}</text>`;
+    html += `<text x="${x + w / 2}" y="${y + 45}" text-anchor="middle" fill="var(--text-3)" font-size="10" opacity="${opacity}">SSTable</text>`;
+    html += `<text x="${x + w / 2}" y="${y + 65}" text-anchor="middle" fill="var(--text-3)" font-size="10" opacity="${opacity}">Age: ${win.age}d</text>`;
+    if (isDropping) {
+      html += `<text x="${x + w / 2}" y="${y + 90}" text-anchor="middle" fill="var(--accent-red)" font-size="11" font-weight="700">TTL EXPIRED</text>`;
+      html += `<text x="${x + w / 2}" y="${y + 105}" text-anchor="middle" fill="var(--accent-red)" font-size="10">DROP FILE</text>`;
+    }
+    if (isDrop) {
+      html += `<line x1="${x}" y1="${y}" x2="${x + w}" y2="${y + h}" stroke="var(--accent-red)" stroke-width="1.5" opacity="0.5"/>`;
+      html += `<line x1="${x + w}" y1="${y}" x2="${x}" y2="${y + h}" stroke="var(--accent-red)" stroke-width="1.5" opacity="0.5"/>`;
+    }
+  });
+
+  // TTL line
+  html += `<line x1="30" y1="${y + h + 30}" x2="870" y2="${y + h + 30}" stroke="#333" stroke-width="1" stroke-dasharray="4,3"/>`;
+  html += `<text x="30" y="${y + h + 50}" fill="var(--text-3)" font-size="11">Retention: 90 days. Past retention = drop entire SSTable file. No merge, no rewrite, no compaction cost.</text>`;
+
+  // Zero-cost note
+  html += `<rect x="550" y="${y + h + 60}" width="320" height="50" rx="5" fill="#102a10" stroke="#204a20" stroke-width="1"/>`;
+  html += `<text x="565" y="${y + h + 82}" fill="var(--accent-green)" font-size="12" font-weight="700">Zero compaction cost for old data</text>`;
+  html += `<text x="565" y="${y + h + 100}" fill="var(--text-3)" font-size="11">Drop = unlink file. Instant space reclaim.</text>`;
+
+  svg.innerHTML = html;
+}
+
+function twcsAnimate() {
+  const cmt = document.getElementById('twcs-commentary');
+
+  cmt.textContent = 'Day 1 SSTable has reached 90-day retention. TTL expired. The entire SSTable file is dropped -- no compaction, no merge, no rewrite. Just unlink the file.';
+  drawTWCS({
+    windows: [
+      { day: 'Day 1', age: 90, status: 'dropping' },
+      { day: 'Day 2', age: 89, status: 'active' },
+      { day: 'Day 3', age: 88, status: 'active' },
+      { day: 'Day 4', age: 87, status: 'active' },
+      { day: 'Day 5', age: 86, status: 'active' },
+      { day: 'Day 6', age: 85, status: 'active' },
+      { day: 'Day 7', age: 84, status: 'active' }
+    ]
+  });
+
+  setTimeout(() => {
+    cmt.textContent = 'Dropped. No space spike, no I/O cost. This is why TWCS is the killer feature for time-series: Cassandra/ScyllaDB with TTL + TWCS = self-cleaning data. The contrast with STCS/LCS is stark -- those strategies must rewrite data to remove it.';
+    drawTWCS({
+      windows: [
+        { day: 'Day 1', age: 90, status: 'dropped' },
+        { day: 'Day 2', age: 89, status: 'active' },
+        { day: 'Day 3', age: 88, status: 'active' },
+        { day: 'Day 4', age: 87, status: 'active' },
+        { day: 'Day 5', age: 86, status: 'active' },
+        { day: 'Day 6', age: 85, status: 'active' },
+        { day: 'Day 7', age: 84, status: 'active' }
+      ]
+    });
+  }, 2000);
+
+  setTimeout(() => {
+    cmt.textContent = 'Days 1-2 both past retention. Dropped wholesale. Only constraint: data must NOT be updated across time windows. If you update old data, it lands in the current window SSTable, breaking the isolation.';
+    drawTWCS({
+      windows: [
+        { day: 'Day 1', age: 91, status: 'dropped' },
+        { day: 'Day 2', age: 90, status: 'dropped' },
+        { day: 'Day 3', age: 89, status: 'active' },
+        { day: 'Day 4', age: 88, status: 'active' },
+        { day: 'Day 5', age: 87, status: 'active' },
+        { day: 'Day 6', age: 86, status: 'active' },
+        { day: 'Day 7', age: 85, status: 'active' }
+      ]
+    });
+  }, 4000);
+}
+
+function twcsReset() {
+  document.getElementById('twcs-commentary').textContent = '7 SSTables, one per day. After the 90-day retention period, the oldest SSTable is simply deleted -- no merge, no rewrite, no compaction overhead.';
+  drawTWCS({});
+}
+
+/* ------------------------------------------------------------------ */
+/* BLOOM FILTER VISUALIZATION                                          */
+/* ------------------------------------------------------------------ */
+function drawBloom(state) {
+  const svg = document.getElementById('bloom-svg');
+  if (!svg) return;
+  let html = '';
+  const st = state || {};
+
+  // Draw 6 SSTables representing L0-L2
+  const sstables = [
+    { label: 'L0-1', range: 'k1-k10', y: 40 },
+    { label: 'L0-2', range: 'k5-k15', y: 40 },
+    { label: 'L1-1', range: 'k1-k12', y: 140 },
+    { label: 'L1-2', range: 'k13-k25', y: 140 },
+    { label: 'L2-1', range: 'k1-k15', y: 240 },
+    { label: 'L2-2', range: 'k16-k30', y: 240 }
+  ];
+
+  html += `<text x="30" y="25" fill="#fff" font-size="13" font-weight="700">Lookup key: k99 (does not exist)</text>`;
+
+  const cols = [0, 1]; // Two SSTables per level
+  sstables.forEach((sst, i) => {
+    const col = i % 2;
+    const x = 30 + col * 280;
+    const w = 250, h = 70;
+
+    const isChecked = st.checked && st.checked.includes(i);
+    const isSkipped = st.skipped && st.skipped.includes(i);
+    const isFP = st.fp && st.fp.includes(i);
+
+    let borderColor = '#333';
+    let bgColor = '#1a2030';
+    if (isSkipped) { borderColor = 'var(--accent-green)'; }
+    if (isFP) { borderColor = 'var(--accent-yellow)'; bgColor = '#2a2520'; }
+
+    html += `<rect x="${x}" y="${sst.y}" width="${w}" height="${h}" rx="5" fill="${bgColor}" stroke="${borderColor}" stroke-width="${isChecked ? 2 : 1}"/>`;
+    html += `<text x="${x + 10}" y="${sst.y + 22}" fill="var(--accent-cyan)" font-size="12" font-weight="600">${sst.label} [${sst.range}]</text>`;
+
+    // Bloom filter box
+    const bfX = x + 160, bfY = sst.y + 8, bfW = 75, bfH = 24;
+    const bfColor = isSkipped ? 'var(--accent-green)' : (isFP ? 'var(--accent-yellow)' : 'var(--text-3)');
+    html += `<rect x="${bfX}" y="${bfY}" width="${bfW}" height="${bfH}" rx="3" fill="#111" stroke="${bfColor}" stroke-width="1.5"/>`;
+    html += `<text x="${bfX + bfW / 2}" y="${bfY + 16}" text-anchor="middle" fill="${bfColor}" font-size="10" font-weight="700">Bloom</text>`;
+
+    // Result
+    if (isSkipped) {
+      html += `<text x="${x + 10}" y="${sst.y + 50}" fill="var(--accent-green)" font-size="11" font-weight="600">Bloom: "Definitely NOT here" -- SKIP</text>`;
+    }
+    if (isFP) {
+      html += `<text x="${x + 10}" y="${sst.y + 50}" fill="var(--accent-yellow)" font-size="11" font-weight="600">Bloom: "Maybe here" -- READ (false positive)</text>`;
+      html += `<text x="${x + 10}" y="${sst.y + 64}" fill="var(--text-3)" font-size="10">Disk read wasted. Key not found.</text>`;
+    }
+    if (isChecked && !isSkipped && !isFP) {
+      html += `<text x="${x + 10}" y="${sst.y + 50}" fill="var(--text-3)" font-size="11">Checking Bloom filter...</text>`;
+    }
+  });
+
+  // Summary
+  if (st.done) {
+    html += `<rect x="600" y="40" width="270" height="180" rx="6" fill="var(--surface-2)" stroke="var(--border)" stroke-width="1"/>`;
+    html += `<text x="615" y="65" fill="#fff" font-size="13" font-weight="700">Result</text>`;
+    html += `<text x="615" y="88" fill="var(--accent-green)" font-size="12">Bloom skipped: ${st.skipped ? st.skipped.length : 0} SSTables</text>`;
+    html += `<text x="615" y="108" fill="var(--accent-yellow)" font-size="12">False positives: ${st.fp ? st.fp.length : 0} (wasted read)</text>`;
+    html += `<text x="615" y="128" fill="var(--text-2)" font-size="12">Disk reads saved: ${st.skipped ? st.skipped.length : 0} of 6</text>`;
+    html += `<text x="615" y="158" fill="var(--text-3)" font-size="11">Without Bloom: 6 disk reads</text>`;
+    html += `<text x="615" y="175" fill="var(--text-3)" font-size="11">With Bloom: ${st.fp ? st.fp.length : 1} disk read(s)</text>`;
+    html += `<text x="615" y="205" fill="var(--accent-green)" font-size="12" font-weight="600">${st.skipped ? Math.round(st.skipped.length / 6 * 100) : 83}% I/O eliminated</text>`;
+  }
+
+  // Without/with comparison
+  if (!st.done && !st.checked) {
+    html += `<rect x="600" y="40" width="270" height="130" rx="6" fill="var(--surface-2)" stroke="var(--border)" stroke-width="1"/>`;
+    html += `<text x="615" y="65" fill="#fff" font-size="13" font-weight="700">Without Bloom Filter</text>`;
+    html += `<text x="615" y="88" fill="var(--accent-red)" font-size="12">Lookup k99: read ALL 6 SSTables</text>`;
+    html += `<text x="615" y="108" fill="var(--text-3)" font-size="11">6 disk reads, all wasted.</text>`;
+    html += `<text x="615" y="135" fill="#fff" font-size="13" font-weight="700">With Bloom Filter (1% FPR)</text>`;
+    html += `<text x="615" y="158" fill="var(--accent-green)" font-size="12">~99% of SSTables skipped.</text>`;
+  }
+
+  svg.innerHTML = html;
+}
+
+function bloomAnimate() {
+  const cmt = document.getElementById('bloom-commentary');
+
+  cmt.textContent = 'Lookup k99 (does not exist). Checking each SSTable\'s Bloom filter before reading from disk...';
+  drawBloom({ checked: [0, 1, 2, 3, 4, 5] });
+
+  setTimeout(() => {
+    cmt.textContent = 'Bloom filters return "definitely not here" for 5 of 6 SSTables. 1 false positive (Bloom says "maybe" but key is not actually there). Only 1 wasted disk read instead of 6.';
+    drawBloom({
+      skipped: [0, 1, 2, 4, 5],
+      fp: [3],
+      done: true
+    });
+  }, 1800);
+}
+
+function bloomReset() {
+  document.getElementById('bloom-commentary').textContent = 'Without Bloom filters, looking up a key that does not exist requires reading every SSTable across every level -- the worst-case read path. With Bloom filters at 1% false-positive rate, ~99% of SSTables are skipped.';
+  drawBloom({});
+}
+
+/* ------------------------------------------------------------------ */
+/* INIT                                                                */
+/* ------------------------------------------------------------------ */
+function init() {
+  drawBPlusTree({});
+  lsmReset();
+  stcsReset();
+  drawBloom({});
+}
+
+init();
+
+})();
+</script>
+
+</body>
+</html>

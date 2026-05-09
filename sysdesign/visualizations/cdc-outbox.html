@@ -1,0 +1,1330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CDC + Transactional Outbox</title>
+<style>
+:root {
+  --bg: #0f0f15;
+  --surface: #181820;
+  --surface-2: #20202a;
+  --border: #2a2a35;
+  --text: #e6e6ea;
+  --text-2: #cfcfd6;
+  --text-3: #888;
+  --accent-red: #ff6b6b;
+  --accent-green: #51cf66;
+  --accent-blue: #339af0;
+  --accent-yellow: #ffd43b;
+  --accent-purple: #cc5de8;
+  --accent-cyan: #8be9fd;
+  --accent-orange: #ffa94d;
+}
+*, *::before, *::after { box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  padding: 32px 24px;
+  max-width: 1100px;
+  margin: 0 auto;
+  line-height: 1.55;
+}
+h1 { color: #fff; margin-bottom: 4px; }
+h1 + p.sub { color: var(--text-3); font-style: italic; margin-top: 0; margin-bottom: 24px; }
+h2 { color: #fff; margin-top: 48px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+h3 { color: var(--text-2); margin-top: 20px; }
+p { color: var(--text-2); }
+code {
+  background: var(--surface-2);
+  padding: 2px 6px;
+  border-radius: 3px;
+  color: var(--accent-cyan);
+  font-size: 13px;
+}
+pre {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 14px 18px;
+  overflow-x: auto;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-2);
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+}
+pre .kw { color: var(--accent-purple); }
+pre .str { color: var(--accent-green); }
+pre .cmt { color: var(--text-3); font-style: italic; }
+svg {
+  background: var(--surface);
+  border-radius: 8px;
+  display: block;
+  margin: 14px auto;
+  width: 100%;
+  height: auto;
+}
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0;
+  align-items: center;
+}
+.controls button {
+  padding: 10px 16px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  border-radius: 6px;
+  cursor: pointer;
+  min-height: 44px;
+  font-size: 14px;
+  transition: background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+.controls button:hover { background: var(--surface); }
+.controls button:disabled { opacity: 0.4; cursor: not-allowed; }
+.controls button.active-btn { border-color: var(--accent-blue); color: var(--accent-blue); }
+.controls button.danger { border-color: var(--accent-red); color: var(--accent-red); }
+.controls button.danger:hover { background: #2a1520; }
+.commentary {
+  background: var(--surface-2);
+  padding: 14px;
+  border-radius: 6px;
+  font-size: 14px;
+  color: var(--text-2);
+  margin: 12px 0;
+  min-height: 44px;
+  line-height: 1.5;
+}
+.takeaway {
+  background: #1a1a22;
+  border-left: 3px solid var(--accent-green);
+  padding: 12px 16px;
+  margin: 14px 0;
+  font-size: 14px;
+}
+.takeaway strong { color: var(--accent-green); }
+.takeaway ul { margin: 6px 0 0 0; padding-left: 18px; }
+.takeaway li { margin-bottom: 6px; }
+.pro-con {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin: 16px 0;
+}
+.pro-con > div {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 14px;
+}
+.pro-con h4 {
+  margin: 0 0 8px 0;
+  font-size: 14px;
+}
+.pro-con .pros h4 { color: var(--accent-green); }
+.pro-con .cons h4 { color: var(--accent-red); }
+.pro-con ul {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 13px;
+  color: var(--text-2);
+}
+.pro-con li { margin-bottom: 6px; }
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  margin: 16px 0;
+}
+th, td {
+  padding: 10px 12px;
+  text-align: left;
+  border: 1px solid var(--border);
+}
+th {
+  background: var(--surface-2);
+  color: #fff;
+  font-weight: 600;
+  position: sticky;
+  top: 0;
+}
+td {
+  background: var(--surface);
+  color: var(--text-2);
+}
+tr:hover td { background: var(--surface-2); }
+.table-wrap {
+  overflow-x: auto;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  margin: 16px 0;
+}
+.table-wrap table {
+  margin: 0;
+  min-width: 750px;
+}
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+.badge-red { background: rgba(255,107,107,0.15); color: var(--accent-red); }
+.badge-green { background: rgba(81,207,102,0.15); color: var(--accent-green); }
+.badge-yellow { background: rgba(255,212,59,0.15); color: var(--accent-yellow); }
+.badge-blue { background: rgba(51,154,240,0.15); color: var(--accent-blue); }
+
+/* Animations */
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes pulseRed { 0%, 100% { fill: var(--accent-red); } 50% { fill: #ff3333; } }
+@keyframes pulseGreen { 0%, 100% { fill: var(--accent-green); } 50% { fill: #33ff66; } }
+@keyframes slideRight {
+  from { transform: translateX(0); opacity: 1; }
+  to { transform: translateX(40px); opacity: 0; }
+}
+
+@media (max-width: 720px) {
+  body { padding: 20px 14px; }
+  .pro-con { grid-template-columns: 1fr; }
+}
+@media (max-width: 480px) {
+  .controls { flex-direction: column; }
+  .controls button { width: 100%; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>CDC + Transactional Outbox</h1>
+  <p class="sub">The dual-write problem; CDC via Debezium; transactional outbox + inbox dedup. The patterns that bridge OLTP databases and event streams without the silent inconsistency bug.</p>
+</header>
+
+<!-- ================================================================ -->
+<!-- SECTION 1: THE DUAL-WRITE PROBLEM                                 -->
+<!-- ================================================================ -->
+<section id="dual-write">
+  <h2>1. The Dual-Write Problem</h2>
+  <p>Your service receives a request, writes to a database, and publishes an event to Kafka. Two separate systems, two separate writes, no shared transaction. This is a <strong>dual write</strong>, and it fails in two distinct ways.</p>
+
+  <div class="controls">
+    <button onclick="runDualWriteScenario('db-then-publish')" id="btn-dw-1">Scenario A: DB succeeds, publish fails</button>
+    <button onclick="runDualWriteScenario('publish-then-db')" id="btn-dw-2">Scenario B: Publish succeeds, DB fails</button>
+    <button onclick="resetDualWrite()" class="danger">Reset</button>
+  </div>
+
+  <svg id="svg-dual-write" viewBox="0 0 900 340" xmlns="http://www.w3.org/2000/svg">
+    <!-- Background grid -->
+    <defs>
+      <marker id="arrow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+        <path d="M0,0 L8,3 L0,6 Z" fill="var(--text-3)"/>
+      </marker>
+      <marker id="arrow-green" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+        <path d="M0,0 L8,3 L0,6 Z" fill="var(--accent-green)"/>
+      </marker>
+      <marker id="arrow-red" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+        <path d="M0,0 L8,3 L0,6 Z" fill="var(--accent-red)"/>
+      </marker>
+    </defs>
+
+    <!-- Client -->
+    <rect x="30" y="130" width="100" height="60" rx="6" fill="var(--surface-2)" stroke="var(--border)"/>
+    <text x="80" y="157" text-anchor="middle" fill="var(--text)" font-size="13" font-weight="600">Client</text>
+    <text x="80" y="175" text-anchor="middle" fill="var(--text-3)" font-size="11">POST /order</text>
+
+    <!-- App -->
+    <rect x="220" y="110" width="130" height="100" rx="6" fill="var(--surface-2)" stroke="var(--border)"/>
+    <text x="285" y="140" text-anchor="middle" fill="var(--text)" font-size="13" font-weight="600">App Service</text>
+    <text x="285" y="158" text-anchor="middle" fill="var(--text-3)" font-size="11">1. Write DB</text>
+    <text x="285" y="174" text-anchor="middle" fill="var(--text-3)" font-size="11">2. Publish event</text>
+    <text x="285" y="190" text-anchor="middle" fill="var(--text-3)" font-size="11">3. Return OK</text>
+
+    <!-- DB -->
+    <ellipse cx="530" cy="110" rx="70" ry="28" fill="var(--surface-2)" stroke="var(--border)"/>
+    <rect x="460" y="110" width="140" height="50" fill="var(--surface-2)" stroke="var(--border)"/>
+    <ellipse cx="530" cy="160" rx="70" ry="28" fill="var(--surface-2)" stroke="var(--border)"/>
+    <text x="530" y="142" text-anchor="middle" fill="var(--text)" font-size="13" font-weight="600">PostgreSQL</text>
+
+    <!-- Kafka -->
+    <rect x="460" y="240" width="140" height="60" rx="6" fill="var(--surface-2)" stroke="var(--border)"/>
+    <text x="530" y="268" text-anchor="middle" fill="var(--text)" font-size="13" font-weight="600">Kafka</text>
+    <text x="530" y="286" text-anchor="middle" fill="var(--text-3)" font-size="11">orders topic</text>
+
+    <!-- Consumer -->
+    <rect x="700" y="240" width="120" height="60" rx="6" fill="var(--surface-2)" stroke="var(--border)"/>
+    <text x="760" y="268" text-anchor="middle" fill="var(--text)" font-size="13" font-weight="600">Consumer</text>
+    <text x="760" y="286" text-anchor="middle" fill="var(--text-3)" font-size="11">email service</text>
+
+    <!-- Static arrows -->
+    <line x1="130" y1="160" x2="215" y2="160" stroke="var(--text-3)" stroke-width="1.5" marker-end="url(#arrow)"/>
+    <line x1="600" y1="270" x2="695" y2="270" stroke="var(--text-3)" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+    <!-- Animated arrows (write to DB, publish to Kafka) -->
+    <g id="dw-arrow-db">
+      <line x1="350" y1="140" x2="455" y2="140" stroke="var(--text-3)" stroke-width="1.5" marker-end="url(#arrow)" stroke-dasharray="6,4"/>
+    </g>
+    <g id="dw-arrow-kafka">
+      <line x1="320" y1="210" x2="455" y2="260" stroke="var(--text-3)" stroke-width="1.5" marker-end="url(#arrow)" stroke-dasharray="6,4"/>
+    </g>
+
+    <!-- Status indicators (hidden by default) -->
+    <g id="dw-db-status" opacity="0">
+      <circle cx="530" cy="90" r="12" fill="var(--accent-green)"/>
+      <text x="530" y="94" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">&#10003;</text>
+    </g>
+    <g id="dw-kafka-status" opacity="0">
+      <circle cx="530" cy="222" r="12" fill="var(--accent-green)"/>
+      <text x="530" y="226" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">&#10003;</text>
+    </g>
+    <g id="dw-db-fail" opacity="0">
+      <circle cx="530" cy="90" r="12" fill="var(--accent-red)"/>
+      <text x="530" y="95" text-anchor="middle" fill="#fff" font-size="14" font-weight="700">&#215;</text>
+    </g>
+    <g id="dw-kafka-fail" opacity="0">
+      <circle cx="530" cy="222" r="12" fill="var(--accent-red)"/>
+      <text x="530" y="227" text-anchor="middle" fill="#fff" font-size="14" font-weight="700">&#215;</text>
+    </g>
+
+    <!-- Failure flash -->
+    <g id="dw-failure-flash" opacity="0">
+      <rect x="160" y="10" width="580" height="36" rx="6" fill="rgba(255,107,107,0.1)" stroke="var(--accent-red)" stroke-dasharray="4,2"/>
+      <text id="dw-failure-text" x="450" y="32" text-anchor="middle" fill="var(--accent-red)" font-size="13" font-weight="600"></text>
+    </g>
+  </svg>
+
+  <div class="commentary" id="dw-commentary">
+    Click a scenario above to animate the failure mode. The dual-write problem occurs whenever your code performs two writes to different systems without a shared transaction.
+  </div>
+
+  <h3>Why "just retry" does not work</h3>
+  <p>The request handler has no transactional control over both systems. If the app crashes between the DB write and the Kafka publish, no retry logic runs -- the process is gone. Restarting the service does not replay the half-finished request. You are left in an arbitrary, silently inconsistent state.</p>
+
+  <h3>Why "publish first, then DB" does not help</h3>
+  <p>Same shape of failure, just inverted. Publish succeeds, DB write fails -- consumers see a ghost event for data that never persisted. Swapping the order changes which failure mode you get; it does not eliminate the fundamental problem.</p>
+
+  <div class="takeaway">
+    <strong>Takeaway.</strong> Two systems with no shared transaction = inevitable inconsistency on failure. The fix is to make ONE durable write that downstream eventually observes. That is what CDC and the transactional outbox both achieve, through different mechanisms.
+  </div>
+</section>
+
+<!-- ================================================================ -->
+<!-- SECTION 2: CDC (Change Data Capture)                              -->
+<!-- ================================================================ -->
+<section id="cdc">
+  <h2>2. CDC (Change Data Capture)</h2>
+  <p>Instead of the app publishing events, a separate process <strong>tails the database's transaction log</strong> -- Postgres WAL, MySQL binlog, MongoDB oplog -- parses changes, and publishes them to Kafka. The app only writes to the DB. One write, one system, no dual-write bug.</p>
+
+  <h3>Tooling</h3>
+  <ul>
+    <li><strong>Debezium</strong> -- Kafka Connect connectors for Postgres, MySQL, MongoDB, SQL Server, Oracle. The standard.</li>
+    <li><strong>wal2json / pgoutput</strong> -- Postgres logical decoding plugins (Debezium uses pgoutput by default).</li>
+    <li><strong>Maxwell's Daemon</strong> -- MySQL binlog to Kafka/JSON. Lighter than Debezium for MySQL-only shops.</li>
+    <li><strong>AWS DMS, GCP Datastream</strong> -- managed CDC for cloud-native stacks.</li>
+  </ul>
+
+  <div class="controls">
+    <button onclick="runCDCAnimation()" id="btn-cdc">Animate CDC Flow</button>
+    <button onclick="resetCDC()" class="danger">Reset</button>
+  </div>
+
+  <svg id="svg-cdc" viewBox="0 0 900 320" xmlns="http://www.w3.org/2000/svg">
+    <!-- App -->
+    <rect x="30" y="100" width="130" height="70" rx="6" fill="var(--surface-2)" stroke="var(--border)"/>
+    <text x="95" y="132" text-anchor="middle" fill="var(--text)" font-size="13" font-weight="600">App Service</text>
+    <text x="95" y="150" text-anchor="middle" fill="var(--text-3)" font-size="11">writes only</text>
+
+    <!-- DB -->
+    <ellipse cx="300" cy="85" rx="70" ry="28" fill="var(--surface-2)" stroke="var(--border)"/>
+    <rect x="230" y="85" width="140" height="50" fill="var(--surface-2)" stroke="var(--border)"/>
+    <ellipse cx="300" cy="135" rx="70" ry="28" fill="var(--surface-2)" stroke="var(--border)"/>
+    <text x="300" y="117" text-anchor="middle" fill="var(--text)" font-size="13" font-weight="600">PostgreSQL</text>
+
+    <!-- WAL -->
+    <rect x="250" y="190" width="100" height="40" rx="4" fill="var(--surface-2)" stroke="var(--accent-purple)" stroke-dasharray="4,2"/>
+    <text x="300" y="215" text-anchor="middle" fill="var(--accent-purple)" font-size="12" font-weight="600">WAL</text>
+
+    <!-- Debezium -->
+    <rect x="440" y="185" width="140" height="50" rx="6" fill="var(--surface-2)" stroke="var(--accent-orange)"/>
+    <text x="510" y="208" text-anchor="middle" fill="var(--accent-orange)" font-size="13" font-weight="600">Debezium</text>
+    <text x="510" y="224" text-anchor="middle" fill="var(--text-3)" font-size="11">Kafka Connect</text>
+
+    <!-- Kafka -->
+    <rect x="670" y="100" width="140" height="60" rx="6" fill="var(--surface-2)" stroke="var(--border)"/>
+    <text x="740" y="128" text-anchor="middle" fill="var(--text)" font-size="13" font-weight="600">Kafka</text>
+    <text x="740" y="146" text-anchor="middle" fill="var(--text-3)" font-size="11">db.public.orders</text>
+
+    <!-- Consumers -->
+    <rect x="670" y="210" width="140" height="50" rx="6" fill="var(--surface-2)" stroke="var(--border)"/>
+    <text x="740" y="233" text-anchor="middle" fill="var(--text)" font-size="13" font-weight="600">Consumers</text>
+    <text x="740" y="249" text-anchor="middle" fill="var(--text-3)" font-size="11">search, analytics...</text>
+
+    <!-- Static arrows -->
+    <line x1="160" y1="130" x2="225" y2="115" stroke="var(--text-3)" stroke-width="1.5" marker-end="url(#arrow)"/>
+    <text x="190" y="112" fill="var(--text-3)" font-size="10">INSERT</text>
+    <line x1="300" y1="163" x2="300" y2="186" stroke="var(--accent-purple)" stroke-width="1.5" marker-end="url(#arrow)" stroke-dasharray="4,2"/>
+    <line x1="740" y1="160" x2="740" y2="206" stroke="var(--text-3)" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+    <!-- Animated arrows -->
+    <g id="cdc-arrow-wal-debezium">
+      <line x1="350" y1="210" x2="435" y2="210" stroke="var(--accent-purple)" stroke-width="1.5" stroke-dasharray="6,4" marker-end="url(#arrow)"/>
+      <text x="393" y="202" fill="var(--accent-purple)" font-size="10" text-anchor="middle">tails log</text>
+    </g>
+    <g id="cdc-arrow-debezium-kafka">
+      <line x1="580" y1="200" x2="665" y2="145" stroke="var(--accent-orange)" stroke-width="1.5" stroke-dasharray="6,4" marker-end="url(#arrow)"/>
+      <text x="625" y="162" fill="var(--accent-orange)" font-size="10" text-anchor="middle">publish</text>
+    </g>
+
+    <!-- Animated data packets -->
+    <circle id="cdc-packet-1" cx="0" cy="0" r="5" fill="var(--accent-blue)" opacity="0"/>
+    <circle id="cdc-packet-2" cx="0" cy="0" r="5" fill="var(--accent-purple)" opacity="0"/>
+    <circle id="cdc-packet-3" cx="0" cy="0" r="5" fill="var(--accent-orange)" opacity="0"/>
+
+    <!-- Status indicators -->
+    <g id="cdc-db-ok" opacity="0">
+      <circle cx="300" cy="68" r="12" fill="var(--accent-green)"/>
+      <text x="300" y="72" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">&#10003;</text>
+    </g>
+    <g id="cdc-kafka-ok" opacity="0">
+      <circle cx="740" cy="84" r="12" fill="var(--accent-green)"/>
+      <text x="740" y="88" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">&#10003;</text>
+    </g>
+  </svg>
+
+  <div class="commentary" id="cdc-commentary">
+    Click "Animate CDC Flow" to see how data moves from the app through the WAL to Kafka via Debezium. The app never talks to Kafka -- only to the database.
+  </div>
+
+  <div class="pro-con">
+    <div class="pros">
+      <h4>Pros</h4>
+      <ul>
+        <li>Zero app-code changes -- works on any DB with logical decoding.</li>
+        <li>Captures every change, including manual SQL fixes or migrations.</li>
+        <li>Schema-aware -- Debezium emits typed Avro/JSON with full schema.</li>
+        <li>Single source of truth stays in the database where it belongs.</li>
+      </ul>
+    </div>
+    <div class="cons">
+      <h4>Cons</h4>
+      <ul>
+        <li>Requires DB log access. Postgres replication slots can fill disk if the connector lags.</li>
+        <li>Schema changes require care -- dropping a column breaks downstream consumers.</li>
+        <li>1-2 second typical latency (log polling interval + Kafka batching).</li>
+        <li>Operational complexity: Kafka Connect cluster, schema registry, connector monitoring.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="takeaway">
+    <strong>Takeaway.</strong> CDC is the platform team's answer. App teams write business code; the data team operates Debezium. Most consistent, lowest app friction, highest infrastructure cost. Name "Debezium" in the interview and say why.
+  </div>
+</section>
+
+<!-- ================================================================ -->
+<!-- SECTION 3: TRANSACTIONAL OUTBOX                                   -->
+<!-- ================================================================ -->
+<section id="outbox">
+  <h2>3. Transactional Outbox</h2>
+  <p>Instead of writing to two systems, the app writes to two tables <strong>in the same database transaction</strong>: the business table and an <code>outbox</code> table. A separate relay process polls the outbox and publishes to Kafka. Because both writes are in one transaction, they either both commit or both roll back -- atomicity for free.</p>
+
+  <h3>The pattern</h3>
+  <pre><span class="kw">BEGIN</span>;
+  <span class="kw">INSERT INTO</span> orders (id, user_id, amount, status)
+    <span class="kw">VALUES</span> (<span class="str">'ord-42'</span>, <span class="str">'u-7'</span>, <span class="str">99.99</span>, <span class="str">'created'</span>);
+
+  <span class="kw">INSERT INTO</span> outbox (id, aggregate_type, aggregate_id, event_type, payload, created_at)
+    <span class="kw">VALUES</span> (
+      <span class="str">'evt-101'</span>,
+      <span class="str">'Order'</span>,
+      <span class="str">'ord-42'</span>,
+      <span class="str">'OrderCreated'</span>,
+      <span class="str">'{"orderId":"ord-42","userId":"u-7","amount":99.99}'</span>,
+      <span class="str">NOW()</span>
+    );
+<span class="kw">COMMIT</span>; <span class="cmt">-- both rows land, or neither does</span></pre>
+
+  <div class="controls">
+    <button onclick="runOutboxAnimation('success')" id="btn-outbox-ok">Animate: Both commit</button>
+    <button onclick="runOutboxAnimation('rollback')" id="btn-outbox-fail">Animate: Rollback (constraint violation)</button>
+    <button onclick="runOutboxRelay()" id="btn-outbox-relay">Animate: Relay publishes</button>
+    <button onclick="resetOutbox()" class="danger">Reset</button>
+  </div>
+
+  <svg id="svg-outbox" viewBox="0 0 900 400" xmlns="http://www.w3.org/2000/svg">
+    <!-- Transaction boundary -->
+    <rect x="220" y="20" width="340" height="230" rx="8" fill="none" stroke="var(--accent-blue)" stroke-width="2" stroke-dasharray="8,4" id="outbox-txn-border"/>
+    <text x="390" y="42" text-anchor="middle" fill="var(--accent-blue)" font-size="12" font-weight="600" id="outbox-txn-label">DB Transaction</text>
+
+    <!-- App -->
+    <rect x="30" y="90" width="130" height="70" rx="6" fill="var(--surface-2)" stroke="var(--border)"/>
+    <text x="95" y="122" text-anchor="middle" fill="var(--text)" font-size="13" font-weight="600">App Service</text>
+    <text x="95" y="140" text-anchor="middle" fill="var(--text-3)" font-size="11">single txn</text>
+
+    <!-- Orders table -->
+    <rect x="260" y="60" width="130" height="55" rx="4" fill="var(--surface-2)" stroke="var(--border)" id="outbox-orders"/>
+    <text x="325" y="85" text-anchor="middle" fill="var(--text)" font-size="12" font-weight="600">orders</text>
+    <text x="325" y="102" text-anchor="middle" fill="var(--text-3)" font-size="10">business table</text>
+
+    <!-- Outbox table -->
+    <rect x="260" y="140" width="130" height="55" rx="4" fill="var(--surface-2)" stroke="var(--accent-yellow)" id="outbox-table"/>
+    <text x="325" y="165" text-anchor="middle" fill="var(--accent-yellow)" font-size="12" font-weight="600">outbox</text>
+    <text x="325" y="182" text-anchor="middle" fill="var(--text-3)" font-size="10">event staging</text>
+
+    <!-- DB status for txn animation -->
+    <g id="outbox-orders-ok" opacity="0">
+      <circle cx="400" cy="87" r="10" fill="var(--accent-green)"/>
+      <text x="400" y="91" text-anchor="middle" fill="#fff" font-size="10" font-weight="700">&#10003;</text>
+    </g>
+    <g id="outbox-outbox-ok" opacity="0">
+      <circle cx="400" cy="167" r="10" fill="var(--accent-green)"/>
+      <text x="400" y="171" text-anchor="middle" fill="#fff" font-size="10" font-weight="700">&#10003;</text>
+    </g>
+    <g id="outbox-orders-fail" opacity="0">
+      <circle cx="400" cy="87" r="10" fill="var(--accent-red)"/>
+      <text x="400" y="91" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">&#215;</text>
+    </g>
+    <g id="outbox-outbox-fail" opacity="0">
+      <circle cx="400" cy="167" r="10" fill="var(--accent-red)"/>
+      <text x="400" y="171" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">&#215;</text>
+    </g>
+
+    <!-- Commit/Rollback label -->
+    <g id="outbox-commit-label" opacity="0">
+      <rect x="440" y="110" width="90" height="30" rx="4" fill="rgba(81,207,102,0.15)" stroke="var(--accent-green)"/>
+      <text x="485" y="130" text-anchor="middle" fill="var(--accent-green)" font-size="13" font-weight="700">COMMIT</text>
+    </g>
+    <g id="outbox-rollback-label" opacity="0">
+      <rect x="440" y="110" width="110" height="30" rx="4" fill="rgba(255,107,107,0.15)" stroke="var(--accent-red)"/>
+      <text x="495" y="130" text-anchor="middle" fill="var(--accent-red)" font-size="13" font-weight="700">ROLLBACK</text>
+    </g>
+
+    <!-- Arrows: app to tables -->
+    <line x1="160" y1="112" x2="255" y2="87" stroke="var(--text-3)" stroke-width="1.5" marker-end="url(#arrow)"/>
+    <line x1="160" y1="138" x2="255" y2="167" stroke="var(--text-3)" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+    <!-- ---- Relay section ---- -->
+    <!-- Relay process -->
+    <rect x="260" y="290" width="130" height="50" rx="6" fill="var(--surface-2)" stroke="var(--accent-orange)" id="outbox-relay"/>
+    <text x="325" y="313" text-anchor="middle" fill="var(--accent-orange)" font-size="12" font-weight="600">Relay</text>
+    <text x="325" y="329" text-anchor="middle" fill="var(--text-3)" font-size="10">polls outbox</text>
+
+    <!-- Arrow: outbox -> relay -->
+    <line x1="325" y1="195" x2="325" y2="286" stroke="var(--accent-yellow)" stroke-width="1.5" marker-end="url(#arrow)" stroke-dasharray="5,3" id="outbox-relay-poll-arrow"/>
+    <text x="335" y="245" fill="var(--text-3)" font-size="10">SELECT ... WHERE</text>
+    <text x="335" y="257" fill="var(--text-3)" font-size="10">processed=false</text>
+
+    <!-- Kafka -->
+    <rect x="530" y="290" width="140" height="50" rx="6" fill="var(--surface-2)" stroke="var(--border)" id="outbox-kafka"/>
+    <text x="600" y="313" text-anchor="middle" fill="var(--text)" font-size="13" font-weight="600">Kafka</text>
+    <text x="600" y="329" text-anchor="middle" fill="var(--text-3)" font-size="11">orders topic</text>
+
+    <!-- Arrow: relay -> kafka -->
+    <line x1="390" y1="315" x2="525" y2="315" stroke="var(--accent-orange)" stroke-width="1.5" marker-end="url(#arrow)" stroke-dasharray="5,3" id="outbox-relay-publish-arrow"/>
+    <text x="458" y="306" fill="var(--accent-orange)" font-size="10" text-anchor="middle">publish</text>
+
+    <!-- Consumers -->
+    <rect x="730" y="290" width="120" height="50" rx="6" fill="var(--surface-2)" stroke="var(--border)"/>
+    <text x="790" y="313" text-anchor="middle" fill="var(--text)" font-size="13" font-weight="600">Consumers</text>
+    <text x="790" y="329" text-anchor="middle" fill="var(--text-3)" font-size="11">downstream</text>
+
+    <!-- Arrow: kafka -> consumers -->
+    <line x1="670" y1="315" x2="725" y2="315" stroke="var(--text-3)" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+    <!-- Relay animation packets -->
+    <circle id="outbox-packet-1" cx="0" cy="0" r="5" fill="var(--accent-yellow)" opacity="0"/>
+    <circle id="outbox-packet-2" cx="0" cy="0" r="5" fill="var(--accent-orange)" opacity="0"/>
+
+    <!-- Relay status -->
+    <g id="outbox-relay-ok" opacity="0">
+      <circle cx="600" cy="274" r="12" fill="var(--accent-green)"/>
+      <text x="600" y="278" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">&#10003;</text>
+    </g>
+  </svg>
+
+  <div class="commentary" id="outbox-commentary">
+    Use the buttons above to animate the transactional outbox pattern. "Both commit" shows atomicity: the business row and the outbox row land in one transaction. "Rollback" shows that if either fails, both are rolled back -- no ghost events, no missing events. "Relay publishes" shows the async publishing step.
+  </div>
+
+  <h3>Relay variants</h3>
+  <ul>
+    <li><strong>Polling-based relay</strong>: simplest implementation. A background process runs <code>SELECT * FROM outbox WHERE processed = false ORDER BY created_at LIMIT N</code> on a timer. Creates DB load proportional to poll frequency. Add an index on <code>(processed, created_at)</code>.</li>
+    <li><strong>CDC-on-outbox</strong>: Debezium tails the outbox table instead of all tables. Marries the two patterns -- outbox gives the app control over event schema, CDC handles publishing without polling. <strong>This is the most common modern approach.</strong></li>
+  </ul>
+
+  <div class="pro-con">
+    <div class="pros">
+      <h4>Pros</h4>
+      <ul>
+        <li>Atomicity for free -- single DB transaction guarantees consistency.</li>
+        <li>App team owns the contract: which events get published, exact schema, versioning.</li>
+        <li>Survives every failure mode of dual-write.</li>
+        <li>Simple to understand and debug -- it is just a table.</li>
+      </ul>
+    </div>
+    <div class="cons">
+      <h4>Cons</h4>
+      <ul>
+        <li>App code change required (the outbox INSERT in every write path).</li>
+        <li>Outbox table grows; needs cleanup (DELETE after retention period, or partition by date).</li>
+        <li>Latency = relay poll interval + Kafka publish (seconds, not milliseconds).</li>
+        <li>Polling relay creates DB load; CDC-on-outbox variant eliminates this.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="takeaway">
+    <strong>Takeaway.</strong> Outbox is the app team's answer. A single DB transaction guarantees consistency. The relay handles async publish; retries are safe because Kafka's idempotent producer deduplicates by producer-id + sequence. Name "transactional outbox" and the CDC-on-outbox hybrid variant.
+  </div>
+</section>
+
+<!-- ================================================================ -->
+<!-- SECTION 4: INBOX (CONSUMER-SIDE DEDUP)                            -->
+<!-- ================================================================ -->
+<section id="inbox">
+  <h2>4. Inbox (Consumer-Side Dedup)</h2>
+  <p>Producer dedup (outbox + idempotent producer) is one half. The consumer side: events may arrive <strong>duplicated</strong> -- Kafka guarantees at-least-once delivery. A naive consumer applies them twice: double charge, double email, double inventory decrement.</p>
+
+  <h3>The inbox table</h3>
+  <pre><span class="cmt">-- Consumer processes each event inside a transaction:</span>
+<span class="kw">BEGIN</span>;
+
+  <span class="cmt">-- Attempt to record this event as processed</span>
+  <span class="kw">INSERT INTO</span> inbox (event_id, processed_at)
+    <span class="kw">VALUES</span> (<span class="str">$1</span>, <span class="str">NOW()</span>);
+  <span class="cmt">-- If PK violation -> already processed, skip</span>
+
+  <span class="cmt">-- Only if INSERT succeeded: do the business logic</span>
+  <span class="kw">UPDATE</span> accounts <span class="kw">SET</span> balance = balance - <span class="str">$amount</span>
+    <span class="kw">WHERE</span> user_id = <span class="str">$user_id</span>;
+
+<span class="kw">COMMIT</span>;</pre>
+
+  <p>Alternative: dedup via <code>Redis SETNX</code> with a TTL if you do not need transactional guarantees on the consumer side.</p>
+
+  <div class="controls">
+    <button onclick="runInboxAnimation()" id="btn-inbox">Animate: Dedup in action</button>
+    <button onclick="resetInbox()" class="danger">Reset</button>
+  </div>
+
+  <svg id="svg-inbox" viewBox="0 0 900 300" xmlns="http://www.w3.org/2000/svg">
+    <!-- Kafka -->
+    <rect x="30" y="80" width="140" height="60" rx="6" fill="var(--surface-2)" stroke="var(--border)"/>
+    <text x="100" y="108" text-anchor="middle" fill="var(--text)" font-size="13" font-weight="600">Kafka</text>
+    <text x="100" y="126" text-anchor="middle" fill="var(--text-3)" font-size="11">orders topic</text>
+
+    <!-- Events queue visual -->
+    <g id="inbox-events">
+      <!-- Event A -->
+      <rect x="30" y="170" width="60" height="34" rx="4" fill="var(--surface-2)" stroke="var(--accent-blue)" id="inbox-evt-a"/>
+      <text x="60" y="191" text-anchor="middle" fill="var(--accent-blue)" font-size="11" font-weight="600">evt-1</text>
+      <!-- Event B -->
+      <rect x="100" y="170" width="60" height="34" rx="4" fill="var(--surface-2)" stroke="var(--accent-green)" id="inbox-evt-b"/>
+      <text x="130" y="191" text-anchor="middle" fill="var(--accent-green)" font-size="11" font-weight="600">evt-2</text>
+      <!-- Event A duplicate -->
+      <rect x="170" y="170" width="60" height="34" rx="4" fill="var(--surface-2)" stroke="var(--accent-red)" id="inbox-evt-dup"/>
+      <text x="200" y="186" text-anchor="middle" fill="var(--accent-red)" font-size="11" font-weight="600">evt-1</text>
+      <text x="200" y="199" text-anchor="middle" fill="var(--accent-red)" font-size="9">(dup)</text>
+    </g>
+
+    <!-- Arrow events to consumer -->
+    <line x1="240" y1="187" x2="340" y2="130" stroke="var(--text-3)" stroke-width="1.5" marker-end="url(#arrow)" stroke-dasharray="5,3"/>
+
+    <!-- Consumer -->
+    <rect x="350" y="80" width="140" height="70" rx="6" fill="var(--surface-2)" stroke="var(--border)"/>
+    <text x="420" y="108" text-anchor="middle" fill="var(--text)" font-size="13" font-weight="600">Consumer</text>
+    <text x="420" y="126" text-anchor="middle" fill="var(--text-3)" font-size="11">payment service</text>
+    <text x="420" y="140" text-anchor="middle" fill="var(--text-3)" font-size="10">idempotent handler</text>
+
+    <!-- Inbox table -->
+    <rect x="570" y="60" width="140" height="130" rx="6" fill="var(--surface-2)" stroke="var(--accent-yellow)" id="inbox-table"/>
+    <text x="640" y="82" text-anchor="middle" fill="var(--accent-yellow)" font-size="12" font-weight="600">inbox table</text>
+    <line x1="580" y1="90" x2="700" y2="90" stroke="var(--border)"/>
+    <text x="590" y="106" fill="var(--text-3)" font-size="11">event_id</text>
+    <text x="660" y="106" fill="var(--text-3)" font-size="11">processed_at</text>
+    <line x1="580" y1="112" x2="700" y2="112" stroke="var(--border)"/>
+
+    <!-- Inbox rows (populated by animation) -->
+    <text x="590" y="130" fill="var(--accent-blue)" font-size="11" id="inbox-row-1" opacity="0">evt-1</text>
+    <text x="660" y="130" fill="var(--text-3)" font-size="11" id="inbox-row-1-ts" opacity="0">12:00:01</text>
+    <text x="590" y="150" fill="var(--accent-green)" font-size="11" id="inbox-row-2" opacity="0">evt-2</text>
+    <text x="660" y="150" fill="var(--text-3)" font-size="11" id="inbox-row-2-ts" opacity="0">12:00:02</text>
+
+    <!-- Arrow: consumer -> inbox -->
+    <line x1="490" y1="115" x2="565" y2="115" stroke="var(--accent-yellow)" stroke-width="1.5" marker-end="url(#arrow)" stroke-dasharray="5,3"/>
+    <text x="528" y="108" fill="var(--text-3)" font-size="10" text-anchor="middle">INSERT</text>
+
+    <!-- Dedup rejection indicator -->
+    <g id="inbox-reject" opacity="0">
+      <rect x="540" y="205" width="200" height="38" rx="6" fill="rgba(255,107,107,0.1)" stroke="var(--accent-red)"/>
+      <text x="640" y="220" text-anchor="middle" fill="var(--accent-red)" font-size="11" font-weight="600">PK violation: evt-1 exists</text>
+      <text x="640" y="236" text-anchor="middle" fill="var(--accent-red)" font-size="11">Event skipped -- no double charge</text>
+    </g>
+
+    <!-- Processing results -->
+    <g id="inbox-result-1" opacity="0">
+      <rect x="350" y="220" width="140" height="30" rx="4" fill="rgba(81,207,102,0.1)" stroke="var(--accent-green)"/>
+      <text x="420" y="240" text-anchor="middle" fill="var(--accent-green)" font-size="11">evt-1: charged $99</text>
+    </g>
+    <g id="inbox-result-2" opacity="0">
+      <rect x="350" y="258" width="140" height="30" rx="4" fill="rgba(81,207,102,0.1)" stroke="var(--accent-green)"/>
+      <text x="420" y="278" text-anchor="middle" fill="var(--accent-green)" font-size="11">evt-2: charged $49</text>
+    </g>
+    <g id="inbox-result-dup" opacity="0">
+      <rect x="200" y="220" width="140" height="30" rx="4" fill="rgba(255,107,107,0.1)" stroke="var(--accent-red)"/>
+      <text x="270" y="240" text-anchor="middle" fill="var(--accent-red)" font-size="11">evt-1: SKIPPED</text>
+    </g>
+  </svg>
+
+  <div class="commentary" id="inbox-commentary">
+    Click "Animate" to watch three events arrive at the consumer -- two unique and one duplicate. The inbox table's primary key constraint catches the duplicate, preventing double-processing.
+  </div>
+
+  <div class="takeaway">
+    <strong>Takeaway.</strong> Outbox handles producer-side consistency; inbox handles consumer-side deduplication. Both are necessary for true exactly-once semantics across the wire. In the interview, mention both halves.
+  </div>
+</section>
+
+<!-- ================================================================ -->
+<!-- SECTION 5: SAGA + OUTBOX                                          -->
+<!-- ================================================================ -->
+<section id="saga">
+  <h2>5. Saga + Outbox</h2>
+  <p>Multi-service transactions: each service uses its own outbox to publish step-completion events. An orchestrator (or services in a choreography) reacts to those events. If a step fails, the orchestrator publishes a compensate event via its own outbox. Each service's compensate handler is idempotent (uses inbox).</p>
+
+  <div class="controls">
+    <button onclick="runSagaAnimation('happy')" id="btn-saga-ok">Animate: Happy path</button>
+    <button onclick="runSagaAnimation('compensate')" id="btn-saga-fail">Animate: Step 3 fails, compensate</button>
+    <button onclick="resetSaga()" class="danger">Reset</button>
+  </div>
+
+  <svg id="svg-saga" viewBox="0 0 900 420" xmlns="http://www.w3.org/2000/svg">
+    <!-- Orchestrator -->
+    <rect x="340" y="20" width="200" height="55" rx="6" fill="var(--surface-2)" stroke="var(--accent-blue)"/>
+    <text x="440" y="45" text-anchor="middle" fill="var(--accent-blue)" font-size="13" font-weight="600">Saga Orchestrator</text>
+    <text x="440" y="63" text-anchor="middle" fill="var(--text-3)" font-size="11">has its own outbox + inbox</text>
+
+    <!-- Service 1: Order -->
+    <rect x="40" y="140" width="180" height="70" rx="6" fill="var(--surface-2)" stroke="var(--border)" id="saga-svc-1"/>
+    <text x="130" y="168" text-anchor="middle" fill="var(--text)" font-size="12" font-weight="600">Order Service</text>
+    <text x="130" y="186" text-anchor="middle" fill="var(--text-3)" font-size="10">outbox: OrderCreated</text>
+    <text x="130" y="198" text-anchor="middle" fill="var(--text-3)" font-size="10">comp: CancelOrder</text>
+
+    <!-- Service 2: Payment -->
+    <rect x="350" y="140" width="180" height="70" rx="6" fill="var(--surface-2)" stroke="var(--border)" id="saga-svc-2"/>
+    <text x="440" y="168" text-anchor="middle" fill="var(--text)" font-size="12" font-weight="600">Payment Service</text>
+    <text x="440" y="186" text-anchor="middle" fill="var(--text-3)" font-size="10">outbox: PaymentCharged</text>
+    <text x="440" y="198" text-anchor="middle" fill="var(--text-3)" font-size="10">comp: RefundPayment</text>
+
+    <!-- Service 3: Inventory -->
+    <rect x="660" y="140" width="180" height="70" rx="6" fill="var(--surface-2)" stroke="var(--border)" id="saga-svc-3"/>
+    <text x="750" y="168" text-anchor="middle" fill="var(--text)" font-size="12" font-weight="600">Inventory Service</text>
+    <text x="750" y="186" text-anchor="middle" fill="var(--text-3)" font-size="10">outbox: StockReserved</text>
+    <text x="750" y="198" text-anchor="middle" fill="var(--text-3)" font-size="10">comp: ReleaseStock</text>
+
+    <!-- Kafka (event bus) -->
+    <rect x="320" y="270" width="240" height="45" rx="6" fill="var(--surface-2)" stroke="var(--border)"/>
+    <text x="440" y="293" text-anchor="middle" fill="var(--text)" font-size="13" font-weight="600">Kafka (event bus)</text>
+    <text x="440" y="307" text-anchor="middle" fill="var(--text-3)" font-size="10">all events flow through outbox -> kafka -> inbox</text>
+
+    <!-- Arrows: orchestrator <-> services -->
+    <line x1="370" y1="75" x2="170" y2="136" stroke="var(--text-3)" stroke-width="1.2" marker-end="url(#arrow)" stroke-dasharray="5,3"/>
+    <line x1="440" y1="75" x2="440" y2="136" stroke="var(--text-3)" stroke-width="1.2" marker-end="url(#arrow)" stroke-dasharray="5,3"/>
+    <line x1="510" y1="75" x2="710" y2="136" stroke="var(--text-3)" stroke-width="1.2" marker-end="url(#arrow)" stroke-dasharray="5,3"/>
+
+    <!-- Arrows: services <-> kafka -->
+    <line x1="130" y1="210" x2="316" y2="280" stroke="var(--text-3)" stroke-width="1.2" marker-end="url(#arrow)" stroke-dasharray="5,3"/>
+    <line x1="440" y1="210" x2="440" y2="266" stroke="var(--text-3)" stroke-width="1.2" marker-end="url(#arrow)" stroke-dasharray="5,3"/>
+    <line x1="750" y1="210" x2="564" y2="280" stroke="var(--text-3)" stroke-width="1.2" marker-end="url(#arrow)" stroke-dasharray="5,3"/>
+
+    <!-- Step indicators -->
+    <g id="saga-step-1" opacity="0">
+      <circle cx="130" cy="128" r="14" fill="var(--accent-green)"/>
+      <text x="130" y="132" text-anchor="middle" fill="#fff" font-size="11" font-weight="700">1</text>
+    </g>
+    <g id="saga-step-2" opacity="0">
+      <circle cx="440" cy="128" r="14" fill="var(--accent-green)"/>
+      <text x="440" y="132" text-anchor="middle" fill="#fff" font-size="11" font-weight="700">2</text>
+    </g>
+    <g id="saga-step-3-ok" opacity="0">
+      <circle cx="750" cy="128" r="14" fill="var(--accent-green)"/>
+      <text x="750" y="132" text-anchor="middle" fill="#fff" font-size="11" font-weight="700">3</text>
+    </g>
+    <g id="saga-step-3-fail" opacity="0">
+      <circle cx="750" cy="128" r="14" fill="var(--accent-red)"/>
+      <text x="750" y="133" text-anchor="middle" fill="#fff" font-size="14" font-weight="700">&#215;</text>
+    </g>
+
+    <!-- Compensation arrows (shown on failure) -->
+    <g id="saga-comp-arrows" opacity="0">
+      <line x1="710" y1="128" x2="530" y2="128" stroke="var(--accent-red)" stroke-width="2" marker-end="url(#arrow-red)"/>
+      <text x="620" y="120" text-anchor="middle" fill="var(--accent-red)" font-size="10">RefundPayment</text>
+      <line x1="350" y1="128" x2="220" y2="128" stroke="var(--accent-red)" stroke-width="2" marker-end="url(#arrow-red)"/>
+      <text x="285" y="120" text-anchor="middle" fill="var(--accent-red)" font-size="10">CancelOrder</text>
+    </g>
+
+    <!-- Compensation status -->
+    <g id="saga-comp-1" opacity="0">
+      <circle cx="130" cy="128" r="14" fill="var(--accent-orange)"/>
+      <text x="130" y="132" text-anchor="middle" fill="#fff" font-size="9" font-weight="700">COMP</text>
+    </g>
+    <g id="saga-comp-2" opacity="0">
+      <circle cx="440" cy="128" r="14" fill="var(--accent-orange)"/>
+      <text x="440" y="132" text-anchor="middle" fill="#fff" font-size="9" font-weight="700">COMP</text>
+    </g>
+
+    <!-- Final status -->
+    <g id="saga-final-ok" opacity="0">
+      <rect x="310" y="350" width="260" height="40" rx="6" fill="rgba(81,207,102,0.1)" stroke="var(--accent-green)"/>
+      <text x="440" y="375" text-anchor="middle" fill="var(--accent-green)" font-size="13" font-weight="600">Saga complete -- all steps committed</text>
+    </g>
+    <g id="saga-final-fail" opacity="0">
+      <rect x="280" y="350" width="320" height="50" rx="6" fill="rgba(255,107,107,0.1)" stroke="var(--accent-red)"/>
+      <text x="440" y="372" text-anchor="middle" fill="var(--accent-red)" font-size="13" font-weight="600">Saga rolled back via compensation</text>
+      <text x="440" y="390" text-anchor="middle" fill="var(--text-3)" font-size="11">Each compensate handler is idempotent (inbox dedup)</text>
+    </g>
+  </svg>
+
+  <div class="commentary" id="saga-commentary">
+    Animate the happy path (all 3 steps succeed) or the compensation path (step 3 fails, triggering compensating actions in reverse order via outbox events). Each compensation handler uses an inbox table for idempotency.
+  </div>
+
+  <div class="takeaway">
+    <strong>Takeaway.</strong> Outbox + Inbox is the saga's foundation. Without them, sagas have hidden dual-write bugs: the service that "committed step 2" might fail to publish the completion event, leaving the saga stuck. Outbox makes each step's event publication atomic; inbox makes each compensating action idempotent.
+  </div>
+</section>
+
+<!-- ================================================================ -->
+<!-- SECTION 6: COMPARISON MATRIX                                      -->
+<!-- ================================================================ -->
+<section id="comparison">
+  <h2>6. Comparison Matrix</h2>
+  <p>When the interviewer asks "how do you keep DB and event stream consistent?" -- pick your row.</p>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Approach</th>
+          <th>App Changes</th>
+          <th>Atomicity</th>
+          <th>Schema Control</th>
+          <th>Latency</th>
+          <th>Ops Cost</th>
+          <th>Pick When</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Naive dual-write</strong></td>
+          <td><span class="badge badge-green">None</span></td>
+          <td><span class="badge badge-red">None</span></td>
+          <td>App defines</td>
+          <td>Fast (sync)</td>
+          <td>Low</td>
+          <td><strong>Never.</strong> Silent data loss on any failure.</td>
+        </tr>
+        <tr>
+          <td><strong>CDC (Debezium)</strong></td>
+          <td><span class="badge badge-green">None</span></td>
+          <td><span class="badge badge-green">Strong</span></td>
+          <td>DB schema</td>
+          <td>1-2s</td>
+          <td>High</td>
+          <td>Platform-owned, multi-team. You want every table change captured.</td>
+        </tr>
+        <tr>
+          <td><strong>Transactional outbox (poll)</strong></td>
+          <td><span class="badge badge-yellow">Outbox INSERT</span></td>
+          <td><span class="badge badge-green">Strong</span></td>
+          <td>App defines</td>
+          <td>Poll interval</td>
+          <td>Low</td>
+          <td>Single-team, simpler infra. App owns event contract.</td>
+        </tr>
+        <tr>
+          <td><strong>Outbox + CDC</strong></td>
+          <td><span class="badge badge-yellow">Outbox INSERT</span></td>
+          <td><span class="badge badge-green">Strong</span></td>
+          <td>App defines</td>
+          <td>Sub-second</td>
+          <td>Medium</td>
+          <td>Best of both worlds. Outbox gives app control; CDC eliminates polling.</td>
+        </tr>
+        <tr>
+          <td><strong>2PC across DB + Kafka</strong></td>
+          <td><span class="badge badge-red">XA txn mgr</span></td>
+          <td><span class="badge badge-yellow">In theory</span></td>
+          <td>App defines</td>
+          <td>Slow</td>
+          <td>High</td>
+          <td><strong>Never.</strong> Kafka does not reliably support XA. Coordinator is a SPOF.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="takeaway">
+    <strong>The senior tell.</strong> When asked "how do you make sure DB write and event publish stay consistent?", the answer is "transactional outbox" or "CDC", not "we retry". Naming the dual-write problem unprompted signals you have hit it in production. Mentioning the outbox+CDC hybrid and the inbox for consumer dedup signals staff-level depth.
+  </div>
+</section>
+
+<!-- ================================================================ -->
+<!-- JAVASCRIPT                                                        -->
+<!-- ================================================================ -->
+<script>
+(function() {
+  'use strict';
+
+  /* ---- Utility ---- */
+  function el(id) { return document.getElementById(id); }
+
+  function show(id, delay) {
+    delay = delay || 0;
+    return new Promise(function(resolve) {
+      setTimeout(function() {
+        var e = el(id);
+        if (e) e.setAttribute('opacity', '1');
+        resolve();
+      }, delay);
+    });
+  }
+
+  function hide(id) {
+    var e = el(id);
+    if (e) e.setAttribute('opacity', '0');
+  }
+
+  function setCommentary(id, text) {
+    var e = el(id);
+    if (e) e.textContent = text;
+  }
+
+  function animatePacket(packetId, x1, y1, x2, y2, duration) {
+    var packet = el(packetId);
+    if (!packet) return Promise.resolve();
+    packet.setAttribute('cx', x1);
+    packet.setAttribute('cy', y1);
+    packet.setAttribute('opacity', '1');
+
+    var start = null;
+    return new Promise(function(resolve) {
+      function step(ts) {
+        if (!start) start = ts;
+        var progress = Math.min((ts - start) / duration, 1);
+        var cx = x1 + (x2 - x1) * progress;
+        var cy = y1 + (y2 - y1) * progress;
+        packet.setAttribute('cx', cx);
+        packet.setAttribute('cy', cy);
+        if (progress < 1) {
+          requestAnimationFrame(step);
+        } else {
+          packet.setAttribute('opacity', '0');
+          resolve();
+        }
+      }
+      requestAnimationFrame(step);
+    });
+  }
+
+  function flashBorder(elemId, color, duration) {
+    var elem = el(elemId);
+    if (!elem) return;
+    var original = elem.getAttribute('stroke');
+    elem.setAttribute('stroke', color);
+    setTimeout(function() {
+      elem.setAttribute('stroke', original || 'var(--border)');
+    }, duration || 600);
+  }
+
+  function disableButtons(ids) {
+    ids.forEach(function(id) {
+      var b = el(id);
+      if (b) b.disabled = true;
+    });
+  }
+  function enableButtons(ids) {
+    ids.forEach(function(id) {
+      var b = el(id);
+      if (b) b.disabled = false;
+    });
+  }
+
+  /* =============================================================== */
+  /* SECTION 1: Dual-Write Animation                                  */
+  /* =============================================================== */
+  var dwRunning = false;
+
+  window.resetDualWrite = function() {
+    dwRunning = false;
+    ['dw-db-status', 'dw-kafka-status', 'dw-db-fail', 'dw-kafka-fail', 'dw-failure-flash'].forEach(hide);
+    el('dw-arrow-db').querySelector('line').setAttribute('stroke', 'var(--text-3)');
+    el('dw-arrow-db').querySelector('line').setAttribute('marker-end', 'url(#arrow)');
+    el('dw-arrow-kafka').querySelector('line').setAttribute('stroke', 'var(--text-3)');
+    el('dw-arrow-kafka').querySelector('line').setAttribute('marker-end', 'url(#arrow)');
+    setCommentary('dw-commentary', 'Click a scenario above to animate the failure mode. The dual-write problem occurs whenever your code performs two writes to different systems without a shared transaction.');
+    enableButtons(['btn-dw-1', 'btn-dw-2']);
+  };
+
+  window.runDualWriteScenario = function(scenario) {
+    if (dwRunning) return;
+    dwRunning = true;
+    resetDualWrite();
+    dwRunning = true;
+    disableButtons(['btn-dw-1', 'btn-dw-2']);
+
+    var dbArrow = el('dw-arrow-db').querySelector('line');
+    var kafkaArrow = el('dw-arrow-kafka').querySelector('line');
+
+    if (scenario === 'db-then-publish') {
+      setCommentary('dw-commentary', 'Step 1: App writes to PostgreSQL...');
+      setTimeout(function() {
+        dbArrow.setAttribute('stroke', 'var(--accent-green)');
+        dbArrow.setAttribute('marker-end', 'url(#arrow-green)');
+        show('dw-db-status');
+        setCommentary('dw-commentary', 'Step 1: DB write succeeds. Row is committed.');
+      }, 600);
+      setTimeout(function() {
+        setCommentary('dw-commentary', 'Step 2: App tries to publish event to Kafka...');
+      }, 1600);
+      setTimeout(function() {
+        kafkaArrow.setAttribute('stroke', 'var(--accent-red)');
+        kafkaArrow.setAttribute('marker-end', 'url(#arrow-red)');
+        show('dw-kafka-fail');
+        el('dw-failure-text').textContent = 'INCONSISTENT: DB has the order, but no event was published. Consumers never learn about it.';
+        show('dw-failure-flash');
+        setCommentary('dw-commentary', 'Failure: Kafka publish failed (network blip, broker down, timeout). The order exists in the database but no event was emitted. Downstream consumers -- email service, search indexer, analytics -- never hear about this order. Silent data loss.');
+        dwRunning = false;
+        enableButtons(['btn-dw-1', 'btn-dw-2']);
+      }, 2600);
+
+    } else if (scenario === 'publish-then-db') {
+      setCommentary('dw-commentary', 'What if we publish first? Step 1: App publishes to Kafka...');
+      setTimeout(function() {
+        kafkaArrow.setAttribute('stroke', 'var(--accent-green)');
+        kafkaArrow.setAttribute('marker-end', 'url(#arrow-green)');
+        show('dw-kafka-status');
+        setCommentary('dw-commentary', 'Step 1: Kafka publish succeeds. Consumers receive the event.');
+      }, 600);
+      setTimeout(function() {
+        setCommentary('dw-commentary', 'Step 2: App tries to write to the database...');
+      }, 1600);
+      setTimeout(function() {
+        dbArrow.setAttribute('stroke', 'var(--accent-red)');
+        dbArrow.setAttribute('marker-end', 'url(#arrow-red)');
+        show('dw-db-fail');
+        el('dw-failure-text').textContent = 'INCONSISTENT: Event published for an order that does not exist. Ghost event.';
+        show('dw-failure-flash');
+        setCommentary('dw-commentary', 'Failure: DB write failed (unique constraint violation, connection lost). Consumers already received the event and are processing it -- sending confirmation emails, reserving inventory -- for an order that was never persisted. Ghost event: downstream state diverges from source of truth.');
+        dwRunning = false;
+        enableButtons(['btn-dw-1', 'btn-dw-2']);
+      }, 2600);
+    }
+  };
+
+  /* =============================================================== */
+  /* SECTION 2: CDC Animation                                         */
+  /* =============================================================== */
+  var cdcRunning = false;
+
+  window.resetCDC = function() {
+    cdcRunning = false;
+    ['cdc-db-ok', 'cdc-kafka-ok', 'cdc-packet-1', 'cdc-packet-2', 'cdc-packet-3'].forEach(hide);
+    setCommentary('cdc-commentary', 'Click "Animate CDC Flow" to see how data moves from the app through the WAL to Kafka via Debezium. The app never talks to Kafka -- only to the database.');
+    enableButtons(['btn-cdc']);
+  };
+
+  window.runCDCAnimation = function() {
+    if (cdcRunning) return;
+    cdcRunning = true;
+    resetCDC();
+    cdcRunning = true;
+    disableButtons(['btn-cdc']);
+
+    setCommentary('cdc-commentary', 'Step 1: App writes INSERT to PostgreSQL. This is the only write the app makes.');
+
+    // Packet 1: App -> DB
+    setTimeout(function() {
+      animatePacket('cdc-packet-1', 160, 130, 230, 110, 600).then(function() {
+        show('cdc-db-ok');
+        setCommentary('cdc-commentary', 'Step 2: PostgreSQL commits the row and appends the change to the WAL (write-ahead log). The WAL is the database\'s durability mechanism -- it already exists.');
+      });
+    }, 400);
+
+    // Packet 2: WAL -> Debezium
+    setTimeout(function() {
+      setCommentary('cdc-commentary', 'Step 3: Debezium (running as a Kafka Connect connector) tails the WAL via a replication slot, sees the new row...');
+      animatePacket('cdc-packet-2', 350, 210, 440, 210, 800);
+    }, 1800);
+
+    // Packet 3: Debezium -> Kafka
+    setTimeout(function() {
+      setCommentary('cdc-commentary', 'Step 4: Debezium transforms the WAL event into a structured message (Avro or JSON with schema) and publishes it to the Kafka topic named after the table: db.public.orders.');
+      animatePacket('cdc-packet-3', 580, 200, 670, 130, 700).then(function() {
+        show('cdc-kafka-ok');
+        setCommentary('cdc-commentary', 'Done. The app wrote only to PostgreSQL. Debezium handled event publishing by tailing the WAL. No dual-write. If Debezium goes down, the WAL retains all changes (replication slot prevents WAL cleanup) and Debezium resumes from where it left off on restart.');
+        cdcRunning = false;
+        enableButtons(['btn-cdc']);
+      });
+    }, 3200);
+  };
+
+  /* =============================================================== */
+  /* SECTION 3: Outbox Animation                                      */
+  /* =============================================================== */
+  var outboxRunning = false;
+
+  window.resetOutbox = function() {
+    outboxRunning = false;
+    ['outbox-orders-ok', 'outbox-outbox-ok', 'outbox-orders-fail', 'outbox-outbox-fail',
+     'outbox-commit-label', 'outbox-rollback-label', 'outbox-packet-1', 'outbox-packet-2',
+     'outbox-relay-ok'].forEach(hide);
+    var txnBorder = el('outbox-txn-border');
+    if (txnBorder) txnBorder.setAttribute('stroke', 'var(--accent-blue)');
+    var txnLabel = el('outbox-txn-label');
+    if (txnLabel) txnLabel.setAttribute('fill', 'var(--accent-blue)');
+    setCommentary('outbox-commentary', 'Use the buttons above to animate the transactional outbox pattern. "Both commit" shows atomicity: the business row and the outbox row land in one transaction. "Rollback" shows that if either fails, both are rolled back -- no ghost events, no missing events. "Relay publishes" shows the async publishing step.');
+    enableButtons(['btn-outbox-ok', 'btn-outbox-fail', 'btn-outbox-relay']);
+  };
+
+  window.runOutboxAnimation = function(mode) {
+    if (outboxRunning) return;
+    outboxRunning = true;
+    resetOutbox();
+    outboxRunning = true;
+    disableButtons(['btn-outbox-ok', 'btn-outbox-fail', 'btn-outbox-relay']);
+
+    var txnBorder = el('outbox-txn-border');
+    var txnLabel = el('outbox-txn-label');
+
+    if (mode === 'success') {
+      setCommentary('outbox-commentary', 'BEGIN transaction. App inserts into both tables within the same DB transaction...');
+
+      setTimeout(function() {
+        show('outbox-orders-ok');
+        setCommentary('outbox-commentary', 'INSERT INTO orders -- business row written.');
+      }, 600);
+
+      setTimeout(function() {
+        show('outbox-outbox-ok');
+        setCommentary('outbox-commentary', 'INSERT INTO outbox -- event staging row written. Both rows in same transaction.');
+      }, 1200);
+
+      setTimeout(function() {
+        txnBorder.setAttribute('stroke', 'var(--accent-green)');
+        txnLabel.setAttribute('fill', 'var(--accent-green)');
+        show('outbox-commit-label');
+        setCommentary('outbox-commentary', 'COMMIT. Both rows are now durable. The order exists AND its event is staged for publishing. Atomicity guaranteed by the database -- no dual-write, no inconsistency window.');
+        outboxRunning = false;
+        enableButtons(['btn-outbox-ok', 'btn-outbox-fail', 'btn-outbox-relay']);
+      }, 2000);
+
+    } else if (mode === 'rollback') {
+      setCommentary('outbox-commentary', 'BEGIN transaction. App attempts to insert the order row...');
+
+      setTimeout(function() {
+        show('outbox-orders-fail');
+        setCommentary('outbox-commentary', 'INSERT INTO orders fails -- constraint violation (duplicate order ID, foreign key violation, etc.).');
+      }, 600);
+
+      setTimeout(function() {
+        show('outbox-outbox-fail');
+        txnBorder.setAttribute('stroke', 'var(--accent-red)');
+        txnLabel.setAttribute('fill', 'var(--accent-red)');
+        show('outbox-rollback-label');
+        setCommentary('outbox-commentary', 'ROLLBACK. Neither the business row nor the outbox row persists. No ghost event will ever be published for this failed order. This is the key advantage: the outbox row shares the fate of the business row, always.');
+        outboxRunning = false;
+        enableButtons(['btn-outbox-ok', 'btn-outbox-fail', 'btn-outbox-relay']);
+      }, 1400);
+    }
+  };
+
+  window.runOutboxRelay = function() {
+    if (outboxRunning) return;
+    outboxRunning = true;
+    disableButtons(['btn-outbox-ok', 'btn-outbox-fail', 'btn-outbox-relay']);
+
+    setCommentary('outbox-commentary', 'Relay process polls: SELECT * FROM outbox WHERE processed = false ...');
+
+    // Packet: outbox table -> relay
+    setTimeout(function() {
+      animatePacket('outbox-packet-1', 325, 195, 325, 290, 600).then(function() {
+        setCommentary('outbox-commentary', 'Relay picks up unprocessed outbox row. Now publishing to Kafka...');
+      });
+    }, 600);
+
+    // Packet: relay -> kafka
+    setTimeout(function() {
+      animatePacket('outbox-packet-2', 390, 315, 530, 315, 700).then(function() {
+        show('outbox-relay-ok');
+        setCommentary('outbox-commentary', 'Event published to Kafka. Relay marks the outbox row as processed (UPDATE outbox SET processed = true WHERE id = ...) or deletes it. If the relay crashes after publishing but before marking processed, the event gets re-published on restart -- Kafka\'s idempotent producer deduplicates it by producer-id + sequence number.');
+        outboxRunning = false;
+        enableButtons(['btn-outbox-ok', 'btn-outbox-fail', 'btn-outbox-relay']);
+      });
+    }, 1800);
+  };
+
+  /* =============================================================== */
+  /* SECTION 4: Inbox Animation                                       */
+  /* =============================================================== */
+  var inboxRunning = false;
+
+  window.resetInbox = function() {
+    inboxRunning = false;
+    ['inbox-row-1', 'inbox-row-1-ts', 'inbox-row-2', 'inbox-row-2-ts',
+     'inbox-reject', 'inbox-result-1', 'inbox-result-2', 'inbox-result-dup'].forEach(hide);
+    // Reset event box styles
+    var evtA = el('inbox-evt-a');
+    var evtB = el('inbox-evt-b');
+    var evtDup = el('inbox-evt-dup');
+    if (evtA) evtA.setAttribute('opacity', '1');
+    if (evtB) evtB.setAttribute('opacity', '1');
+    if (evtDup) evtDup.setAttribute('opacity', '1');
+    setCommentary('inbox-commentary', 'Click "Animate" to watch three events arrive at the consumer -- two unique and one duplicate. The inbox table\'s primary key constraint catches the duplicate, preventing double-processing.');
+    enableButtons(['btn-inbox']);
+  };
+
+  window.runInboxAnimation = function() {
+    if (inboxRunning) return;
+    inboxRunning = true;
+    resetInbox();
+    inboxRunning = true;
+    disableButtons(['btn-inbox']);
+
+    // Event 1: evt-1 arrives, processed successfully
+    setCommentary('inbox-commentary', 'Event evt-1 arrives. Consumer attempts INSERT INTO inbox (event_id) VALUES (\'evt-1\')...');
+
+    setTimeout(function() {
+      show('inbox-row-1');
+      show('inbox-row-1-ts');
+      show('inbox-result-1');
+      setCommentary('inbox-commentary', 'evt-1: INSERT succeeded (new event_id). Consumer processes the event -- charges $99. Business logic and inbox INSERT in same transaction.');
+    }, 800);
+
+    // Event 2: evt-2 arrives, processed successfully
+    setTimeout(function() {
+      setCommentary('inbox-commentary', 'Event evt-2 arrives. Consumer attempts INSERT INTO inbox (event_id) VALUES (\'evt-2\')...');
+    }, 2000);
+
+    setTimeout(function() {
+      show('inbox-row-2');
+      show('inbox-row-2-ts');
+      show('inbox-result-2');
+      setCommentary('inbox-commentary', 'evt-2: INSERT succeeded. Consumer processes -- charges $49.');
+    }, 2800);
+
+    // Event 3: evt-1 (duplicate) arrives, rejected
+    setTimeout(function() {
+      setCommentary('inbox-commentary', 'evt-1 arrives AGAIN (Kafka at-least-once redelivery). Consumer attempts INSERT INTO inbox (event_id) VALUES (\'evt-1\')...');
+    }, 4000);
+
+    setTimeout(function() {
+      show('inbox-reject');
+      show('inbox-result-dup');
+      var evtDup = el('inbox-evt-dup');
+      if (evtDup) evtDup.setAttribute('opacity', '0.3');
+      setCommentary('inbox-commentary', 'evt-1 duplicate: INSERT fails with primary key violation -- event_id \'evt-1\' already exists. Consumer skips processing. No double charge. The user is charged exactly once despite at-least-once delivery.');
+      inboxRunning = false;
+      enableButtons(['btn-inbox']);
+    }, 4800);
+  };
+
+  /* =============================================================== */
+  /* SECTION 5: Saga Animation                                        */
+  /* =============================================================== */
+  var sagaRunning = false;
+
+  window.resetSaga = function() {
+    sagaRunning = false;
+    ['saga-step-1', 'saga-step-2', 'saga-step-3-ok', 'saga-step-3-fail',
+     'saga-comp-arrows', 'saga-comp-1', 'saga-comp-2',
+     'saga-final-ok', 'saga-final-fail'].forEach(hide);
+    // Reset service box colors
+    ['saga-svc-1', 'saga-svc-2', 'saga-svc-3'].forEach(function(id) {
+      var e = el(id);
+      if (e) e.setAttribute('stroke', 'var(--border)');
+    });
+    setCommentary('saga-commentary', 'Animate the happy path (all 3 steps succeed) or the compensation path (step 3 fails, triggering compensating actions in reverse order via outbox events). Each compensation handler uses an inbox table for idempotency.');
+    enableButtons(['btn-saga-ok', 'btn-saga-fail']);
+  };
+
+  window.runSagaAnimation = function(mode) {
+    if (sagaRunning) return;
+    sagaRunning = true;
+    resetSaga();
+    sagaRunning = true;
+    disableButtons(['btn-saga-ok', 'btn-saga-fail']);
+
+    // Step 1: Order service
+    setCommentary('saga-commentary', 'Step 1: Orchestrator tells Order Service to create order. Order Service writes order + outbox row (OrderCreated) in one transaction.');
+    setTimeout(function() {
+      el('saga-svc-1').setAttribute('stroke', 'var(--accent-green)');
+      show('saga-step-1');
+      setCommentary('saga-commentary', 'Step 1 complete. OrderCreated event published via outbox. Orchestrator receives it via inbox.');
+    }, 1000);
+
+    // Step 2: Payment service
+    setTimeout(function() {
+      setCommentary('saga-commentary', 'Step 2: Orchestrator tells Payment Service to charge. Payment Service writes charge + outbox row (PaymentCharged) in one transaction.');
+    }, 2000);
+    setTimeout(function() {
+      el('saga-svc-2').setAttribute('stroke', 'var(--accent-green)');
+      show('saga-step-2');
+      setCommentary('saga-commentary', 'Step 2 complete. PaymentCharged event published via outbox.');
+    }, 3000);
+
+    // Step 3: Inventory service
+    setTimeout(function() {
+      setCommentary('saga-commentary', 'Step 3: Orchestrator tells Inventory Service to reserve stock...');
+    }, 4000);
+
+    if (mode === 'happy') {
+      setTimeout(function() {
+        el('saga-svc-3').setAttribute('stroke', 'var(--accent-green)');
+        show('saga-step-3-ok');
+        show('saga-final-ok');
+        setCommentary('saga-commentary', 'Step 3 complete. StockReserved event published. All 3 steps committed successfully. The saga is complete. Every step used outbox for atomic event publishing; every consumer used inbox for dedup.');
+        sagaRunning = false;
+        enableButtons(['btn-saga-ok', 'btn-saga-fail']);
+      }, 5000);
+
+    } else if (mode === 'compensate') {
+      setTimeout(function() {
+        el('saga-svc-3').setAttribute('stroke', 'var(--accent-red)');
+        show('saga-step-3-fail');
+        setCommentary('saga-commentary', 'Step 3 FAILED (out of stock). Inventory Service publishes StockReservationFailed via outbox. Orchestrator receives it and begins compensation in reverse order...');
+      }, 5000);
+
+      // Compensation: refund payment
+      setTimeout(function() {
+        show('saga-comp-arrows');
+        setCommentary('saga-commentary', 'Compensating step 2: Orchestrator publishes RefundPayment command via its outbox. Payment Service receives it, refunds the charge, writes result + outbox row in one transaction. Inbox dedup ensures refund is not applied twice.');
+      }, 6500);
+
+      setTimeout(function() {
+        el('saga-svc-2').setAttribute('stroke', 'var(--accent-orange)');
+        show('saga-comp-2');
+        setCommentary('saga-commentary', 'Payment refunded. Compensating step 1...');
+      }, 7500);
+
+      // Compensation: cancel order
+      setTimeout(function() {
+        el('saga-svc-1').setAttribute('stroke', 'var(--accent-orange)');
+        show('saga-comp-1');
+        show('saga-final-fail');
+        setCommentary('saga-commentary', 'Order cancelled. All compensating actions completed. The saga rolled back gracefully: no money was taken, no stock was reserved, order is marked cancelled. Every compensation used outbox (atomic publish) and inbox (idempotent handling). Without these, any crash mid-compensation leaves the system in a broken state.');
+        sagaRunning = false;
+        enableButtons(['btn-saga-ok', 'btn-saga-fail']);
+      }, 8800);
+    }
+  };
+
+})();
+</script>
+</body>
+</html>

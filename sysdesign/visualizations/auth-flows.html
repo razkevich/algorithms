@@ -1,0 +1,1631 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OAuth2 / OIDC / JWT -- Auth Flows</title>
+<style>
+:root {
+  --bg: #0f0f15;
+  --surface: #181820;
+  --surface-2: #20202a;
+  --border: #2a2a35;
+  --text: #e6e6ea;
+  --text-2: #cfcfd6;
+  --text-3: #888;
+  --accent-red: #ff6b6b;
+  --accent-green: #51cf66;
+  --accent-blue: #339af0;
+  --accent-yellow: #ffd43b;
+  --accent-purple: #cc5de8;
+  --accent-cyan: #8be9fd;
+  --accent-orange: #ffa94d;
+}
+*, *::before, *::after { box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  padding: 32px 24px;
+  max-width: 1100px;
+  margin: 0 auto;
+  line-height: 1.55;
+}
+h1 { color: #fff; margin-bottom: 4px; }
+h1 + p.sub { color: var(--text-3); font-style: italic; margin-top: 0; margin-bottom: 24px; }
+h2 { color: #fff; margin-top: 32px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+h3 { color: var(--text-2); margin-top: 20px; }
+code {
+  background: var(--surface-2);
+  padding: 2px 6px;
+  border-radius: 3px;
+  color: var(--accent-cyan);
+  font-size: 13px;
+}
+svg {
+  background: var(--surface);
+  border-radius: 8px;
+  display: block;
+  margin: 14px auto;
+  width: 100%;
+  height: auto;
+}
+.tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+.tabs button {
+  padding: 10px 20px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-2);
+  border-radius: 6px;
+  cursor: pointer;
+  min-height: 44px;
+  font-size: 14px;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.tabs button:hover { background: var(--surface); }
+.tabs button.active {
+  border-color: var(--accent-blue);
+  border-bottom: 2px solid var(--accent-blue);
+  color: #fff;
+}
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0;
+  align-items: center;
+}
+.controls button, .btn {
+  padding: 10px 16px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  border-radius: 6px;
+  cursor: pointer;
+  min-height: 44px;
+  font-size: 14px;
+  transition: background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+.controls button:hover, .btn:hover { background: var(--surface); }
+.controls button:disabled, .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.controls button.active-btn { border-color: var(--accent-blue); color: var(--accent-blue); }
+.controls button.danger { border-color: var(--accent-red); color: var(--accent-red); }
+.controls button.danger:hover { background: #2a1520; }
+.commentary {
+  background: var(--surface-2);
+  padding: 14px;
+  border-radius: 6px;
+  font-size: 14px;
+  color: var(--text-2);
+  margin: 12px 0;
+  min-height: 44px;
+  line-height: 1.5;
+}
+.takeaway {
+  background: #1a1a22;
+  border-left: 3px solid var(--accent-green);
+  padding: 12px 16px;
+  margin: 14px 0;
+  font-size: 14px;
+}
+.takeaway strong { color: var(--accent-green); }
+.takeaway ul { margin: 6px 0 0 0; padding-left: 18px; }
+.takeaway li { margin-bottom: 6px; }
+section[hidden] { display: none !important; }
+.mono {
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+  font-size: 13px;
+}
+.jwt-container {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+  margin: 14px 0;
+}
+.jwt-raw {
+  word-break: break-all;
+  line-height: 1.8;
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+  font-size: 13px;
+  cursor: pointer;
+  user-select: none;
+}
+.jwt-raw .jwt-header { color: var(--accent-red); }
+.jwt-raw .jwt-payload { color: var(--accent-purple); }
+.jwt-raw .jwt-signature { color: var(--accent-blue); }
+.jwt-raw .jwt-dot { color: var(--text-3); }
+.jwt-raw span:hover { opacity: 0.7; }
+.jwt-decoded {
+  margin-top: 12px;
+  padding: 12px;
+  background: var(--surface-2);
+  border-radius: 6px;
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  min-height: 60px;
+}
+.jwt-decoded .key { color: var(--accent-cyan); }
+.jwt-decoded .str { color: var(--accent-green); }
+.jwt-decoded .num { color: var(--accent-orange); }
+.jwt-decoded .label { color: var(--text-3); font-size: 11px; display: block; margin-bottom: 4px; }
+.deprecated-overlay {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(255, 107, 107, 0.08);
+  pointer-events: none;
+  border-radius: 8px;
+}
+.deprecated-badge {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: var(--accent-red);
+  color: #fff;
+  padding: 4px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+.svg-wrap { position: relative; }
+.attack-scenario {
+  background: var(--surface-2);
+  border: 1px solid var(--accent-red);
+  border-radius: 6px;
+  padding: 12px 16px;
+  margin: 8px 0;
+  font-size: 13px;
+}
+.attack-scenario strong { color: var(--accent-red); }
+.attack-scenario .mitigated { color: var(--accent-green); }
+@media (max-width: 720px) {
+  body { padding: 20px 14px; }
+}
+@media (max-width: 600px) {
+  .tabs { gap: 4px; }
+  .tabs button { padding: 10px 12px; font-size: 13px; flex: 1; min-width: 90px; text-align: center; }
+}
+@media (max-width: 480px) {
+  .controls { flex-direction: column; }
+  .controls button { width: 100%; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>OAuth2 / OIDC / JWT -- flows that matter</h1>
+  <p class="sub">Auth Code + PKCE, client credentials, device grant, JWT structure + validation, token lifecycle. Pick the right grant for the client type. Verify JWTs correctly. Rotate refresh tokens.</p>
+</header>
+
+<nav class="tabs">
+  <button class="active" onclick="setActiveTab('authcode')">Auth Code + PKCE</button>
+  <button onclick="setActiveTab('clientcred')">Client Credentials</button>
+  <button onclick="setActiveTab('device')">Device Grant</button>
+  <button onclick="setActiveTab('deprecated')">Deprecated Grants</button>
+  <button onclick="setActiveTab('oidc')">OIDC + JWT</button>
+  <button onclick="setActiveTab('lifecycle')">Token Lifecycle</button>
+</nav>
+
+<!-- ============================================================ -->
+<!-- TAB 1: AUTH CODE + PKCE                                       -->
+<!-- ============================================================ -->
+<section data-tab="authcode">
+  <h2>Authorization Code with PKCE</h2>
+  <p>The modern universal default. Works for SPAs, mobile apps, and confidential server-side clients. PKCE (Proof Key for Code Exchange) replaces the client secret requirement with a dynamic verifier -- making the flow safe even when the client cannot keep secrets.</p>
+
+  <svg id="ac-svg" viewBox="0 0 920 560" preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <marker id="ac-arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="#555"/>
+      </marker>
+      <marker id="ac-arrow-green" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="#51cf66"/>
+      </marker>
+      <marker id="ac-arrow-red" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="#ff6b6b"/>
+      </marker>
+    </defs>
+    <g id="ac-scene"></g>
+  </svg>
+
+  <div class="controls">
+    <button onclick="AC.play()" id="ac-btn-play">Play Full Flow</button>
+    <button onclick="AC.step()" id="ac-btn-step">Step</button>
+    <button onclick="AC.showAttack('csrf')" class="danger">Attack: CSRF</button>
+    <button onclick="AC.showAttack('intercept')" class="danger">Attack: Code Intercept</button>
+    <button onclick="AC.reset()">Reset</button>
+  </div>
+
+  <div class="commentary" id="ac-commentary">Click "Play Full Flow" to animate the Authorization Code + PKCE grant step by step, or use "Step" to advance one message at a time.</div>
+
+  <div class="takeaway">
+    <strong>Takeaways</strong>
+    <ul>
+      <li>Auth Code + PKCE is the universal modern default -- works for SPA, mobile, and confidential clients. Even web apps with a backend should use PKCE.</li>
+      <li>PKCE protects against intercepted auth codes: attacker needs <code>code_verifier</code> which only the legitimate client has.</li>
+      <li><code>state</code> parameter prevents CSRF -- attacker cannot predict the random state value bound to the user's session.</li>
+      <li>The <strong>implicit grant is dead</strong>. Auth Code + PKCE replaced it for all client types.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- TAB 2: CLIENT CREDENTIALS                                     -->
+<!-- ============================================================ -->
+<section data-tab="clientcred" hidden>
+  <h2>Client Credentials (Service-to-Service)</h2>
+  <p>No user involved. The token represents the <em>client identity</em>, not a user. Used for M2M (machine-to-machine) communication: cron jobs calling internal APIs, microservice-to-microservice auth, batch processors.</p>
+
+  <svg id="cc-svg" viewBox="0 0 920 360" preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <marker id="cc-arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="#555"/>
+      </marker>
+    </defs>
+    <g id="cc-scene"></g>
+  </svg>
+
+  <div class="controls">
+    <button onclick="CC.play()" id="cc-btn-play">Play Flow</button>
+    <button onclick="CC.step()" id="cc-btn-step">Step</button>
+    <button onclick="CC.showMTLS()">Show mTLS Variant</button>
+    <button onclick="CC.reset()">Reset</button>
+  </div>
+
+  <div class="commentary" id="cc-commentary">Click "Play Flow" to animate the client credentials grant. No user interaction -- just service-to-service authentication.</div>
+
+  <div class="takeaway">
+    <strong>Takeaways</strong>
+    <ul>
+      <li>Client credentials = M2M. No user context. No refresh token (just request a new one before expiry).</li>
+      <li>mTLS-bound tokens (RFC 8705): bind token to client cert so a stolen token cannot be used by another client.</li>
+      <li>Service mesh (Istio, Linkerd) can inject tokens transparently -- the application never manages credentials directly.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- TAB 3: DEVICE AUTHORIZATION GRANT                             -->
+<!-- ============================================================ -->
+<section data-tab="device" hidden>
+  <h2>Device Authorization Grant</h2>
+  <p>For input-constrained devices (Smart TVs, CLI tools, IoT) that cannot run a browser. Decouples the authentication device from the authorization device -- same pattern as <code>gh auth login</code>.</p>
+
+  <svg id="dv-svg" viewBox="0 0 920 440" preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <marker id="dv-arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="#555"/>
+      </marker>
+    </defs>
+    <g id="dv-scene"></g>
+  </svg>
+
+  <div class="controls">
+    <button onclick="DV.play()" id="dv-btn-play">Play Flow</button>
+    <button onclick="DV.step()" id="dv-btn-step">Step</button>
+    <button onclick="DV.reset()">Reset</button>
+  </div>
+
+  <div class="commentary" id="dv-commentary">Click "Play Flow" to animate the device authorization grant. The TV polls while the user authenticates on their phone.</div>
+
+  <div class="takeaway">
+    <strong>Takeaways</strong>
+    <ul>
+      <li>Device grant = decouple authentication device from authorization device. Same pattern as <code>gh auth login</code> (CLI tool gets you to authenticate in browser).</li>
+      <li>Polling interval is server-specified; the client must respect it (Auth Server returns <code>slow_down</code> if too frequent).</li>
+      <li>The <code>user_code</code> is short-lived (typically 15 min) and single-use.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- TAB 4: DEPRECATED GRANTS                                      -->
+<!-- ============================================================ -->
+<section data-tab="deprecated" hidden>
+  <h2>Deprecated Grants</h2>
+  <p>These exist for legacy migration only. If you see them in a 2024+ design, flag them.</p>
+
+  <h3>Implicit Grant (deprecated)</h3>
+  <div class="svg-wrap">
+    <svg id="im-svg" viewBox="0 0 920 320" preserveAspectRatio="xMidYMid meet">
+      <defs>
+        <marker id="im-arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+          <path d="M0,0 L10,5 L0,10 Z" fill="#555"/>
+        </marker>
+      </defs>
+      <g id="im-scene"></g>
+    </svg>
+    <div class="deprecated-overlay"></div>
+    <div class="deprecated-badge">DEPRECATED</div>
+  </div>
+
+  <div class="controls">
+    <button onclick="IM.play()" id="im-btn-play">Play Implicit Flow</button>
+    <button onclick="IM.reset()">Reset</button>
+  </div>
+
+  <div class="commentary" id="im-commentary">The implicit flow returns the access token directly in the URL fragment. This exposes tokens to browser history, referrer headers, and logs. Replaced by Auth Code + PKCE.</div>
+
+  <h3>Resource Owner Password Credentials (deprecated)</h3>
+  <div class="svg-wrap">
+    <svg id="ropc-svg" viewBox="0 0 920 240" preserveAspectRatio="xMidYMid meet">
+      <defs>
+        <marker id="ropc-arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+          <path d="M0,0 L10,5 L0,10 Z" fill="#555"/>
+        </marker>
+      </defs>
+      <g id="ropc-scene"></g>
+    </svg>
+    <div class="deprecated-overlay"></div>
+    <div class="deprecated-badge">DEPRECATED</div>
+  </div>
+  <div class="controls">
+    <button onclick="ROPC.play()" id="ropc-btn-play">Play ROPC Flow</button>
+    <button onclick="ROPC.reset()">Reset</button>
+  </div>
+  <div class="attack-scenario">
+    <strong>Why deprecated:</strong> The client collects the user's username and password directly, then sends them to the Auth Server. The client sees the user's credentials -- a trust violation. Only acceptable for first-party legacy migration where you own both the client and the auth server, and are transitioning to a proper flow.
+  </div>
+
+  <h3>Grant Selection Decision Matrix</h3>
+  <div class="jwt-container" style="overflow-x:auto;">
+    <table style="width:100%;border-collapse:collapse;font-size:13px;">
+      <thead>
+        <tr style="border-bottom:2px solid var(--border);">
+          <th style="text-align:left;padding:8px;color:var(--accent-blue);">Client Type</th>
+          <th style="text-align:left;padding:8px;color:var(--accent-blue);">Grant</th>
+          <th style="text-align:left;padding:8px;color:var(--accent-blue);">User?</th>
+          <th style="text-align:left;padding:8px;color:var(--accent-blue);">Secret Safe?</th>
+          <th style="text-align:left;padding:8px;color:var(--accent-blue);">Key Detail</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr style="border-bottom:1px solid var(--border);">
+          <td style="padding:8px;color:var(--text);">SPA (browser)</td>
+          <td style="padding:8px;color:var(--accent-green);">Auth Code + PKCE</td>
+          <td style="padding:8px;">Yes</td>
+          <td style="padding:8px;color:var(--accent-red);">No</td>
+          <td style="padding:8px;color:var(--text-3);">No client_secret; PKCE replaces it</td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border);">
+          <td style="padding:8px;color:var(--text);">Mobile app</td>
+          <td style="padding:8px;color:var(--accent-green);">Auth Code + PKCE</td>
+          <td style="padding:8px;">Yes</td>
+          <td style="padding:8px;color:var(--accent-red);">No</td>
+          <td style="padding:8px;color:var(--text-3);">Custom URL scheme for redirect_uri</td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border);">
+          <td style="padding:8px;color:var(--text);">Web app (server)</td>
+          <td style="padding:8px;color:var(--accent-green);">Auth Code + PKCE</td>
+          <td style="padding:8px;">Yes</td>
+          <td style="padding:8px;color:var(--accent-green);">Yes</td>
+          <td style="padding:8px;color:var(--text-3);">Can also use client_secret; PKCE still recommended</td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border);">
+          <td style="padding:8px;color:var(--text);">Service / daemon</td>
+          <td style="padding:8px;color:var(--accent-cyan);">Client Credentials</td>
+          <td style="padding:8px;">No</td>
+          <td style="padding:8px;color:var(--accent-green);">Yes</td>
+          <td style="padding:8px;color:var(--text-3);">M2M; use mTLS for cert-bound tokens</td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border);">
+          <td style="padding:8px;color:var(--text);">Smart TV / CLI</td>
+          <td style="padding:8px;color:var(--accent-yellow);">Device Authorization</td>
+          <td style="padding:8px;">Yes</td>
+          <td style="padding:8px;color:var(--accent-red);">No</td>
+          <td style="padding:8px;color:var(--text-3);">No browser; user authenticates on separate device</td>
+        </tr>
+        <tr>
+          <td style="padding:8px;color:var(--text);">Legacy first-party</td>
+          <td style="padding:8px;color:var(--accent-red);">ROPC (migrate away)</td>
+          <td style="padding:8px;">Yes</td>
+          <td style="padding:8px;">N/A</td>
+          <td style="padding:8px;color:var(--text-3);">Client sees password; temporary only</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="takeaway">
+    <strong>Takeaways</strong>
+    <ul>
+      <li>If you see implicit or password grant in 2024+, it is a legacy migration. Default to Auth Code + PKCE.</li>
+      <li>Implicit exposed tokens in URL fragments -- browser history, referrer headers, server logs all become attack vectors.</li>
+      <li>Implicit had no refresh tokens -- forced re-authentication or silent iframe hacks.</li>
+      <li>The interview tell: name the right grant for the client type. SPA/mobile/web = Auth Code + PKCE. Service = Client Credentials. TV/CLI = Device Grant.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- TAB 5: OIDC + JWT                                             -->
+<!-- ============================================================ -->
+<section data-tab="oidc" hidden>
+  <h2>OIDC + ID Token + JWT Structure</h2>
+  <p>OpenID Connect = OAuth2 + identity layer. The Auth Server issues an <code>id_token</code> (a JWT) alongside the access token. The id_token carries user identity claims -- who they are, not what they can do.</p>
+
+  <h3>JWT Structure: <code>header.payload.signature</code></h3>
+  <p>Click each colored section below to decode it.</p>
+
+  <div class="jwt-container">
+    <div class="jwt-raw" id="jwt-raw"></div>
+    <div class="jwt-decoded" id="jwt-decoded">Click a colored section above to decode it.</div>
+  </div>
+
+  <h3>Token Validation Steps (Resource Server)</h3>
+  <svg id="jv-svg" viewBox="0 0 920 280" preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <marker id="jv-arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="#555"/>
+      </marker>
+    </defs>
+    <g id="jv-scene"></g>
+  </svg>
+
+  <div class="controls">
+    <button onclick="JV.playValidation()" id="jv-btn-play">Animate Validation</button>
+    <button onclick="JV.reset()">Reset</button>
+  </div>
+
+  <div class="commentary" id="jv-commentary">JWT = self-describing token, verifiable without server lookup (vs opaque tokens which require introspection). Click the JWT parts above to decode, or animate the validation pipeline.</div>
+
+  <h3>HS256 vs RS256</h3>
+  <div class="attack-scenario" style="border-color: var(--accent-blue);">
+    <strong style="color: var(--accent-blue);">HS256 (symmetric):</strong> Shared secret between auth server and resource server. Works for monoliths. Dangerous for cross-org -- everyone who validates can also forge tokens.<br><br>
+    <strong style="color: var(--accent-blue);">RS256 (asymmetric):</strong> Auth server signs with private key; resource servers verify with public key (fetched from <code>/.well-known/jwks.json</code>). Standard for cross-team API auth. Resource servers can verify but never forge.
+  </div>
+
+  <div class="takeaway">
+    <strong>Takeaways</strong>
+    <ul>
+      <li>JWT = self-describing token, verifiable without server lookup (vs opaque tokens which require introspection). RS256 + JWKS = the cross-service standard.</li>
+      <li>JWS (signed) vs JWE (encrypted): JWS is far more common -- the payload is readable but tamper-evident. JWE encrypts the payload itself.</li>
+      <li>Validation order: decode header, fetch public key by <code>kid</code> from JWKS, verify signature, check <code>exp</code>/<code>nbf</code>, check <code>iss</code>/<code>aud</code>, check scopes.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- TAB 6: TOKEN LIFECYCLE                                        -->
+<!-- ============================================================ -->
+<section data-tab="lifecycle" hidden>
+  <h2>Token Lifecycle -- Access vs Refresh</h2>
+  <p>Short access tokens (5-15 min) for every API call. Long refresh tokens (days-months) used only at <code>/token</code> to mint new access tokens. Rotation detects theft.</p>
+
+  <svg id="tl-svg" viewBox="0 0 920 480" preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <marker id="tl-arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="#555"/>
+      </marker>
+      <marker id="tl-arrow-green" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="#51cf66"/>
+      </marker>
+      <marker id="tl-arrow-red" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="#ff6b6b"/>
+      </marker>
+    </defs>
+    <g id="tl-scene"></g>
+  </svg>
+
+  <div class="controls">
+    <button onclick="TL.playNormal()" id="tl-btn-normal">Normal Lifecycle</button>
+    <button onclick="TL.playRotation()" id="tl-btn-rotate">Refresh Rotation</button>
+    <button onclick="TL.playTheft()" id="tl-btn-theft" class="danger">Token Theft Detection</button>
+    <button onclick="TL.reset()">Reset</button>
+  </div>
+
+  <div class="commentary" id="tl-commentary">Choose a scenario to animate. Normal lifecycle shows access token expiry and refresh. Rotation shows how each refresh yields a new refresh token. Theft detection shows what happens when an attacker uses a stolen refresh token.</div>
+
+  <div class="takeaway">
+    <strong>Takeaways</strong>
+    <ul>
+      <li>Short access + long refresh + rotation = the right shape. JWT cannot be revoked instantly without a blocklist; embrace short expiry instead.</li>
+      <li>Refresh token rotation: each use returns a new refresh token; the old one is invalidated. If attacker uses stolen refresh, victim's next refresh fails -- breach detected, all sessions invalidated.</li>
+      <li>Access tokens in memory (SPA) or httpOnly cookie (web app). Refresh tokens always in secure storage (httpOnly, Secure, SameSite=Strict).</li>
+    </ul>
+  </div>
+</section>
+
+<script>
+/* ================================================================
+   SHARED UTILITIES
+   ================================================================ */
+function delay(ms) { return new Promise(function(r) { setTimeout(r, ms); }); }
+
+var TAB_NAMES = ['authcode', 'clientcred', 'device', 'deprecated', 'oidc', 'lifecycle'];
+
+function setActiveTab(name) {
+  var btns = document.querySelectorAll('nav.tabs button');
+  btns.forEach(function(b, i) { b.classList.toggle('active', TAB_NAMES[i] === name); });
+  document.querySelectorAll('section[data-tab]').forEach(function(s) {
+    s.hidden = s.getAttribute('data-tab') !== name;
+  });
+}
+
+function svgEl(tag, attrs) {
+  var el = document.createElementNS('http://www.w3.org/2000/svg', tag);
+  if (attrs) { for (var k in attrs) { el.setAttribute(k, attrs[k]); } }
+  return el;
+}
+
+function svgText(x, y, text, opts) {
+  var t = svgEl('text', Object.assign({
+    x: x, y: y, 'text-anchor': 'middle', fill: '#888', 'font-size': '11'
+  }, opts || {}));
+  t.textContent = text;
+  return t;
+}
+
+function svgRect(x, y, w, h, fill, stroke, rx) {
+  return svgEl('rect', {
+    x: x, y: y, width: w, height: h, rx: rx || 8,
+    fill: fill || 'var(--surface)', stroke: stroke || 'var(--border)', 'stroke-width': '2'
+  });
+}
+
+function svgLine(x1, y1, x2, y2, color, marker, dashed) {
+  var attrs = { x1: x1, y1: y1, x2: x2, y2: y2, stroke: color || '#555', 'stroke-width': '1.5' };
+  if (marker) attrs['marker-end'] = marker;
+  if (dashed) attrs['stroke-dasharray'] = '5,4';
+  return svgEl('line', attrs);
+}
+
+/* Animate a line being drawn from (x1,y1) to (x2,y2) with a label */
+function drawArrow(scene, x1, y1, x2, y2, label, color, markerRef, durMs) {
+  var g = svgEl('g', { opacity: '0' });
+  var line = svgLine(x1, y1, x2, y2, color || '#555', markerRef);
+  g.appendChild(line);
+  if (label) {
+    var mx = (x1 + x2) / 2;
+    var my = (y1 + y2) / 2 - 8;
+    var lbl = svgText(mx, my, label, { fill: color || '#aaa', 'font-size': '10', 'font-weight': '600' });
+    g.appendChild(lbl);
+  }
+  scene.appendChild(g);
+  /* Fade in */
+  requestAnimationFrame(function() {
+    g.style.transition = 'opacity ' + (durMs || 400) + 'ms ease';
+    g.setAttribute('opacity', '1');
+  });
+  return g;
+}
+
+/* Draw a message arrow for sequence diagrams */
+function seqArrow(scene, fromX, toX, y, label, sublabel, color, markerRef, durMs) {
+  var g = svgEl('g', { opacity: '0' });
+  var line = svgLine(fromX, y, toX, y, color || '#555', markerRef);
+  g.appendChild(line);
+
+  var midX = (fromX + toX) / 2;
+  if (label) {
+    var lbl = svgText(midX, y - 10, label, { fill: color || '#ccc', 'font-size': '10', 'font-weight': '600' });
+    g.appendChild(lbl);
+  }
+  if (sublabel) {
+    var sub = svgText(midX, y - 22, sublabel, { fill: '#666', 'font-size': '9' });
+    g.appendChild(sub);
+  }
+  scene.appendChild(g);
+  requestAnimationFrame(function() {
+    g.style.transition = 'opacity ' + (durMs || 400) + 'ms ease';
+    g.setAttribute('opacity', '1');
+  });
+  return g;
+}
+
+/* Pulse a box border */
+function pulseBox(el, color, durMs) {
+  el.setAttribute('stroke', color);
+  el.setAttribute('stroke-width', '3');
+  setTimeout(function() {
+    el.setAttribute('stroke-width', '2');
+  }, durMs || 600);
+}
+
+/* ================================================================
+   TAB 1 -- AUTHORIZATION CODE + PKCE
+   ================================================================ */
+var AC = (function() {
+  var scene;
+  var currentStep = -1;
+  var playing = false;
+  var elements = {};
+
+  /* Lifeline positions */
+  var COL = { user: 100, client: 300, authSrv: 560, resSrv: 800 };
+  var TOP = 70;
+  var LIFELINE_H = 460;
+  var STEP_H = 52;
+
+  function drawBase() {
+    scene = document.getElementById('ac-scene');
+    scene.innerHTML = '';
+
+    /* Column headers */
+    var cols = [
+      { x: COL.user, label: 'User Agent', sub: '(Browser / App)', color: '#ffd43b' },
+      { x: COL.client, label: 'Client', sub: '(Your Web App)', color: '#51cf66' },
+      { x: COL.authSrv, label: 'Auth Server', sub: '(Auth0 / Cognito)', color: '#cc5de8' },
+      { x: COL.resSrv, label: 'Resource Server', sub: '(Your API)', color: '#339af0' }
+    ];
+    cols.forEach(function(c) {
+      var box = svgRect(c.x - 65, 10, 130, 50, 'var(--surface)', c.color);
+      elements[c.label] = box;
+      scene.appendChild(box);
+      scene.appendChild(svgText(c.x, 33, c.label, { fill: c.color, 'font-size': '12', 'font-weight': '700' }));
+      scene.appendChild(svgText(c.x, 48, c.sub, { fill: '#666', 'font-size': '9' }));
+    });
+
+    /* Lifelines */
+    cols.forEach(function(c) {
+      scene.appendChild(svgLine(c.x, TOP, c.x, TOP + LIFELINE_H, '#333', null, true));
+    });
+  }
+
+  var steps = [
+    {
+      from: 'user', to: 'client',
+      label: '1. User clicks "Login"',
+      sub: '',
+      commentary: 'Step 1: User initiates login. Client generates code_verifier (43-128 char random string) and code_challenge = base64url(SHA256(code_verifier)). The verifier stays on the client; only the challenge is sent to the Auth Server.'
+    },
+    {
+      from: 'client', to: 'authSrv',
+      label: '2. Redirect to /authorize',
+      sub: 'client_id, redirect_uri, state, code_challenge, S256',
+      commentary: 'Step 2: Client redirects user to Auth Server\'s /authorize endpoint. Parameters: client_id (identifies the app), redirect_uri (where to come back), state (CSRF protection -- random, bound to session), code_challenge (SHA256 hash of verifier), code_challenge_method=S256.'
+    },
+    {
+      from: 'user', to: 'authSrv',
+      label: '3. User authenticates',
+      sub: 'Login form, MFA, consent',
+      commentary: 'Step 3: User authenticates directly with the Auth Server. The client never sees the user\'s password -- this is the core security property of the authorization code flow. MFA, social login, passkeys -- all handled by the Auth Server.'
+    },
+    {
+      from: 'authSrv', to: 'user',
+      label: '4. Redirect to redirect_uri',
+      sub: 'code=abc123&state=xyz',
+      commentary: 'Step 4: Auth Server redirects back to redirect_uri with a one-time authorization code (short-lived, ~60 seconds) and the state parameter. Client verifies state matches what it sent -- if not, it is a CSRF attack.'
+    },
+    {
+      from: 'client', to: 'authSrv',
+      label: '5. POST /token',
+      sub: 'grant_type=authorization_code, code, code_verifier',
+      commentary: 'Step 5: Client backend exchanges the auth code at /token. Sends: grant_type=authorization_code, code, redirect_uri, code_verifier. Auth Server computes SHA256(code_verifier) and verifies it matches the code_challenge from step 2. This is PKCE -- even if an attacker intercepted the code, they cannot exchange it without the verifier.'
+    },
+    {
+      from: 'authSrv', to: 'client',
+      label: '6. Token response',
+      sub: '{access_token, refresh_token, id_token, expires_in}',
+      commentary: 'Step 6: Auth Server returns: access_token (short-lived, 5-15 min), refresh_token (long-lived, days-months), id_token (JWT with user identity, if OIDC), expires_in. The access token is what the client uses for API requests.'
+    },
+    {
+      from: 'client', to: 'resSrv',
+      label: '7. API request',
+      sub: 'Authorization: Bearer <access_token>',
+      commentary: 'Step 7: Client makes API requests with the access token in the Authorization header. The token is opaque to the client -- it just passes it along. Bearer scheme means "whoever bears this token gets access" (hence the importance of short expiry + HTTPS).'
+    },
+    {
+      from: 'resSrv', to: 'client',
+      label: '8. Response (200 OK)',
+      sub: 'Validates JWT: signature, exp, iss, aud, scope',
+      commentary: 'Step 8: Resource Server validates the JWT -- checks signature (RS256 with public key from JWKS), expiry (exp), issuer (iss), audience (aud), and scopes. All stateless -- no call to the Auth Server needed. If valid, serves the request.'
+    }
+  ];
+
+  function getStepY(idx) { return TOP + 20 + idx * STEP_H; }
+
+  function getCol(name) { return COL[name]; }
+
+  function showStep(idx) {
+    if (idx >= steps.length) return;
+    var s = steps[idx];
+    var fromX = getCol(s.from);
+    var toX = getCol(s.to);
+    var y = getStepY(idx);
+    var color = fromX < toX ? '#8be9fd' : '#ffa94d';
+    var marker = fromX < toX ? 'url(#ac-arrow)' : 'url(#ac-arrow)';
+
+    seqArrow(scene, fromX, toX, y, s.label, s.sub, color, marker, 500);
+
+    /* Step number badge */
+    var badge = svgEl('circle', { cx: fromX, cy: y, r: 6, fill: color, opacity: '0.7' });
+    scene.appendChild(badge);
+
+    document.getElementById('ac-commentary').textContent = s.commentary;
+    currentStep = idx;
+  }
+
+  async function play() {
+    if (playing) return;
+    playing = true;
+    reset();
+    for (var i = 0; i < steps.length; i++) {
+      showStep(i);
+      await delay(1800);
+    }
+    document.getElementById('ac-commentary').textContent = 'Flow complete. The client now has an access token for API calls, a refresh token for renewal, and (with OIDC) an id_token with user identity. Use the attack buttons to see how state and PKCE protect against common threats.';
+    playing = false;
+  }
+
+  function step() {
+    if (playing) return;
+    var next = currentStep + 1;
+    if (next >= steps.length) {
+      document.getElementById('ac-commentary').textContent = 'All steps shown. Click Reset to start over, or try an attack scenario.';
+      return;
+    }
+    showStep(next);
+  }
+
+  function showAttack(type) {
+    if (type === 'csrf') {
+      document.getElementById('ac-commentary').innerHTML =
+        '<strong style="color:var(--accent-red)">Attack: CSRF on redirect</strong> -- ' +
+        'Attacker crafts a malicious redirect_uri pointing to their own server to capture the auth code. ' +
+        '<span class="mitigated" style="color:var(--accent-green)">Mitigation: the state parameter.</span> ' +
+        'Client generates a random state value tied to the user\'s session. On callback, client verifies state matches. ' +
+        'Attacker cannot predict the state value, so the forged redirect is rejected. ' +
+        'Additionally, the Auth Server validates redirect_uri against pre-registered values -- attacker\'s URI is rejected outright.';
+    } else if (type === 'intercept') {
+      document.getElementById('ac-commentary').innerHTML =
+        '<strong style="color:var(--accent-red)">Attack: Authorization code interception</strong> -- ' +
+        'On mobile, a malicious app registers the same custom URI scheme and intercepts the auth code from the redirect. ' +
+        '<span style="color:var(--accent-green)">Mitigation: PKCE.</span> ' +
+        'The attacker has the code but NOT the code_verifier (which never left the legitimate client). ' +
+        'When the attacker tries to exchange the code at /token, SHA256(attacker_verifier) does not match code_challenge. ' +
+        'Exchange fails. Without PKCE (pre-2019), this attack succeeded -- which is why PKCE is now mandatory.';
+    }
+  }
+
+  function reset() {
+    currentStep = -1;
+    playing = false;
+    drawBase();
+    document.getElementById('ac-commentary').textContent = 'Click "Play Full Flow" to animate the Authorization Code + PKCE grant step by step, or use "Step" to advance one message at a time.';
+  }
+
+  /* Init */
+  drawBase();
+
+  return { play: play, step: step, showAttack: showAttack, reset: reset };
+})();
+
+/* ================================================================
+   TAB 2 -- CLIENT CREDENTIALS
+   ================================================================ */
+var CC = (function() {
+  var scene;
+  var currentStep = -1;
+  var playing = false;
+  var showingMTLS = false;
+
+  var COL = { svcA: 150, authSrv: 460, svcB: 770 };
+  var TOP = 70;
+  var STEP_H = 65;
+
+  function drawBase() {
+    scene = document.getElementById('cc-scene');
+    scene.innerHTML = '';
+
+    var cols = [
+      { x: COL.svcA, label: 'Service A', sub: '(Client)', color: '#51cf66' },
+      { x: COL.authSrv, label: 'Auth Server', sub: '(Token Issuer)', color: '#cc5de8' },
+      { x: COL.svcB, label: 'Service B', sub: '(Resource)', color: '#339af0' }
+    ];
+    cols.forEach(function(c) {
+      scene.appendChild(svgRect(c.x - 70, 10, 140, 50, 'var(--surface)', c.color));
+      scene.appendChild(svgText(c.x, 33, c.label, { fill: c.color, 'font-size': '12', 'font-weight': '700' }));
+      scene.appendChild(svgText(c.x, 48, c.sub, { fill: '#666', 'font-size': '9' }));
+    });
+
+    cols.forEach(function(c) {
+      scene.appendChild(svgLine(c.x, TOP, c.x, 340, '#333', null, true));
+    });
+
+    /* No-user callout */
+    scene.appendChild(svgText(460, 340, 'No user involved. Token represents the client, not a person.', { fill: '#666', 'font-size': '10', 'font-style': 'italic' }));
+  }
+
+  var steps = [
+    {
+      from: 'svcA', to: 'authSrv',
+      label: '1. POST /token',
+      sub: 'grant_type=client_credentials, client_id, client_secret',
+      commentary: 'Step 1: Service A authenticates directly with the Auth Server using its client_id and client_secret (or mTLS client certificate). No user redirect, no browser, no interactive login. The client_secret is a pre-shared credential -- treat it like a database password.'
+    },
+    {
+      from: 'authSrv', to: 'svcA',
+      label: '2. Token response',
+      sub: '{access_token, expires_in, token_type: "Bearer"}',
+      commentary: 'Step 2: Auth Server validates credentials and returns an access token. No refresh token is issued -- when this token expires, Service A simply requests a new one with the same credentials. The token has no user context (no "sub" claim for a user).'
+    },
+    {
+      from: 'svcA', to: 'svcB',
+      label: '3. API request',
+      sub: 'Authorization: Bearer <access_token>',
+      commentary: 'Step 3: Service A calls Service B with the access token. Service B validates the JWT (signature, expiry, issuer, audience, scopes) -- same validation as any OAuth2 resource server.'
+    },
+    {
+      from: 'svcB', to: 'svcA',
+      label: '4. Response (200 OK)',
+      sub: 'Validates JWT, serves request',
+      commentary: 'Step 4: Service B validates the token and serves the request. The entire flow has no user interaction -- purely M2M. Refresh strategy: cache the token, request a new one before expiry (most client libraries do this automatically).'
+    }
+  ];
+
+  function getStepY(idx) { return TOP + 30 + idx * STEP_H; }
+
+  function showStep(idx) {
+    if (idx >= steps.length) return;
+    var s = steps[idx];
+    var fromX = COL[s.from];
+    var toX = COL[s.to];
+    var y = getStepY(idx);
+    var color = fromX < toX ? '#8be9fd' : '#ffa94d';
+    seqArrow(scene, fromX, toX, y, s.label, s.sub, color, 'url(#cc-arrow)', 500);
+    document.getElementById('cc-commentary').textContent = s.commentary;
+    currentStep = idx;
+  }
+
+  async function play() {
+    if (playing) return;
+    playing = true;
+    reset();
+    for (var i = 0; i < steps.length; i++) {
+      showStep(i);
+      await delay(1800);
+    }
+    document.getElementById('cc-commentary').textContent = 'Flow complete. Client credentials is the simplest OAuth2 grant -- two HTTP calls (get token, use token). No user, no redirect, no browser. The main security concern is protecting client_secret (or using mTLS instead).';
+    playing = false;
+  }
+
+  function step() {
+    if (playing) return;
+    var next = currentStep + 1;
+    if (next >= steps.length) return;
+    showStep(next);
+  }
+
+  function showMTLS() {
+    document.getElementById('cc-commentary').innerHTML =
+      '<strong style="color:var(--accent-blue)">mTLS variant (RFC 8705)</strong> -- ' +
+      'Instead of client_secret, Service A presents a TLS client certificate during the TLS handshake. ' +
+      'The Auth Server validates the certificate and issues a certificate-bound access token. ' +
+      'The token includes a <code>cnf</code> (confirmation) claim with the certificate thumbprint. ' +
+      'Service B, when validating the token, also checks that the presenting client\'s TLS cert matches the thumbprint in the token. ' +
+      'Result: even if the token is stolen, it cannot be used without the corresponding private key. ' +
+      '<br><br><strong style="color:var(--accent-blue)">Service mesh alternative:</strong> Istio/Linkerd inject mTLS transparently between pods -- ' +
+      'the application never manages certificates directly. SPIFFE/SPIRE provides workload identity.';
+  }
+
+  function reset() {
+    currentStep = -1;
+    playing = false;
+    drawBase();
+    document.getElementById('cc-commentary').textContent = 'Click "Play Flow" to animate the client credentials grant. No user interaction -- just service-to-service authentication.';
+  }
+
+  drawBase();
+
+  return { play: play, step: step, showMTLS: showMTLS, reset: reset };
+})();
+
+/* ================================================================
+   TAB 3 -- DEVICE AUTHORIZATION GRANT
+   ================================================================ */
+var DV = (function() {
+  var scene;
+  var currentStep = -1;
+  var playing = false;
+
+  var COL = { tv: 120, authSrv: 460, phone: 770 };
+  var TOP = 80;
+  var STEP_H = 50;
+
+  function drawBase() {
+    scene = document.getElementById('dv-scene');
+    scene.innerHTML = '';
+
+    var cols = [
+      { x: COL.tv, label: 'Smart TV / CLI', sub: '(Input-constrained)', color: '#ffd43b' },
+      { x: COL.authSrv, label: 'Auth Server', sub: '', color: '#cc5de8' },
+      { x: COL.phone, label: 'User\'s Phone', sub: '(Has browser)', color: '#51cf66' }
+    ];
+    cols.forEach(function(c) {
+      scene.appendChild(svgRect(c.x - 75, 10, 150, 50, 'var(--surface)', c.color));
+      scene.appendChild(svgText(c.x, 33, c.label, { fill: c.color, 'font-size': '12', 'font-weight': '700' }));
+      if (c.sub) scene.appendChild(svgText(c.x, 48, c.sub, { fill: '#666', 'font-size': '9' }));
+    });
+
+    cols.forEach(function(c) {
+      scene.appendChild(svgLine(c.x, TOP, c.x, 420, '#333', null, true));
+    });
+  }
+
+  var steps = [
+    {
+      from: 'tv', to: 'authSrv',
+      label: '1. POST /device_authorization',
+      sub: 'client_id',
+      commentary: 'Step 1: The TV (or CLI tool) requests a device code from the Auth Server. Only needs client_id -- no client_secret required since the device is a public client.'
+    },
+    {
+      from: 'authSrv', to: 'tv',
+      label: '2. Response: device_code + user_code',
+      sub: 'device_code, user_code="XYZ-ABC", verification_uri, interval=5',
+      commentary: 'Step 2: Auth Server returns: device_code (opaque, used for polling), user_code (short, human-readable, e.g. "XYZ-ABC"), verification_uri (e.g. "example.com/device"), and interval (poll frequency in seconds).'
+    },
+    {
+      from: 'tv', to: 'tv',
+      label: '3. Display to user',
+      sub: '"Visit example.com/device, enter code XYZ-ABC"',
+      commentary: 'Step 3: TV displays instructions on screen. The user reads the verification_uri and user_code. This is the "bridge" -- the TV cannot run a browser, so it tells the user where to go on a device that can.'
+    },
+    {
+      from: 'tv', to: 'authSrv',
+      label: '4. Poll /token (pending...)',
+      sub: 'grant_type=urn:ietf:params:oauth:grant-type:device_code',
+      commentary: 'Step 4: TV starts polling /token every interval seconds with the device_code. Auth Server responds with "authorization_pending" until the user completes authentication. If TV polls too fast, Auth Server responds with "slow_down" and the TV must increase its interval.'
+    },
+    {
+      from: 'phone', to: 'authSrv',
+      label: '5. User visits verification_uri',
+      sub: 'Enters user_code, authenticates, approves',
+      commentary: 'Step 5: Meanwhile, user opens browser on phone, navigates to verification_uri, enters user_code, logs in (username/password, MFA), and approves the authorization. This happens asynchronously -- the TV is polling while the user authenticates.'
+    },
+    {
+      from: 'authSrv', to: 'phone',
+      label: '6. "Device authorized"',
+      sub: 'Confirmation page',
+      commentary: 'Step 6: Auth Server confirms to the user that the device has been authorized. The user can close their browser.'
+    },
+    {
+      from: 'tv', to: 'authSrv',
+      label: '7. Poll /token (success)',
+      sub: 'device_code',
+      commentary: 'Step 7: TV\'s next poll to /token succeeds.'
+    },
+    {
+      from: 'authSrv', to: 'tv',
+      label: '8. Token response',
+      sub: '{access_token, refresh_token}',
+      commentary: 'Step 8: Auth Server returns access_token and refresh_token. The TV is now authenticated and can make API calls. The entire flow happened without the TV ever collecting user credentials or running a browser.'
+    }
+  ];
+
+  function getStepY(idx) { return TOP + 10 + idx * STEP_H; }
+
+  function showStep(idx) {
+    if (idx >= steps.length) return;
+    var s = steps[idx];
+    var fromX = COL[s.from];
+    var toX = COL[s.to];
+    var y = getStepY(idx);
+
+    if (s.from === s.to) {
+      /* Self-arrow for "display to user" */
+      var g = svgEl('g', { opacity: '0' });
+      var selfLine = svgEl('path', {
+        d: 'M ' + fromX + ' ' + y + ' C ' + (fromX - 80) + ' ' + y + ' ' + (fromX - 80) + ' ' + (y + 25) + ' ' + fromX + ' ' + (y + 25),
+        fill: 'none', stroke: '#ffd43b', 'stroke-width': '1.5', 'marker-end': 'url(#dv-arrow)'
+      });
+      g.appendChild(selfLine);
+      g.appendChild(svgText(fromX - 100, y + 8, s.label, { fill: '#ffd43b', 'font-size': '10', 'font-weight': '600', 'text-anchor': 'end' }));
+      g.appendChild(svgText(fromX - 100, y + 22, s.sub, { fill: '#666', 'font-size': '9', 'text-anchor': 'end' }));
+      scene.appendChild(g);
+      requestAnimationFrame(function() {
+        g.style.transition = 'opacity 400ms ease';
+        g.setAttribute('opacity', '1');
+      });
+    } else {
+      var color = fromX < toX ? '#8be9fd' : '#ffa94d';
+      seqArrow(scene, fromX, toX, y, s.label, s.sub, color, 'url(#dv-arrow)', 500);
+    }
+
+    document.getElementById('dv-commentary').textContent = s.commentary;
+    currentStep = idx;
+  }
+
+  async function play() {
+    if (playing) return;
+    playing = true;
+    reset();
+    for (var i = 0; i < steps.length; i++) {
+      showStep(i);
+      await delay(2000);
+    }
+    document.getElementById('dv-commentary').textContent = 'Flow complete. The device grant decouples "where you authenticate" from "what gets authorized." Same pattern: GitHub CLI (gh auth login), Spotify on smart speakers, Netflix on TVs. The user_code is short-lived (~15 min) and single-use.';
+    playing = false;
+  }
+
+  function step() {
+    if (playing) return;
+    var next = currentStep + 1;
+    if (next >= steps.length) return;
+    showStep(next);
+  }
+
+  function reset() {
+    currentStep = -1;
+    playing = false;
+    drawBase();
+    document.getElementById('dv-commentary').textContent = 'Click "Play Flow" to animate the device authorization grant. The TV polls while the user authenticates on their phone.';
+  }
+
+  drawBase();
+
+  return { play: play, step: step, reset: reset };
+})();
+
+/* ================================================================
+   TAB 4 -- IMPLICIT (DEPRECATED)
+   ================================================================ */
+var IM = (function() {
+  var scene;
+  var playing = false;
+
+  var COL = { user: 120, client: 340, authSrv: 620 };
+  var TOP = 70;
+  var STEP_H = 60;
+
+  function drawBase() {
+    scene = document.getElementById('im-scene');
+    scene.innerHTML = '';
+
+    var cols = [
+      { x: COL.user, label: 'User Agent', sub: '(Browser)', color: '#ffd43b' },
+      { x: COL.client, label: 'SPA Client', sub: '(JavaScript)', color: '#51cf66' },
+      { x: COL.authSrv, label: 'Auth Server', sub: '', color: '#cc5de8' }
+    ];
+    cols.forEach(function(c) {
+      scene.appendChild(svgRect(c.x - 65, 10, 130, 50, 'var(--surface)', c.color));
+      scene.appendChild(svgText(c.x, 33, c.label, { fill: c.color, 'font-size': '12', 'font-weight': '700' }));
+      if (c.sub) scene.appendChild(svgText(c.x, 48, c.sub, { fill: '#666', 'font-size': '9' }));
+    });
+
+    cols.forEach(function(c) {
+      scene.appendChild(svgLine(c.x, TOP, c.x, 300, '#333', null, true));
+    });
+  }
+
+  var steps = [
+    { from: 'client', to: 'authSrv', label: '1. Redirect to /authorize', sub: 'response_type=token (not code)' },
+    { from: 'user', to: 'authSrv', label: '2. User authenticates', sub: '' },
+    { from: 'authSrv', to: 'user', label: '3. Redirect with token in fragment', sub: 'redirect_uri#access_token=xyz123' },
+    { from: 'user', to: 'client', label: '4. SPA extracts token from URL', sub: 'window.location.hash' }
+  ];
+
+  function getStepY(idx) { return TOP + 20 + idx * STEP_H; }
+
+  async function play() {
+    if (playing) return;
+    playing = true;
+    reset();
+    for (var i = 0; i < steps.length; i++) {
+      var s = steps[i];
+      var fromX = COL[s.from];
+      var toX = COL[s.to];
+      var y = getStepY(i);
+      var color = i === 2 ? '#ff6b6b' : (fromX < toX ? '#8be9fd' : '#ffa94d');
+      seqArrow(scene, fromX, toX, y, s.label, s.sub, color, 'url(#im-arrow)', 500);
+
+      if (i === 2) {
+        /* Danger callout on step 3 */
+        var warn = svgText((fromX + toX) / 2, y + 16, 'Token exposed in URL fragment, browser history, referrer headers', { fill: '#ff6b6b', 'font-size': '9', 'font-style': 'italic' });
+        scene.appendChild(warn);
+      }
+      await delay(1500);
+    }
+
+    document.getElementById('im-commentary').textContent = 'The implicit flow skips the code exchange -- the Auth Server returns the token directly in the URL fragment. Problems: (1) Token in browser history. (2) Token in referrer headers if user navigates. (3) No refresh tokens. (4) Token in server logs if fragment is logged. Auth Code + PKCE solves all of these.';
+    playing = false;
+  }
+
+  function reset() {
+    playing = false;
+    drawBase();
+    document.getElementById('im-commentary').textContent = 'The implicit flow returns the access token directly in the URL fragment. This exposes tokens to browser history, referrer headers, and logs. Replaced by Auth Code + PKCE.';
+  }
+
+  drawBase();
+
+  return { play: play, reset: reset };
+})();
+
+/* ================================================================
+   TAB 4b -- ROPC (DEPRECATED)
+   ================================================================ */
+var ROPC = (function() {
+  var scene;
+  var playing = false;
+
+  var COL = { user: 120, client: 380, authSrv: 680 };
+  var TOP = 60;
+  var STEP_H = 50;
+
+  function drawBase() {
+    scene = document.getElementById('ropc-scene');
+    scene.innerHTML = '';
+
+    var cols = [
+      { x: COL.user, label: 'User', sub: '', color: '#ffd43b' },
+      { x: COL.client, label: 'Client App', sub: '(First-party only)', color: '#51cf66' },
+      { x: COL.authSrv, label: 'Auth Server', sub: '', color: '#cc5de8' }
+    ];
+    cols.forEach(function(c) {
+      scene.appendChild(svgRect(c.x - 65, 10, 130, 40, 'var(--surface)', c.color));
+      scene.appendChild(svgText(c.x, 30, c.label, { fill: c.color, 'font-size': '12', 'font-weight': '700' }));
+      if (c.sub) scene.appendChild(svgText(c.x, 42, c.sub, { fill: '#666', 'font-size': '9' }));
+    });
+    cols.forEach(function(c) {
+      scene.appendChild(svgLine(c.x, TOP, c.x, 220, '#333', null, true));
+    });
+  }
+
+  var steps = [
+    { from: 'user', to: 'client', label: '1. User enters username + password', sub: 'Into the CLIENT app -- not the Auth Server', color: '#ff6b6b' },
+    { from: 'client', to: 'authSrv', label: '2. POST /token', sub: 'grant_type=password, username, password, client_id', color: '#ff6b6b' },
+    { from: 'authSrv', to: 'client', label: '3. Token response', sub: '{access_token, refresh_token}', color: '#ffa94d' }
+  ];
+
+  async function play() {
+    if (playing) return;
+    playing = true;
+    drawBase();
+    for (var i = 0; i < steps.length; i++) {
+      var s = steps[i];
+      var fromX = COL[s.from];
+      var toX = COL[s.to];
+      var y = TOP + 20 + i * STEP_H;
+      seqArrow(scene, fromX, toX, y, s.label, s.sub, s.color, 'url(#ropc-arrow)', 500);
+      if (i === 0) {
+        var warn = svgText((fromX + toX) / 2, y + 16, 'Client sees the user password -- trust violation', { fill: '#ff6b6b', 'font-size': '9', 'font-style': 'italic' });
+        scene.appendChild(warn);
+      }
+      await delay(1500);
+    }
+    playing = false;
+  }
+
+  function reset() {
+    playing = false;
+    drawBase();
+  }
+
+  drawBase();
+
+  return { play: play, reset: reset };
+})();
+
+/* ================================================================
+   TAB 5 -- OIDC + JWT STRUCTURE
+   ================================================================ */
+var JV = (function() {
+  /* Sample JWT parts */
+  var headerObj = { alg: 'RS256', typ: 'JWT', kid: 'key-2024-03' };
+  var payloadObj = {
+    sub: 'user42',
+    iss: 'auth.example.com',
+    aud: 'client123',
+    exp: 1735000000,
+    iat: 1734999000,
+    email: 'alice@example.com',
+    name: 'Alice Chen',
+    scope: 'read:profile write:settings'
+  };
+  var signatureHex = 'kR7x9Fj2mN4pL...vQ3wYzA8bC1dE (RSA-SHA256 signature)';
+
+  function b64url(obj) {
+    /* Simulate base64url encoding */
+    var json = JSON.stringify(obj);
+    try {
+      return btoa(json).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    } catch (e) {
+      return btoa(unescape(encodeURIComponent(json))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    }
+  }
+
+  var headerB64 = b64url(headerObj);
+  var payloadB64 = b64url(payloadObj);
+  var sigB64 = 'kR7x9Fj2mN4pLqS5tU6vW8xYzA1bC3dE5fG7hI9jK0lM2nO4pQ6rS8tU0vW2xY';
+
+  function renderJWT() {
+    var raw = document.getElementById('jwt-raw');
+    raw.innerHTML = '';
+
+    var hSpan = document.createElement('span');
+    hSpan.className = 'jwt-header';
+    hSpan.textContent = headerB64;
+    hSpan.onclick = function() { showDecoded('header'); };
+    raw.appendChild(hSpan);
+
+    var dot1 = document.createElement('span');
+    dot1.className = 'jwt-dot';
+    dot1.textContent = '.';
+    raw.appendChild(dot1);
+
+    var pSpan = document.createElement('span');
+    pSpan.className = 'jwt-payload';
+    pSpan.textContent = payloadB64;
+    pSpan.onclick = function() { showDecoded('payload'); };
+    raw.appendChild(pSpan);
+
+    var dot2 = document.createElement('span');
+    dot2.className = 'jwt-dot';
+    dot2.textContent = '.';
+    raw.appendChild(dot2);
+
+    var sSpan = document.createElement('span');
+    sSpan.className = 'jwt-signature';
+    sSpan.textContent = sigB64;
+    sSpan.onclick = function() { showDecoded('signature'); };
+    raw.appendChild(sSpan);
+  }
+
+  function formatJSON(obj, colorize) {
+    var json = JSON.stringify(obj, null, 2);
+    if (!colorize) return json;
+    /* Simple syntax highlighting */
+    return json.replace(/"([^"]+)":/g, '<span class="key">"$1"</span>:')
+               .replace(/: "([^"]+)"/g, ': <span class="str">"$1"</span>')
+               .replace(/: (\d+)/g, ': <span class="num">$1</span>');
+  }
+
+  function showDecoded(part) {
+    var decoded = document.getElementById('jwt-decoded');
+    if (part === 'header') {
+      decoded.innerHTML = '<span class="label">HEADER (algorithm + token type)</span>' + formatJSON(headerObj, true);
+    } else if (part === 'payload') {
+      var annotated = formatJSON(payloadObj, true);
+      annotated += '\n\n<span class="label">CLAIM ANNOTATIONS</span>';
+      annotated += '\n<span class="key">sub</span>  = Subject (user ID)\n<span class="key">iss</span>  = Issuer (who signed this)\n<span class="key">aud</span>  = Audience (intended recipient)\n<span class="key">exp</span>  = Expiry (Unix timestamp)\n<span class="key">iat</span>  = Issued At\n<span class="key">scope</span> = Permissions granted';
+    decoded.innerHTML = annotated;
+    } else if (part === 'signature') {
+      decoded.innerHTML = '<span class="label">SIGNATURE (RS256 = RSA-SHA256)</span>\n' +
+        'RSASHA256(\n' +
+        '  base64urlEncode(<span class="key">header</span>) + "." + base64urlEncode(<span class="key">payload</span>),\n' +
+        '  <span class="str">auth_server_private_key</span>\n' +
+        ')\n\n' +
+        '<span class="label">VERIFICATION</span>\n' +
+        'Resource server fetches public key from:\n' +
+        '<span class="str">https://auth.example.com/.well-known/jwks.json</span>\n' +
+        'Looks up key by <span class="key">kid</span> = "key-2024-03"\n' +
+        'Verifies: RSA_verify(signature, header.payload, public_key)\n\n' +
+        '<span class="label">JWS vs JWE</span>\n' +
+        'This is <span class="str">JWS</span> (JSON Web Signature) -- payload is readable but tamper-evident.\n' +
+        '<span class="str">JWE</span> (JSON Web Encryption) encrypts the payload itself -- rare, used when\n' +
+        'claims contain sensitive data that intermediaries should not see.';
+    }
+  }
+
+  /* JWT Validation pipeline */
+  var scene;
+  var validating = false;
+
+  var valSteps = [
+    { label: 'Decode header', detail: 'Parse base64url header, extract alg + kid', color: '#ffd43b' },
+    { label: 'Fetch JWKS', detail: 'GET /.well-known/jwks.json, find key by kid', color: '#cc5de8' },
+    { label: 'Verify signature', detail: 'RSA_verify(sig, header.payload, pubkey)', color: '#339af0' },
+    { label: 'Check exp / nbf', detail: 'Reject if expired or not-yet-valid', color: '#ffa94d' },
+    { label: 'Check iss / aud', detail: 'Issuer and audience must match expected values', color: '#8be9fd' },
+    { label: 'Check scope', detail: 'Token must have required permissions', color: '#51cf66' }
+  ];
+
+  function drawValidation() {
+    scene = document.getElementById('jv-scene');
+    scene.innerHTML = '';
+
+    var startX = 50;
+    var stepW = 130;
+    var gap = 10;
+    var y = 100;
+    var boxH = 100;
+
+    /* Title */
+    scene.appendChild(svgText(460, 30, 'JWT Validation Pipeline (Resource Server)', { fill: '#fff', 'font-size': '14', 'font-weight': '700' }));
+
+    /* Pipeline boxes */
+    for (var i = 0; i < valSteps.length; i++) {
+      var x = startX + i * (stepW + gap);
+      var box = svgRect(x, y, stepW, boxH, 'var(--surface)', 'var(--border)', 6);
+      box.id = 'jv-box-' + i;
+      scene.appendChild(box);
+
+      scene.appendChild(svgText(x + stepW / 2, y + 25, (i + 1) + '. ' + valSteps[i].label, {
+        fill: '#aaa', 'font-size': '10', 'font-weight': '600'
+      }));
+
+      /* Wrap detail text */
+      var words = valSteps[i].detail.split(' ');
+      var line1 = '';
+      var line2 = '';
+      for (var w = 0; w < words.length; w++) {
+        if (line1.length + words[w].length < 20) {
+          line1 += (line1 ? ' ' : '') + words[w];
+        } else {
+          line2 += (line2 ? ' ' : '') + words[w];
+        }
+      }
+      scene.appendChild(svgText(x + stepW / 2, y + 50, line1, { fill: '#666', 'font-size': '9' }));
+      if (line2) {
+        scene.appendChild(svgText(x + stepW / 2, y + 63, line2, { fill: '#666', 'font-size': '9' }));
+      }
+
+      /* Status indicator */
+      var status = svgEl('circle', { cx: x + stepW / 2, cy: y + 84, r: 6, fill: '#333', id: 'jv-status-' + i });
+      scene.appendChild(status);
+
+      /* Arrow to next */
+      if (i < valSteps.length - 1) {
+        scene.appendChild(svgLine(x + stepW, y + boxH / 2, x + stepW + gap, y + boxH / 2, '#444', 'url(#jv-arrow)'));
+      }
+    }
+
+    /* Final result */
+    scene.appendChild(svgText(460, y + boxH + 40, '', { fill: '#51cf66', 'font-size': '13', 'font-weight': '700', id: 'jv-result' }));
+  }
+
+  async function playValidation() {
+    if (validating) return;
+    validating = true;
+    drawValidation();
+
+    for (var i = 0; i < valSteps.length; i++) {
+      var box = document.getElementById('jv-box-' + i);
+      var status = document.getElementById('jv-status-' + i);
+      if (box) {
+        box.setAttribute('stroke', valSteps[i].color);
+        box.setAttribute('stroke-width', '3');
+      }
+      document.getElementById('jv-commentary').textContent = 'Validating step ' + (i + 1) + ': ' + valSteps[i].label + ' -- ' + valSteps[i].detail;
+      await delay(1200);
+      if (status) status.setAttribute('fill', '#51cf66');
+      if (box) box.setAttribute('stroke-width', '2');
+    }
+
+    var result = document.getElementById('jv-result');
+    if (result) result.textContent = 'All checks passed -- request authorized';
+    document.getElementById('jv-commentary').textContent = 'Validation complete. All six checks passed. The JWT is valid and the request is authorized. If any step fails, the resource server returns 401 Unauthorized. Key point: this entire validation is stateless -- no call to the Auth Server needed.';
+    validating = false;
+  }
+
+  function reset() {
+    validating = false;
+    drawValidation();
+    document.getElementById('jv-commentary').textContent = 'JWT = self-describing token, verifiable without server lookup (vs opaque tokens which require introspection). Click the JWT parts above to decode, or animate the validation pipeline.';
+  }
+
+  renderJWT();
+  drawValidation();
+
+  return { playValidation: playValidation, reset: reset };
+})();
+
+/* ================================================================
+   TAB 6 -- TOKEN LIFECYCLE
+   ================================================================ */
+var TL = (function() {
+  var scene;
+  var playing = false;
+
+  var COL = { client: 150, authSrv: 460, resSrv: 770 };
+  var TOP = 80;
+
+  function drawBase() {
+    scene = document.getElementById('tl-scene');
+    scene.innerHTML = '';
+
+    var cols = [
+      { x: COL.client, label: 'Client', sub: '', color: '#51cf66' },
+      { x: COL.authSrv, label: 'Auth Server', sub: '', color: '#cc5de8' },
+      { x: COL.resSrv, label: 'Resource Server', sub: '', color: '#339af0' }
+    ];
+    cols.forEach(function(c) {
+      scene.appendChild(svgRect(c.x - 65, 10, 130, 50, 'var(--surface)', c.color));
+      scene.appendChild(svgText(c.x, 33, c.label, { fill: c.color, 'font-size': '12', 'font-weight': '700' }));
+    });
+    cols.forEach(function(c) {
+      scene.appendChild(svgLine(c.x, TOP, c.x, 460, '#333', null, true));
+    });
+  }
+
+  function drawTimeline(label, y) {
+    var g = svgEl('g', { opacity: '0' });
+    g.appendChild(svgRect(20, y - 12, 100, 24, 'var(--surface-2)', 'var(--accent-yellow)', 4));
+    g.appendChild(svgText(70, y + 4, label, { fill: 'var(--accent-yellow)', 'font-size': '10', 'font-weight': '600' }));
+    scene.appendChild(g);
+    requestAnimationFrame(function() {
+      g.style.transition = 'opacity 400ms ease';
+      g.setAttribute('opacity', '1');
+    });
+    return g;
+  }
+
+  async function playNormal() {
+    if (playing) return;
+    playing = true;
+    drawBase();
+    var y = TOP + 20;
+
+    /* Initial auth */
+    drawTimeline('Login', y);
+    seqArrow(scene, COL.client, COL.authSrv, y, 'Auth Code + PKCE flow', '', '#8be9fd', 'url(#tl-arrow)', 500);
+    await delay(1200);
+
+    y += 40;
+    seqArrow(scene, COL.authSrv, COL.client, y, 'access_token (15 min) + refresh_token (30 days)', '', '#ffa94d', 'url(#tl-arrow)', 500);
+    document.getElementById('tl-commentary').textContent = 'Client receives access token (short: 5-15 min) and refresh token (long: days-months). Access token stored in memory (SPA) or httpOnly cookie (web app). Refresh token in secure storage.';
+    await delay(1500);
+
+    /* API calls with access token */
+    y += 40;
+    drawTimeline('Use token', y);
+    seqArrow(scene, COL.client, COL.resSrv, y, 'Bearer <access_token>', '', '#8be9fd', 'url(#tl-arrow)', 500);
+    await delay(800);
+
+    y += 35;
+    seqArrow(scene, COL.resSrv, COL.client, y, '200 OK', '', '#51cf66', 'url(#tl-arrow-green)', 500);
+    await delay(1200);
+
+    /* Token expires */
+    y += 40;
+    drawTimeline('Token expired', y);
+    seqArrow(scene, COL.client, COL.resSrv, y, 'Bearer <expired_token>', '', '#ff6b6b', 'url(#tl-arrow-red)', 500);
+    await delay(800);
+
+    y += 35;
+    seqArrow(scene, COL.resSrv, COL.client, y, '401 Unauthorized (exp check failed)', '', '#ff6b6b', 'url(#tl-arrow-red)', 500);
+    document.getElementById('tl-commentary').textContent = 'Access token expired. Resource server rejects with 401. Client must use its refresh token to get a new access token -- this happens transparently to the user.';
+    await delay(1500);
+
+    /* Refresh */
+    y += 40;
+    drawTimeline('Refresh', y);
+    seqArrow(scene, COL.client, COL.authSrv, y, 'POST /token (grant_type=refresh_token)', '', '#cc5de8', 'url(#tl-arrow)', 500);
+    await delay(1000);
+
+    y += 35;
+    seqArrow(scene, COL.authSrv, COL.client, y, 'new access_token + new refresh_token', '', '#ffa94d', 'url(#tl-arrow)', 500);
+    document.getElementById('tl-commentary').textContent = 'Auth Server issues a new access token and (with rotation) a new refresh token. The old refresh token is invalidated. Client resumes API calls with the new access token -- all transparent to the user.';
+    await delay(1200);
+
+    /* Resume */
+    y += 40;
+    drawTimeline('Resumed', y);
+    seqArrow(scene, COL.client, COL.resSrv, y, 'Bearer <new_access_token>', '', '#8be9fd', 'url(#tl-arrow)', 500);
+    await delay(800);
+
+    y += 35;
+    seqArrow(scene, COL.resSrv, COL.client, y, '200 OK', '', '#51cf66', 'url(#tl-arrow-green)', 500);
+
+    document.getElementById('tl-commentary').textContent = 'Normal lifecycle complete. Access token expired, refresh token minted a new one, API calls resumed. The user never noticed -- no re-login required until the refresh token itself expires.';
+    playing = false;
+  }
+
+  async function playRotation() {
+    if (playing) return;
+    playing = true;
+    drawBase();
+    var y = TOP + 20;
+
+    drawTimeline('Rotate #1', y);
+    seqArrow(scene, COL.client, COL.authSrv, y, 'refresh_token_v1', '', '#cc5de8', 'url(#tl-arrow)', 500);
+    await delay(1000);
+
+    y += 40;
+    seqArrow(scene, COL.authSrv, COL.client, y, 'access_token_B + refresh_token_v2', '', '#ffa94d', 'url(#tl-arrow)', 500);
+    document.getElementById('tl-commentary').textContent = 'Refresh rotation: each refresh yields a NEW refresh token. v1 is now invalid -- it can never be used again. If anyone tries to use v1, the Auth Server knows it was stolen (because the legitimate client already used it).';
+    await delay(1500);
+
+    y += 50;
+    drawTimeline('Rotate #2', y);
+    seqArrow(scene, COL.client, COL.authSrv, y, 'refresh_token_v2', '', '#cc5de8', 'url(#tl-arrow)', 500);
+    await delay(1000);
+
+    y += 40;
+    seqArrow(scene, COL.authSrv, COL.client, y, 'access_token_C + refresh_token_v3', '', '#ffa94d', 'url(#tl-arrow)', 500);
+    document.getElementById('tl-commentary').textContent = 'v2 consumed, v3 issued. Each token version is single-use. The chain is: v1 -> v2 -> v3 -> ... If any link is replayed, the Auth Server detects reuse and invalidates the entire chain (all sessions for this user/client).';
+    await delay(1500);
+
+    y += 50;
+    drawTimeline('Rotate #3', y);
+    seqArrow(scene, COL.client, COL.authSrv, y, 'refresh_token_v3', '', '#cc5de8', 'url(#tl-arrow)', 500);
+    await delay(1000);
+
+    y += 40;
+    seqArrow(scene, COL.authSrv, COL.client, y, 'access_token_D + refresh_token_v4', '', '#ffa94d', 'url(#tl-arrow)', 500);
+
+    document.getElementById('tl-commentary').textContent = 'Rotation chain: v1 -> v2 -> v3 -> v4. Each used exactly once. This is the foundation of theft detection -- see "Token Theft Detection" to watch what happens when an attacker gets a copy of one version.';
+    playing = false;
+  }
+
+  async function playTheft() {
+    if (playing) return;
+    playing = true;
+    drawBase();
+
+    /* Add attacker column */
+    var attackerX = 300;
+    scene.appendChild(svgRect(attackerX - 55, 10, 110, 50, 'var(--surface)', 'var(--accent-red)'));
+    scene.appendChild(svgText(attackerX, 33, 'Attacker', { fill: 'var(--accent-red)', 'font-size': '12', 'font-weight': '700' }));
+    scene.appendChild(svgLine(attackerX, TOP, attackerX, 460, '#ff6b6b33', null, true));
+
+    var y = TOP + 20;
+
+    /* Normal refresh first */
+    drawTimeline('Normal', y);
+    seqArrow(scene, COL.client, COL.authSrv, y, 'Client: refresh_token_v1', '', '#8be9fd', 'url(#tl-arrow)', 500);
+    await delay(1000);
+
+    y += 35;
+    seqArrow(scene, COL.authSrv, COL.client, y, 'access_token_B + refresh_token_v2', '', '#ffa94d', 'url(#tl-arrow)', 500);
+    document.getElementById('tl-commentary').textContent = 'Normal refresh: v1 consumed, v2 issued. But the attacker stole a copy of v2 before the client uses it (e.g., XSS, compromised device, network sniff).';
+    await delay(2000);
+
+    /* Attacker steals v2 */
+    y += 45;
+    drawTimeline('Theft', y);
+    var stealNote = svgText(attackerX, y - 5, 'Attacker steals refresh_token_v2', { fill: '#ff6b6b', 'font-size': '10', 'font-weight': '600' });
+    scene.appendChild(stealNote);
+    await delay(1500);
+
+    /* Attacker uses v2 first */
+    y += 35;
+    drawTimeline('Attacker uses', y);
+    seqArrow(scene, attackerX, COL.authSrv, y, 'Attacker: refresh_token_v2', '', '#ff6b6b', 'url(#tl-arrow-red)', 500);
+    await delay(1000);
+
+    y += 35;
+    seqArrow(scene, COL.authSrv, attackerX, y, 'access_token_X + refresh_token_v3', '', '#ffa94d', 'url(#tl-arrow)', 500);
+    document.getElementById('tl-commentary').textContent = 'Attacker uses the stolen v2 first. Auth Server does not yet know it is stolen -- it looks like a legitimate refresh. v2 is consumed, v3 is issued to the attacker. The attacker now has a valid access token.';
+    await delay(2000);
+
+    /* Legitimate client tries v2 */
+    y += 45;
+    drawTimeline('Victim tries', y);
+    seqArrow(scene, COL.client, COL.authSrv, y, 'Client: refresh_token_v2 (reuse!)', '', '#8be9fd', 'url(#tl-arrow)', 500);
+    await delay(1000);
+
+    y += 35;
+    seqArrow(scene, COL.authSrv, COL.client, y, 'REJECTED -- token reuse detected', '', '#ff6b6b', 'url(#tl-arrow-red)', 500);
+    document.getElementById('tl-commentary').textContent = 'BREACH DETECTED. The legitimate client tries to use v2, but it was already consumed by the attacker. The Auth Server detects token reuse -- this means v2 was stolen. Auth Server invalidates the ENTIRE token family: v3 (attacker\'s), all access tokens, all sessions for this user/client. Both attacker and victim are logged out. User must re-authenticate.';
+    await delay(2500);
+
+    /* Both invalidated */
+    y += 45;
+    drawTimeline('Invalidate all', y);
+    seqArrow(scene, COL.authSrv, attackerX, y, 'v3 invalidated', '', '#ff6b6b', 'url(#tl-arrow-red)', 500);
+    await delay(500);
+
+    y += 30;
+    var note = svgText(COL.authSrv, y, 'All tokens for this user/client revoked. User must re-login.', { fill: '#ff6b6b', 'font-size': '10', 'font-weight': '700' });
+    scene.appendChild(note);
+
+    document.getElementById('tl-commentary').textContent = 'Theft detection via rotation: single-use refresh tokens create a chain. Reuse of any link triggers full revocation. The window of compromise is the time between attacker\'s use and victim\'s next refresh. Short access tokens (5-15 min) limit how long a stolen access token is useful.';
+    playing = false;
+  }
+
+  function reset() {
+    playing = false;
+    drawBase();
+    document.getElementById('tl-commentary').textContent = 'Choose a scenario to animate. Normal lifecycle shows access token expiry and refresh. Rotation shows how each refresh yields a new refresh token. Theft detection shows what happens when an attacker uses a stolen refresh token.';
+  }
+
+  drawBase();
+
+  return { playNormal: playNormal, playRotation: playRotation, playTheft: playTheft, reset: reset };
+})();
+</script>
+</body>
+</html>

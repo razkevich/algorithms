@@ -1,0 +1,1375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Distributed ID Generation -- Snowflake, UUID v7, ULID, KSUID</title>
+<style>
+:root {
+  --bg: #0f0f15;
+  --surface: #181820;
+  --surface-2: #20202a;
+  --border: #2a2a35;
+  --text: #e6e6ea;
+  --text-2: #cfcfd6;
+  --text-3: #888;
+  --accent-red: #ff6b6b;
+  --accent-green: #51cf66;
+  --accent-blue: #339af0;
+  --accent-yellow: #ffd43b;
+  --accent-purple: #cc5de8;
+  --accent-cyan: #8be9fd;
+  --accent-orange: #ffa94d;
+}
+*, *::before, *::after { box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  padding: 32px 24px;
+  max-width: 1100px;
+  margin: 0 auto;
+  line-height: 1.55;
+}
+h1 { color: #fff; margin-bottom: 4px; }
+h1 + p.sub { color: var(--text-3); font-style: italic; margin-top: 0; margin-bottom: 24px; }
+h2 { color: #fff; margin-top: 48px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+h3 { color: var(--text-2); margin-top: 20px; }
+p { margin: 10px 0; }
+code {
+  background: var(--surface-2);
+  padding: 2px 6px;
+  border-radius: 3px;
+  color: var(--accent-cyan);
+  font-size: 13px;
+}
+pre {
+  background: var(--surface);
+  padding: 14px;
+  border-radius: 6px;
+  overflow-x: auto;
+  font-size: 13px;
+  color: var(--accent-cyan);
+  border: 1px solid var(--border);
+  line-height: 1.5;
+}
+svg {
+  background: var(--surface);
+  border-radius: 8px;
+  display: block;
+  margin: 14px auto;
+  width: 100%;
+  height: auto;
+}
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0;
+  align-items: center;
+}
+.controls button, .btn {
+  padding: 10px 16px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  border-radius: 6px;
+  cursor: pointer;
+  min-height: 44px;
+  font-size: 14px;
+  transition: background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+.controls button:hover, .btn:hover { background: var(--surface); }
+.controls button:disabled, .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.controls button.active-btn { border-color: var(--accent-blue); color: var(--accent-blue); }
+.controls button.danger { border-color: var(--accent-red); color: var(--accent-red); }
+.commentary {
+  background: var(--surface-2);
+  padding: 14px;
+  border-radius: 6px;
+  font-size: 14px;
+  color: var(--text-2);
+  margin: 12px 0;
+  min-height: 44px;
+  line-height: 1.5;
+}
+.takeaway {
+  background: #1a1a22;
+  border-left: 3px solid var(--accent-green);
+  padding: 12px 16px;
+  margin: 14px 0;
+  font-size: 14px;
+}
+.takeaway strong { color: var(--accent-green); }
+.takeaway ul { margin: 6px 0 0 0; padding-left: 18px; }
+.takeaway li { margin-bottom: 6px; }
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  margin: 14px 0;
+}
+th, td {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  text-align: left;
+}
+th {
+  background: var(--surface-2);
+  color: #fff;
+  font-weight: 600;
+  position: sticky;
+  top: 0;
+}
+td { color: var(--text-2); }
+tr:nth-child(even) td { background: var(--surface); }
+.table-scroll {
+  overflow-x: auto;
+  margin: 14px 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.table-scroll table { margin: 0; border: none; }
+.table-scroll th:first-child,
+.table-scroll td:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--surface-2);
+}
+.table-scroll td:first-child { background: var(--surface); }
+.table-scroll tr:nth-child(even) td:first-child { background: var(--surface-2); }
+
+/* Bit layout diagrams */
+.bit-layout {
+  display: flex;
+  gap: 0;
+  margin: 10px 0;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  font-size: 11px;
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+}
+.bit-segment {
+  padding: 8px 4px;
+  text-align: center;
+  color: #fff;
+  font-weight: 600;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  justify-content: center;
+  border-right: 1px solid rgba(0,0,0,0.3);
+}
+.bit-segment:last-child { border-right: none; }
+.bit-segment .label { font-size: 10px; opacity: 0.85; font-weight: 400; }
+.bit-segment .bits { font-size: 12px; }
+
+/* Snowflake decoder */
+.decoder-input {
+  display: flex;
+  gap: 8px;
+  margin: 12px 0;
+  flex-wrap: wrap;
+}
+.decoder-input input[type="text"] {
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  border-radius: 6px;
+  font-size: 14px;
+  min-height: 44px;
+  flex: 1;
+  min-width: 200px;
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+}
+.decoder-input input::placeholder { color: var(--text-3); }
+.decoder-output {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 14px;
+  margin: 10px 0;
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.decoder-output .field { margin: 4px 0; }
+.decoder-output .field-label { color: var(--text-3); }
+.decoder-output .field-value { color: var(--accent-cyan); }
+
+/* Interactive bit bar for Snowflake */
+.snowflake-bits {
+  display: flex;
+  gap: 0;
+  margin: 14px 0;
+  border-radius: 6px;
+  overflow: hidden;
+  cursor: pointer;
+  border: 2px solid var(--border);
+}
+.snowflake-bits .sf-segment {
+  text-align: center;
+  padding: 12px 2px;
+  font-size: 11px;
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+  color: #fff;
+  font-weight: 600;
+  transition: filter 0.15s, transform 0.15s;
+  position: relative;
+  border-right: 1px solid rgba(0,0,0,0.3);
+}
+.snowflake-bits .sf-segment:last-child { border-right: none; }
+.snowflake-bits .sf-segment:hover { filter: brightness(1.2); transform: scaleY(1.08); }
+.snowflake-bits .sf-segment.active { outline: 2px solid #fff; outline-offset: -2px; z-index: 1; }
+.sf-segment .sf-label { font-size: 9px; opacity: 0.75; display: block; margin-top: 2px; font-weight: 400; }
+
+/* Clock animation */
+.clock-animation {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+  margin: 14px 0;
+}
+.clock-timeline {
+  position: relative;
+  height: 180px;
+  margin: 10px 0;
+}
+.clock-event {
+  position: absolute;
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+  white-space: nowrap;
+  transition: all 0.4s ease;
+  opacity: 0;
+}
+
+/* UUID generated IDs display */
+.id-list {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 14px;
+  margin: 8px 0;
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+  font-size: 12px;
+  line-height: 1.8;
+  max-height: 200px;
+  overflow-y: auto;
+}
+.id-list .id-entry { color: var(--accent-cyan); }
+.id-list .id-entry.sorted { color: var(--accent-green); }
+.id-list .id-entry.unsorted { color: var(--accent-red); }
+
+/* Radar chart labels */
+.radar-label {
+  font-size: 12px;
+  fill: var(--text-2);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+.radar-value {
+  font-size: 10px;
+  fill: var(--text-3);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+@media (max-width: 720px) {
+  body { padding: 20px 14px; }
+  .bit-layout { font-size: 9px; }
+  .bit-segment { padding: 6px 2px; }
+  .snowflake-bits .sf-segment { padding: 8px 1px; font-size: 9px; }
+}
+@media (max-width: 480px) {
+  .controls { flex-direction: column; }
+  .controls button { width: 100%; }
+  .decoder-input { flex-direction: column; }
+  .decoder-input input[type="text"] { width: 100%; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Distributed ID generation</h1>
+  <p class="sub">Snowflake, UUID v7, ULID, KSUID, Hi-Lo. The canonical 64-bit packing. The clock-skew failure mode you have to mitigate. The first question of every URL Shortener / Twitter design round.</p>
+</header>
+
+<!-- ============================================================ -->
+<!-- SECTION 1: THE 5 PROPERTIES                                   -->
+<!-- ============================================================ -->
+<h2>1. The 5 Properties</h2>
+<p>Every ID scheme trades off these axes. No scheme aces all five -- pick by what your system actually needs.</p>
+
+<div class="controls" id="radarControls">
+  <button class="active-btn" onclick="showRadar('snowflake')">Snowflake</button>
+  <button onclick="showRadar('uuidv4')">UUID v4</button>
+  <button onclick="showRadar('uuidv7')">UUID v7</button>
+  <button onclick="showRadar('ulid')">ULID</button>
+  <button onclick="showRadar('ksuid')">KSUID</button>
+  <button onclick="showRadar('dbseq')">DB Sequence</button>
+  <button onclick="showRadar('hilo')">Hi-Lo</button>
+</div>
+
+<svg id="radarChart" viewBox="0 0 500 420" style="max-height:420px">
+</svg>
+
+<div id="radarCommentary" class="commentary">
+  <strong>Snowflake</strong> -- Globally unique via machine ID partitioning. 64-bit compact. K-sortable by timestamp prefix. No coordination (local generation). Vulnerable to clock skew (not monotonic-safe without mitigations).
+</div>
+
+<div class="takeaway">
+  <strong>Key insight.</strong> The axes are:
+  <ul>
+    <li><strong>Globally unique</strong> -- no duplicates across nodes</li>
+    <li><strong>Compact</strong> -- small byte / character footprint</li>
+    <li><strong>Sortable</strong> -- k-sortable, approximately ordered by creation time</li>
+    <li><strong>No coordination</strong> -- generated locally without round-trip</li>
+    <li><strong>Monotonic / clock-safe</strong> -- robust to clock skew, NTP corrections</li>
+  </ul>
+</div>
+
+<!-- ============================================================ -->
+<!-- SECTION 2: DB SEQUENCES                                       -->
+<!-- ============================================================ -->
+<h2>2. DB Sequences (Centralized)</h2>
+<p>Postgres <code>BIGSERIAL</code>, MySQL <code>AUTO_INCREMENT</code>. One source of truth -- guaranteed unique + monotonic. But every insert needs a round-trip to the coordinator. At scale, the sequence becomes a bottleneck.</p>
+
+<h3>Direct Sequence vs Hi-Lo</h3>
+<div class="controls" id="seqControls">
+  <button class="active-btn" onclick="runSeqDemo('direct')">Direct Sequence</button>
+  <button onclick="runSeqDemo('hilo')">Hi-Lo (batch = 1000)</button>
+</div>
+
+<svg id="seqDiagram" viewBox="0 0 800 340" style="max-height:340px">
+</svg>
+
+<div id="seqCommentary" class="commentary">
+  <strong>Direct sequence.</strong> Every ID requires a round-trip to Postgres. 3 services, 3 round-trips per ID. The sequence is a single point of bottleneck at high throughput.
+</div>
+
+<div class="takeaway">
+  <strong>Takeaway.</strong> DB sequence for low-throughput apps. Hi-Lo for medium (reduces coordination 1000x). Snowflake-class for high throughput (zero coordination per ID).
+</div>
+
+<!-- ============================================================ -->
+<!-- SECTION 3: UUID VARIANTS                                      -->
+<!-- ============================================================ -->
+<h2>3. UUID Variants</h2>
+<p>128-bit identifiers, 36-character hex string with dashes. The version determines how those bits are filled -- and whether the result is sortable.</p>
+
+<h3>Byte Layout Comparison</h3>
+<p style="color:var(--text-3);font-size:13px">128 bits total. 6 bits reserved for version + variant. Layout below shows how each version fills the remaining 122 bits.</p>
+
+<h3 style="margin-top:16px">UUID v1 (timestamp + MAC + clock-seq)</h3>
+<div class="bit-layout">
+  <div class="bit-segment" style="flex:32;background:#2563eb"><span class="bits">time_low</span><span class="label">32 bits</span></div>
+  <div class="bit-segment" style="flex:16;background:#3b82f6"><span class="bits">time_mid</span><span class="label">16 bits</span></div>
+  <div class="bit-segment" style="flex:4;background:#f59e0b"><span class="bits">ver</span><span class="label">4b</span></div>
+  <div class="bit-segment" style="flex:12;background:#60a5fa"><span class="bits">time_hi</span><span class="label">12 bits</span></div>
+  <div class="bit-segment" style="flex:2;background:#f59e0b"><span class="bits">V</span><span class="label">2b</span></div>
+  <div class="bit-segment" style="flex:14;background:#8b5cf6"><span class="bits">clock_seq</span><span class="label">14 bits</span></div>
+  <div class="bit-segment" style="flex:48;background:#ef4444"><span class="bits">MAC address (node)</span><span class="label">48 bits</span></div>
+</div>
+<p style="font-size:13px;color:var(--text-3)">Timestamp bits are <em>split and scattered</em> -- not sortable without reassembly. Exposes MAC address (privacy risk).</p>
+
+<h3>UUID v4 (random)</h3>
+<div class="bit-layout">
+  <div class="bit-segment" style="flex:48;background:#6366f1"><span class="bits">random_a</span><span class="label">48 bits</span></div>
+  <div class="bit-segment" style="flex:4;background:#f59e0b"><span class="bits">ver</span><span class="label">4b</span></div>
+  <div class="bit-segment" style="flex:12;background:#818cf8"><span class="bits">random_b</span><span class="label">12 bits</span></div>
+  <div class="bit-segment" style="flex:2;background:#f59e0b"><span class="bits">V</span><span class="label">2b</span></div>
+  <div class="bit-segment" style="flex:62;background:#a78bfa"><span class="bits">random_c</span><span class="label">62 bits</span></div>
+</div>
+<p style="font-size:13px;color:var(--text-3)">122 random bits + 6 fixed. Statistically unique. Not sortable. No coordination needed. The workhorse when order doesn't matter.</p>
+
+<h3>UUID v6 (reordered v1)</h3>
+<div class="bit-layout">
+  <div class="bit-segment" style="flex:32;background:#2563eb"><span class="bits">time_high</span><span class="label">32 bits</span></div>
+  <div class="bit-segment" style="flex:16;background:#3b82f6"><span class="bits">time_mid</span><span class="label">16 bits</span></div>
+  <div class="bit-segment" style="flex:4;background:#f59e0b"><span class="bits">ver</span><span class="label">4b</span></div>
+  <div class="bit-segment" style="flex:12;background:#60a5fa"><span class="bits">time_low</span><span class="label">12 bits</span></div>
+  <div class="bit-segment" style="flex:2;background:#f59e0b"><span class="bits">V</span><span class="label">2b</span></div>
+  <div class="bit-segment" style="flex:14;background:#8b5cf6"><span class="bits">clock_seq</span><span class="label">14 bits</span></div>
+  <div class="bit-segment" style="flex:48;background:#ef4444"><span class="bits">MAC address (node)</span><span class="label">48 bits</span></div>
+</div>
+<p style="font-size:13px;color:var(--text-3)">Same data as v1, but timestamp reordered to be big-endian (most significant first). Lexicographically sortable. Still exposes MAC.</p>
+
+<h3>UUID v7 (Unix ms timestamp + random)</h3>
+<div class="bit-layout">
+  <div class="bit-segment" style="flex:48;background:#059669"><span class="bits">unix_ts_ms</span><span class="label">48 bits (timestamp)</span></div>
+  <div class="bit-segment" style="flex:4;background:#f59e0b"><span class="bits">ver</span><span class="label">4b</span></div>
+  <div class="bit-segment" style="flex:12;background:#10b981"><span class="bits">rand_a</span><span class="label">12 bits</span></div>
+  <div class="bit-segment" style="flex:2;background:#f59e0b"><span class="bits">V</span><span class="label">2b</span></div>
+  <div class="bit-segment" style="flex:62;background:#34d399"><span class="bits">rand_b</span><span class="label">62 bits</span></div>
+</div>
+<p style="font-size:13px;color:var(--text-3)"><strong>The modern default for sortable UUIDs.</strong> 48-bit ms timestamp in most-significant position -- lexicographically sortable. 74 random bits -- no privacy leak. Simple to implement.</p>
+
+<h3>Demo: Generate and Sort</h3>
+<div class="controls">
+  <button onclick="generateUUIDs('v4')">Generate 5 UUID v4</button>
+  <button onclick="generateUUIDs('v7')">Generate 5 UUID v7</button>
+  <button onclick="clearUUIDs()">Clear</button>
+</div>
+<div id="uuidList" class="id-list" style="min-height:60px;color:var(--text-3)">Click a button to generate IDs. Green = sorted order preserved. Red = sort order broken.</div>
+
+<div class="takeaway">
+  <strong>Takeaway.</strong> v4 = random forever (the default when you don't need order). v7 = time-prefixed sortable, the modern default for DB primary keys. Don't use v1 (privacy leak via MAC). v6 over v1 if you must have a MAC-encoded ID.
+</div>
+
+<!-- ============================================================ -->
+<!-- SECTION 4: ULID                                               -->
+<!-- ============================================================ -->
+<h2>4. ULID</h2>
+<p>26-character Crockford Base32 string. Same idea as UUID v7 -- timestamp prefix + randomness -- but with a more compact, URL-safe encoding.</p>
+
+<h3>Structure</h3>
+<div class="bit-layout">
+  <div class="bit-segment" style="flex:48;background:#0891b2"><span class="bits">unix_ts_ms</span><span class="label">48 bits (10 chars)</span></div>
+  <div class="bit-segment" style="flex:80;background:#06b6d4"><span class="bits">randomness</span><span class="label">80 bits (16 chars)</span></div>
+</div>
+<p style="font-size:13px;color:var(--text-3)">Total: 128 bits encoded as 26 chars of Crockford Base32. Alphabet: <code>0123456789ABCDEFGHJKMNPQRSTVWXYZ</code> (excludes I, L, O, U for readability).</p>
+
+<div class="commentary">
+  <strong>Example:</strong> <code>01H8XGJWZ3F8Q9NJ4MZRGW3KE2</code><br>
+  First 10 chars = timestamp (ms since Unix epoch). Next 16 chars = cryptographic randomness.<br>
+  Lexicographically sortable by generation time. Case-insensitive. No special characters -- URL-safe and copy-pasteable.
+</div>
+
+<h3>ULID vs UUID v7</h3>
+<table>
+  <tr><th>Property</th><th>ULID</th><th>UUID v7</th></tr>
+  <tr><td>Bits</td><td>128</td><td>128</td></tr>
+  <tr><td>String length</td><td>26 chars (base32)</td><td>36 chars (hex + dashes)</td></tr>
+  <tr><td>Sortable</td><td>Yes (lexicographic)</td><td>Yes (lexicographic)</td></tr>
+  <tr><td>Timestamp precision</td><td>Millisecond</td><td>Millisecond</td></tr>
+  <tr><td>Random bits</td><td>80</td><td>74</td></tr>
+  <tr><td>Ecosystem</td><td>Library-dependent</td><td>RFC 9562 standard</td></tr>
+  <tr><td>URL-safe</td><td>Yes (no dashes)</td><td>Usually (dashes can be stripped)</td></tr>
+</table>
+
+<h3>Demo: Generate ULIDs</h3>
+<div class="controls">
+  <button onclick="generateULIDs()">Generate 5 ULIDs</button>
+  <button onclick="clearULIDs()">Clear</button>
+</div>
+<div id="ulidList" class="id-list" style="min-height:60px;color:var(--text-3)">Click "Generate 5 ULIDs" to see Crockford Base32 encoded IDs. Note the compact 26-char format and lexicographic sortability.</div>
+
+<h3>Crockford Base32 Encoding</h3>
+<div class="commentary">
+  <strong>Alphabet:</strong> <code>0123456789ABCDEFGHJKMNPQRSTVWXYZ</code><br>
+  Excludes I (confused with 1), L (confused with 1), O (confused with 0), U (to avoid accidental obscenity).<br>
+  Case-insensitive decoding: <code>i</code>/<code>I</code>/<code>l</code>/<code>L</code> all decode as <code>1</code>; <code>o</code>/<code>O</code> decodes as <code>0</code>.<br>
+  This makes ULIDs robust to human transcription errors -- a practical advantage over hex encoding.
+</div>
+
+<h3>Collision Probability</h3>
+<p style="font-size:13px;color:var(--text-2)">With 80 random bits per millisecond, the probability of collision within the same millisecond is <code>1 / 2^80</code> = approximately <code>8.3 x 10^-25</code> per pair. Even at 1 million IDs per millisecond, the probability is negligible -- roughly <code>10^-13</code> per millisecond. The spec also defines monotonic ordering within the same millisecond: if two ULIDs share the same timestamp, the random component is incremented rather than regenerated, guaranteeing sort order.</p>
+
+<div class="takeaway">
+  <strong>Use when:</strong> you want a sortable, URL-friendly ID and don't want UUID dashes. Same underlying idea as UUID v7 -- timestamp + random -- just a different, more compact encoding. If your ecosystem already uses UUIDs everywhere, prefer v7 for consistency.
+</div>
+
+<!-- ============================================================ -->
+<!-- SECTION 5: KSUID                                              -->
+<!-- ============================================================ -->
+<h2>5. KSUID (K-Sortable Unique ID)</h2>
+<p>Segment's design. 27-character base62 string. 160 bits total -- more random bits than ULID for even lower collision probability.</p>
+
+<h3>Structure</h3>
+<div class="bit-layout">
+  <div class="bit-segment" style="flex:32;background:#7c3aed"><span class="bits">timestamp</span><span class="label">32 bits (seconds since 2014-05-13)</span></div>
+  <div class="bit-segment" style="flex:128;background:#8b5cf6"><span class="bits">payload (random)</span><span class="label">128 bits</span></div>
+</div>
+<p style="font-size:13px;color:var(--text-3)">Total: 160 bits. Encoded as 27 chars of base62 (0-9, A-Z, a-z). Custom epoch: 2014-05-13T16:53:20Z (Segment's founding moment).</p>
+
+<h3>KSUID vs ULID vs UUID v7</h3>
+<table>
+  <tr><th>Property</th><th>KSUID</th><th>ULID</th><th>UUID v7</th></tr>
+  <tr><td>Total bits</td><td>160</td><td>128</td><td>128</td></tr>
+  <tr><td>Timestamp bits</td><td>32 (seconds)</td><td>48 (ms)</td><td>48 (ms)</td></tr>
+  <tr><td>Random bits</td><td>128</td><td>80</td><td>74</td></tr>
+  <tr><td>String length</td><td>27 (base62)</td><td>26 (base32)</td><td>36 (hex)</td></tr>
+  <tr><td>Time resolution</td><td>1 second</td><td>1 ms</td><td>1 ms</td></tr>
+  <tr><td>Sortable</td><td>Yes</td><td>Yes</td><td>Yes</td></tr>
+</table>
+
+<h3>Demo: Generate KSUIDs</h3>
+<div class="controls">
+  <button onclick="generateKSUIDs()">Generate 5 KSUIDs</button>
+  <button onclick="clearKSUIDs()">Clear</button>
+</div>
+<div id="ksuidList" class="id-list" style="min-height:60px;color:var(--text-3)">Click "Generate 5 KSUIDs" to see base62 encoded IDs. Note the 27-char format.</div>
+
+<div class="commentary">
+  <strong>Trade-off.</strong> KSUID has 128 random bits (vs 80 for ULID) -- vanishingly low collision probability. But only 1-second timestamp resolution: multiple IDs within the same second sort by random suffix, not by actual creation order. Used by Segment, Stripe.
+</div>
+
+<h3>Epoch Choice</h3>
+<p style="font-size:13px;color:var(--text-2)">KSUID uses a custom epoch of <code>2014-05-13T16:53:20Z</code> (Unix timestamp 1400000000). With 32 bits of seconds, the maximum lifespan is 2^32 seconds = ~136 years from epoch, reaching until approximately 2150. Compare to Snowflake's 41-bit ms timestamp (69 years) -- KSUID's coarser resolution buys much longer lifespan.</p>
+
+<div class="takeaway">
+  <strong>Use when:</strong> you want maximum collision resistance and second-level sort order is sufficient. If you need millisecond ordering within the same second, prefer ULID or UUID v7.
+</div>
+
+<!-- ============================================================ -->
+<!-- SECTION 6: SNOWFLAKE                                          -->
+<!-- ============================================================ -->
+<h2>6. Snowflake (Twitter)</h2>
+<p>Twitter's 2010 design. 64-bit integer -- fits in a <code>BIGINT</code> column, a JavaScript safe integer (with care), and a single register. The canonical interview answer for high-throughput distributed ID generation.</p>
+
+<h3>Bit Allocation</h3>
+<div class="bit-layout" style="font-size:12px">
+  <div class="bit-segment" style="flex:1;background:#374151"><span class="bits">0</span><span class="label">sign</span></div>
+  <div class="bit-segment" style="flex:41;background:#2563eb"><span class="bits">41-bit timestamp</span><span class="label">ms since epoch (69 years)</span></div>
+  <div class="bit-segment" style="flex:5;background:#dc2626"><span class="bits">5-bit DC</span><span class="label">datacenter</span></div>
+  <div class="bit-segment" style="flex:5;background:#ea580c"><span class="bits">5-bit WK</span><span class="label">worker</span></div>
+  <div class="bit-segment" style="flex:12;background:#16a34a"><span class="bits">12-bit sequence</span><span class="label">per-ms counter</span></div>
+</div>
+
+<p>Custom epoch: <code>2010-11-04T01:42:54.657Z</code> (Twitter's Snowflake launch). 41 bits of milliseconds = ~69.7 years from epoch.</p>
+
+<div class="commentary">
+  <strong>Throughput math.</strong> 12-bit sequence = 4,096 IDs per millisecond per node. 10-bit machine ID = 1,024 unique nodes (32 datacenters x 32 workers). Total: 4,096 x 1,000 x 1,024 = <strong>~4.2 billion IDs/second</strong> across the cluster.
+</div>
+
+<h3>Interactive Decoder</h3>
+<p style="color:var(--text-3);font-size:13px">Enter a 64-bit Snowflake ID (or generate one) to see its decoded components. Click a segment in the bit bar to highlight it.</p>
+
+<div class="decoder-input">
+  <input type="text" id="snowflakeInput" placeholder="Enter Snowflake ID (e.g. 1541815603606036480)" />
+  <button class="btn" onclick="generateSnowflake()">Generate</button>
+  <button class="btn" onclick="decodeSnowflake()">Decode</button>
+</div>
+
+<div id="snowflakeBitBar" class="snowflake-bits" style="min-height:48px"></div>
+
+<div id="snowflakeOutput" class="decoder-output">
+  <div class="field"><span class="field-label">Timestamp: </span><span class="field-value">--</span></div>
+  <div class="field"><span class="field-label">Datacenter ID: </span><span class="field-value">--</span></div>
+  <div class="field"><span class="field-label">Worker ID: </span><span class="field-value">--</span></div>
+  <div class="field"><span class="field-label">Sequence: </span><span class="field-value">--</span></div>
+  <div class="field"><span class="field-label">Date: </span><span class="field-value">--</span></div>
+</div>
+
+<h3>Clock-Skew Failure Mode</h3>
+<p>If a node's clock goes backwards (NTP correction, leap second, VM migration), Snowflake IDs can <strong>collide with prior IDs</strong>. This is the failure mode interviewers probe for.</p>
+
+<div class="controls">
+  <button class="active-btn" id="clockBtn" onclick="runClockAnimation()">Animate Clock Skew</button>
+  <button onclick="resetClockAnimation()">Reset</button>
+</div>
+
+<div class="clock-animation" id="clockAnimArea">
+  <svg id="clockSvg" viewBox="0 0 780 260" style="max-height:260px;background:var(--surface)">
+    <!-- Timeline axis -->
+    <line x1="60" y1="200" x2="740" y2="200" stroke="#2a2a35" stroke-width="2"/>
+    <text x="400" y="245" text-anchor="middle" fill="#888" font-size="12" font-family="-apple-system, sans-serif">Wall-clock time</text>
+    <!-- Ticks -->
+    <line x1="120" y1="195" x2="120" y2="205" stroke="#555" stroke-width="1"/>
+    <text x="120" y="220" text-anchor="middle" fill="#666" font-size="10" font-family="monospace">...498</text>
+    <line x1="220" y1="195" x2="220" y2="205" stroke="#555" stroke-width="1"/>
+    <text x="220" y="220" text-anchor="middle" fill="#666" font-size="10" font-family="monospace">...499</text>
+    <line x1="320" y1="195" x2="320" y2="205" stroke="#555" stroke-width="1"/>
+    <text x="320" y="220" text-anchor="middle" fill="#666" font-size="10" font-family="monospace">...500</text>
+    <line x1="420" y1="195" x2="420" y2="205" stroke="#555" stroke-width="1"/>
+    <text x="420" y="220" text-anchor="middle" fill="#666" font-size="10" font-family="monospace">...501</text>
+    <line x1="520" y1="195" x2="520" y2="205" stroke="#555" stroke-width="1"/>
+    <text x="520" y="220" text-anchor="middle" fill="#666" font-size="10" font-family="monospace">...502</text>
+    <line x1="620" y1="195" x2="620" y2="205" stroke="#555" stroke-width="1"/>
+    <text x="620" y="220" text-anchor="middle" fill="#666" font-size="10" font-family="monospace">...503</text>
+
+    <!-- Node label -->
+    <text x="40" y="70" fill="#e6e6ea" font-size="12" font-family="-apple-system, sans-serif" text-anchor="end">Node 7</text>
+
+    <!-- ID generation events (animated) -->
+    <g id="clockEvents">
+      <!-- Filled by JS -->
+    </g>
+
+    <!-- NTP skew arrow (hidden initially) -->
+    <g id="ntpArrow" opacity="0">
+      <path d="M 460,50 C 420,20 360,20 300,50" fill="none" stroke="#ff6b6b" stroke-width="2" stroke-dasharray="6,3"/>
+      <polygon points="300,50 308,42 310,54" fill="#ff6b6b"/>
+      <text x="380" y="18" text-anchor="middle" fill="#ff6b6b" font-size="11" font-family="-apple-system, sans-serif" font-weight="600">NTP correction: clock jumps back 200ms</text>
+    </g>
+
+    <!-- Collision marker -->
+    <g id="collisionMarker" opacity="0">
+      <circle cx="320" cy="110" r="24" fill="none" stroke="#ff6b6b" stroke-width="2" stroke-dasharray="4,2"/>
+      <text x="320" y="115" text-anchor="middle" fill="#ff6b6b" font-size="10" font-weight="700" font-family="-apple-system, sans-serif">COLLISION</text>
+    </g>
+  </svg>
+</div>
+
+<div id="clockCommentary" class="commentary">
+  Click "Animate Clock Skew" to see the failure mode. Node generates IDs at timestamps 498-502. Then NTP corrects the clock backwards. The next ID reuses a timestamp from the past -- potential collision with an ID already issued.
+</div>
+
+<h3>Mitigations</h3>
+<table>
+  <tr><th>Strategy</th><th>How it works</th><th>Trade-off</th></tr>
+  <tr>
+    <td><strong>Block until catch-up</strong></td>
+    <td>If <code>now < lastTimestamp</code>, spin-wait until clock catches up. Refuse to generate IDs during the gap.</td>
+    <td>Brief unavailability. Simple. Twitter's original approach.</td>
+  </tr>
+  <tr>
+    <td><strong>Monotonic counter + offset</strong></td>
+    <td>Track <code>lastTimestamp</code>. If clock goes back, keep using <code>lastTimestamp</code> and increment sequence. Only advance when real clock exceeds stored timestamp.</td>
+    <td>IDs during skew have slightly stale timestamps. Always available.</td>
+  </tr>
+  <tr>
+    <td><strong>TrueTime bounds (Spanner)</strong></td>
+    <td>Google's GPS + atomic clock infrastructure gives a time interval <code>[earliest, latest]</code>. Wait out the uncertainty before committing.</td>
+    <td>Requires specialized hardware. Gold standard for distributed timestamps.</td>
+  </tr>
+</table>
+
+<div class="takeaway">
+  <strong>Takeaway.</strong> Snowflake = high throughput, sortable, no coordination -- at the cost of clock-skew vulnerability. Worth it for ID-heavy workloads. The senior tell: name the 41/10/12 bit allocation <em>and</em> the clock-skew mitigation in the same breath.
+</div>
+
+<!-- ============================================================ -->
+<!-- SECTION 7: VARIANTS                                           -->
+<!-- ============================================================ -->
+<h2>7. Snowflake Variants</h2>
+<p>Different teams optimize the 64-bit budget for different shard counts, throughput, and longevity. The pattern is the same; the bit allocation differs.</p>
+
+<h3>Sonyflake (Sony)</h3>
+<div class="bit-layout">
+  <div class="bit-segment" style="flex:1;background:#374151"><span class="bits">0</span><span class="label">sign</span></div>
+  <div class="bit-segment" style="flex:39;background:#2563eb"><span class="bits">39-bit time</span><span class="label">10ms units (~174 years)</span></div>
+  <div class="bit-segment" style="flex:8;background:#16a34a"><span class="bits">8-bit seq</span><span class="label">256/10ms</span></div>
+  <div class="bit-segment" style="flex:16;background:#dc2626"><span class="bits">16-bit machine</span><span class="label">65,536 nodes</span></div>
+</div>
+<p style="font-size:13px;color:var(--text-3)">Longer lifespan (174 years vs 69). More machines (65K vs 1K). Lower per-tick throughput (256 per 10ms = 25,600/s per node). Optimized for long-lived deployments with many small services.</p>
+
+<h3>Instagram</h3>
+<div class="bit-layout">
+  <div class="bit-segment" style="flex:41;background:#2563eb"><span class="bits">41-bit timestamp</span><span class="label">ms since 2011-01-01</span></div>
+  <div class="bit-segment" style="flex:13;background:#dc2626"><span class="bits">13-bit shard</span><span class="label">8,192 logical shards</span></div>
+  <div class="bit-segment" style="flex:10;background:#16a34a"><span class="bits">10-bit seq</span><span class="label">1,024/ms/shard</span></div>
+</div>
+<p style="font-size:13px;color:var(--text-3)">Generated inside Postgres via a PL/pgSQL function. Each shard is a logical Postgres schema. 13-bit shard ID supports 8,192 shards -- Instagram's sharding strategy baked into the ID.</p>
+
+<h3>Discord</h3>
+<div class="bit-layout">
+  <div class="bit-segment" style="flex:1;background:#374151"><span class="bits">0</span><span class="label">sign</span></div>
+  <div class="bit-segment" style="flex:41;background:#2563eb"><span class="bits">41-bit timestamp</span><span class="label">ms since 2015-01-01</span></div>
+  <div class="bit-segment" style="flex:5;background:#dc2626"><span class="bits">5-bit wk</span><span class="label">worker</span></div>
+  <div class="bit-segment" style="flex:5;background:#ea580c"><span class="bits">5-bit proc</span><span class="label">process</span></div>
+  <div class="bit-segment" style="flex:12;background:#16a34a"><span class="bits">12-bit seq</span><span class="label">4,096/ms</span></div>
+</div>
+<p style="font-size:13px;color:var(--text-3)">Nearly identical to Twitter's layout. Custom epoch 2015-01-01. Worker + process instead of datacenter + worker -- same 10-bit machine space.</p>
+
+<div class="takeaway">
+  <strong>Why variants exist.</strong> The 64-bit budget is fixed. Each team slides the boundaries based on their constraints: more machines vs more throughput vs longer lifespan. The pattern -- timestamp | machine | sequence -- is universal. The bit allocation is the engineering decision.
+</div>
+
+<h3>Why the Bit Allocation Matters in Interviews</h3>
+<div class="commentary">
+  <strong>What interviewers actually want to hear.</strong> Not "I'd use Snowflake" but rather: "I'd allocate 41 bits to millisecond timestamp for ~69 years of headroom, 10 bits to machine ID giving us 1,024 nodes, and 12 bits to a per-millisecond sequence counter for 4,096 IDs per node per ms. The risk is clock skew -- I'd mitigate with a monotonic counter that refuses to go backwards." This level of specificity is the staff-level signal. Naming the scheme is table stakes; deriving the constraints from the bit budget is the tell.
+</div>
+
+<h3>B-Tree Index Implications</h3>
+<p style="font-size:13px;color:var(--text-2)">ID format directly impacts database write performance. Random IDs (UUID v4) cause random B-tree leaf page inserts -- every insert potentially touches a different page, fragmenting the buffer pool and causing write amplification. Sorted IDs (Snowflake, UUID v7, ULID) append to the rightmost leaf -- sequential I/O, minimal page splits, better cache utilization. This is why UUID v7 exists: it gives you UUID compatibility with B-tree-friendly write patterns.</p>
+
+<table>
+  <tr><th>ID Type</th><th>Insert Pattern</th><th>B-Tree Impact</th></tr>
+  <tr><td>UUID v4 (random)</td><td>Random leaf page</td><td style="color:var(--accent-red)">Page splits, fragmentation, poor cache hit rate</td></tr>
+  <tr><td>UUID v7 / ULID / Snowflake</td><td>Right-append (sequential)</td><td style="color:var(--accent-green)">No splits, sequential I/O, excellent cache utilization</td></tr>
+  <tr><td>DB sequence</td><td>Right-append (monotonic)</td><td style="color:var(--accent-green)">Best case -- perfectly monotonic</td></tr>
+</table>
+
+<!-- ============================================================ -->
+<!-- SECTION 8: DECISION MATRIX                                    -->
+<!-- ============================================================ -->
+<h2>8. Decision Matrix</h2>
+
+<div class="table-scroll">
+<table>
+  <thead>
+    <tr>
+      <th>Scheme</th>
+      <th>Bits</th>
+      <th>Chars</th>
+      <th>Sortable</th>
+      <th>Time-encoded</th>
+      <th>Coord-free</th>
+      <th>Throughput</th>
+      <th>Clock-safe</th>
+      <th>Use when</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>DB Sequence</strong></td>
+      <td>64</td>
+      <td>1-19</td>
+      <td style="color:var(--accent-green)">Yes</td>
+      <td>No</td>
+      <td style="color:var(--accent-red)">No</td>
+      <td>Low (1 node)</td>
+      <td style="color:var(--accent-green)">Yes</td>
+      <td>Low-throughput, single-DB apps</td>
+    </tr>
+    <tr>
+      <td><strong>Hi-Lo</strong></td>
+      <td>64</td>
+      <td>1-19</td>
+      <td style="color:var(--accent-green)">Yes*</td>
+      <td>No</td>
+      <td style="color:var(--accent-yellow)">Partial</td>
+      <td>Medium</td>
+      <td style="color:var(--accent-green)">Yes</td>
+      <td>Medium-throughput, need monotonic</td>
+    </tr>
+    <tr>
+      <td><strong>UUID v4</strong></td>
+      <td>128</td>
+      <td>36</td>
+      <td style="color:var(--accent-red)">No</td>
+      <td>No</td>
+      <td style="color:var(--accent-green)">Yes</td>
+      <td>Unlimited</td>
+      <td style="color:var(--accent-green)">Yes</td>
+      <td>Order doesn't matter, max simplicity</td>
+    </tr>
+    <tr>
+      <td><strong>UUID v7</strong></td>
+      <td>128</td>
+      <td>36</td>
+      <td style="color:var(--accent-green)">Yes</td>
+      <td style="color:var(--accent-green)">Yes (ms)</td>
+      <td style="color:var(--accent-green)">Yes</td>
+      <td>Unlimited</td>
+      <td style="color:var(--accent-yellow)">Partial</td>
+      <td>DB primary key, need sort + standard</td>
+    </tr>
+    <tr>
+      <td><strong>ULID</strong></td>
+      <td>128</td>
+      <td>26</td>
+      <td style="color:var(--accent-green)">Yes</td>
+      <td style="color:var(--accent-green)">Yes (ms)</td>
+      <td style="color:var(--accent-green)">Yes</td>
+      <td>Unlimited</td>
+      <td style="color:var(--accent-yellow)">Partial</td>
+      <td>URL-friendly, sortable, no dashes</td>
+    </tr>
+    <tr>
+      <td><strong>KSUID</strong></td>
+      <td>160</td>
+      <td>27</td>
+      <td style="color:var(--accent-green)">Yes</td>
+      <td style="color:var(--accent-green)">Yes (s)</td>
+      <td style="color:var(--accent-green)">Yes</td>
+      <td>Unlimited</td>
+      <td style="color:var(--accent-yellow)">Partial</td>
+      <td>Max collision resistance, second-level ok</td>
+    </tr>
+    <tr>
+      <td><strong>Snowflake</strong></td>
+      <td>64</td>
+      <td>1-19</td>
+      <td style="color:var(--accent-green)">Yes</td>
+      <td style="color:var(--accent-green)">Yes (ms)</td>
+      <td style="color:var(--accent-green)">Yes</td>
+      <td>4.2B/s cluster</td>
+      <td style="color:var(--accent-red)">No*</td>
+      <td>High-throughput, 64-bit constraint</td>
+    </tr>
+    <tr>
+      <td><strong>Sonyflake</strong></td>
+      <td>64</td>
+      <td>1-19</td>
+      <td style="color:var(--accent-green)">Yes</td>
+      <td style="color:var(--accent-green)">Yes (10ms)</td>
+      <td style="color:var(--accent-green)">Yes</td>
+      <td>25.6K/s/node</td>
+      <td style="color:var(--accent-red)">No*</td>
+      <td>Long-lived deploy, many small services</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+<p style="font-size:12px;color:var(--text-3)">* Hi-Lo: sorted within each node's range, not globally across nodes. Snowflake/Sonyflake: clock-safe with monotonic counter mitigation, but vulnerable by default.</p>
+
+<div class="takeaway" style="border-left-color:var(--accent-blue)">
+  <strong style="color:var(--accent-blue)">The senior tell.</strong> "I'd use Snowflake-style: 64-bit, 41-bit ms timestamp + 10-bit machine ID + 12-bit sequence -- handles clock skew with a monotonic counter. UUID v7 if I need 128-bit space and don't care about the extra bytes." Naming the bit allocation is what separates "I've heard of Snowflake" from "I understand distributed ID generation."
+</div>
+
+<!-- ============================================================ -->
+<!-- JAVASCRIPT                                                    -->
+<!-- ============================================================ -->
+<script>
+/* ------------------------------------------------------------ */
+/* Section 1: Radar chart                                        */
+/* ------------------------------------------------------------ */
+const AXES = ['Globally\nunique','Compact','Sortable','No\ncoordination','Monotonic /\nclock-safe'];
+const SCHEMES = {
+  snowflake:  { scores:[5,5,5,5,2], color:'#339af0', label:'Snowflake',
+    desc:'Globally unique via machine ID partitioning. 64-bit compact. K-sortable by timestamp prefix. No coordination (local generation). Vulnerable to clock skew (not monotonic-safe without mitigations).' },
+  uuidv4:    { scores:[5,2,1,5,5], color:'#cc5de8', label:'UUID v4',
+    desc:'Unique by 122-bit entropy -- practically zero collision. 128 bits / 36 chars (not compact). Not sortable (random). No coordination. Clock-independent (fully random).' },
+  uuidv7:    { scores:[5,2,5,5,3], color:'#51cf66', label:'UUID v7',
+    desc:'Unique by timestamp + 74 random bits. 128 bits / 36 chars. Sortable via ms timestamp prefix. No coordination. Partially clock-safe (timestamp only moves forward if implementation tracks last-seen).' },
+  ulid:      { scores:[5,3,5,5,3], color:'#ffd43b', label:'ULID',
+    desc:'Unique by timestamp + 80 random bits. 128 bits / 26 chars (more compact than UUID). Sortable. No coordination. Same clock-safety profile as UUID v7.' },
+  ksuid:     { scores:[5,3,4,5,3], color:'#8b5cf6', label:'KSUID',
+    desc:'Unique by timestamp + 128 random bits. 160 bits / 27 chars. Sortable (second resolution). No coordination. Same clock-safety profile. More random bits = lower collision risk.' },
+  dbseq:     { scores:[5,5,5,1,5], color:'#ff6b6b', label:'DB Sequence',
+    desc:'Unique (single source of truth). Compact (64-bit integer). Monotonically increasing. Requires coordination (every ID = round-trip). Fully clock-safe (no timestamps involved).' },
+  hilo:      { scores:[5,5,4,3,5], color:'#ffa94d', label:'Hi-Lo',
+    desc:'Unique (range reservation). Compact (64-bit integer). Sortable within ranges (not globally). Partial coordination (round-trip per batch). Clock-safe (counter-based).' }
+};
+
+function drawRadar(schemeKey) {
+  const svg = document.getElementById('radarChart');
+  const s = SCHEMES[schemeKey];
+  const cx = 250, cy = 210, r = 150;
+  const n = AXES.length;
+  let html = '';
+
+  // Grid circles
+  for (let ring = 1; ring <= 5; ring++) {
+    const rr = (ring/5)*r;
+    let pts = [];
+    for (let i = 0; i < n; i++) {
+      const a = (Math.PI*2*i/n) - Math.PI/2;
+      pts.push(`${cx + rr*Math.cos(a)},${cy + rr*Math.sin(a)}`);
+    }
+    html += `<polygon points="${pts.join(' ')}" fill="none" stroke="#2a2a35" stroke-width="1"/>`;
+    // Ring value label (on first axis)
+    const la = -Math.PI/2;
+    html += `<text x="${cx + (rr+2)*Math.cos(la) + 6}" y="${cy + (rr)*Math.sin(la) + 4}" class="radar-value">${ring}</text>`;
+  }
+
+  // Axis lines + labels
+  for (let i = 0; i < n; i++) {
+    const a = (Math.PI*2*i/n) - Math.PI/2;
+    const x2 = cx + r*Math.cos(a);
+    const y2 = cy + r*Math.sin(a);
+    html += `<line x1="${cx}" y1="${cy}" x2="${x2}" y2="${y2}" stroke="#2a2a35" stroke-width="1"/>`;
+    const lx = cx + (r+28)*Math.cos(a);
+    const ly = cy + (r+28)*Math.sin(a);
+    const anchor = Math.abs(Math.cos(a)) < 0.1 ? 'middle' : (Math.cos(a) > 0 ? 'start' : 'end');
+    const lines = AXES[i].split('\n');
+    html += `<text x="${lx}" y="${ly}" text-anchor="${anchor}" class="radar-label" dominant-baseline="middle">`;
+    lines.forEach((ln, li) => {
+      html += `<tspan x="${lx}" dy="${li === 0 ? 0 : 14}">${ln}</tspan>`;
+    });
+    html += `</text>`;
+  }
+
+  // Data polygon
+  let dataPts = [];
+  for (let i = 0; i < n; i++) {
+    const a = (Math.PI*2*i/n) - Math.PI/2;
+    const val = s.scores[i] / 5;
+    dataPts.push(`${cx + r*val*Math.cos(a)},${cy + r*val*Math.sin(a)}`);
+  }
+  html += `<polygon points="${dataPts.join(' ')}" fill="${s.color}22" stroke="${s.color}" stroke-width="2.5"/>`;
+
+  // Data dots
+  for (let i = 0; i < n; i++) {
+    const a = (Math.PI*2*i/n) - Math.PI/2;
+    const val = s.scores[i] / 5;
+    html += `<circle cx="${cx + r*val*Math.cos(a)}" cy="${cy + r*val*Math.sin(a)}" r="5" fill="${s.color}" stroke="#0f0f15" stroke-width="2"/>`;
+  }
+
+  // Legend
+  html += `<text x="${cx}" y="${cy + r + 70}" text-anchor="middle" fill="${s.color}" font-size="14" font-weight="600" font-family="-apple-system, sans-serif">${s.label}</text>`;
+
+  svg.innerHTML = html;
+}
+
+function showRadar(key) {
+  drawRadar(key);
+  document.getElementById('radarCommentary').innerHTML = `<strong>${SCHEMES[key].label}</strong> -- ${SCHEMES[key].desc}`;
+  document.getElementById('radarControls').querySelectorAll('button').forEach(b => {
+    b.classList.toggle('active-btn', b.textContent.trim() === SCHEMES[key].label);
+  });
+}
+
+// Init radar
+drawRadar('snowflake');
+
+/* ------------------------------------------------------------ */
+/* Section 2: DB Sequence diagrams                               */
+/* ------------------------------------------------------------ */
+function drawSeqDirect(svg) {
+  let html = '';
+  const colors = ['#339af0','#51cf66','#cc5de8'];
+  const labels = ['Service A','Service B','Service C'];
+
+  // DB box
+  html += `<rect x="340" y="20" width="120" height="50" rx="6" fill="#20202a" stroke="#ffd43b" stroke-width="2"/>`;
+  html += `<text x="400" y="50" text-anchor="middle" fill="#ffd43b" font-size="13" font-weight="600" font-family="-apple-system, sans-serif">Postgres SEQ</text>`;
+  html += `<text x="400" y="82" text-anchor="middle" fill="#888" font-size="11" font-family="-apple-system, sans-serif">nextval('id_seq')</text>`;
+
+  // Services
+  for (let i = 0; i < 3; i++) {
+    const y = 140 + i * 65;
+    html += `<rect x="80" y="${y}" width="120" height="40" rx="6" fill="#20202a" stroke="${colors[i]}" stroke-width="2"/>`;
+    html += `<text x="140" y="${y+25}" text-anchor="middle" fill="${colors[i]}" font-size="13" font-weight="600" font-family="-apple-system, sans-serif">${labels[i]}</text>`;
+
+    // Arrow to DB
+    html += `<line x1="200" y1="${y+20}" x2="340" y2="55" stroke="${colors[i]}" stroke-width="1.5" stroke-dasharray="5,3" opacity="0.7"/>`;
+    html += `<text x="260" y="${y - 2}" fill="${colors[i]}" font-size="10" font-family="monospace" opacity="0.8">nextval()</text>`;
+
+    // Arrow back
+    html += `<line x1="340" y1="60" x2="200" y2="${y+25}" stroke="${colors[i]}" stroke-width="1.5" opacity="0.4"/>`;
+  }
+
+  // IDs
+  html += `<text x="550" y="40" fill="#888" font-size="12" font-family="-apple-system, sans-serif">Assigned IDs:</text>`;
+  html += `<text x="550" y="62" fill="${colors[0]}" font-size="12" font-family="monospace">A: 1, 4, 7, 10...</text>`;
+  html += `<text x="550" y="80" fill="${colors[1]}" font-size="12" font-family="monospace">B: 2, 5, 8, 11...</text>`;
+  html += `<text x="550" y="98" fill="${colors[2]}" font-size="12" font-family="monospace">C: 3, 6, 9, 12...</text>`;
+
+  // Bottleneck
+  html += `<rect x="310" y="270" width="180" height="36" rx="4" fill="#2a1520" stroke="#ff6b6b" stroke-width="1"/>`;
+  html += `<text x="400" y="293" text-anchor="middle" fill="#ff6b6b" font-size="12" font-weight="600" font-family="-apple-system, sans-serif">Single point of bottleneck</text>`;
+  html += `<line x1="400" y1="70" x2="400" y2="270" stroke="#ff6b6b" stroke-width="1" stroke-dasharray="4,4" opacity="0.4"/>`;
+
+  svg.innerHTML = html;
+}
+
+function drawSeqHiLo(svg) {
+  let html = '';
+  const colors = ['#339af0','#51cf66','#cc5de8'];
+  const labels = ['Service A','Service B','Service C'];
+  const ranges = ['1-1000','1001-2000','2001-3000'];
+
+  // DB box
+  html += `<rect x="340" y="20" width="120" height="50" rx="6" fill="#20202a" stroke="#ffd43b" stroke-width="2"/>`;
+  html += `<text x="400" y="50" text-anchor="middle" fill="#ffd43b" font-size="13" font-weight="600" font-family="-apple-system, sans-serif">Postgres SEQ</text>`;
+  html += `<text x="400" y="82" text-anchor="middle" fill="#888" font-size="11" font-family="-apple-system, sans-serif">reserve_range(1000)</text>`;
+
+  // Services with local allocators
+  for (let i = 0; i < 3; i++) {
+    const y = 140 + i * 65;
+    html += `<rect x="50" y="${y}" width="150" height="40" rx="6" fill="#20202a" stroke="${colors[i]}" stroke-width="2"/>`;
+    html += `<text x="125" y="${y+16}" text-anchor="middle" fill="${colors[i]}" font-size="12" font-weight="600" font-family="-apple-system, sans-serif">${labels[i]}</text>`;
+    html += `<text x="125" y="${y+32}" text-anchor="middle" fill="#888" font-size="10" font-family="monospace">local: ${ranges[i]}</text>`;
+
+    // Single arrow (batch reservation)
+    html += `<line x1="200" y1="${y+20}" x2="340" y2="55" stroke="${colors[i]}" stroke-width="1.5" stroke-dasharray="5,3" opacity="0.5"/>`;
+    html += `<text x="260" y="${y - 2}" fill="${colors[i]}" font-size="10" font-family="monospace" opacity="0.6">1 call / 1000 IDs</text>`;
+  }
+
+  // Throughput comparison
+  html += `<text x="550" y="40" fill="#888" font-size="12" font-family="-apple-system, sans-serif">Local allocation:</text>`;
+  html += `<text x="550" y="62" fill="${colors[0]}" font-size="12" font-family="monospace">A: 1, 2, 3 ... 1000</text>`;
+  html += `<text x="550" y="80" fill="${colors[1]}" font-size="12" font-family="monospace">B: 1001, 1002 ... 2000</text>`;
+  html += `<text x="550" y="98" fill="${colors[2]}" font-size="12" font-family="monospace">C: 2001, 2002 ... 3000</text>`;
+
+  // Benefit
+  html += `<rect x="310" y="270" width="180" height="36" rx="4" fill="#1a2a1a" stroke="#51cf66" stroke-width="1"/>`;
+  html += `<text x="400" y="293" text-anchor="middle" fill="#51cf66" font-size="12" font-weight="600" font-family="-apple-system, sans-serif">1000x fewer round-trips</text>`;
+
+  svg.innerHTML = html;
+}
+
+function runSeqDemo(mode) {
+  const svg = document.getElementById('seqDiagram');
+  const comm = document.getElementById('seqCommentary');
+  document.getElementById('seqControls').querySelectorAll('button').forEach(b => {
+    b.classList.toggle('active-btn', (mode === 'direct' && b.textContent.includes('Direct')) || (mode === 'hilo' && b.textContent.includes('Hi-Lo')));
+  });
+  if (mode === 'direct') {
+    drawSeqDirect(svg);
+    comm.innerHTML = '<strong>Direct sequence.</strong> Every ID requires a round-trip to Postgres. 3 services, 3 round-trips per ID. The sequence is a single point of bottleneck at high throughput.';
+  } else {
+    drawSeqHiLo(svg);
+    comm.innerHTML = '<strong>Hi-Lo.</strong> Each service reserves a range of 1000 IDs in a single call, then allocates locally. Round-trips reduced by 1000x. Trade-off: IDs are not globally monotonic across services (A\'s IDs interleave with B\'s range). Gaps appear if a service crashes mid-range.';
+  }
+}
+runSeqDemo('direct');
+
+/* ------------------------------------------------------------ */
+/* Section 3: UUID generation demo                               */
+/* ------------------------------------------------------------ */
+function uuidv4() {
+  // Proper v4: version=4 (bits 48-51), variant=10 (bits 64-65)
+  const hex = Array.from(crypto.getRandomValues(new Uint8Array(16)))
+    .map(b => b.toString(16).padStart(2,'0')).join('');
+  const parts = [
+    hex.slice(0,8),
+    hex.slice(8,12),
+    '4' + hex.slice(13,16),  // version 4
+    ((parseInt(hex[16],16) & 0x3) | 0x8).toString(16) + hex.slice(17,20), // variant 10
+    hex.slice(20,32)
+  ];
+  return parts.join('-');
+}
+
+function uuidv7() {
+  const now = Date.now();
+  const tsHex = now.toString(16).padStart(12,'0');
+  const rand = Array.from(crypto.getRandomValues(new Uint8Array(10)))
+    .map(b => b.toString(16).padStart(2,'0')).join('');
+  // version 7 at bits 48-51, variant 10 at bits 64-65
+  const parts = [
+    tsHex.slice(0,8),
+    tsHex.slice(8,12),
+    '7' + rand.slice(0,3),
+    ((parseInt(rand[3],16) & 0x3) | 0x8).toString(16) + rand.slice(4,7),
+    rand.slice(7,19).padEnd(12,'0')
+  ];
+  return parts.join('-');
+}
+
+function generateUUIDs(version) {
+  const el = document.getElementById('uuidList');
+  const ids = [];
+  for (let i = 0; i < 5; i++) {
+    ids.push(version === 'v4' ? uuidv4() : uuidv7());
+  }
+  const sorted = [...ids].sort();
+  const isSorted = ids.every((id, i) => id === sorted[i]);
+  const cssClass = version === 'v7' ? 'sorted' : 'unsorted';
+
+  let html = `<div style="color:var(--text-3);margin-bottom:6px;font-family:-apple-system,sans-serif;font-size:12px">UUID ${version} -- generated in order${version === 'v7' ? ' (time-prefixed, sortable)' : ' (random, NOT sortable)'}:</div>`;
+  ids.forEach((id, i) => {
+    html += `<div class="id-entry ${cssClass}">${i+1}. ${id}</div>`;
+  });
+  if (version === 'v4') {
+    html += `<div style="margin-top:8px;color:var(--accent-red);font-family:-apple-system,sans-serif;font-size:12px">Lexicographic sort would scramble these -- no timestamp prefix.</div>`;
+  } else {
+    html += `<div style="margin-top:8px;color:var(--accent-green);font-family:-apple-system,sans-serif;font-size:12px">Lexicographic sort preserves generation order -- timestamp is the most significant bits.</div>`;
+  }
+  el.innerHTML = html;
+}
+
+function clearUUIDs() {
+  document.getElementById('uuidList').innerHTML = '<span style="color:var(--text-3)">Click a button to generate IDs. Green = sorted order preserved. Red = sort order broken.</span>';
+}
+
+/* ------------------------------------------------------------ */
+/* Section 4: ULID generation demo                               */
+/* ------------------------------------------------------------ */
+const CROCKFORD = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
+
+function encodeTime(now, len) {
+  let str = '';
+  for (let i = len; i > 0; i--) {
+    const mod = now % 32;
+    str = CROCKFORD[mod] + str;
+    now = Math.floor(now / 32);
+  }
+  return str;
+}
+
+function encodeRandom(len) {
+  let str = '';
+  const bytes = crypto.getRandomValues(new Uint8Array(len));
+  for (let i = 0; i < len; i++) {
+    str += CROCKFORD[bytes[i] % 32];
+  }
+  return str;
+}
+
+function generateULID() {
+  const now = Date.now();
+  return encodeTime(now, 10) + encodeRandom(16);
+}
+
+function generateULIDs() {
+  const el = document.getElementById('ulidList');
+  const ids = [];
+  for (let i = 0; i < 5; i++) {
+    ids.push(generateULID());
+  }
+  let html = '<div style="color:var(--text-3);margin-bottom:6px;font-family:-apple-system,sans-serif;font-size:12px">ULIDs -- Crockford Base32, 26 chars, timestamp prefix (sortable):</div>';
+  ids.forEach((id, i) => {
+    const tsPart = id.slice(0,10);
+    const randPart = id.slice(10);
+    html += `<div class="id-entry sorted"><span style="color:var(--accent-blue)">${tsPart}</span><span style="color:var(--accent-cyan)">${randPart}</span> <span style="color:var(--text-3);font-size:10px">&larr; time | random</span></div>`;
+  });
+  html += '<div style="margin-top:8px;color:var(--accent-green);font-family:-apple-system,sans-serif;font-size:12px">First 10 chars encode millisecond timestamp -- lexicographic sort = chronological sort.</div>';
+  el.innerHTML = html;
+}
+
+function clearULIDs() {
+  document.getElementById('ulidList').innerHTML = '<span style="color:var(--text-3)">Click "Generate 5 ULIDs" to see Crockford Base32 encoded IDs. Note the compact 26-char format and lexicographic sortability.</span>';
+}
+
+/* ------------------------------------------------------------ */
+/* Section 5: KSUID generation demo                              */
+/* ------------------------------------------------------------ */
+const KSUID_EPOCH = 1400000000; // 2014-05-13T16:53:20Z
+const BASE62 = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+
+function generateKSUID() {
+  // Simplified KSUID: timestamp (4 bytes) + random (16 bytes), base62 encoded
+  const now = Math.floor(Date.now() / 1000) - KSUID_EPOCH;
+  const bytes = new Uint8Array(20);
+  // Big-endian timestamp in first 4 bytes
+  bytes[0] = (now >> 24) & 0xff;
+  bytes[1] = (now >> 16) & 0xff;
+  bytes[2] = (now >> 8) & 0xff;
+  bytes[3] = now & 0xff;
+  // Random payload
+  const rand = crypto.getRandomValues(new Uint8Array(16));
+  for (let i = 0; i < 16; i++) bytes[4 + i] = rand[i];
+
+  // Convert to BigInt then to base62
+  let num = 0n;
+  for (let i = 0; i < 20; i++) num = (num << 8n) | BigInt(bytes[i]);
+
+  let str = '';
+  while (num > 0n) {
+    str = BASE62[Number(num % 62n)] + str;
+    num = num / 62n;
+  }
+  return str.padStart(27, '0');
+}
+
+function generateKSUIDs() {
+  const el = document.getElementById('ksuidList');
+  const ids = [];
+  for (let i = 0; i < 5; i++) {
+    ids.push(generateKSUID());
+  }
+  let html = '<div style="color:var(--text-3);margin-bottom:6px;font-family:-apple-system,sans-serif;font-size:12px">KSUIDs -- base62, 27 chars, second-resolution timestamp prefix:</div>';
+  ids.forEach((id, i) => {
+    html += `<div class="id-entry sorted" style="color:var(--accent-purple)">${id}</div>`;
+  });
+  html += '<div style="margin-top:8px;color:var(--accent-green);font-family:-apple-system,sans-serif;font-size:12px">Timestamp resolution is 1 second -- IDs within the same second differ only by random payload.</div>';
+  el.innerHTML = html;
+}
+
+function clearKSUIDs() {
+  document.getElementById('ksuidList').innerHTML = '<span style="color:var(--text-3)">Click "Generate 5 KSUIDs" to see base62 encoded IDs. Note the 27-char format.</span>';
+}
+
+/* ------------------------------------------------------------ */
+/* Section 6: Snowflake decoder                                  */
+/* ------------------------------------------------------------ */
+const TWITTER_EPOCH = 1288834974657n; // 2010-11-04T01:42:54.657Z
+
+function bigIntFromStr(s) {
+  try { return BigInt(s.trim()); } catch(e) { return null; }
+}
+
+function generateSnowflake() {
+  const now = BigInt(Date.now());
+  const ts = now - TWITTER_EPOCH;
+  const dc = BigInt(Math.floor(Math.random() * 32));
+  const wk = BigInt(Math.floor(Math.random() * 32));
+  const seq = BigInt(Math.floor(Math.random() * 4096));
+  const id = (ts << 22n) | (dc << 17n) | (wk << 12n) | seq;
+  document.getElementById('snowflakeInput').value = id.toString();
+  decodeSnowflake();
+}
+
+function decodeSnowflake() {
+  const input = document.getElementById('snowflakeInput').value;
+  const id = bigIntFromStr(input);
+  if (id === null || id < 0n) {
+    document.getElementById('snowflakeOutput').innerHTML = '<span style="color:var(--accent-red)">Invalid ID. Enter a positive integer.</span>';
+    return;
+  }
+
+  const timestamp = (id >> 22n) & ((1n << 41n) - 1n);
+  const datacenter = (id >> 17n) & 0x1Fn;
+  const worker = (id >> 12n) & 0x1Fn;
+  const sequence = id & 0xFFFn;
+  const dateMs = Number(timestamp + TWITTER_EPOCH);
+  const date = new Date(dateMs);
+
+  // Binary representation
+  const binStr = id.toString(2).padStart(64,'0');
+
+  // Update output
+  const out = document.getElementById('snowflakeOutput');
+  out.innerHTML = `
+    <div class="field"><span class="field-label">Raw binary: </span><span class="field-value">${binStr}</span></div>
+    <div class="field"><span class="field-label">Timestamp (ms from epoch): </span><span class="field-value">${timestamp.toString()}</span></div>
+    <div class="field"><span class="field-label">Datacenter ID: </span><span class="field-value">${datacenter.toString()} (of 0-31)</span></div>
+    <div class="field"><span class="field-label">Worker ID: </span><span class="field-value">${worker.toString()} (of 0-31)</span></div>
+    <div class="field"><span class="field-label">Sequence: </span><span class="field-value">${sequence.toString()} (of 0-4095)</span></div>
+    <div class="field"><span class="field-label">Date (UTC): </span><span class="field-value">${date.toISOString()}</span></div>
+  `;
+
+  // Draw bit bar
+  drawSnowflakeBitBar(binStr, timestamp, datacenter, worker, sequence);
+}
+
+function drawSnowflakeBitBar(binStr, ts, dc, wk, seq) {
+  const bar = document.getElementById('snowflakeBitBar');
+  const segments = [
+    { bits: binStr.slice(0,1), label:'sign', color:'#374151', width:1, value:'0 (unused)' },
+    { bits: binStr.slice(1,42), label:'timestamp', color:'#2563eb', width:41, value: `${ts} ms` },
+    { bits: binStr.slice(42,47), label:'datacenter', color:'#dc2626', width:5, value: dc.toString() },
+    { bits: binStr.slice(47,52), label:'worker', color:'#ea580c', width:5, value: wk.toString() },
+    { bits: binStr.slice(52,64), label:'sequence', color:'#16a34a', width:12, value: seq.toString() }
+  ];
+
+  let html = '';
+  segments.forEach((seg, i) => {
+    const displayBits = seg.bits.length > 12 ? seg.bits.slice(0,4) + '..' + seg.bits.slice(-4) : seg.bits;
+    html += `<div class="sf-segment" style="flex:${seg.width};background:${seg.color}" data-idx="${i}"
+      onclick="highlightSegment(this, '${seg.label}', '${seg.value}', '${seg.bits}')"
+      title="${seg.label}: ${seg.bits}">
+      ${displayBits}
+      <span class="sf-label">${seg.label} (${seg.width}b)</span>
+    </div>`;
+  });
+  bar.innerHTML = html;
+}
+
+function highlightSegment(el, label, value, bits) {
+  // Remove active from siblings
+  el.parentNode.querySelectorAll('.sf-segment').forEach(s => s.classList.remove('active'));
+  el.classList.add('active');
+
+  // Show detail below
+  const detail = document.getElementById('snowflakeOutput');
+  const existing = detail.querySelector('.segment-detail');
+  if (existing) existing.remove();
+  const div = document.createElement('div');
+  div.className = 'segment-detail';
+  div.style.cssText = 'margin-top:10px;padding:8px 12px;background:var(--surface-2);border-radius:4px;border:1px solid var(--border)';
+  div.innerHTML = `<span style="color:var(--accent-yellow);font-weight:600">${label}</span>: ${value}<br><span style="color:var(--text-3);font-size:11px">bits: ${bits}</span>`;
+  detail.appendChild(div);
+}
+
+/* ------------------------------------------------------------ */
+/* Section 6: Clock-skew animation                               */
+/* ------------------------------------------------------------ */
+let clockAnimRunning = false;
+let clockAnimTimer = null;
+
+function runClockAnimation() {
+  if (clockAnimRunning) return;
+  clockAnimRunning = true;
+  document.getElementById('clockBtn').disabled = true;
+
+  const eventsGroup = document.getElementById('clockEvents');
+  const ntpArrow = document.getElementById('ntpArrow');
+  const collisionMarker = document.getElementById('collisionMarker');
+  const commentary = document.getElementById('clockCommentary');
+
+  // Clear previous
+  eventsGroup.innerHTML = '';
+  ntpArrow.setAttribute('opacity','0');
+  collisionMarker.setAttribute('opacity','0');
+
+  // Timeline: IDs at timestamps 498, 499, 500, 501, 502
+  const normalIds = [
+    { ts: 498, x: 120, label: 'ID #1', color: '#339af0' },
+    { ts: 499, x: 220, label: 'ID #2', color: '#339af0' },
+    { ts: 500, x: 320, label: 'ID #3', color: '#339af0' },
+    { ts: 501, x: 420, label: 'ID #4', color: '#339af0' },
+    { ts: 502, x: 520, label: 'ID #5', color: '#339af0' }
+  ];
+
+  let step = 0;
+  const totalSteps = 9;
+
+  function nextStep() {
+    step++;
+    if (step <= 5) {
+      // Generate normal IDs
+      const id = normalIds[step-1];
+      const g = document.createElementNS('http://www.w3.org/2000/svg','g');
+      g.innerHTML = `
+        <circle cx="${id.x}" cy="90" r="8" fill="${id.color}" opacity="0">
+          <animate attributeName="opacity" from="0" to="1" dur="0.3s" fill="freeze"/>
+        </circle>
+        <text x="${id.x}" y="75" text-anchor="middle" fill="${id.color}" font-size="10" font-weight="600" font-family="monospace" opacity="0">
+          ${id.label}
+          <animate attributeName="opacity" from="0" to="1" dur="0.3s" fill="freeze"/>
+        </text>
+        <text x="${id.x}" y="60" text-anchor="middle" fill="#888" font-size="9" font-family="monospace" opacity="0">
+          ts=${id.ts}
+          <animate attributeName="opacity" from="0" to="1" dur="0.3s" fill="freeze"/>
+        </text>
+        <line x1="${id.x}" y1="98" x2="${id.x}" y2="195" stroke="${id.color}" stroke-width="1" stroke-dasharray="3,3" opacity="0">
+          <animate attributeName="opacity" from="0" to="0.5" dur="0.3s" fill="freeze"/>
+        </line>
+      `;
+      eventsGroup.appendChild(g);
+      commentary.innerHTML = `<strong>Step ${step}.</strong> Node generates ${id.label} at timestamp ${id.ts}ms. Normal operation -- clock advancing forward.`;
+    }
+    else if (step === 6) {
+      // NTP correction
+      ntpArrow.innerHTML = `
+        <path d="M 520,45 C 480,15 380,15 320,45" fill="none" stroke="#ff6b6b" stroke-width="2.5" stroke-dasharray="6,3">
+          <animate attributeName="stroke-dashoffset" from="0" to="-18" dur="1s" repeatCount="indefinite"/>
+        </path>
+        <polygon points="324,45 332,36 336,49" fill="#ff6b6b"/>
+        <text x="420" y="14" text-anchor="middle" fill="#ff6b6b" font-size="11" font-family="-apple-system, sans-serif" font-weight="600">NTP correction: clock jumps back 200ms</text>
+      `;
+      ntpArrow.setAttribute('opacity','1');
+      commentary.innerHTML = '<strong>Step 6.</strong> NTP daemon corrects the clock backwards by 200ms. The node\'s wall clock jumps from ...502 back to ...300. This is the danger zone.';
+    }
+    else if (step === 7) {
+      // Post-skew ID at old timestamp
+      const g = document.createElementNS('http://www.w3.org/2000/svg','g');
+      g.innerHTML = `
+        <circle cx="320" cy="130" r="8" fill="#ff6b6b" opacity="0">
+          <animate attributeName="opacity" from="0" to="1" dur="0.3s" fill="freeze"/>
+        </circle>
+        <text x="320" y="150" text-anchor="middle" fill="#ff6b6b" font-size="10" font-weight="700" font-family="monospace" opacity="0">
+          ID #6
+          <animate attributeName="opacity" from="0" to="1" dur="0.3s" fill="freeze"/>
+        </text>
+        <text x="320" y="165" text-anchor="middle" fill="#ff6b6b" font-size="9" font-family="monospace" opacity="0">
+          ts=500 (REUSED!)
+          <animate attributeName="opacity" from="0" to="1" dur="0.3s" fill="freeze"/>
+        </text>
+      `;
+      eventsGroup.appendChild(g);
+      commentary.innerHTML = '<strong>Step 7.</strong> Node generates ID #6. But the clock says ...500 -- the same timestamp as ID #3. If the machine ID and sequence also match, this ID COLLIDES with #3.';
+    }
+    else if (step === 8) {
+      // Collision marker
+      collisionMarker.innerHTML = `
+        <rect x="278" y="85" width="84" height="90" rx="6" fill="none" stroke="#ff6b6b" stroke-width="2.5" stroke-dasharray="4,3">
+          <animate attributeName="stroke-dashoffset" from="0" to="-14" dur="1s" repeatCount="indefinite"/>
+        </rect>
+        <text x="320" y="108" text-anchor="middle" fill="#ff6b6b" font-size="11" font-weight="700" font-family="-apple-system, sans-serif">COLLISION</text>
+        <text x="320" y="122" text-anchor="middle" fill="#ff6b6b" font-size="9" font-family="-apple-system, sans-serif">ts=500, same node</text>
+      `;
+      collisionMarker.setAttribute('opacity','1');
+      commentary.innerHTML = '<strong>Collision detected.</strong> ID #3 and ID #6 share the same timestamp (500) and machine ID. If the sequence counter also reset (as it does per-ms in naive implementations), the IDs are identical. This is the clock-skew failure mode that interviewers probe for.';
+    }
+    else if (step === 9) {
+      commentary.innerHTML = '<strong>Mitigation.</strong> Track <code>lastTimestamp</code>. If <code>now < lastTimestamp</code>, either (a) block until the clock catches up, or (b) keep using <code>lastTimestamp</code> and increment the sequence counter. Option (b) is always-available but produces stale timestamps during skew.';
+      clockAnimRunning = false;
+      document.getElementById('clockBtn').disabled = false;
+      return;
+    }
+
+    clockAnimTimer = setTimeout(nextStep, step <= 5 ? 700 : 1200);
+  }
+
+  nextStep();
+}
+
+function resetClockAnimation() {
+  if (clockAnimTimer) clearTimeout(clockAnimTimer);
+  clockAnimRunning = false;
+  document.getElementById('clockBtn').disabled = false;
+  document.getElementById('clockEvents').innerHTML = '';
+  document.getElementById('ntpArrow').setAttribute('opacity','0');
+  document.getElementById('collisionMarker').setAttribute('opacity','0');
+  document.getElementById('clockCommentary').innerHTML = 'Click "Animate Clock Skew" to see the failure mode. Node generates IDs at timestamps 498-502. Then NTP corrects the clock backwards. The next ID reuses a timestamp from the past -- potential collision with an ID already issued.';
+}
+
+</script>
+
+</body>
+</html>

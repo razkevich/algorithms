@@ -1,0 +1,1557 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kafka -- Semantics + Data Modeling</title>
+<style>
+:root {
+  --bg: #0f0f15;
+  --surface: #181820;
+  --surface-2: #20202a;
+  --border: #2a2a35;
+  --text: #e6e6ea;
+  --text-2: #cfcfd6;
+  --text-3: #888;
+  --accent-red: #ff6b6b;
+  --accent-green: #51cf66;
+  --accent-blue: #339af0;
+  --accent-yellow: #ffd43b;
+  --accent-purple: #cc5de8;
+  --accent-cyan: #8be9fd;
+  --accent-orange: #ffa94d;
+}
+*, *::before, *::after { box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  padding: 32px 24px;
+  max-width: 1100px;
+  margin: 0 auto;
+  line-height: 1.55;
+}
+h1 { color: #fff; margin-bottom: 4px; }
+h1 + p.sub { color: var(--text-3); font-style: italic; margin-top: 0; margin-bottom: 24px; }
+h2 { color: #fff; margin-top: 48px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+h3 { color: var(--text-2); margin-top: 20px; }
+code {
+  background: var(--surface-2);
+  padding: 2px 6px;
+  border-radius: 3px;
+  color: var(--accent-cyan);
+  font-size: 13px;
+}
+svg {
+  background: var(--surface);
+  border-radius: 8px;
+  display: block;
+  margin: 14px auto;
+  width: 100%;
+  height: auto;
+}
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0;
+  align-items: center;
+}
+.controls button, .btn {
+  padding: 10px 16px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  border-radius: 6px;
+  cursor: pointer;
+  min-height: 44px;
+  font-size: 14px;
+  transition: background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+.controls button:hover, .btn:hover { background: var(--surface); }
+.controls button:disabled, .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.controls button.active-btn { border-color: var(--accent-blue); color: var(--accent-blue); }
+.controls button.danger { border-color: var(--accent-red); color: var(--accent-red); }
+.controls button.danger:hover { background: #2a1520; }
+.commentary {
+  background: var(--surface-2);
+  padding: 14px;
+  border-radius: 6px;
+  font-size: 14px;
+  color: var(--text-2);
+  margin: 12px 0;
+  min-height: 44px;
+  line-height: 1.5;
+}
+.takeaway {
+  background: #1a1a22;
+  border-left: 3px solid var(--accent-green);
+  padding: 12px 16px;
+  margin: 14px 0;
+  font-size: 14px;
+}
+.takeaway strong { color: var(--accent-green); }
+.takeaway ul { margin: 6px 0 0 0; padding-left: 18px; }
+.takeaway li { margin-bottom: 6px; }
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 14px 0;
+  font-size: 14px;
+}
+th, td {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  text-align: left;
+}
+th {
+  background: var(--surface-2);
+  color: var(--text-2);
+  font-weight: 600;
+}
+td { background: var(--surface); }
+.bar-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  height: 160px;
+  padding: 10px 0;
+  margin: 14px 0;
+}
+.bar-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+  justify-content: flex-end;
+}
+.bar {
+  width: 100%;
+  max-width: 60px;
+  border-radius: 4px 4px 0 0;
+  transition: height 0.8s ease;
+  position: relative;
+}
+.bar-label {
+  font-size: 11px;
+  color: var(--text-3);
+  margin-top: 6px;
+  text-align: center;
+  word-break: break-all;
+}
+.bar-value {
+  font-size: 10px;
+  color: var(--text-2);
+  position: absolute;
+  top: -16px;
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+.log-view {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 12px;
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+  font-size: 13px;
+  margin: 12px 0;
+  max-height: 220px;
+  overflow-y: auto;
+  line-height: 1.6;
+}
+.log-entry { margin: 2px 0; }
+.log-entry.green { color: var(--accent-green); }
+.log-entry.red { color: var(--accent-red); }
+.log-entry.yellow { color: var(--accent-yellow); }
+.log-entry.blue { color: var(--accent-blue); }
+.log-entry.purple { color: var(--accent-purple); }
+.log-entry.cyan { color: var(--accent-cyan); }
+.log-entry.dim { color: var(--text-3); }
+
+.flow-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 14px;
+  margin: 14px 0;
+}
+.flow-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px;
+}
+.flow-panel h4 {
+  margin: 0 0 8px 0;
+  font-size: 14px;
+  color: var(--text-2);
+}
+.flow-panel .flow-log {
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  min-height: 120px;
+}
+.partition-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 4px 0;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+}
+.partition-label {
+  font-size: 12px;
+  color: var(--text-3);
+  min-width: 24px;
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+}
+.msg-cell {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  height: 26px;
+  padding: 0 4px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+  color: #fff;
+  transition: opacity 0.5s, transform 0.3s;
+  flex-shrink: 0;
+}
+.msg-cell.tombstone {
+  background: var(--accent-red) !important;
+  text-decoration: line-through;
+}
+.msg-cell.faded { opacity: 0.25; }
+.msg-cell.deleted { opacity: 0; transform: scale(0.5); }
+
+.schema-demo {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin: 14px 0;
+}
+.schema-box {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px;
+}
+.schema-box h4 { margin: 0 0 8px 0; font-size: 14px; }
+.schema-box pre {
+  background: var(--surface-2);
+  padding: 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-x: auto;
+  color: var(--text-2);
+  margin: 6px 0;
+}
+
+.txn-step {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  margin: 4px 0;
+  border-radius: 6px;
+  font-size: 13px;
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  transition: background 0.3s, border-color 0.3s;
+}
+.txn-step.active { border-color: var(--accent-blue); background: #1a2030; }
+.txn-step.done { border-color: var(--accent-green); background: #1a2a1a; }
+.txn-step.aborted { border-color: var(--accent-red); background: #2a1a1a; }
+.txn-step .step-num {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--surface-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-3);
+  flex-shrink: 0;
+}
+.txn-step.active .step-num { background: var(--accent-blue); color: #fff; }
+.txn-step.done .step-num { background: var(--accent-green); color: #fff; }
+.txn-step.aborted .step-num { background: var(--accent-red); color: #fff; }
+
+.pitfall-table td:first-child {
+  white-space: nowrap;
+  font-weight: 600;
+  color: var(--accent-orange);
+}
+
+@media (max-width: 720px) {
+  body { padding: 20px 14px; }
+  .flow-container { grid-template-columns: 1fr; }
+  .schema-demo { grid-template-columns: 1fr; }
+}
+@media (max-width: 480px) {
+  .controls { flex-direction: column; }
+  .controls button { width: 100%; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Kafka -- semantics + data modeling</h1>
+  <p class="sub">Partition keys, compaction vs retention, exactly-once semantics, consumer offsets, the transactional API. The senior tell isn't using Kafka -- it's avoiding the seven ways your pipeline loses, duplicates, or reorders data.</p>
+</header>
+
+<!-- ================================================================ -->
+<!-- SECTION 1: PARTITION KEY DESIGN                                   -->
+<!-- ================================================================ -->
+<h2>1. Partition Key Design</h2>
+
+<p>The partition key is the <strong>ordering boundary</strong>. All messages with the same key land on the same partition via <code>hash(key) % numPartitions</code>. Within a partition, order is guaranteed. Across partitions, there is no ordering.</p>
+
+<h3>Key distribution simulation</h3>
+<p>Watch how key choice affects partition load. A hot key saturates one partition while others idle.</p>
+
+<div class="controls">
+  <button onclick="pkRunUniform()">Uniform keys</button>
+  <button onclick="pkRunSkewed()">Hot key (user42)</button>
+  <button onclick="pkRunNoKey()">No key (round-robin)</button>
+</div>
+
+<div class="bar-chart" id="pk-bar-chart"></div>
+<div class="commentary" id="pk-commentary">Click a distribution to see how messages land across 6 partitions.</div>
+
+<h3>Partition count change breaks ordering</h3>
+<p>Increasing partition count changes <code>hash(key) % N</code>. The same key can map to a different partition after the change, breaking per-key ordering across the boundary.</p>
+
+<div class="controls">
+  <button onclick="pkRebalanceAnimate()">Animate: 6 -> 8 partitions</button>
+  <button onclick="pkRebalanceReset()">Reset</button>
+</div>
+
+<div id="pk-rebalance-display" style="margin: 14px 0;">
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+    <div>
+      <h4 style="color: var(--text-2); margin: 0 0 8px 0;">Before (6 partitions)</h4>
+      <div id="pk-rebalance-before" class="log-view" style="min-height: 100px;"></div>
+    </div>
+    <div>
+      <h4 style="color: var(--text-2); margin: 0 0 8px 0;">After (8 partitions)</h4>
+      <div id="pk-rebalance-after" class="log-view" style="min-height: 100px;"></div>
+    </div>
+  </div>
+</div>
+<div class="commentary" id="pk-rebalance-commentary">Click "Animate" to see how keys remap when partition count increases.</div>
+
+<h3>Consumer group parallelism</h3>
+<p>Each partition is consumed by exactly one consumer in a group. Adding consumers beyond the partition count leaves them idle. This means <strong>partition count = max parallelism</strong>.</p>
+
+<svg viewBox="0 0 700 200" style="max-height: 200px;">
+  <!-- Partitions -->
+  <text x="80" y="25" fill="#888" font-size="12" text-anchor="middle">Topic: orders</text>
+  <rect x="20" y="35" width="120" height="30" rx="4" fill="#339af0" opacity="0.8"/>
+  <text x="80" y="55" fill="#fff" font-size="11" text-anchor="middle">Partition 0</text>
+  <rect x="20" y="75" width="120" height="30" rx="4" fill="#51cf66" opacity="0.8"/>
+  <text x="80" y="95" fill="#fff" font-size="11" text-anchor="middle">Partition 1</text>
+  <rect x="20" y="115" width="120" height="30" rx="4" fill="#cc5de8" opacity="0.8"/>
+  <text x="80" y="135" fill="#fff" font-size="11" text-anchor="middle">Partition 2</text>
+  <rect x="20" y="155" width="120" height="30" rx="4" fill="#ffa94d" opacity="0.8"/>
+  <text x="80" y="175" fill="#fff" font-size="11" text-anchor="middle">Partition 3</text>
+
+  <!-- Arrows -->
+  <line x1="145" y1="50" x2="230" y2="65" stroke="#339af0" stroke-width="1.5" marker-end="url(#arrowBlue)"/>
+  <line x1="145" y1="90" x2="230" y2="80" stroke="#51cf66" stroke-width="1.5" marker-end="url(#arrowGreen)"/>
+  <line x1="145" y1="130" x2="230" y2="130" stroke="#cc5de8" stroke-width="1.5" marker-end="url(#arrowPurple)"/>
+  <line x1="145" y1="170" x2="230" y2="145" stroke="#ffa94d" stroke-width="1.5" marker-end="url(#arrowOrange)"/>
+
+  <!-- Consumer Group A (3 consumers) -->
+  <text x="340" y="25" fill="#888" font-size="12" text-anchor="middle">Consumer Group A (3 consumers)</text>
+  <rect x="235" y="40" width="110" height="45" rx="6" fill="#20202a" stroke="#339af0" stroke-width="1.5"/>
+  <text x="290" y="58" fill="#e6e6ea" font-size="11" text-anchor="middle">Consumer 1</text>
+  <text x="290" y="75" fill="#888" font-size="9" text-anchor="middle">P0 + P1</text>
+  <rect x="235" y="100" width="110" height="45" rx="6" fill="#20202a" stroke="#cc5de8" stroke-width="1.5"/>
+  <text x="290" y="118" fill="#e6e6ea" font-size="11" text-anchor="middle">Consumer 2</text>
+  <text x="290" y="135" fill="#888" font-size="9" text-anchor="middle">P2 + P3</text>
+  <rect x="235" y="155" width="110" height="30" rx="6" fill="#20202a" stroke="#2a2a35" stroke-width="1" stroke-dasharray="4"/>
+  <text x="290" y="175" fill="#555" font-size="10" text-anchor="middle" font-style="italic">Consumer 3 (idle)</text>
+
+  <!-- Arrow defs -->
+  <defs>
+    <marker id="arrowBlue" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#339af0"/></marker>
+    <marker id="arrowGreen" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#51cf66"/></marker>
+    <marker id="arrowPurple" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#cc5de8"/></marker>
+    <marker id="arrowOrange" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#ffa94d"/></marker>
+  </defs>
+
+  <!-- Consumer Group B (independent) -->
+  <text x="570" y="25" fill="#888" font-size="12" text-anchor="middle">Consumer Group B (independent)</text>
+  <rect x="460" y="40" width="110" height="30" rx="6" fill="#20202a" stroke="#8be9fd" stroke-width="1.5"/>
+  <text x="515" y="60" fill="#e6e6ea" font-size="11" text-anchor="middle">Analytics C1</text>
+  <rect x="460" y="80" width="110" height="30" rx="6" fill="#20202a" stroke="#8be9fd" stroke-width="1.5"/>
+  <text x="515" y="100" fill="#e6e6ea" font-size="11" text-anchor="middle">Analytics C2</text>
+  <text x="515" y="130" fill="#555" font-size="10" text-anchor="middle" font-style="italic">Each group gets ALL</text>
+  <text x="515" y="145" fill="#555" font-size="10" text-anchor="middle" font-style="italic">messages independently</text>
+
+  <!-- Arrows to group B -->
+  <line x1="145" y1="50" x2="455" y2="55" stroke="#8be9fd" stroke-width="0.8" stroke-dasharray="4" opacity="0.4"/>
+  <line x1="145" y1="90" x2="455" y2="55" stroke="#8be9fd" stroke-width="0.8" stroke-dasharray="4" opacity="0.4"/>
+  <line x1="145" y1="130" x2="455" y2="95" stroke="#8be9fd" stroke-width="0.8" stroke-dasharray="4" opacity="0.4"/>
+  <line x1="145" y1="170" x2="455" y2="95" stroke="#8be9fd" stroke-width="0.8" stroke-dasharray="4" opacity="0.4"/>
+</svg>
+
+<div class="takeaway">
+  <strong>Takeaway:</strong> Partition key = ordering domain. Hot key = anti-pattern (one partition saturated, one consumer overloaded). Increasing partitions breaks key ordering across the change. Mitigation: pick partition count generously up front (10x current need), or use a fixed-modulus partitioner. Partition count = max consumer parallelism within a group.
+</div>
+
+<!-- ================================================================ -->
+<!-- SECTION 2: COMPACTION VS RETENTION                                -->
+<!-- ================================================================ -->
+<h2>2. Compaction vs Retention</h2>
+
+<p>Two retention modes per topic determine what Kafka keeps and what it discards.</p>
+
+<h3>Time/size retention (default)</h3>
+<p>Kafka deletes records older than <code>retention.ms</code> or beyond <code>retention.bytes</code>. The log is a sliding window of events.</p>
+
+<div class="controls">
+  <button onclick="retentionAnimate()">Animate retention</button>
+  <button onclick="retentionReset()">Reset</button>
+</div>
+
+<div id="retention-partitions" style="margin: 14px 0;"></div>
+<div class="commentary" id="retention-commentary">Click "Animate" to see time-based deletion in action.</div>
+
+<h3>Log compaction</h3>
+<p>Kafka keeps <strong>only the latest record per key</strong>. Records with <code>null</code> value are tombstones -- the key is deleted on compaction. The result: a compacted topic is a <strong>table representation in log form</strong>.</p>
+
+<div class="controls">
+  <button onclick="compactionAnimate()">Animate compaction</button>
+  <button onclick="compactionReset()">Reset</button>
+</div>
+
+<div id="compaction-display" style="margin: 14px 0;"></div>
+<div class="commentary" id="compaction-commentary">Click "Animate" to see compaction collapse updates to latest-per-key.</div>
+
+<table>
+  <tr><th></th><th>Time/Size Retention</th><th>Log Compaction</th></tr>
+  <tr><td>Keeps</td><td>All records within window</td><td>Latest record per key only</td></tr>
+  <tr><td>Deletes</td><td>Records older than <code>retention.ms</code></td><td>Superseded values; tombstones after <code>delete.retention.ms</code></td></tr>
+  <tr><td>Use case</td><td>Event logs, audit trails, analytics</td><td>CDC, materialized state, config distribution</td></tr>
+  <tr><td>Analogy</td><td>Stream of events</td><td>DB table as a log (key = primary key)</td></tr>
+</table>
+
+<h3>Compacted topic as materialized table</h3>
+<p>A compacted topic is semantically equivalent to a database table: each key is a row, each new record is an upsert, and a <code>null</code> value is a delete. Kafka Streams and ksqlDB build materialized views directly from compacted topics.</p>
+
+<svg viewBox="0 0 700 180" style="max-height: 180px;">
+  <!-- Compacted topic -->
+  <text x="120" y="20" fill="#888" font-size="12" text-anchor="middle">Compacted Topic: user-profiles</text>
+  <rect x="20" y="30" width="60" height="28" rx="4" fill="#339af0" opacity="0.8"/>
+  <text x="50" y="48" fill="#fff" font-size="9" text-anchor="middle">u42:v5</text>
+  <rect x="85" y="30" width="60" height="28" rx="4" fill="#cc5de8" opacity="0.8"/>
+  <text x="115" y="48" fill="#fff" font-size="9" text-anchor="middle">u99:v2</text>
+  <rect x="150" y="30" width="60" height="28" rx="4" fill="#ff6b6b" opacity="0.6"/>
+  <text x="180" y="48" fill="#fff" font-size="9" text-anchor="middle" text-decoration="line-through">u7:del</text>
+
+  <!-- Arrow -->
+  <text x="280" y="48" fill="#888" font-size="11" text-anchor="middle">KTable</text>
+  <line x1="215" y1="44" x2="310" y2="44" stroke="#51cf66" stroke-width="1.5" stroke-dasharray="4"/>
+  <polygon points="310,40 320,44 310,48" fill="#51cf66"/>
+
+  <!-- Materialized table -->
+  <text x="490" y="20" fill="#888" font-size="12" text-anchor="middle">Materialized View (RocksDB)</text>
+  <rect x="340" y="30" width="300" height="24" rx="0" fill="#20202a" stroke="#2a2a35"/>
+  <text x="360" y="46" fill="#888" font-size="10">key</text>
+  <text x="460" y="46" fill="#888" font-size="10">value</text>
+  <text x="580" y="46" fill="#888" font-size="10">version</text>
+
+  <rect x="340" y="54" width="300" height="24" rx="0" fill="#181820" stroke="#2a2a35"/>
+  <text x="360" y="70" fill="#339af0" font-size="10">user42</text>
+  <text x="460" y="70" fill="#cfcfd6" font-size="10">{name:"Alice5"}</text>
+  <text x="580" y="70" fill="#888" font-size="10">v5</text>
+
+  <rect x="340" y="78" width="300" height="24" rx="0" fill="#181820" stroke="#2a2a35"/>
+  <text x="360" y="94" fill="#cc5de8" font-size="10">user99</text>
+  <text x="460" y="94" fill="#cfcfd6" font-size="10">{name:"Carol2"}</text>
+  <text x="580" y="94" fill="#888" font-size="10">v2</text>
+
+  <rect x="340" y="102" width="300" height="24" rx="0" fill="#181820" stroke="#2a2a35"/>
+  <text x="360" y="118" fill="#555" font-size="10" text-decoration="line-through">user7</text>
+  <text x="460" y="118" fill="#555" font-size="10" font-style="italic">deleted (tombstone)</text>
+  <text x="580" y="118" fill="#888" font-size="10">--</text>
+
+  <!-- Note -->
+  <text x="350" y="155" fill="#51cf66" font-size="10">Queryable via Kafka Streams interactive queries</text>
+  <text x="350" y="170" fill="#888" font-size="10">or exposed via ksqlDB as a live-updating table</text>
+</svg>
+
+<div class="takeaway">
+  <strong>Takeaway:</strong> Retention = stream of events. Compaction = log of latest-state-per-key (table representation). Compacted topics are the foundation of Kafka Streams state stores and CDC pipelines. Stream-table duality: every stream can be compacted into a table, and every table change log is a stream.
+</div>
+
+<!-- ================================================================ -->
+<!-- SECTION 3: PRODUCER SEMANTICS                                     -->
+<!-- ================================================================ -->
+<h2>3. Producer Semantics</h2>
+
+<p>Three delivery guarantees on the produce side. The choice is a trade-off between latency, durability, and deduplication.</p>
+
+<h3>Acks and replication</h3>
+<p>The <code>acks</code> setting determines when the broker acknowledges a write. Combined with <code>min.insync.replicas</code>, this controls the durability guarantee.</p>
+
+<svg viewBox="0 0 700 200" style="max-height: 200px;">
+  <!-- Producer -->
+  <rect x="20" y="30" width="100" height="140" rx="8" fill="#20202a" stroke="#8be9fd" stroke-width="1.5"/>
+  <text x="70" y="55" fill="#8be9fd" font-size="12" text-anchor="middle" font-weight="600">Producer</text>
+  <text x="70" y="80" fill="#888" font-size="9" text-anchor="middle">send(key,val)</text>
+  <text x="70" y="100" fill="#888" font-size="9" text-anchor="middle">acks=0|1|all</text>
+
+  <!-- Leader -->
+  <rect x="200" y="20" width="140" height="70" rx="8" fill="#20202a" stroke="#339af0" stroke-width="2"/>
+  <text x="270" y="45" fill="#339af0" font-size="12" text-anchor="middle" font-weight="600">Leader</text>
+  <text x="270" y="62" fill="#888" font-size="10" text-anchor="middle">Partition 0 (ISR)</text>
+
+  <!-- Follower 1 -->
+  <rect x="200" y="110" width="140" height="35" rx="6" fill="#20202a" stroke="#51cf66" stroke-width="1"/>
+  <text x="270" y="132" fill="#51cf66" font-size="11" text-anchor="middle">Follower 1 (ISR)</text>
+
+  <!-- Follower 2 -->
+  <rect x="200" y="155" width="140" height="35" rx="6" fill="#20202a" stroke="#51cf66" stroke-width="1"/>
+  <text x="270" y="177" fill="#51cf66" font-size="11" text-anchor="middle">Follower 2 (ISR)</text>
+
+  <!-- Replication arrows -->
+  <line x1="270" y1="90" x2="270" y2="108" stroke="#51cf66" stroke-width="1" stroke-dasharray="3"/>
+  <polygon points="266,108 270,115 274,108" fill="#51cf66"/>
+  <line x1="270" y1="90" x2="270" y2="153" stroke="#51cf66" stroke-width="1" stroke-dasharray="3" opacity="0.5"/>
+
+  <!-- Send arrow -->
+  <line x1="120" y1="50" x2="195" y2="50" stroke="#8be9fd" stroke-width="1.5"/>
+  <polygon points="195,46 205,50 195,54" fill="#8be9fd"/>
+
+  <!-- acks labels -->
+  <rect x="420" y="20" width="260" height="35" rx="6" fill="#20202a" stroke="#ff6b6b" stroke-width="1"/>
+  <text x="550" y="35" fill="#ff6b6b" font-size="11" text-anchor="middle" font-weight="600">acks=0</text>
+  <text x="550" y="49" fill="#888" font-size="9" text-anchor="middle">No ack. Fire and forget. Fastest, lossy.</text>
+
+  <rect x="420" y="65" width="260" height="35" rx="6" fill="#20202a" stroke="#ffd43b" stroke-width="1"/>
+  <text x="550" y="80" fill="#ffd43b" font-size="11" text-anchor="middle" font-weight="600">acks=1</text>
+  <text x="550" y="94" fill="#888" font-size="9" text-anchor="middle">Leader ack. Lost if leader crashes pre-replication.</text>
+
+  <rect x="420" y="110" width="260" height="50" rx="6" fill="#20202a" stroke="#51cf66" stroke-width="1"/>
+  <text x="550" y="128" fill="#51cf66" font-size="11" text-anchor="middle" font-weight="600">acks=all + min.insync.replicas=2</text>
+  <text x="550" y="143" fill="#888" font-size="9" text-anchor="middle">Leader + at least 1 follower ack.</text>
+  <text x="550" y="155" fill="#888" font-size="9" text-anchor="middle">Durable. Production default.</text>
+
+  <!-- Connecting lines -->
+  <line x1="340" y1="40" x2="415" y2="37" stroke="#ff6b6b" stroke-width="0.8" stroke-dasharray="3"/>
+  <line x1="340" y1="55" x2="415" y2="82" stroke="#ffd43b" stroke-width="0.8" stroke-dasharray="3"/>
+  <line x1="340" y1="128" x2="415" y2="128" stroke="#51cf66" stroke-width="0.8" stroke-dasharray="3"/>
+</svg>
+
+<div class="controls">
+  <button onclick="producerAnimate()">Animate all three</button>
+  <button onclick="producerReset()">Reset</button>
+</div>
+
+<div class="flow-container" id="producer-flows">
+  <div class="flow-panel" id="prod-amo">
+    <h4 style="color: var(--accent-red);">At-Most-Once</h4>
+    <p style="font-size: 12px; color: var(--text-3); margin: 0 0 8px 0;"><code>acks=0</code>, no retry</p>
+    <div class="flow-log" id="prod-amo-log"></div>
+  </div>
+  <div class="flow-panel" id="prod-alo">
+    <h4 style="color: var(--accent-yellow);">At-Least-Once</h4>
+    <p style="font-size: 12px; color: var(--text-3); margin: 0 0 8px 0;"><code>acks=all</code>, retry on timeout</p>
+    <div class="flow-log" id="prod-alo-log"></div>
+  </div>
+  <div class="flow-panel" id="prod-eo">
+    <h4 style="color: var(--accent-green);">Exactly-Once (Idempotent)</h4>
+    <p style="font-size: 12px; color: var(--text-3); margin: 0 0 8px 0;"><code>enable.idempotence=true</code></p>
+    <div class="flow-log" id="prod-eo-log"></div>
+  </div>
+</div>
+<div class="commentary" id="producer-commentary">Click "Animate" to see how each semantic handles a broker crash during produce.</div>
+
+<div class="takeaway">
+  <strong>Takeaway:</strong> Idempotent producer = the modern default. It solves at-least-once becoming exactly-once <em>for the producer side only</em> via PID + sequence dedup on the broker. The consumer side is a separate problem.
+</div>
+
+<!-- ================================================================ -->
+<!-- SECTION 4: CONSUMER OFFSET HANDLING                               -->
+<!-- ================================================================ -->
+<h2>4. Consumer Offset Handling</h2>
+
+<p>The consumer side of the exactly-once puzzle. Offset commit timing determines whether a crash causes data loss or duplication.</p>
+
+<div class="controls">
+  <button onclick="consumerAnimate('auto')">Auto-commit crash</button>
+  <button onclick="consumerAnimate('after')">Commit-after-process crash</button>
+  <button onclick="consumerAnimate('before')">Commit-before-process crash</button>
+  <button onclick="consumerReset()">Reset</button>
+</div>
+
+<div id="consumer-display" style="margin: 14px 0;">
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+    <div>
+      <h4 style="color: var(--text-2); margin: 0 0 8px 0;">Consumer lifecycle</h4>
+      <div class="log-view" id="consumer-log" style="min-height: 150px;"></div>
+    </div>
+    <div>
+      <h4 style="color: var(--text-2); margin: 0 0 8px 0;">Partition state (offsets 0-5)</h4>
+      <div id="consumer-partition" style="margin-top: 8px;"></div>
+      <div style="margin-top: 12px; font-size: 12px; color: var(--text-3);">
+        <span style="color: var(--accent-green);">committed</span> |
+        <span style="color: var(--accent-blue);">processed</span> |
+        <span style="color: var(--accent-yellow);">pending</span> |
+        <span style="color: var(--text-3);">unread</span>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="commentary" id="consumer-commentary">Click a commit strategy to see how a crash affects message delivery.</div>
+
+<table>
+  <tr><th>Strategy</th><th>Commit timing</th><th>Crash effect</th><th>Guarantee</th></tr>
+  <tr><td>Auto-commit</td><td>Every <code>auto.commit.interval.ms</code></td><td>Reprocess since last auto-commit</td><td>At-least-once (with surprise duplicates)</td></tr>
+  <tr><td>Manual commit after</td><td>After processing</td><td>Reprocess uncommitted batch</td><td>At-least-once (explicit)</td></tr>
+  <tr><td>Manual commit before</td><td>Before processing</td><td>Records lost (committed but unprocessed)</td><td>At-most-once</td></tr>
+</table>
+
+<div class="takeaway">
+  <strong>Takeaway:</strong> At-least-once + idempotent processing in app code = practical exactly-once for most systems. Auto-commit is the source of mysterious duplicates. Manual commit-after-process is the safe default.
+</div>
+
+<!-- ================================================================ -->
+<!-- SECTION 5: TRANSACTIONAL API + TRUE EXACTLY-ONCE                  -->
+<!-- ================================================================ -->
+<h2>5. Transactional API -- True Exactly-Once</h2>
+
+<p>The producer-consumer transaction: read from topic A, process, write to topic B + commit offset on topic A -- <strong>atomically</strong>. This is Kafka's exactly-once semantics (EOS).</p>
+
+<svg viewBox="0 0 700 220" style="max-height: 220px;">
+  <!-- Topic A -->
+  <rect x="20" y="60" width="130" height="50" rx="8" fill="#20202a" stroke="#339af0" stroke-width="1.5"/>
+  <text x="85" y="82" fill="#339af0" font-size="12" text-anchor="middle" font-weight="600">Topic A</text>
+  <text x="85" y="98" fill="#888" font-size="10" text-anchor="middle">(source)</text>
+
+  <!-- Consumer/Producer App -->
+  <rect x="240" y="40" width="180" height="90" rx="8" fill="#20202a" stroke="#51cf66" stroke-width="2"/>
+  <text x="330" y="65" fill="#51cf66" font-size="12" text-anchor="middle" font-weight="600">Read-Process-Write</text>
+  <text x="330" y="82" fill="#cfcfd6" font-size="10" text-anchor="middle">consumer.poll(A)</text>
+  <text x="330" y="95" fill="#cfcfd6" font-size="10" text-anchor="middle">transform(record)</text>
+  <text x="330" y="108" fill="#cfcfd6" font-size="10" text-anchor="middle">producer.send(B)</text>
+
+  <!-- Topic B -->
+  <rect x="510" y="60" width="130" height="50" rx="8" fill="#20202a" stroke="#cc5de8" stroke-width="1.5"/>
+  <text x="575" y="82" fill="#cc5de8" font-size="12" text-anchor="middle" font-weight="600">Topic B</text>
+  <text x="575" y="98" fill="#888" font-size="10" text-anchor="middle">(sink)</text>
+
+  <!-- __consumer_offsets -->
+  <rect x="240" y="160" width="180" height="40" rx="8" fill="#20202a" stroke="#ffa94d" stroke-width="1.5"/>
+  <text x="330" y="185" fill="#ffa94d" font-size="11" text-anchor="middle">__consumer_offsets</text>
+
+  <!-- Arrows -->
+  <line x1="150" y1="85" x2="235" y2="85" stroke="#339af0" stroke-width="1.5"/>
+  <polygon points="235,81 245,85 235,89" fill="#339af0"/>
+  <text x="192" y="78" fill="#339af0" font-size="9" text-anchor="middle">poll()</text>
+
+  <line x1="420" y1="85" x2="505" y2="85" stroke="#cc5de8" stroke-width="1.5"/>
+  <polygon points="505,81 515,85 505,89" fill="#cc5de8"/>
+  <text x="462" y="78" fill="#cc5de8" font-size="9" text-anchor="middle">send()</text>
+
+  <line x1="330" y1="130" x2="330" y2="155" stroke="#ffa94d" stroke-width="1.5"/>
+  <polygon points="326,155 330,165 334,155" fill="#ffa94d"/>
+  <text x="270" y="148" fill="#ffa94d" font-size="9">sendOffsetsToTxn()</text>
+
+  <!-- Transaction boundary -->
+  <rect x="215" y="25" width="440" height="185" rx="10" fill="none" stroke="#51cf66" stroke-width="1" stroke-dasharray="6"/>
+  <text x="435" y="20" fill="#51cf66" font-size="10" font-style="italic">atomic transaction boundary</text>
+
+  <!-- Commit marker note -->
+  <text x="575" y="130" fill="#888" font-size="9" text-anchor="middle">commitTransaction() writes</text>
+  <text x="575" y="142" fill="#888" font-size="9" text-anchor="middle">COMMIT marker to both</text>
+</svg>
+
+<div class="controls">
+  <button onclick="txnAnimateSuccess()">Happy path</button>
+  <button class="danger" onclick="txnAnimateCrash()">Crash mid-transaction</button>
+  <button onclick="txnReset()">Reset</button>
+</div>
+
+<div id="txn-steps" style="margin: 14px 0;"></div>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 14px 0;">
+  <div>
+    <h4 style="color: var(--text-2); margin: 0 0 8px 0;">Topic A (source)</h4>
+    <div class="log-view" id="txn-topic-a" style="min-height: 60px;"></div>
+  </div>
+  <div>
+    <h4 style="color: var(--text-2); margin: 0 0 8px 0;">Topic B (sink)</h4>
+    <div class="log-view" id="txn-topic-b" style="min-height: 60px;"></div>
+  </div>
+</div>
+<div class="commentary" id="txn-commentary">Click "Happy path" for a successful transaction, or "Crash" to see abort + epoch fencing.</div>
+
+<table>
+  <tr><th><code>isolation.level</code></th><th>Behavior</th><th>Use case</th></tr>
+  <tr><td><code>read_uncommitted</code></td><td>See all messages including aborted transactions</td><td>Default. Maximum throughput, no EOS.</td></tr>
+  <tr><td><code>read_committed</code></td><td>Skip messages from aborted transactions</td><td>Required for EOS consumers.</td></tr>
+</table>
+
+<div class="takeaway">
+  <strong>Takeaway:</strong> True EOS in Kafka = idempotent producer + transactional API + <code>read_committed</code> consumer. Performance cost is ~1.5-3x vs at-least-once. Use for financial/correctness-critical pipelines. For everything else, at-least-once + idempotent consumers is cheaper and sufficient.
+</div>
+
+<!-- ================================================================ -->
+<!-- SECTION 6: COMMON PITFALLS                                        -->
+<!-- ================================================================ -->
+<h2>6. Common Pitfalls</h2>
+
+<table class="pitfall-table">
+  <tr><th>Pitfall</th><th>Cause</th><th>Symptom</th><th>Fix</th></tr>
+  <tr>
+    <td><code>max.poll.interval.ms</code> exceeded</td>
+    <td>Slow per-record processing</td>
+    <td>Consumer kicked from group; rebalance storm</td>
+    <td>Smaller batches, longer interval, or async processing</td>
+  </tr>
+  <tr>
+    <td>Rebalance storm</td>
+    <td>GC pauses, slow heartbeat, network instability</td>
+    <td>Consumers continuously joining/leaving</td>
+    <td>Cooperative-sticky assignor; longer <code>session.timeout.ms</code></td>
+  </tr>
+  <tr>
+    <td>Partition skew</td>
+    <td>Hot key concentrates traffic</td>
+    <td>One consumer overloaded, others idle</td>
+    <td>Split key (e.g., <code>user42-shard0</code>), or go keyless</td>
+  </tr>
+  <tr>
+    <td>Consumer lag</td>
+    <td>Consumer not keeping up with producer rate</td>
+    <td>Growing per-partition lag in JMX metrics</td>
+    <td>More consumers (up to partition count); larger fetch; faster processing</td>
+  </tr>
+  <tr>
+    <td>Out-of-order delivery</td>
+    <td>Retry with <code>max.in.flight.requests &gt; 1</code></td>
+    <td>Messages arrive out of sequence</td>
+    <td>Idempotent producer (fixes for up to 5 in-flight)</td>
+  </tr>
+  <tr>
+    <td><code>acks=1</code> data loss</td>
+    <td>Leader crash before replication</td>
+    <td>Acknowledged message lost</td>
+    <td><code>acks=all</code> + <code>min.insync.replicas=2</code></td>
+  </tr>
+  <tr>
+    <td>Unclean leader election</td>
+    <td>All ISR replicas down; out-of-sync replica elected</td>
+    <td>Data loss from lagging replica becoming leader</td>
+    <td><code>unclean.leader.election.enable=false</code> (prefer unavailability over data loss)</td>
+  </tr>
+</table>
+
+<div class="takeaway">
+  <strong>Takeaway:</strong> Most Kafka production incidents trace to: hot keys (skew), slow consumers (rebalance storms), or wrong acks setting (data loss). The interview version: name the pitfall, state the config knob, explain the trade-off.
+</div>
+
+<!-- ================================================================ -->
+<!-- SECTION 7: SCHEMA MANAGEMENT                                      -->
+<!-- ================================================================ -->
+<h2>7. Schema Management</h2>
+
+<p>Schema Registry enforces the contract between producers and consumers. Each message carries a schema ID; the registry validates compatibility before allowing a new schema version.</p>
+
+<div class="controls">
+  <button onclick="schemaBackward()">BACKWARD: add optional field</button>
+  <button class="danger" onclick="schemaBreaking()">BREAKING: remove required field</button>
+  <button onclick="schemaReset()">Reset</button>
+</div>
+
+<div class="schema-demo" id="schema-display">
+  <div class="schema-box">
+    <h4 style="color: var(--accent-blue);">Schema v1 (current)</h4>
+    <pre id="schema-v1">{
+  "type": "record",
+  "name": "UserEvent",
+  "fields": [
+    {"name": "user_id",   "type": "string"},
+    {"name": "action",    "type": "string"},
+    {"name": "timestamp", "type": "long"}
+  ]
+}</pre>
+  </div>
+  <div class="schema-box">
+    <h4 style="color: var(--accent-purple);">Schema v2 (proposed)</h4>
+    <pre id="schema-v2" style="min-height: 120px; color: var(--text-3);">-- click a scenario --</pre>
+  </div>
+</div>
+<div class="commentary" id="schema-commentary">Click a scenario to see schema evolution and registry validation.</div>
+
+<table>
+  <tr><th>Compatibility mode</th><th>Allowed changes</th><th>Guarantee</th></tr>
+  <tr><td>BACKWARD</td><td>Add optional fields, delete fields</td><td>New consumer can read old data</td></tr>
+  <tr><td>FORWARD</td><td>Delete optional fields, add fields</td><td>Old consumer can read new data</td></tr>
+  <tr><td>FULL</td><td>Add/delete optional fields only</td><td>Both directions compatible</td></tr>
+  <tr><td>NONE</td><td>Anything</td><td>No compatibility checked (dangerous)</td></tr>
+</table>
+
+<div class="takeaway">
+  <strong>Takeaway:</strong> Schema Registry = the contract between producers and consumers. BACKWARD compat = add optional fields, never remove or rename required ones. The cost of skipping this is integration hell at scale.
+</div>
+
+<!-- ================================================================ -->
+<!-- SECTION 8: QUICK CONFIG REFERENCE                                 -->
+<!-- ================================================================ -->
+<h2>8. Configuration Quick Reference</h2>
+
+<p>The configs that appear in every Kafka interview, grouped by concern. Know the default, the production recommendation, and the trade-off.</p>
+
+<h3>Producer configs</h3>
+<table>
+  <tr><th>Config</th><th>Default</th><th>Production</th><th>Why</th></tr>
+  <tr>
+    <td><code>acks</code></td>
+    <td><code>all</code> (Kafka 3.0+)</td>
+    <td><code>all</code></td>
+    <td>Durability. Combined with <code>min.insync.replicas</code> for the full guarantee.</td>
+  </tr>
+  <tr>
+    <td><code>enable.idempotence</code></td>
+    <td><code>true</code> (3.0+)</td>
+    <td><code>true</code></td>
+    <td>Dedup retries via PID+sequence. No reason to disable.</td>
+  </tr>
+  <tr>
+    <td><code>max.in.flight.requests.per.connection</code></td>
+    <td><code>5</code></td>
+    <td><code>5</code> (with idempotence)</td>
+    <td>Up to 5 is safe with idempotent producer. Without it, set to 1 or accept reordering risk.</td>
+  </tr>
+  <tr>
+    <td><code>retries</code></td>
+    <td><code>2147483647</code></td>
+    <td>Default (bounded by <code>delivery.timeout.ms</code>)</td>
+    <td>Let <code>delivery.timeout.ms</code> control the overall retry window, not retry count.</td>
+  </tr>
+  <tr>
+    <td><code>linger.ms</code></td>
+    <td><code>0</code></td>
+    <td><code>5-100</code></td>
+    <td>Batch more records per request. Higher throughput, slight latency increase.</td>
+  </tr>
+  <tr>
+    <td><code>compression.type</code></td>
+    <td><code>none</code></td>
+    <td><code>lz4</code> or <code>zstd</code></td>
+    <td>Reduces network and disk I/O. <code>lz4</code> for speed, <code>zstd</code> for ratio.</td>
+  </tr>
+</table>
+
+<h3>Consumer configs</h3>
+<table>
+  <tr><th>Config</th><th>Default</th><th>Production</th><th>Why</th></tr>
+  <tr>
+    <td><code>enable.auto.commit</code></td>
+    <td><code>true</code></td>
+    <td><code>false</code></td>
+    <td>Manual commit gives explicit control over at-least-once vs at-most-once.</td>
+  </tr>
+  <tr>
+    <td><code>max.poll.interval.ms</code></td>
+    <td><code>300000</code> (5 min)</td>
+    <td>Tune to processing time</td>
+    <td>Exceeded = consumer kicked from group. Set to max expected batch processing time + margin.</td>
+  </tr>
+  <tr>
+    <td><code>max.poll.records</code></td>
+    <td><code>500</code></td>
+    <td>Tune to batch size</td>
+    <td>Smaller = faster commits, less reprocessing on crash. Larger = higher throughput.</td>
+  </tr>
+  <tr>
+    <td><code>isolation.level</code></td>
+    <td><code>read_uncommitted</code></td>
+    <td><code>read_committed</code> for EOS</td>
+    <td>Required to skip aborted transactions. Only matters with transactional producers.</td>
+  </tr>
+  <tr>
+    <td><code>partition.assignment.strategy</code></td>
+    <td><code>RangeAssignor</code></td>
+    <td><code>CooperativeStickyAssignor</code></td>
+    <td>Reduces rebalance pauses. Incremental rebalance instead of stop-the-world.</td>
+  </tr>
+</table>
+
+<h3>Broker / topic configs</h3>
+<table>
+  <tr><th>Config</th><th>Default</th><th>Production</th><th>Why</th></tr>
+  <tr>
+    <td><code>min.insync.replicas</code></td>
+    <td><code>1</code></td>
+    <td><code>2</code> (with RF=3)</td>
+    <td>With <code>acks=all</code>: ensures at least 2 replicas have the record before ack. Tolerates 1 broker failure.</td>
+  </tr>
+  <tr>
+    <td><code>unclean.leader.election.enable</code></td>
+    <td><code>false</code> (2.8+)</td>
+    <td><code>false</code></td>
+    <td>Prefer unavailability over data loss. An out-of-sync replica as leader = data loss.</td>
+  </tr>
+  <tr>
+    <td><code>replication.factor</code></td>
+    <td><code>1</code></td>
+    <td><code>3</code></td>
+    <td>3 replicas = survive 1 broker loss with <code>min.insync.replicas=2</code>.</td>
+  </tr>
+  <tr>
+    <td><code>cleanup.policy</code></td>
+    <td><code>delete</code></td>
+    <td><code>compact</code> for state topics</td>
+    <td><code>delete</code> = retention-based. <code>compact</code> = keep latest per key. <code>compact,delete</code> = both.</td>
+  </tr>
+</table>
+
+<div class="takeaway">
+  <strong>Takeaway:</strong> The interview-safe production defaults: <code>acks=all</code> + <code>min.insync.replicas=2</code> + <code>replication.factor=3</code> + <code>enable.idempotence=true</code> + manual offset commit + <code>CooperativeStickyAssignor</code>. Know why each one matters and what you trade.
+</div>
+
+<!-- ================================================================ -->
+<!-- JAVASCRIPT                                                        -->
+<!-- ================================================================ -->
+<script>
+/* ------------------------------------------------------------------ */
+/* HELPERS                                                             */
+/* ------------------------------------------------------------------ */
+function $(id) { return document.getElementById(id); }
+function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+function hashCode(s) {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = ((h << 5) - h + s.charCodeAt(i)) | 0;
+  return Math.abs(h);
+}
+const COLORS = ['var(--accent-blue)', 'var(--accent-green)', 'var(--accent-purple)',
+  'var(--accent-orange)', 'var(--accent-cyan)', 'var(--accent-yellow)',
+  'var(--accent-red)', '#66d9ef'];
+
+function logLine(el, text, cls) {
+  const d = document.createElement('div');
+  d.className = 'log-entry' + (cls ? ' ' + cls : '');
+  d.textContent = text;
+  el.appendChild(d);
+  el.scrollTop = el.scrollHeight;
+}
+
+/* ------------------------------------------------------------------ */
+/* SECTION 1: PARTITION KEY DESIGN                                     */
+/* ------------------------------------------------------------------ */
+let pkAnimId = 0;
+
+function pkRenderBars(partitions, labels, maxVal) {
+  const el = $('pk-bar-chart');
+  el.innerHTML = '';
+  partitions.forEach((val, i) => {
+    const col = document.createElement('div');
+    col.className = 'bar-col';
+    const bar = document.createElement('div');
+    bar.className = 'bar';
+    const pct = maxVal > 0 ? (val / maxVal) * 100 : 0;
+    bar.style.height = Math.max(pct, 2) + '%';
+    bar.style.background = COLORS[i % COLORS.length];
+    const vSpan = document.createElement('div');
+    vSpan.className = 'bar-value';
+    vSpan.textContent = val;
+    bar.appendChild(vSpan);
+    col.appendChild(bar);
+    const lbl = document.createElement('div');
+    lbl.className = 'bar-label';
+    lbl.textContent = labels ? labels[i] : 'P' + i;
+    col.appendChild(lbl);
+    el.appendChild(col);
+  });
+}
+
+async function pkAnimateBars(dist, commentary) {
+  const id = ++pkAnimId;
+  const n = 6;
+  const counts = new Array(n).fill(0);
+  pkRenderBars(counts);
+  $('pk-commentary').textContent = commentary;
+  for (let step = 0; step < 60; step++) {
+    if (pkAnimId !== id) return;
+    const p = dist();
+    counts[p]++;
+    const mx = Math.max(...counts);
+    pkRenderBars(counts, null, mx);
+    await delay(60);
+  }
+}
+
+function pkRunUniform() {
+  const keys = ['user1','user2','user3','user4','user5','user6','user7','user8','user9','user10','user11','user12'];
+  let i = 0;
+  pkAnimateBars(() => { const k = keys[i++ % keys.length]; return hashCode(k) % 6; },
+    'Uniform keys: each key hashes to a partition. Traffic distributes roughly evenly across all 6 partitions.');
+}
+
+function pkRunSkewed() {
+  pkAnimateBars(() => Math.random() < 0.7 ? hashCode('user42') % 6 : Math.floor(Math.random() * 6),
+    'Hot key: "user42" gets 70% of traffic. Its partition is saturated while others are underutilized. The consumer assigned to that partition becomes the bottleneck.');
+}
+
+function pkRunNoKey() {
+  let rr = 0;
+  pkAnimateBars(() => (rr++) % 6,
+    'No key (round-robin): messages distribute perfectly evenly. No per-key ordering, but no hotspot either. Good for independent events.');
+}
+
+function pkRebalanceReset() {
+  $('pk-rebalance-before').innerHTML = '';
+  $('pk-rebalance-after').innerHTML = '';
+  $('pk-rebalance-commentary').textContent = 'Click "Animate" to see how keys remap when partition count increases.';
+}
+
+async function pkRebalanceAnimate() {
+  pkRebalanceReset();
+  const keys = ['user42', 'order99', 'session7', 'txn123', 'device55', 'acct88', 'item31', 'log77'];
+  const beforeEl = $('pk-rebalance-before');
+  const afterEl = $('pk-rebalance-after');
+
+  for (const key of keys) {
+    const p6 = hashCode(key) % 6;
+    const p8 = hashCode(key) % 8;
+    const moved = p6 !== p8;
+    logLine(beforeEl, `${key} -> P${p6}`, 'cyan');
+    await delay(200);
+    logLine(afterEl, `${key} -> P${p8}` + (moved ? '  MOVED' : ''), moved ? 'red' : 'green');
+    await delay(200);
+  }
+  const movedCount = keys.filter(k => hashCode(k) % 6 !== hashCode(k) % 8).length;
+  $('pk-rebalance-commentary').textContent =
+    `${movedCount} of ${keys.length} keys changed partition. Messages for these keys arriving after the change go to a different partition than before -- ordering across the boundary is broken. ` +
+    'Mitigation: start with generous partition count (10x current need) so you never need to increase.';
+}
+
+/* ------------------------------------------------------------------ */
+/* SECTION 2: COMPACTION VS RETENTION                                  */
+/* ------------------------------------------------------------------ */
+function retentionReset() {
+  $('retention-partitions').innerHTML = '';
+  $('retention-commentary').textContent = 'Click "Animate" to see time-based deletion in action.';
+}
+
+async function retentionAnimate() {
+  retentionReset();
+  const container = $('retention-partitions');
+  const messages = [];
+  // generate 12 messages with timestamps
+  for (let i = 0; i < 12; i++) {
+    messages.push({ offset: i, ts: 'T+' + i, value: 'evt_' + String.fromCharCode(65 + i) });
+  }
+
+  function render(cutoff) {
+    container.innerHTML = '';
+    const row = document.createElement('div');
+    row.className = 'partition-row';
+    const label = document.createElement('span');
+    label.className = 'partition-label';
+    label.textContent = 'P0';
+    row.appendChild(label);
+    messages.forEach((m, i) => {
+      const cell = document.createElement('span');
+      cell.className = 'msg-cell';
+      if (i < cutoff) cell.classList.add('faded');
+      cell.style.background = i < cutoff ? 'var(--accent-red)' : COLORS[i % COLORS.length];
+      cell.textContent = m.ts;
+      cell.title = `offset=${m.offset} value=${m.value}`;
+      row.appendChild(cell);
+    });
+    container.appendChild(row);
+
+    // retention window indicator
+    const ind = document.createElement('div');
+    ind.style.cssText = 'font-size: 12px; color: var(--text-3); margin-top: 8px;';
+    if (cutoff > 0) {
+      ind.innerHTML = `<span style="color: var(--accent-red);">Deleted (expired)</span>: offsets 0-${cutoff - 1} | ` +
+        `<span style="color: var(--accent-green);">Retained</span>: offsets ${cutoff}-${messages.length - 1}`;
+    } else {
+      ind.textContent = 'All records within retention window.';
+    }
+    container.appendChild(ind);
+  }
+
+  render(0);
+  $('retention-commentary').textContent = 'All 12 records present. retention.ms = keeps last 8 records worth of time. Time is advancing...';
+  await delay(1000);
+
+  for (let cut = 1; cut <= 4; cut++) {
+    render(cut);
+    $('retention-commentary').textContent = `Time advanced: ${cut} oldest record(s) expired past retention.ms. Kafka deletes them from disk.`;
+    await delay(800);
+  }
+  $('retention-commentary').textContent = 'Retention complete: 4 oldest records expired. The log is a sliding window -- old events are gone. This is the default behavior for event streams.';
+}
+
+function compactionReset() {
+  $('compaction-display').innerHTML = '';
+  $('compaction-commentary').textContent = 'Click "Animate" to see compaction collapse updates to latest-per-key.';
+}
+
+async function compactionAnimate() {
+  compactionReset();
+  const container = $('compaction-display');
+
+  // Raw log with multiple writes per key
+  const rawLog = [
+    { key: 'user42', value: '{name:"Alice"}',   ver: 1 },
+    { key: 'user7',  value: '{name:"Bob"}',     ver: 1 },
+    { key: 'user42', value: '{name:"Alice2"}',  ver: 2 },
+    { key: 'user99', value: '{name:"Carol"}',   ver: 1 },
+    { key: 'user42', value: '{name:"Alice3"}',  ver: 3 },
+    { key: 'user7',  value: 'null',             ver: 2, tombstone: true },
+    { key: 'user42', value: '{name:"Alice4"}',  ver: 4 },
+    { key: 'user99', value: '{name:"Carol2"}',  ver: 2 },
+    { key: 'user42', value: '{name:"Alice5"}',  ver: 5 },
+  ];
+
+  const keyColors = { 'user42': 'var(--accent-blue)', 'user7': 'var(--accent-green)', 'user99': 'var(--accent-purple)' };
+
+  function renderLog(entries, label, compactedIndices) {
+    const section = document.createElement('div');
+    section.style.marginBottom = '12px';
+    const h = document.createElement('h4');
+    h.style.cssText = 'color: var(--text-2); margin: 0 0 8px 0; font-size: 14px;';
+    h.textContent = label;
+    section.appendChild(h);
+    const row = document.createElement('div');
+    row.className = 'partition-row';
+    row.style.flexWrap = 'wrap';
+    entries.forEach((e, i) => {
+      const cell = document.createElement('span');
+      cell.className = 'msg-cell' + (e.tombstone ? ' tombstone' : '');
+      if (compactedIndices && compactedIndices.has(i)) cell.classList.add('faded');
+      cell.style.background = keyColors[e.key] || 'var(--accent-orange)';
+      cell.textContent = e.key.replace('user','u') + ':v' + e.ver;
+      cell.title = `key=${e.key} value=${e.value}`;
+      row.appendChild(cell);
+    });
+    section.appendChild(row);
+    return section;
+  }
+
+  // Phase 1: show raw log
+  container.appendChild(renderLog(rawLog, 'Before compaction (raw log)', null));
+  $('compaction-commentary').textContent = '9 records in the log: user42 has 5 writes, user7 has 2 (last is tombstone), user99 has 2. Compaction will keep only the latest per key...';
+  await delay(2000);
+
+  // Phase 2: mark superseded entries
+  const superseded = new Set();
+  const lastIndex = {};
+  rawLog.forEach((e, i) => { lastIndex[e.key] = i; });
+  rawLog.forEach((e, i) => { if (lastIndex[e.key] !== i) superseded.add(i); });
+
+  container.innerHTML = '';
+  container.appendChild(renderLog(rawLog, 'Compacting... (faded = superseded)', superseded));
+  $('compaction-commentary').textContent = 'Faded records are superseded -- a newer record with the same key exists. Kafka will remove these.';
+  await delay(2000);
+
+  // Phase 3: show compacted result
+  const compacted = rawLog.filter((e, i) => !superseded.has(i));
+  container.innerHTML = '';
+  container.appendChild(renderLog(rawLog, 'Before compaction (raw log)', superseded));
+  container.appendChild(renderLog(compacted, 'After compaction (latest per key)', null));
+
+  $('compaction-commentary').textContent =
+    `Compacted: ${rawLog.length} records -> ${compacted.length}. Only the latest value per key survives. ` +
+    'user7 tombstone (null value) marks deletion -- removed after delete.retention.ms. ' +
+    'The compacted topic is now a materialized table: one row per key.';
+}
+
+/* ------------------------------------------------------------------ */
+/* SECTION 3: PRODUCER SEMANTICS                                       */
+/* ------------------------------------------------------------------ */
+function producerReset() {
+  $('prod-amo-log').innerHTML = '';
+  $('prod-alo-log').innerHTML = '';
+  $('prod-eo-log').innerHTML = '';
+  $('producer-commentary').textContent = 'Click "Animate" to see how each semantic handles a broker crash during produce.';
+}
+
+async function producerAnimate() {
+  producerReset();
+  const amo = $('prod-amo-log');
+  const alo = $('prod-alo-log');
+  const eo = $('prod-eo-log');
+
+  // Step 1: All send
+  logLine(amo, 'Producer -> send(msg_1)', 'cyan');
+  logLine(alo, 'Producer -> send(msg_1)', 'cyan');
+  logLine(eo,  'Producer -> send(msg_1, PID=7, seq=0)', 'cyan');
+  $('producer-commentary').textContent = 'All three producers send a message. The difference is in acks configuration and retry behavior.';
+  await delay(1200);
+
+  // Step 2: Broker receives but crashes before ack
+  logLine(amo, 'Broker receives msg_1', 'dim');
+  logLine(amo, 'CRASH before ack', 'red');
+  logLine(alo, 'Broker writes msg_1 to log', 'green');
+  logLine(alo, 'CRASH before ack to producer', 'red');
+  logLine(eo,  'Broker writes msg_1 (PID=7,seq=0)', 'green');
+  logLine(eo,  'CRASH before ack to producer', 'red');
+  $('producer-commentary').textContent = 'Broker crashes after receiving/writing the message but before sending the acknowledgment back to the producer.';
+  await delay(1500);
+
+  // Step 3: Producer reaction
+  logLine(amo, 'acks=0: no retry, move on', 'yellow');
+  logLine(amo, 'msg_1 status: UNKNOWN (likely lost)', 'red');
+  logLine(amo, 'Result: 0 copies on broker', 'red');
+
+  logLine(alo, 'Timeout -> retry send(msg_1)', 'yellow');
+  logLine(alo, 'Broker recovers, writes msg_1 AGAIN', 'yellow');
+  logLine(alo, 'Result: 2 copies on broker', 'red');
+
+  logLine(eo,  'Timeout -> retry send(msg_1, PID=7, seq=0)', 'yellow');
+  logLine(eo,  'Broker recovers, checks (PID=7,seq=0)', 'blue');
+  logLine(eo,  'Dedup: seq=0 already written, skip', 'green');
+  logLine(eo,  'Result: exactly 1 copy on broker', 'green');
+
+  $('producer-commentary').textContent =
+    'At-most-once: message potentially lost (0 copies). At-least-once: message duplicated (2 copies). ' +
+    'Exactly-once: broker deduplicates via (PID, partition, sequence) tuple -- retry is safe, exactly 1 copy.';
+}
+
+/* ------------------------------------------------------------------ */
+/* SECTION 4: CONSUMER OFFSET HANDLING                                 */
+/* ------------------------------------------------------------------ */
+function consumerReset() {
+  $('consumer-log').innerHTML = '';
+  $('consumer-partition').innerHTML = '';
+  $('consumer-commentary').textContent = 'Click a commit strategy to see how a crash affects message delivery.';
+}
+
+function renderConsumerPartition(states) {
+  // states: array of { offset, state: 'committed'|'processed'|'pending'|'unread' }
+  const el = $('consumer-partition');
+  el.innerHTML = '';
+  const row = document.createElement('div');
+  row.className = 'partition-row';
+  const label = document.createElement('span');
+  label.className = 'partition-label';
+  label.textContent = 'P0';
+  row.appendChild(label);
+  const stateColors = {
+    committed: 'var(--accent-green)',
+    processed: 'var(--accent-blue)',
+    pending: 'var(--accent-yellow)',
+    unread: 'var(--border)',
+    reprocessed: 'var(--accent-orange)',
+    lost: 'var(--accent-red)'
+  };
+  states.forEach(s => {
+    const cell = document.createElement('span');
+    cell.className = 'msg-cell';
+    cell.style.background = stateColors[s.state] || 'var(--border)';
+    cell.textContent = 'O' + s.offset;
+    cell.title = `offset=${s.offset} state=${s.state}`;
+    row.appendChild(cell);
+  });
+  el.appendChild(row);
+}
+
+async function consumerAnimate(mode) {
+  consumerReset();
+  const log = $('consumer-log');
+  const offsets = [0,1,2,3,4,5];
+  const states = offsets.map(o => ({ offset: o, state: 'unread' }));
+  renderConsumerPartition(states);
+
+  if (mode === 'auto') {
+    // Auto-commit scenario
+    logLine(log, 'enable.auto.commit=true', 'dim');
+    logLine(log, 'auto.commit.interval.ms=5000', 'dim');
+    await delay(600);
+
+    // Process offsets 0-2
+    for (let i = 0; i <= 2; i++) {
+      states[i].state = 'processed';
+      renderConsumerPartition(states);
+      logLine(log, `poll() -> process offset ${i}`, 'green');
+      await delay(400);
+    }
+    // Auto-commit fires, commits up to 2
+    states[0].state = 'committed'; states[1].state = 'committed';
+    renderConsumerPartition(states);
+    logLine(log, 'Auto-commit fires: committed offset=2', 'blue');
+    await delay(600);
+
+    // Process offset 3
+    states[3].state = 'processed';
+    renderConsumerPartition(states);
+    logLine(log, 'poll() -> process offset 3', 'green');
+    await delay(400);
+
+    // Crash!
+    logLine(log, 'CRASH', 'red');
+    await delay(800);
+
+    // Recovery
+    logLine(log, '--- New consumer takes over ---', 'yellow');
+    logLine(log, 'Resume from committed offset=2', 'yellow');
+    states[2].state = 'reprocessed';
+    states[3].state = 'reprocessed';
+    states[4].state = 'unread';
+    states[5].state = 'unread';
+    renderConsumerPartition(states);
+    logLine(log, 'Reprocess offset 2 (DUPLICATE)', 'red');
+    logLine(log, 'Reprocess offset 3 (DUPLICATE)', 'red');
+    $('consumer-commentary').textContent =
+      'Auto-commit: offsets 2-3 were processed but not committed. After crash, new consumer reprocesses them -> duplicates. The gap between processing and auto-commit is the duplication window.';
+
+  } else if (mode === 'after') {
+    // Manual commit after processing
+    logLine(log, 'enable.auto.commit=false', 'dim');
+    logLine(log, 'Strategy: process, then commitSync()', 'dim');
+    await delay(600);
+
+    for (let i = 0; i <= 2; i++) {
+      states[i].state = 'processed';
+      renderConsumerPartition(states);
+      logLine(log, `Process offset ${i}`, 'green');
+      await delay(300);
+    }
+    // Commit
+    for (let i = 0; i <= 2; i++) states[i].state = 'committed';
+    renderConsumerPartition(states);
+    logLine(log, 'commitSync(offset=3) -- committed', 'blue');
+    await delay(600);
+
+    // Process 3-4 without committing
+    states[3].state = 'processed';
+    states[4].state = 'processed';
+    renderConsumerPartition(states);
+    logLine(log, 'Process offset 3', 'green');
+    logLine(log, 'Process offset 4', 'green');
+    await delay(400);
+
+    // Crash before commit
+    logLine(log, 'CRASH before commitSync()', 'red');
+    await delay(800);
+
+    logLine(log, '--- New consumer takes over ---', 'yellow');
+    logLine(log, 'Resume from committed offset=3', 'yellow');
+    states[3].state = 'reprocessed';
+    states[4].state = 'reprocessed';
+    renderConsumerPartition(states);
+    logLine(log, 'Reprocess offset 3 (DUPLICATE)', 'red');
+    logLine(log, 'Reprocess offset 4 (DUPLICATE)', 'red');
+    $('consumer-commentary').textContent =
+      'Commit-after-process: at-least-once. Offsets 3-4 processed but not committed before crash. Explicit and predictable -- you know the duplication window is the uncommitted batch.';
+
+  } else if (mode === 'before') {
+    // Manual commit before processing
+    logLine(log, 'enable.auto.commit=false', 'dim');
+    logLine(log, 'Strategy: commitSync(), then process', 'dim');
+    await delay(600);
+
+    for (let i = 0; i <= 2; i++) {
+      states[i].state = 'committed';
+      renderConsumerPartition(states);
+      logLine(log, `commitSync(offset=${i + 1})`, 'blue');
+      await delay(200);
+      states[i].state = 'processed';
+      renderConsumerPartition(states);
+      logLine(log, `Process offset ${i}`, 'green');
+      await delay(200);
+    }
+
+    // Commit 3-4 before processing
+    states[3].state = 'committed';
+    states[4].state = 'committed';
+    renderConsumerPartition(states);
+    logLine(log, 'commitSync(offset=5) -- committed', 'blue');
+    await delay(400);
+
+    // Crash before processing
+    logLine(log, 'CRASH before processing offsets 3-4', 'red');
+    await delay(800);
+
+    logLine(log, '--- New consumer takes over ---', 'yellow');
+    logLine(log, 'Resume from committed offset=5', 'yellow');
+    states[3].state = 'lost';
+    states[4].state = 'lost';
+    renderConsumerPartition(states);
+    logLine(log, 'Offset 3: committed but NEVER processed (LOST)', 'red');
+    logLine(log, 'Offset 4: committed but NEVER processed (LOST)', 'red');
+    $('consumer-commentary').textContent =
+      'Commit-before-process: at-most-once. Offsets 3-4 committed but never processed. After crash, new consumer skips them entirely -- data loss. Only acceptable when losing some records is tolerable (metrics sampling, non-critical telemetry).';
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* SECTION 5: TRANSACTIONAL API                                        */
+/* ------------------------------------------------------------------ */
+const TXN_STEPS = [
+  { label: 'initTransactions()', detail: 'Register transactional.id with broker, get epoch' },
+  { label: 'beginTransaction()', detail: 'Start atomic boundary' },
+  { label: 'consumer.poll(topicA)', detail: 'Read messages from source topic A' },
+  { label: 'process(record)', detail: 'Transform/enrich the record' },
+  { label: 'producer.send(topicB, result)', detail: 'Write to sink topic B (marked uncommitted)' },
+  { label: 'sendOffsetsToTransaction()', detail: 'Commit consumer offset of A within this transaction' },
+  { label: 'commitTransaction()', detail: 'Broker writes COMMIT marker; read_committed consumers see result' },
+];
+
+function txnReset() {
+  const el = $('txn-steps');
+  el.innerHTML = '';
+  TXN_STEPS.forEach((s, i) => {
+    const div = document.createElement('div');
+    div.className = 'txn-step';
+    div.id = 'txn-step-' + i;
+    div.innerHTML = `<span class="step-num">${i + 1}</span><span>${s.label} <span style="color: var(--text-3); font-size: 11px;">-- ${s.detail}</span></span>`;
+    el.appendChild(div);
+  });
+  $('txn-topic-a').innerHTML = '<div class="log-entry dim">offset 0: {user:42, action:"click"}</div>' +
+    '<div class="log-entry dim">offset 1: {user:7, action:"view"}</div>';
+  $('txn-topic-b').innerHTML = '';
+  $('txn-commentary').textContent = 'Click "Happy path" for a successful transaction, or "Crash" to see abort + epoch fencing.';
+}
+txnReset();
+
+async function txnAnimateSuccess() {
+  txnReset();
+  const topicB = $('txn-topic-b');
+
+  for (let i = 0; i < TXN_STEPS.length; i++) {
+    const stepEl = $('txn-step-' + i);
+    stepEl.className = 'txn-step active';
+    $('txn-commentary').textContent = `Step ${i + 1}: ${TXN_STEPS[i].detail}`;
+
+    if (i === 4) {
+      logLine(topicB, 'offset 0: {user:42, enriched:"click"} [UNCOMMITTED]', 'yellow');
+    }
+    if (i === 6) {
+      topicB.innerHTML = '';
+      logLine(topicB, 'offset 0: {user:42, enriched:"click"} [COMMITTED]', 'green');
+      logLine(topicB, 'COMMIT marker written', 'green');
+    }
+
+    await delay(1000);
+    stepEl.className = 'txn-step done';
+  }
+  $('txn-commentary').textContent =
+    'Transaction complete. The write to topic B and the offset commit on topic A happened atomically. ' +
+    'Consumers with isolation.level=read_committed now see the result. A crash before step 7 would have aborted everything.';
+}
+
+async function txnAnimateCrash() {
+  txnReset();
+  const topicB = $('txn-topic-b');
+
+  // Steps 1-5 succeed
+  for (let i = 0; i < 5; i++) {
+    const stepEl = $('txn-step-' + i);
+    stepEl.className = 'txn-step active';
+    $('txn-commentary').textContent = `Step ${i + 1}: ${TXN_STEPS[i].detail}`;
+    if (i === 4) {
+      logLine(topicB, 'offset 0: {user:42, enriched:"click"} [UNCOMMITTED]', 'yellow');
+    }
+    await delay(800);
+    stepEl.className = 'txn-step done';
+  }
+
+  // Crash at step 6
+  const step5 = $('txn-step-' + 5);
+  step5.className = 'txn-step active';
+  $('txn-commentary').textContent = 'Step 6: sendOffsetsToTransaction() -- CRASH!';
+  await delay(600);
+  step5.className = 'txn-step aborted';
+  $('txn-step-' + 6).className = 'txn-step aborted';
+
+  await delay(800);
+
+  // Abort
+  topicB.innerHTML = '';
+  logLine(topicB, 'offset 0: {user:42, enriched:"click"} [ABORTED]', 'red');
+  logLine(topicB, 'ABORT marker written (epoch fencing)', 'red');
+
+  $('txn-commentary').textContent =
+    'Crash before commitTransaction(). On restart, new producer instance gets a higher epoch, which fences the old one. ' +
+    'Broker writes ABORT marker. Consumers with read_committed skip the aborted message. ' +
+    'Consumer offset on topic A was NOT committed, so the record will be re-read and re-processed. Zero data loss, zero duplicates.';
+
+  // Show recovery
+  await delay(1500);
+  logLine(topicB, '', 'dim');
+  logLine(topicB, '--- Recovery: new producer (epoch+1) ---', 'yellow');
+  logLine(topicB, 'Re-read from topic A, re-process, re-send', 'yellow');
+  logLine(topicB, 'offset 1: {user:42, enriched:"click"} [COMMITTED]', 'green');
+  logLine(topicB, 'COMMIT marker written', 'green');
+}
+
+/* ------------------------------------------------------------------ */
+/* SECTION 7: SCHEMA MANAGEMENT                                        */
+/* ------------------------------------------------------------------ */
+function schemaReset() {
+  $('schema-v2').textContent = '-- click a scenario --';
+  $('schema-v2').style.color = 'var(--text-3)';
+  $('schema-commentary').textContent = 'Click a scenario to see schema evolution and registry validation.';
+}
+
+function schemaBackward() {
+  $('schema-v2').style.color = 'var(--accent-green)';
+  $('schema-v2').textContent = `{
+  "type": "record",
+  "name": "UserEvent",
+  "fields": [
+    {"name": "user_id",   "type": "string"},
+    {"name": "action",    "type": "string"},
+    {"name": "timestamp", "type": "long"},
+    {"name": "source",    "type": ["null","string"],
+                          "default": null}
+  ]
+}`;
+  $('schema-commentary').innerHTML =
+    '<span style="color: var(--accent-green);">ACCEPTED by Schema Registry (BACKWARD compatible).</span> ' +
+    'New optional field <code>source</code> added with default <code>null</code>. ' +
+    'Old consumers (v1) ignore the unknown field. New consumers (v2) can read old records because the default fills in the missing field. ' +
+    'This is the safe evolution pattern: add optional fields with defaults, never remove required ones.';
+}
+
+function schemaBreaking() {
+  $('schema-v2').style.color = 'var(--accent-red)';
+  $('schema-v2').textContent = `{
+  "type": "record",
+  "name": "UserEvent",
+  "fields": [
+    {"name": "user_id",   "type": "string"},
+    {"name": "timestamp", "type": "long"}
+  ]
+}
+// removed: "action" (required field)`;
+  $('schema-commentary').innerHTML =
+    '<span style="color: var(--accent-red);">REJECTED by Schema Registry.</span> ' +
+    'Required field <code>action</code> was removed. New consumers (v2) cannot read old records that contain <code>action</code> without a schema to interpret it. ' +
+    'The registry blocks this registration. To safely remove a field: first make it optional with a default in v2, then remove it in v3 after all producers have stopped sending it.';
+}
+
+/* ------------------------------------------------------------------ */
+/* INIT                                                                */
+/* ------------------------------------------------------------------ */
+(function init() {
+  // Initialize partition key bar chart
+  pkRenderBars([0,0,0,0,0,0], null, 1);
+  // Initialize transaction steps
+  txnReset();
+})();
+</script>
+</body>
+</html>

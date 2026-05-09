@@ -1,0 +1,1700 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Probabilistic Data Structures -- Interview Reference</title>
+<style>
+:root {
+  --bg: #0f0f15;
+  --surface: #181820;
+  --surface-2: #20202a;
+  --border: #2a2a35;
+  --text: #e6e6ea;
+  --text-2: #cfcfd6;
+  --text-3: #888;
+  --accent-red: #ff6b6b;
+  --accent-green: #51cf66;
+  --accent-blue: #339af0;
+  --accent-yellow: #ffd43b;
+  --accent-purple: #cc5de8;
+  --accent-cyan: #8be9fd;
+  --accent-orange: #ffa94d;
+}
+*, *::before, *::after { box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  padding: 32px 24px;
+  max-width: 1100px;
+  margin: 0 auto;
+  line-height: 1.55;
+}
+h1 { color: #fff; margin-bottom: 4px; }
+h1 + p.sub { color: var(--text-3); font-style: italic; margin-top: 0; margin-bottom: 24px; }
+h2 { color: #fff; margin-top: 48px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+h3 { color: var(--text-2); margin-top: 20px; }
+p { margin: 10px 0; }
+code {
+  background: var(--surface-2);
+  padding: 2px 6px;
+  border-radius: 3px;
+  color: var(--accent-cyan);
+  font-size: 13px;
+}
+.mono {
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+}
+svg {
+  background: var(--surface);
+  border-radius: 8px;
+  display: block;
+  margin: 14px auto;
+  width: 100%;
+  height: auto;
+}
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0;
+  align-items: center;
+}
+.controls button, .btn {
+  padding: 10px 16px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  border-radius: 6px;
+  cursor: pointer;
+  min-height: 44px;
+  font-size: 14px;
+  transition: background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+.controls button:hover, .btn:hover { background: var(--surface); }
+.controls button:disabled, .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.controls button.active-btn { border-color: var(--accent-blue); color: var(--accent-blue); }
+.controls button.danger { border-color: var(--accent-red); color: var(--accent-red); }
+.controls button.danger:hover { background: #2a1520; }
+.slider-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-3);
+  min-width: 200px;
+}
+.slider-group label { white-space: nowrap; min-width: 90px; }
+.slider-group input[type="range"] {
+  flex: 1;
+  min-width: 80px;
+  accent-color: var(--accent-blue);
+}
+.slider-group .slider-val {
+  min-width: 70px;
+  text-align: right;
+  color: var(--accent-cyan);
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+  font-size: 12px;
+}
+.commentary {
+  background: var(--surface-2);
+  padding: 14px;
+  border-radius: 6px;
+  font-size: 14px;
+  color: var(--text-2);
+  margin: 12px 0;
+  min-height: 44px;
+  line-height: 1.5;
+}
+.takeaway {
+  background: #1a1a22;
+  border-left: 3px solid var(--accent-green);
+  padding: 12px 16px;
+  margin: 14px 0;
+  font-size: 14px;
+}
+.takeaway strong { color: var(--accent-green); }
+.takeaway ul { margin: 6px 0 0 0; padding-left: 18px; }
+.takeaway li { margin-bottom: 6px; }
+.key-input-group {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin: 12px 0;
+  flex-wrap: wrap;
+}
+.key-input-group input[type="text"] {
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  border-radius: 6px;
+  font-size: 14px;
+  min-height: 44px;
+  width: 220px;
+  max-width: 100%;
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+}
+.key-input-group input[type="text"]::placeholder { color: var(--text-3); }
+.bit-array-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  margin: 12px 0;
+  justify-content: center;
+}
+.bit-cell {
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+  color: var(--text-3);
+  background: var(--surface);
+  transition: background 0.3s, color 0.3s, border-color 0.3s;
+  position: relative;
+}
+.bit-cell.set {
+  background: var(--accent-blue);
+  color: #fff;
+  border-color: var(--accent-blue);
+}
+.bit-cell.highlight {
+  border-color: var(--accent-yellow);
+  box-shadow: 0 0 6px rgba(255,212,59,0.4);
+}
+.bit-cell.miss {
+  border-color: var(--accent-red);
+  box-shadow: 0 0 6px rgba(255,107,107,0.4);
+}
+.bit-cell .idx {
+  position: absolute;
+  top: -14px;
+  font-size: 8px;
+  color: var(--text-3);
+}
+.result-display {
+  font-size: 14px;
+  padding: 10px 14px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  margin: 8px 0;
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+  line-height: 1.6;
+  min-height: 40px;
+  white-space: pre-wrap;
+  color: var(--text-2);
+}
+.formula {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 12px 16px;
+  margin: 12px 0;
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+  font-size: 13px;
+  color: var(--accent-cyan);
+  overflow-x: auto;
+}
+.table-wrap { overflow-x: auto; margin: 14px 0; }
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+th {
+  background: var(--surface-2);
+  color: var(--accent-blue);
+  padding: 10px 12px;
+  text-align: left;
+  border-bottom: 2px solid var(--border);
+  white-space: nowrap;
+}
+td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-2);
+  vertical-align: top;
+}
+tr:hover td { background: var(--surface); }
+.tag {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 600;
+}
+.tag-yes { background: rgba(81,207,102,0.15); color: var(--accent-green); }
+.tag-no { background: rgba(255,107,107,0.15); color: var(--accent-red); }
+.tag-partial { background: rgba(255,169,77,0.15); color: var(--accent-orange); }
+
+/* Cuckoo table visualization */
+.cuckoo-table {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin: 12px 0;
+}
+.cuckoo-col {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px;
+}
+.cuckoo-col h4 {
+  margin: 0 0 8px 0;
+  font-size: 13px;
+  color: var(--text-3);
+  text-align: center;
+}
+.cuckoo-slot {
+  padding: 6px 10px;
+  margin: 4px 0;
+  border-radius: 4px;
+  font-size: 12px;
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  min-height: 28px;
+  color: var(--text-3);
+  transition: background 0.3s, border-color 0.3s, color 0.3s;
+}
+.cuckoo-slot.occupied { color: var(--text); border-color: var(--accent-purple); }
+.cuckoo-slot.evicting { background: rgba(255,107,107,0.2); border-color: var(--accent-red); }
+.cuckoo-slot.inserting { background: rgba(81,207,102,0.2); border-color: var(--accent-green); }
+
+/* Scalable Bloom chain */
+.bloom-chain {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 8px 0;
+  align-items: flex-end;
+}
+.bloom-filter-card {
+  min-width: 120px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px;
+  font-size: 12px;
+  text-align: center;
+  flex-shrink: 0;
+}
+.bloom-filter-card .card-title {
+  color: var(--accent-blue);
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.bloom-filter-card .card-stat { color: var(--text-3); margin: 2px 0; }
+.bloom-filter-card.active-filter { border-color: var(--accent-green); }
+.bloom-filter-card.searched { border-color: var(--accent-yellow); }
+
+/* HLL visualization */
+.hll-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(40px, 1fr));
+  gap: 2px;
+  margin: 12px 0;
+}
+.hll-register {
+  height: 24px;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+  color: var(--text-3);
+  transition: background 0.3s;
+}
+
+/* Count-Min Sketch */
+.cms-grid {
+  display: grid;
+  gap: 2px;
+  margin: 12px 0;
+}
+.cms-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 30px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+  transition: background 0.3s, color 0.3s;
+}
+
+/* t-digest bins */
+.tdigest-bins {
+  display: flex;
+  align-items: flex-end;
+  gap: 1px;
+  margin: 12px 0;
+  height: 120px;
+  background: var(--surface);
+  border-radius: 6px;
+  padding: 8px;
+  border: 1px solid var(--border);
+}
+.tdigest-bin {
+  flex: 1;
+  background: var(--accent-blue);
+  border-radius: 2px 2px 0 0;
+  min-width: 3px;
+  transition: height 0.3s, background 0.3s;
+  position: relative;
+}
+.tdigest-bin.edge { background: var(--accent-green); }
+
+.section-sep {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 40px 0;
+}
+
+@media (max-width: 720px) {
+  body { padding: 20px 14px; }
+  .cuckoo-table { grid-template-columns: 1fr; }
+}
+@media (max-width: 480px) {
+  .controls { flex-direction: column; }
+  .controls button { width: 100%; }
+  .slider-group { width: 100%; min-width: auto; }
+  .key-input-group { flex-direction: column; }
+  .key-input-group input[type="text"] { width: 100%; }
+  .bit-cell { width: 22px; height: 22px; font-size: 9px; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Probabilistic data structures</h1>
+  <p class="sub">Bloom, Cuckoo, HyperLogLog, Count-Min, t-digest. Trade some accuracy for orders-of-magnitude memory savings. The right answer to half the "how do you scale this" interview probes.</p>
+</header>
+
+<!-- ================================================================ -->
+<!-- SECTION 1: BLOOM FILTER                                          -->
+<!-- ================================================================ -->
+<h2>1. Bloom Filter</h2>
+
+<p>A <strong>space-efficient set-membership test</strong>. False positives possible; false negatives impossible. Core mechanic: a bit array of <code>m</code> bits and <code>k</code> independent hash functions.</p>
+
+<h3>Mechanics</h3>
+<p><strong>Insert(x)</strong>: compute <code>h1(x), h2(x), ..., hk(x)</code>, each mod m. Set those k bits to 1.</p>
+<p><strong>Query(x)</strong>: compute the same k hashes. If <em>any</em> bit is 0 &rarr; definitely not in the set. If <em>all</em> bits are 1 &rarr; <em>probably</em> in the set (false positive possible because other inserts may have set those bits).</p>
+
+<h3>Interactive: 32-bit Bloom filter (k=3)</h3>
+
+<div class="key-input-group">
+  <input type="text" id="bloom-input" placeholder="Type a string..." />
+  <button class="btn" onclick="bloomInsert()">Insert</button>
+  <button class="btn" onclick="bloomQuery()">Query</button>
+  <button class="btn danger" onclick="bloomReset()">Reset</button>
+</div>
+
+<div id="bloom-bit-array" class="bit-array-wrap"></div>
+<div id="bloom-result" class="result-display">Insert items, then query to check membership.</div>
+<div id="bloom-log" class="commentary" style="max-height:120px;overflow-y:auto;font-size:12px;"></div>
+
+<h3>False positive rate</h3>
+<div class="formula">FP &asymp; (1 - e^(-kn/m))^k<br>Optimal k = (m/n) * ln(2)</div>
+
+<p>Where <code>n</code> = number of inserted items, <code>m</code> = bit array size, <code>k</code> = number of hash functions.</p>
+
+<h3>Sizing calculator</h3>
+<div class="controls" style="flex-direction:column;align-items:stretch;">
+  <div class="slider-group">
+    <label>Target FPR:</label>
+    <input type="range" id="fpr-slider" min="-4" max="-0.3" step="0.1" value="-2" oninput="updateBloomCalc()" />
+    <span class="slider-val" id="fpr-val">1%</span>
+  </div>
+  <div class="slider-group">
+    <label>Expected n:</label>
+    <input type="range" id="n-slider" min="3" max="8" step="0.1" value="6" oninput="updateBloomCalc()" />
+    <span class="slider-val" id="n-val">1M</span>
+  </div>
+</div>
+<div id="bloom-calc-result" class="result-display"></div>
+
+<h3>Use cases</h3>
+<div class="takeaway">
+  <ul>
+    <li><strong>BigTable / Cassandra SSTable lookups</strong> -- skip files that definitely don't contain the key. Each SSTable has a Bloom filter; a miss avoids a disk read.</li>
+    <li><strong>Chrome malicious URL pre-filter</strong> -- check a local Bloom filter before making a network request to the safe-browsing API.</li>
+    <li><strong>CDN cache existence check</strong> -- avoid origin fetches for objects definitely not in edge cache.</li>
+    <li><strong>Dedup pre-filter</strong> -- in a stream processing pipeline, skip the expensive DB lookup for items definitely not seen before.</li>
+  </ul>
+</div>
+
+<hr class="section-sep">
+
+<!-- ================================================================ -->
+<!-- SECTION 2: COUNTING BLOOM + CUCKOO FILTER                        -->
+<!-- ================================================================ -->
+<h2>2. Counting Bloom + Cuckoo Filter</h2>
+
+<h3>Counting Bloom filter</h3>
+<p>Replace each bit with a <strong>4-bit counter</strong>. Insert increments counters; delete decrements them. Supports deletion -- but at 4x the space of a standard Bloom, and counter overflow (value > 15) is possible under high load.</p>
+
+<div class="commentary">
+  <strong>Trade-off:</strong> A standard Bloom at 1% FPR with 1M items needs ~1.2 MB. A counting Bloom needs ~4.8 MB for the same parameters. The extra space buys delete support -- worth it only if deletes are frequent.
+</div>
+
+<h3>Cuckoo filter</h3>
+<p>Each item maps to <strong>two candidate buckets</strong> (each bucket holds a small number of fingerprints, typically 4). Insert the fingerprint into either bucket. If both are full, <strong>evict</strong> a resident fingerprint and re-place it at <em>its</em> alternate bucket. Eviction can cascade (up to a max depth, typically 500 kicks).</p>
+
+<p>Advantages over Bloom: supports <strong>proper delete</strong> (remove fingerprint), achieves <strong>lower FPR for the same space</strong> at typical filter loads, and avoids the "k hash functions" overhead.</p>
+
+<h3>Interactive: Cuckoo filter (4 buckets x 2 slots)</h3>
+
+<div class="key-input-group">
+  <input type="text" id="cuckoo-input" placeholder="Type a string..." />
+  <button class="btn" onclick="cuckooInsert()">Insert</button>
+  <button class="btn danger" onclick="cuckooDelete()">Delete</button>
+  <button class="btn" onclick="cuckooReset()">Reset</button>
+</div>
+
+<div id="cuckoo-viz" class="cuckoo-table"></div>
+<div id="cuckoo-result" class="result-display">Insert items to see placement and eviction chains.</div>
+
+<h3>Comparison</h3>
+<div class="table-wrap" style="overflow-x:auto">
+  <table>
+    <thead>
+      <tr><th>Property</th><th>Bloom</th><th>Counting Bloom</th><th>Cuckoo</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Delete support</td><td><span class="tag tag-no">No</span></td><td><span class="tag tag-yes">Yes</span></td><td><span class="tag tag-yes">Yes</span></td></tr>
+      <tr><td>Space at 1% FPR</td><td>~9.6 bits/item</td><td>~38.4 bits/item</td><td>~12 bits/item</td></tr>
+      <tr><td>Lookup cost</td><td>k hash + k bit reads</td><td>k hash + k counter reads</td><td>2 bucket reads</td></tr>
+      <tr><td>Insert cost</td><td>k hash + k bit sets</td><td>k hash + k increments</td><td>2 hash + possible eviction</td></tr>
+      <tr><td>FPR degrades with load?</td><td>Yes (as n grows)</td><td>Yes</td><td>Yes (but more graceful)</td></tr>
+      <tr><td>Counter overflow?</td><td>N/A</td><td><span class="tag tag-partial">Possible</span></td><td>N/A</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<hr class="section-sep">
+
+<!-- ================================================================ -->
+<!-- SECTION 3: SCALABLE BLOOM                                        -->
+<!-- ================================================================ -->
+<h2>3. Scalable Bloom Filter</h2>
+
+<p>Problem: if <code>n</code> grows beyond the initial sizing, FPR degrades. You either over-provision (waste memory) or accept worse accuracy.</p>
+
+<p>Solution: <strong>chain of Bloom filters</strong>. When the active filter reaches its capacity, create a new one with 2x capacity and a tighter per-filter FPR (each successive filter uses <code>FPR * r^i</code> where <code>r &lt; 1</code>, typically 0.5). The compounded total FPR across all filters stays near the original target.</p>
+
+<h3>Insert</h3>
+<p>Always insert into the <em>newest</em> (active) filter. When it's full, allocate the next filter.</p>
+
+<h3>Query</h3>
+<p>Check <em>all</em> filters. If any says "probably yes," report present. Only if all say "no" do we report absent. Query cost grows with the number of filters, but the chain typically stays short (log-scale).</p>
+
+<h3>Interactive: scalable Bloom chain</h3>
+
+<div class="controls">
+  <button class="btn" onclick="scalableInsertBatch()">Insert 50 items</button>
+  <button class="btn" onclick="scalableQuery()">Query random</button>
+  <button class="btn danger" onclick="scalableReset()">Reset</button>
+</div>
+
+<div id="scalable-chain" class="bloom-chain"></div>
+<div id="scalable-result" class="result-display">Insert items to see filters grow.</div>
+<div id="scalable-stats" class="commentary" style="font-size:12px;"></div>
+
+<hr class="section-sep">
+
+<!-- ================================================================ -->
+<!-- SECTION 4: HYPERLOGLOG                                           -->
+<!-- ================================================================ -->
+<h2>4. HyperLogLog (Distinct Count)</h2>
+
+<p>Goal: estimate <code>|distinct(stream)|</code> with <strong>~12 KB constant memory</strong> at ~1.6% standard error. Exact distinct counting requires O(n) memory; HLL trades accuracy for constant space.</p>
+
+<h3>Mechanics</h3>
+<p>Hash each item to a uniform bit string. Split into two parts:</p>
+<ol>
+  <li><strong>First p bits</strong>: register index (2^p registers, typically p=14 &rarr; 16,384 registers).</li>
+  <li><strong>Remaining bits</strong>: count leading zeros + 1. Track the <em>maximum</em> value seen per register.</li>
+</ol>
+<p>Intuition: seeing a hash with <em>k</em> leading zeros is a 1/2^k event. If your max leading zeros is 20, the stream probably has ~2^20 distinct items. Multiple registers + harmonic mean + bias correction make it robust.</p>
+
+<div class="formula">E = alpha_m * m^2 * (sum of 2^(-M[j]) for j=0..m-1)^(-1)<br>where m = number of registers, M[j] = max leading zeros in register j</div>
+
+<h3>Interactive: HLL demo (64 registers)</h3>
+
+<div class="controls">
+  <button class="btn" onclick="hllAddOne()">+1 item</button>
+  <button class="btn" onclick="hllAddBatch(10)">+10 items</button>
+  <button class="btn" onclick="hllAddBatch(100)">+100 items</button>
+  <button class="btn" onclick="hllAddBatch(1000)">+1000 items</button>
+  <button class="btn danger" onclick="hllReset()">Reset</button>
+</div>
+
+<div id="hll-registers" class="hll-grid"></div>
+
+<div id="hll-stats" class="result-display">Add items to see distinct count estimation.</div>
+
+<svg id="hll-chart" viewBox="0 0 700 200" style="max-height:220px;"></svg>
+
+<h3>Use cases</h3>
+<div class="takeaway">
+  <ul>
+    <li><strong>Redis PFADD / PFCOUNT</strong> -- native HLL support. Count unique visitors with 12 KB per counter.</li>
+    <li><strong>Analytics</strong> -- "unique users today" without storing all user IDs.</li>
+    <li><strong>BigQuery APPROX_COUNT_DISTINCT</strong> -- HLL under the hood; returns in seconds vs. minutes for exact count.</li>
+    <li><strong>Network monitoring</strong> -- count distinct source IPs per destination at line rate.</li>
+  </ul>
+</div>
+
+<hr class="section-sep">
+
+<!-- ================================================================ -->
+<!-- SECTION 5: COUNT-MIN SKETCH                                      -->
+<!-- ================================================================ -->
+<h2>5. Count-Min Sketch (Frequency Estimation)</h2>
+
+<p>A matrix of counters: <code>d</code> rows x <code>w</code> columns. Each row has its own hash function.</p>
+
+<h3>Mechanics</h3>
+<p><strong>Insert(x)</strong>: for each row i, increment <code>counter[i][hash_i(x) % w]</code>.</p>
+<p><strong>Query(x)</strong>: for each row i, read <code>counter[i][hash_i(x) % w]</code>. Return the <strong>minimum</strong> across all rows.</p>
+<p>The minimum is the best estimate because collisions only <em>increase</em> counts, never decrease. So the true count &le; returned estimate. CMS <strong>always over-estimates</strong>, never under-estimates.</p>
+
+<div class="formula">Error bound: with probability 1 - delta,<br>  estimated_count(x) &le; true_count(x) + epsilon * N<br>where w = ceil(e / epsilon), d = ceil(ln(1 / delta)), N = total inserts</div>
+
+<h3>Interactive: Count-Min Sketch (4 rows x 16 columns)</h3>
+
+<div class="key-input-group">
+  <input type="text" id="cms-input" placeholder="Type a string..." />
+  <button class="btn" onclick="cmsInsert()">Insert</button>
+  <button class="btn" onclick="cmsQuery()">Query</button>
+  <button class="btn danger" onclick="cmsReset()">Reset</button>
+</div>
+
+<div id="cms-grid" class="cms-grid"></div>
+<div id="cms-result" class="result-display">Insert items, then query for frequency estimates.</div>
+<div id="cms-log" class="commentary" style="max-height:100px;overflow-y:auto;font-size:12px;"></div>
+
+<h3>Use cases</h3>
+<div class="takeaway">
+  <ul>
+    <li><strong>Heavy-hitter detection</strong> -- find top-K most frequent items in a stream without storing all items.</li>
+    <li><strong>Rate limiting / throttling</strong> -- approximate per-user request counts with fixed memory.</li>
+    <li><strong>Network monitoring</strong> -- track per-flow byte counts at router line rate.</li>
+    <li><strong>Trending detection</strong> -- identify trending hashtags/terms in a social feed.</li>
+  </ul>
+</div>
+
+<hr class="section-sep">
+
+<!-- ================================================================ -->
+<!-- SECTION 6: T-DIGEST                                              -->
+<!-- ================================================================ -->
+<h2>6. t-digest (Percentile Estimation)</h2>
+
+<p>Goal: streaming p50/p99/p999 estimation with <strong>~1 KB memory</strong> and high accuracy at the tails (where it matters most).</p>
+
+<h3>Mechanics (high-level)</h3>
+<p>A t-digest maintains a set of <strong>centroids</strong> (weighted means). The key insight: bin density adapts to position on the CDF. Bins near the edges (p0, p1, p99, p100) are <em>small and precise</em>; bins in the middle (p40-p60) are <em>large and coarse</em>. This matches interview reality: nobody asks "what's your p50 to three decimals?" -- they ask about p99 and p999.</p>
+
+<p><strong>Merge-friendly</strong>: two t-digests can be merged by combining their centroids and re-compressing. This makes t-digest ideal for distributed systems where each node computes a local digest, then merges at aggregation time.</p>
+
+<h3>Interactive: adaptive binning</h3>
+
+<div class="controls">
+  <button class="btn" onclick="tdigestAddBatch()">Add 200 samples</button>
+  <button class="btn" onclick="tdigestQuery(50)">p50</button>
+  <button class="btn" onclick="tdigestQuery(90)">p90</button>
+  <button class="btn" onclick="tdigestQuery(99)">p99</button>
+  <button class="btn" onclick="tdigestQuery(99.9)">p99.9</button>
+  <button class="btn danger" onclick="tdigestReset()">Reset</button>
+</div>
+
+<div id="tdigest-viz" class="tdigest-bins"></div>
+<div id="tdigest-result" class="result-display">Add samples to see adaptive binning. Notice denser bins at the edges.</div>
+<div id="tdigest-stats" class="commentary" style="font-size:12px;"></div>
+
+<h3>Use cases</h3>
+<div class="takeaway">
+  <ul>
+    <li><strong>Distributed metrics aggregation</strong> -- M3DB, OpenTSDB, Elasticsearch aggregations.</li>
+    <li><strong>Prometheus histogram alternatives</strong> -- t-digest avoids fixed bucket boundaries.</li>
+    <li><strong>Latency monitoring</strong> -- compute p99 across thousands of service instances with ~1 KB per counter.</li>
+    <li><strong>A/B testing</strong> -- compare percentile distributions without storing all observations.</li>
+  </ul>
+</div>
+
+<hr class="section-sep">
+
+<!-- ================================================================ -->
+<!-- SECTION 7: DECISION MATRIX                                       -->
+<!-- ================================================================ -->
+<h2>7. Decision Matrix</h2>
+
+<div class="table-wrap" style="overflow-x:auto">
+  <table>
+    <thead>
+      <tr>
+        <th>Structure</th>
+        <th>Use Case</th>
+        <th>Memory</th>
+        <th>Accuracy</th>
+        <th>Supports Delete</th>
+        <th>Where Found</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Bloom filter</strong></td>
+        <td>Set membership pre-filter</td>
+        <td>~1.2 MB / 1M items @ 1% FPR</td>
+        <td>No false negatives; FP rate tunable</td>
+        <td><span class="tag tag-no">No</span></td>
+        <td>Cassandra, BigTable, Chrome, Squid</td>
+      </tr>
+      <tr>
+        <td><strong>Counting Bloom</strong></td>
+        <td>Membership + delete</td>
+        <td>~4.8 MB / 1M items @ 1% FPR</td>
+        <td>Same as Bloom; counter overflow risk</td>
+        <td><span class="tag tag-yes">Yes</span></td>
+        <td>Network duplicate detection</td>
+      </tr>
+      <tr>
+        <td><strong>Cuckoo filter</strong></td>
+        <td>Membership + delete, better FPR/space</td>
+        <td>~1.5 MB / 1M items @ 1% FPR</td>
+        <td>Lower FPR than Bloom at same space</td>
+        <td><span class="tag tag-yes">Yes</span></td>
+        <td>RocksDB, network dedup</td>
+      </tr>
+      <tr>
+        <td><strong>Scalable Bloom</strong></td>
+        <td>Unbounded-growth membership</td>
+        <td>Grows in O(n) chunks</td>
+        <td>Compounded FPR near target</td>
+        <td><span class="tag tag-no">No</span></td>
+        <td>Redis modules, custom pipelines</td>
+      </tr>
+      <tr>
+        <td><strong>HyperLogLog</strong></td>
+        <td>Distinct count (cardinality)</td>
+        <td>~12 KB constant</td>
+        <td>~1.6% standard error</td>
+        <td>N/A</td>
+        <td>Redis (PFADD), BigQuery, Presto</td>
+      </tr>
+      <tr>
+        <td><strong>Count-Min Sketch</strong></td>
+        <td>Frequency estimation</td>
+        <td>d x w x 4 bytes (small)</td>
+        <td>Over-estimates, never under</td>
+        <td>N/A</td>
+        <td>Stream processing, network monitoring</td>
+      </tr>
+      <tr>
+        <td><strong>t-digest</strong></td>
+        <td>Percentile estimation (p99, p999)</td>
+        <td>~1 KB per digest</td>
+        <td>High accuracy at tails</td>
+        <td>N/A</td>
+        <td>Elasticsearch, M3DB, OpenTSDB</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<p style="margin-top:16px;color:var(--text-3);font-size:13px;"><strong>Bloom alternatives at very low FPR:</strong> <em>Xor filters</em> (faster lookup, ~1.23 bits/item overhead, immutable after build) and <em>Ribbon filters</em> (smaller, ~1.005 bits/item overhead, used in RocksDB). Both are static -- no insert after construction.</p>
+
+<div class="takeaway" style="margin-top:24px;">
+  <strong>The senior tell.</strong> "I'd front the lookup with a Bloom filter to skip the slow path for misses" -- that's the canonical use. For "unique counts in streams" &rarr; HLL. For "is this URL on the malicious list" &rarr; Bloom or Cuckoo. For "top-K in a stream" &rarr; Count-Min Sketch. For "p99 latency across 1000 nodes" &rarr; t-digest. The interview probe is naming the structure for the access pattern.
+</div>
+
+<!-- ================================================================ -->
+<!-- JAVASCRIPT                                                        -->
+<!-- ================================================================ -->
+<script>
+/* ---- Hash utility (FNV-1a 32-bit) ---- */
+function fnv1a(str, seed) {
+  var h = 0x811c9dc5 ^ (seed || 0);
+  for (var i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return h >>> 0;
+}
+
+/* ---- Murmur-ish hash for variety ---- */
+function murmur3(str, seed) {
+  var h = seed || 0;
+  for (var i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 0x5bd1e995);
+    h ^= h >>> 15;
+  }
+  h ^= h >>> 13;
+  h = Math.imul(h, 0xc2b2ae35);
+  h ^= h >>> 16;
+  return h >>> 0;
+}
+
+function hashN(str, n, mod) {
+  var hashes = [];
+  for (var i = 0; i < n; i++) {
+    hashes.push((fnv1a(str, i * 97 + 1) ^ murmur3(str, i * 31 + 7)) % mod);
+  }
+  return hashes;
+}
+
+/* ================================================================ */
+/* SECTION 1: BLOOM FILTER                                          */
+/* ================================================================ */
+var bloomBits = new Uint8Array(32);
+var bloomInserted = [];
+var bloomLogEl = document.getElementById('bloom-log');
+
+function renderBloomArray(highlights, misses) {
+  highlights = highlights || [];
+  misses = misses || [];
+  var wrap = document.getElementById('bloom-bit-array');
+  wrap.innerHTML = '';
+  for (var i = 0; i < 32; i++) {
+    var cell = document.createElement('div');
+    cell.className = 'bit-cell' + (bloomBits[i] ? ' set' : '');
+    if (highlights.indexOf(i) !== -1) cell.className += ' highlight';
+    if (misses.indexOf(i) !== -1) cell.className += ' miss';
+    cell.innerHTML = '<span class="idx">' + i + '</span>' + bloomBits[i];
+    wrap.appendChild(cell);
+  }
+}
+
+function bloomLog(msg) {
+  bloomLogEl.innerHTML = msg + '<br>' + bloomLogEl.innerHTML;
+}
+
+function bloomInsert() {
+  var input = document.getElementById('bloom-input');
+  var val = input.value.trim();
+  if (!val) return;
+  var hashes = hashN(val, 3, 32);
+  hashes.forEach(function(h) { bloomBits[h] = 1; });
+  bloomInserted.push(val);
+  renderBloomArray(hashes);
+  document.getElementById('bloom-result').innerHTML =
+    'Inserted "' + val + '". Hash positions: [' + hashes.join(', ') + ']. Bits set to 1.';
+  bloomLog('<span style="color:var(--accent-green)">INSERT</span> "' + val + '" -> bits [' + hashes.join(', ') + ']');
+  input.value = '';
+  input.focus();
+}
+
+function bloomQuery() {
+  var input = document.getElementById('bloom-input');
+  var val = input.value.trim();
+  if (!val) return;
+  var hashes = hashN(val, 3, 32);
+  var allSet = true;
+  var matchBits = [];
+  var missBits = [];
+  hashes.forEach(function(h) {
+    if (bloomBits[h]) matchBits.push(h);
+    else { allSet = false; missBits.push(h); }
+  });
+  renderBloomArray(matchBits, missBits);
+  var inSet = bloomInserted.indexOf(val) !== -1;
+  var result;
+  if (allSet) {
+    if (inSet) {
+      result = '<span style="color:var(--accent-green)">PROBABLY PRESENT</span> (true positive). All bits [' + hashes.join(', ') + '] are set. Item was actually inserted.';
+    } else {
+      result = '<span style="color:var(--accent-orange)">PROBABLY PRESENT</span> (FALSE POSITIVE!). All bits [' + hashes.join(', ') + '] are set, but "' + val + '" was never inserted. Other inserts set these bits.';
+    }
+  } else {
+    result = '<span style="color:var(--accent-red)">DEFINITELY NOT PRESENT</span>. Bit(s) [' + missBits.join(', ') + '] are 0. No false negative possible.';
+  }
+  document.getElementById('bloom-result').innerHTML = 'Query "' + val + '": ' + result;
+  bloomLog('<span style="color:var(--accent-blue)">QUERY</span> "' + val + '" -> ' + (allSet ? (inSet ? 'TRUE POS' : 'FALSE POS') : 'NOT PRESENT'));
+  input.value = '';
+  input.focus();
+}
+
+function bloomReset() {
+  bloomBits = new Uint8Array(32);
+  bloomInserted = [];
+  renderBloomArray();
+  document.getElementById('bloom-result').innerHTML = 'Reset. Insert items, then query to check membership.';
+  bloomLogEl.innerHTML = '';
+}
+
+document.getElementById('bloom-input').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') {
+    if (e.shiftKey) bloomQuery();
+    else bloomInsert();
+  }
+});
+
+renderBloomArray();
+
+/* ---- Bloom sizing calculator ---- */
+function updateBloomCalc() {
+  var fprExp = parseFloat(document.getElementById('fpr-slider').value);
+  var nExp = parseFloat(document.getElementById('n-slider').value);
+  var fpr = Math.pow(10, fprExp);
+  var n = Math.pow(10, nExp);
+
+  document.getElementById('fpr-val').textContent = fpr >= 0.01 ? (fpr * 100).toFixed(1) + '%' : (fpr * 100).toFixed(2) + '%';
+  document.getElementById('n-val').textContent = formatSI(n);
+
+  var m = Math.ceil(-n * Math.log(fpr) / (Math.LN2 * Math.LN2));
+  var k = Math.round((m / n) * Math.LN2);
+  if (k < 1) k = 1;
+  var actualFpr = Math.pow(1 - Math.exp(-k * n / m), k);
+  var bytes = m / 8;
+
+  document.getElementById('bloom-calc-result').innerHTML =
+    'Required m = ' + formatSI(m) + ' bits (' + formatBytes(bytes) + ')\n' +
+    'Optimal k  = ' + k + ' hash functions\n' +
+    'Actual FPR = ' + (actualFpr * 100).toFixed(4) + '%\n' +
+    'Bits/item  = ' + (m / n).toFixed(1);
+}
+
+function formatSI(n) {
+  if (n >= 1e9) return (n / 1e9).toFixed(1) + 'B';
+  if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M';
+  if (n >= 1e3) return (n / 1e3).toFixed(1) + 'K';
+  return Math.round(n).toString();
+}
+
+function formatBytes(b) {
+  if (b >= 1073741824) return (b / 1073741824).toFixed(1) + ' GB';
+  if (b >= 1048576) return (b / 1048576).toFixed(1) + ' MB';
+  if (b >= 1024) return (b / 1024).toFixed(1) + ' KB';
+  return Math.round(b) + ' B';
+}
+
+updateBloomCalc();
+
+/* ================================================================ */
+/* SECTION 2: CUCKOO FILTER                                         */
+/* ================================================================ */
+var CUCKOO_BUCKETS = 4;
+var CUCKOO_SLOTS = 2;
+var cuckooTable = [];
+var cuckooItems = {};
+
+function cuckooInit() {
+  cuckooTable = [];
+  for (var i = 0; i < CUCKOO_BUCKETS; i++) {
+    cuckooTable.push(new Array(CUCKOO_SLOTS).fill(null));
+  }
+  cuckooItems = {};
+}
+cuckooInit();
+
+function cuckooFingerprint(str) {
+  var h = fnv1a(str, 999);
+  var fp = (h & 0xFF) || 1;
+  return fp;
+}
+
+function cuckooBucket1(str) {
+  return fnv1a(str, 42) % CUCKOO_BUCKETS;
+}
+
+function cuckooBucket2(b1, fp) {
+  return (b1 ^ (fnv1a(String(fp), 0) % CUCKOO_BUCKETS)) % CUCKOO_BUCKETS;
+}
+
+function renderCuckoo(highlights) {
+  highlights = highlights || {};
+  var viz = document.getElementById('cuckoo-viz');
+  viz.innerHTML = '';
+  for (var b = 0; b < CUCKOO_BUCKETS; b++) {
+    var col = document.createElement('div');
+    col.className = 'cuckoo-col';
+    col.innerHTML = '<h4>Bucket ' + b + '</h4>';
+    for (var s = 0; s < CUCKOO_SLOTS; s++) {
+      var slot = document.createElement('div');
+      var key = b + ':' + s;
+      slot.className = 'cuckoo-slot';
+      if (cuckooTable[b][s] !== null) {
+        slot.className += ' occupied';
+        slot.textContent = 'fp=' + cuckooTable[b][s];
+      } else {
+        slot.textContent = '(empty)';
+      }
+      if (highlights[key] === 'insert') slot.className += ' inserting';
+      if (highlights[key] === 'evict') slot.className += ' evicting';
+      col.appendChild(slot);
+    }
+    viz.appendChild(col);
+  }
+}
+
+function cuckooInsert() {
+  var input = document.getElementById('cuckoo-input');
+  var val = input.value.trim();
+  if (!val) return;
+  var fp = cuckooFingerprint(val);
+  var b1 = cuckooBucket1(val);
+  var b2 = cuckooBucket2(b1, fp);
+  var log = [];
+  log.push('Item "' + val + '": fingerprint=' + fp + ', buckets=[' + b1 + ', ' + b2 + ']');
+
+  // Try b1
+  for (var s = 0; s < CUCKOO_SLOTS; s++) {
+    if (cuckooTable[b1][s] === null) {
+      cuckooTable[b1][s] = fp;
+      cuckooItems[val] = { bucket: b1, slot: s };
+      log.push('Placed in bucket ' + b1 + ', slot ' + s);
+      renderCuckoo(buildHighlight(b1, s, 'insert'));
+      document.getElementById('cuckoo-result').innerHTML = log.join('\n');
+      input.value = ''; input.focus();
+      return;
+    }
+  }
+  // Try b2
+  for (var s = 0; s < CUCKOO_SLOTS; s++) {
+    if (cuckooTable[b2][s] === null) {
+      cuckooTable[b2][s] = fp;
+      cuckooItems[val] = { bucket: b2, slot: s };
+      log.push('Placed in bucket ' + b2 + ', slot ' + s);
+      renderCuckoo(buildHighlight(b2, s, 'insert'));
+      document.getElementById('cuckoo-result').innerHTML = log.join('\n');
+      input.value = ''; input.focus();
+      return;
+    }
+  }
+  // Eviction: try kicking from b1
+  var curBucket = b1;
+  var curFp = fp;
+  var highlights = {};
+  var MAX_KICKS = 10;
+  for (var kick = 0; kick < MAX_KICKS; kick++) {
+    var evictSlot = Math.floor(Math.random() * CUCKOO_SLOTS);
+    var evictedFp = cuckooTable[curBucket][evictSlot];
+    highlights[curBucket + ':' + evictSlot] = 'evict';
+    log.push('Evict fp=' + evictedFp + ' from bucket ' + curBucket + ', slot ' + evictSlot);
+    cuckooTable[curBucket][evictSlot] = curFp;
+    // Update items tracking for new placement
+    if (kick === 0) {
+      cuckooItems[val] = { bucket: curBucket, slot: evictSlot };
+    }
+    curFp = evictedFp;
+    var altBucket = cuckooBucket2(curBucket, curFp);
+    if (altBucket === curBucket) altBucket = (curBucket + 1) % CUCKOO_BUCKETS;
+    curBucket = altBucket;
+    // Try to place evicted item
+    for (var s = 0; s < CUCKOO_SLOTS; s++) {
+      if (cuckooTable[curBucket][s] === null) {
+        cuckooTable[curBucket][s] = curFp;
+        highlights[curBucket + ':' + s] = 'insert';
+        log.push('Placed evicted fp=' + curFp + ' in bucket ' + curBucket + ', slot ' + s);
+        renderCuckoo(highlights);
+        document.getElementById('cuckoo-result').innerHTML = log.join('\n');
+        input.value = ''; input.focus();
+        return;
+      }
+    }
+  }
+  log.push('FAILED: max eviction depth reached. Filter is too full.');
+  renderCuckoo(highlights);
+  document.getElementById('cuckoo-result').innerHTML = log.join('\n');
+  input.value = ''; input.focus();
+}
+
+function cuckooDelete() {
+  var input = document.getElementById('cuckoo-input');
+  var val = input.value.trim();
+  if (!val) return;
+  var fp = cuckooFingerprint(val);
+  var b1 = cuckooBucket1(val);
+  var b2 = cuckooBucket2(b1, fp);
+  for (var s = 0; s < CUCKOO_SLOTS; s++) {
+    if (cuckooTable[b1][s] === fp) {
+      cuckooTable[b1][s] = null;
+      delete cuckooItems[val];
+      renderCuckoo(buildHighlight(b1, s, 'evict'));
+      document.getElementById('cuckoo-result').innerHTML = 'Deleted fp=' + fp + ' from bucket ' + b1 + ', slot ' + s;
+      input.value = ''; input.focus();
+      return;
+    }
+  }
+  for (var s = 0; s < CUCKOO_SLOTS; s++) {
+    if (cuckooTable[b2][s] === fp) {
+      cuckooTable[b2][s] = null;
+      delete cuckooItems[val];
+      renderCuckoo(buildHighlight(b2, s, 'evict'));
+      document.getElementById('cuckoo-result').innerHTML = 'Deleted fp=' + fp + ' from bucket ' + b2 + ', slot ' + s;
+      input.value = ''; input.focus();
+      return;
+    }
+  }
+  document.getElementById('cuckoo-result').innerHTML = 'Not found: fp=' + fp + ' not in buckets [' + b1 + ', ' + b2 + ']';
+  renderCuckoo();
+  input.value = ''; input.focus();
+}
+
+function cuckooReset() {
+  cuckooInit();
+  renderCuckoo();
+  document.getElementById('cuckoo-result').innerHTML = 'Reset. Insert items to see placement and eviction chains.';
+}
+
+function buildHighlight(b, s, type) {
+  var h = {};
+  h[b + ':' + s] = type;
+  return h;
+}
+
+renderCuckoo();
+
+/* ================================================================ */
+/* SECTION 3: SCALABLE BLOOM                                        */
+/* ================================================================ */
+var scalableFilters = [];
+var scalableAllInserted = [];
+var SCALABLE_BASE_CAP = 20;
+var SCALABLE_BASE_FPR = 0.05;
+var SCALABLE_TIGHTEN = 0.5;
+var scalableCounter = 0;
+
+function scalableInit() {
+  scalableFilters = [{
+    bits: new Uint8Array(64),
+    m: 64,
+    k: 3,
+    capacity: SCALABLE_BASE_CAP,
+    count: 0,
+    targetFpr: SCALABLE_BASE_FPR,
+    index: 0
+  }];
+  scalableAllInserted = [];
+  scalableCounter = 0;
+}
+scalableInit();
+
+function scalableInsertOne(val) {
+  var active = scalableFilters[scalableFilters.length - 1];
+  if (active.count >= active.capacity) {
+    var newFpr = active.targetFpr * SCALABLE_TIGHTEN;
+    var newCap = active.capacity * 2;
+    var newM = active.m * 2;
+    var newK = Math.max(3, Math.round((newM / newCap) * Math.LN2));
+    scalableFilters.push({
+      bits: new Uint8Array(newM),
+      m: newM,
+      k: newK,
+      capacity: newCap,
+      count: 0,
+      targetFpr: newFpr,
+      index: scalableFilters.length
+    });
+    active = scalableFilters[scalableFilters.length - 1];
+  }
+  var hashes = hashN(val, active.k, active.m);
+  hashes.forEach(function(h) { active.bits[h] = 1; });
+  active.count++;
+  scalableAllInserted.push(val);
+}
+
+function scalableInsertBatch() {
+  for (var i = 0; i < 50; i++) {
+    scalableInsertOne('item_' + (scalableCounter++));
+  }
+  renderScalable();
+  document.getElementById('scalable-result').innerHTML =
+    'Inserted 50 items. Total: ' + scalableAllInserted.length + ' items across ' + scalableFilters.length + ' filter(s).';
+  updateScalableStats();
+}
+
+function scalableQuery() {
+  var testItems = [];
+  // Pick some inserted and some never-inserted
+  for (var i = 0; i < 5; i++) {
+    if (scalableAllInserted.length > 0) {
+      testItems.push({ val: scalableAllInserted[Math.floor(Math.random() * scalableAllInserted.length)], expected: true });
+    }
+    testItems.push({ val: 'never_' + Math.random().toString(36).slice(2, 8), expected: false });
+  }
+  var results = [];
+  var searched = {};
+  testItems.forEach(function(item) {
+    var found = false;
+    for (var f = 0; f < scalableFilters.length; f++) {
+      var filter = scalableFilters[f];
+      var hashes = hashN(item.val, filter.k, filter.m);
+      var allSet = hashes.every(function(h) { return filter.bits[h]; });
+      if (allSet) {
+        found = true;
+        searched[f] = true;
+        break;
+      }
+      searched[f] = true;
+    }
+    var status;
+    if (found && item.expected) status = 'TRUE POS';
+    else if (found && !item.expected) status = 'FALSE POS';
+    else if (!found && !item.expected) status = 'TRUE NEG';
+    else status = 'ERROR';
+    results.push('"' + item.val + '": ' + status);
+  });
+  renderScalable(searched);
+  document.getElementById('scalable-result').innerHTML = results.join('\n');
+}
+
+function renderScalable(searchedFilters) {
+  searchedFilters = searchedFilters || {};
+  var chain = document.getElementById('scalable-chain');
+  chain.innerHTML = '';
+  scalableFilters.forEach(function(filter, idx) {
+    var card = document.createElement('div');
+    card.className = 'bloom-filter-card';
+    if (idx === scalableFilters.length - 1) card.className += ' active-filter';
+    if (searchedFilters[idx]) card.className += ' searched';
+    var fillPct = Math.round((filter.count / filter.capacity) * 100);
+    var setBits = 0;
+    for (var i = 0; i < filter.m; i++) { if (filter.bits[i]) setBits++; }
+    card.innerHTML =
+      '<div class="card-title">Filter ' + idx + '</div>' +
+      '<div class="card-stat">m=' + filter.m + ' bits, k=' + filter.k + '</div>' +
+      '<div class="card-stat">Items: ' + filter.count + '/' + filter.capacity + ' (' + fillPct + '%)</div>' +
+      '<div class="card-stat">Bits set: ' + setBits + '/' + filter.m + '</div>' +
+      '<div class="card-stat" style="color:var(--accent-cyan)">FPR target: ' + (filter.targetFpr * 100).toFixed(2) + '%</div>';
+    chain.appendChild(card);
+  });
+}
+
+function updateScalableStats() {
+  var total = scalableAllInserted.length;
+  var filters = scalableFilters.length;
+  var totalBits = 0;
+  scalableFilters.forEach(function(f) { totalBits += f.m; });
+  document.getElementById('scalable-stats').innerHTML =
+    'Total items: ' + total + ' | Filters: ' + filters + ' | Total bits: ' + totalBits +
+    ' (' + formatBytes(totalBits / 8) + ') | Bits/item: ' + (total > 0 ? (totalBits / total).toFixed(1) : '0');
+}
+
+function scalableReset() {
+  scalableInit();
+  renderScalable();
+  document.getElementById('scalable-result').innerHTML = 'Reset. Insert items to see filters grow.';
+  document.getElementById('scalable-stats').innerHTML = '';
+}
+
+renderScalable();
+
+/* ================================================================ */
+/* SECTION 4: HYPERLOGLOG                                           */
+/* ================================================================ */
+var HLL_P = 6; // 2^6 = 64 registers
+var HLL_M = 1 << HLL_P;
+var hllRegisters = new Uint8Array(HLL_M);
+var hllExactSet = {};
+var hllExactCount = 0;
+var hllStreamSize = 0;
+var hllHistory = []; // [{streamSize, exact, estimate}]
+var hllItemCounter = 0;
+
+function hllHash(str) {
+  return fnv1a(str, 12345) ^ murmur3(str, 67890);
+}
+
+function hllLeadingZeros(val, maxBits) {
+  if (val === 0) return maxBits;
+  var count = 0;
+  for (var i = maxBits - 1; i >= 0; i--) {
+    if ((val >>> i) & 1) break;
+    count++;
+  }
+  return count;
+}
+
+function hllAdd(item) {
+  var h = hllHash(item) >>> 0;
+  var regIdx = h & (HLL_M - 1);
+  var remaining = h >>> HLL_P;
+  var lz = hllLeadingZeros(remaining, 32 - HLL_P) + 1;
+  if (lz > hllRegisters[regIdx]) {
+    hllRegisters[regIdx] = lz;
+  }
+  if (!hllExactSet[item]) {
+    hllExactSet[item] = true;
+    hllExactCount++;
+  }
+  hllStreamSize++;
+}
+
+function hllEstimate() {
+  var alpha;
+  if (HLL_M === 16) alpha = 0.673;
+  else if (HLL_M === 32) alpha = 0.697;
+  else if (HLL_M === 64) alpha = 0.709;
+  else alpha = 0.7213 / (1 + 1.079 / HLL_M);
+
+  var sum = 0;
+  var zeros = 0;
+  for (var j = 0; j < HLL_M; j++) {
+    sum += Math.pow(2, -hllRegisters[j]);
+    if (hllRegisters[j] === 0) zeros++;
+  }
+  var raw = alpha * HLL_M * HLL_M / sum;
+
+  // Small range correction
+  if (raw <= 2.5 * HLL_M && zeros > 0) {
+    raw = HLL_M * Math.log(HLL_M / zeros);
+  }
+  return Math.round(raw);
+}
+
+function hllAddOne() {
+  var item = 'user_' + (hllItemCounter++);
+  // ~30% chance of duplicate to show dedup
+  if (Math.random() < 0.3 && hllItemCounter > 5) {
+    item = 'user_' + Math.floor(Math.random() * hllItemCounter);
+  }
+  hllAdd(item);
+  hllRecordHistory();
+  renderHLL();
+  updateHLLStats();
+}
+
+function hllAddBatch(n) {
+  for (var i = 0; i < n; i++) {
+    var item = 'user_' + (hllItemCounter++);
+    if (Math.random() < 0.3 && hllItemCounter > 5) {
+      item = 'user_' + Math.floor(Math.random() * hllItemCounter);
+    }
+    hllAdd(item);
+  }
+  hllRecordHistory();
+  renderHLL();
+  updateHLLStats();
+}
+
+function hllRecordHistory() {
+  var est = hllEstimate();
+  hllHistory.push({
+    streamSize: hllStreamSize,
+    exact: hllExactCount,
+    estimate: est
+  });
+  // Keep last 200 points
+  if (hllHistory.length > 200) hllHistory = hllHistory.slice(-200);
+}
+
+function renderHLL() {
+  var grid = document.getElementById('hll-registers');
+  grid.innerHTML = '';
+  var maxVal = 1;
+  for (var i = 0; i < HLL_M; i++) {
+    if (hllRegisters[i] > maxVal) maxVal = hllRegisters[i];
+  }
+  for (var i = 0; i < HLL_M; i++) {
+    var cell = document.createElement('div');
+    cell.className = 'hll-register';
+    var intensity = hllRegisters[i] / Math.max(maxVal, 1);
+    var r = Math.round(51 + intensity * 204);
+    var g = Math.round(80 + intensity * 127);
+    var b = Math.round(240 - intensity * 40);
+    cell.style.background = 'rgba(' + r + ',' + g + ',' + b + ',' + (0.2 + intensity * 0.6) + ')';
+    cell.textContent = hllRegisters[i];
+    cell.title = 'Register ' + i + ': max leading zeros = ' + hllRegisters[i];
+    grid.appendChild(cell);
+  }
+  renderHLLChart();
+}
+
+function renderHLLChart() {
+  var svg = document.getElementById('hll-chart');
+  if (hllHistory.length < 2) {
+    svg.innerHTML = '<text x="350" y="100" text-anchor="middle" fill="#888" font-size="14">Add items to see estimation chart</text>';
+    return;
+  }
+  var W = 700, H = 200, pad = 50;
+  var maxExact = 1;
+  hllHistory.forEach(function(p) {
+    if (p.exact > maxExact) maxExact = p.exact;
+    if (p.estimate > maxExact) maxExact = p.estimate;
+  });
+  maxExact = maxExact * 1.1;
+  var xScale = function(i) { return pad + (i / (hllHistory.length - 1)) * (W - 2 * pad); };
+  var yScale = function(v) { return H - pad - (v / maxExact) * (H - 2 * pad); };
+
+  var exactPath = 'M';
+  var estPath = 'M';
+  hllHistory.forEach(function(p, i) {
+    var x = xScale(i);
+    exactPath += (i === 0 ? '' : ' L') + x.toFixed(1) + ' ' + yScale(p.exact).toFixed(1);
+    estPath += (i === 0 ? '' : ' L') + x.toFixed(1) + ' ' + yScale(p.estimate).toFixed(1);
+  });
+
+  svg.innerHTML =
+    // Grid lines
+    '<line x1="' + pad + '" y1="' + (H - pad) + '" x2="' + (W - pad) + '" y2="' + (H - pad) + '" stroke="#2a2a35" />' +
+    '<line x1="' + pad + '" y1="' + pad + '" x2="' + pad + '" y2="' + (H - pad) + '" stroke="#2a2a35" />' +
+    // Axis labels
+    '<text x="' + (W / 2) + '" y="' + (H - 8) + '" text-anchor="middle" fill="#888" font-size="11">Stream progress</text>' +
+    '<text x="14" y="' + (H / 2) + '" text-anchor="middle" fill="#888" font-size="11" transform="rotate(-90,14,' + (H / 2) + ')">Count</text>' +
+    // Max value label
+    '<text x="' + (pad + 4) + '" y="' + (pad - 4) + '" fill="#888" font-size="10">' + formatSI(maxExact / 1.1) + '</text>' +
+    // Exact line (green)
+    '<path d="' + exactPath + '" fill="none" stroke="' + '#51cf66' + '" stroke-width="2" />' +
+    // Estimate line (blue)
+    '<path d="' + estPath + '" fill="none" stroke="' + '#339af0' + '" stroke-width="2" stroke-dasharray="6,3" />' +
+    // Legend
+    '<rect x="' + (W - 180) + '" y="8" width="12" height="3" fill="#51cf66" />' +
+    '<text x="' + (W - 164) + '" y="12" fill="#51cf66" font-size="11">Exact count</text>' +
+    '<rect x="' + (W - 180) + '" y="22" width="12" height="3" fill="#339af0" />' +
+    '<text x="' + (W - 164) + '" y="26" fill="#339af0" font-size="11">HLL estimate</text>';
+}
+
+function updateHLLStats() {
+  var est = hllEstimate();
+  var error = hllExactCount > 0 ? ((est - hllExactCount) / hllExactCount * 100) : 0;
+  var errorSign = error >= 0 ? '+' : '';
+  var errorColor = Math.abs(error) < 5 ? 'var(--accent-green)' : Math.abs(error) < 15 ? 'var(--accent-yellow)' : 'var(--accent-red)';
+  document.getElementById('hll-stats').innerHTML =
+    'Stream items: ' + hllStreamSize + ' | Distinct (exact): ' + hllExactCount +
+    ' | HLL estimate: ' + est + ' | Error: <span style="color:' + errorColor + '">' + errorSign + error.toFixed(1) + '%</span>' +
+    '\nMemory: ' + HLL_M + ' registers x 1 byte = ' + HLL_M + ' bytes (vs. exact: ~' + formatBytes(hllExactCount * 20) + ' for a hash set)';
+}
+
+function hllReset() {
+  hllRegisters = new Uint8Array(HLL_M);
+  hllExactSet = {};
+  hllExactCount = 0;
+  hllStreamSize = 0;
+  hllHistory = [];
+  hllItemCounter = 0;
+  renderHLL();
+  document.getElementById('hll-stats').innerHTML = 'Add items to see distinct count estimation.';
+}
+
+renderHLL();
+
+/* ================================================================ */
+/* SECTION 5: COUNT-MIN SKETCH                                      */
+/* ================================================================ */
+var CMS_D = 4;
+var CMS_W = 16;
+var cmsCounters = [];
+var cmsExactCounts = {};
+var cmsTotalInserts = 0;
+var cmsLogEl = document.getElementById('cms-log');
+
+function cmsInit() {
+  cmsCounters = [];
+  for (var i = 0; i < CMS_D; i++) {
+    cmsCounters.push(new Int32Array(CMS_W));
+  }
+  cmsExactCounts = {};
+  cmsTotalInserts = 0;
+}
+cmsInit();
+
+function cmsHash(str, row) {
+  return ((fnv1a(str, row * 137 + 1) ^ murmur3(str, row * 251 + 3)) >>> 0) % CMS_W;
+}
+
+function renderCMS(highlights) {
+  highlights = highlights || {};
+  var grid = document.getElementById('cms-grid');
+  grid.style.gridTemplateColumns = 'repeat(' + (CMS_W + 1) + ', 1fr)';
+  grid.innerHTML = '';
+  // Header row
+  var corner = document.createElement('div');
+  corner.className = 'cms-cell';
+  corner.style.background = 'transparent';
+  grid.appendChild(corner);
+  for (var c = 0; c < CMS_W; c++) {
+    var hdr = document.createElement('div');
+    hdr.className = 'cms-cell';
+    hdr.style.background = 'transparent';
+    hdr.style.color = 'var(--text-3)';
+    hdr.style.fontSize = '9px';
+    hdr.textContent = c;
+    grid.appendChild(hdr);
+  }
+  // Data rows
+  var maxVal = 1;
+  for (var r = 0; r < CMS_D; r++) {
+    for (var c = 0; c < CMS_W; c++) {
+      if (cmsCounters[r][c] > maxVal) maxVal = cmsCounters[r][c];
+    }
+  }
+  for (var r = 0; r < CMS_D; r++) {
+    var rowLabel = document.createElement('div');
+    rowLabel.className = 'cms-cell';
+    rowLabel.style.background = 'transparent';
+    rowLabel.style.color = 'var(--text-3)';
+    rowLabel.style.fontSize = '10px';
+    rowLabel.textContent = 'h' + r;
+    grid.appendChild(rowLabel);
+    for (var c = 0; c < CMS_W; c++) {
+      var cell = document.createElement('div');
+      cell.className = 'cms-cell';
+      var val = cmsCounters[r][c];
+      var intensity = val / Math.max(maxVal, 1);
+      var key = r + ':' + c;
+      if (highlights[key]) {
+        cell.style.background = 'rgba(51,154,240,0.5)';
+        cell.style.color = '#fff';
+        cell.style.fontWeight = '600';
+      } else {
+        cell.style.background = 'rgba(51,154,240,' + (intensity * 0.4) + ')';
+        cell.style.color = val > 0 ? 'var(--text-2)' : 'var(--text-3)';
+      }
+      cell.textContent = val || '';
+      grid.appendChild(cell);
+    }
+  }
+}
+
+function cmsInsert() {
+  var input = document.getElementById('cms-input');
+  var val = input.value.trim();
+  if (!val) return;
+  var highlights = {};
+  var cols = [];
+  for (var r = 0; r < CMS_D; r++) {
+    var c = cmsHash(val, r);
+    cmsCounters[r][c]++;
+    cols.push(c);
+    highlights[r + ':' + c] = true;
+  }
+  cmsExactCounts[val] = (cmsExactCounts[val] || 0) + 1;
+  cmsTotalInserts++;
+  renderCMS(highlights);
+  document.getElementById('cms-result').innerHTML =
+    'Inserted "' + val + '". Incremented columns [' + cols.join(', ') + '] across ' + CMS_D + ' rows.\n' +
+    'Exact count for "' + val + '": ' + cmsExactCounts[val];
+  cmsLog('<span style="color:var(--accent-green)">INSERT</span> "' + val + '" -> cols [' + cols.join(', ') + ']');
+  input.value = ''; input.focus();
+}
+
+function cmsQuery() {
+  var input = document.getElementById('cms-input');
+  var val = input.value.trim();
+  if (!val) return;
+  var minVal = Infinity;
+  var highlights = {};
+  var vals = [];
+  for (var r = 0; r < CMS_D; r++) {
+    var c = cmsHash(val, r);
+    vals.push(cmsCounters[r][c]);
+    if (cmsCounters[r][c] < minVal) minVal = cmsCounters[r][c];
+    highlights[r + ':' + c] = true;
+  }
+  renderCMS(highlights);
+  var exact = cmsExactCounts[val] || 0;
+  var overEstimate = minVal - exact;
+  document.getElementById('cms-result').innerHTML =
+    'Query "' + val + '": row values = [' + vals.join(', ') + '], MIN = ' + minVal + '\n' +
+    'Exact count: ' + exact + (overEstimate > 0 ? ' (over-estimate by ' + overEstimate + ' due to collisions)' : '');
+  cmsLog('<span style="color:var(--accent-blue)">QUERY</span> "' + val + '" -> min=' + minVal + ', exact=' + exact);
+  input.value = ''; input.focus();
+}
+
+function cmsLog(msg) {
+  cmsLogEl.innerHTML = msg + '<br>' + cmsLogEl.innerHTML;
+}
+
+function cmsReset() {
+  cmsInit();
+  renderCMS();
+  document.getElementById('cms-result').innerHTML = 'Reset. Insert items, then query for frequency estimates.';
+  cmsLogEl.innerHTML = '';
+}
+
+document.getElementById('cms-input').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') {
+    if (e.shiftKey) cmsQuery();
+    else cmsInsert();
+  }
+});
+
+renderCMS();
+
+/* ================================================================ */
+/* SECTION 6: T-DIGEST                                              */
+/* ================================================================ */
+var tdigestData = [];
+var tdigestCentroids = [];
+var TDIGEST_COMPRESSION = 50;
+
+function tdigestAddBatch() {
+  // Generate data from a roughly normal distribution (Box-Muller)
+  for (var i = 0; i < 200; i++) {
+    var u1 = Math.random();
+    var u2 = Math.random();
+    var z = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+    var val = 100 + z * 30; // mean=100, std=30
+    tdigestData.push(val);
+  }
+  tdigestData.sort(function(a, b) { return a - b; });
+  tdigestCompress();
+  renderTDigest();
+  document.getElementById('tdigest-result').innerHTML =
+    'Added 200 samples. Total: ' + tdigestData.length + ' | Centroids: ' + tdigestCentroids.length;
+  updateTDigestStats();
+}
+
+function tdigestScaleFunc(q) {
+  // k1 scale: maps quantile q in [0,1] to scaled space via arcsin
+  // This concentrates resolution at the tails (q near 0 and 1)
+  return (TDIGEST_COMPRESSION / (2 * Math.PI)) * Math.asin(2 * q - 1);
+}
+
+function tdigestCompress() {
+  // Build centroids with adaptive bin sizes -- denser at edges
+  var n = tdigestData.length;
+  if (n === 0) { tdigestCentroids = []; return; }
+
+  var numCentroids = Math.min(TDIGEST_COMPRESSION, n);
+  tdigestCentroids = [];
+
+  // Generate boundary points in scaled space (uniform), then invert to get
+  // non-uniform quantile boundaries that are denser at edges
+  var kMin = tdigestScaleFunc(0);
+  var kMax = tdigestScaleFunc(1);
+  var boundaries = [0];
+  for (var i = 1; i < numCentroids; i++) {
+    var kTarget = kMin + (i / numCentroids) * (kMax - kMin);
+    // Invert: q = (sin(kTarget * 2PI / delta) + 1) / 2
+    var q = (Math.sin(kTarget * 2 * Math.PI / TDIGEST_COMPRESSION) + 1) / 2;
+    q = Math.max(0, Math.min(1, q));
+    boundaries.push(q);
+  }
+  boundaries.push(1);
+
+  for (var i = 0; i < boundaries.length - 1; i++) {
+    var q0 = boundaries[i];
+    var q1 = boundaries[i + 1];
+    var idx0 = Math.floor(q0 * n);
+    var idx1 = Math.min(Math.floor(q1 * n), n);
+    if (idx1 <= idx0) idx1 = idx0 + 1;
+    if (idx1 > n) continue;
+
+    var sum = 0;
+    var count = idx1 - idx0;
+    for (var j = idx0; j < idx1; j++) {
+      sum += tdigestData[j];
+    }
+    var qMid = (q0 + q1) / 2;
+    tdigestCentroids.push({
+      mean: sum / count,
+      count: count,
+      qLow: q0,
+      qHigh: q1,
+      qMid: qMid,
+      isEdge: qMid < 0.05 || qMid > 0.95
+    });
+  }
+}
+
+function renderTDigest(highlightQ) {
+  var viz = document.getElementById('tdigest-viz');
+  viz.innerHTML = '';
+  if (tdigestCentroids.length === 0) return;
+
+  var maxCount = 1;
+  tdigestCentroids.forEach(function(c) { if (c.count > maxCount) maxCount = c.count; });
+
+  tdigestCentroids.forEach(function(c, i) {
+    var bin = document.createElement('div');
+    bin.className = 'tdigest-bin';
+    if (c.isEdge) bin.className += ' edge';
+    // Height = inverse of count: small count (edge) = tall bar to show precision
+    // Actually let's show count as height, but make edge bins visually distinct
+    var heightPct = (c.count / maxCount) * 100;
+    bin.style.height = Math.max(heightPct, 5) + '%';
+    bin.title = 'q=[' + (c.qLow * 100).toFixed(1) + '%, ' + (c.qHigh * 100).toFixed(1) + '%]\n' +
+                'mean=' + c.mean.toFixed(1) + ', count=' + c.count;
+
+    if (highlightQ !== undefined) {
+      if (highlightQ >= c.qLow && highlightQ < c.qHigh) {
+        bin.style.background = 'var(--accent-yellow)';
+        bin.style.boxShadow = '0 0 8px rgba(255,212,59,0.5)';
+      }
+    }
+    viz.appendChild(bin);
+  });
+}
+
+function tdigestQuery(pct) {
+  if (tdigestData.length === 0) {
+    document.getElementById('tdigest-result').innerHTML = 'No data. Add samples first.';
+    return;
+  }
+  var q = pct / 100;
+  // Exact
+  var sortedIdx = Math.floor(q * (tdigestData.length - 1));
+  var exact = tdigestData[sortedIdx];
+
+  // t-digest estimate: find centroid containing q
+  var estimate = exact;
+  for (var i = 0; i < tdigestCentroids.length; i++) {
+    var c = tdigestCentroids[i];
+    if (q >= c.qLow && q < c.qHigh) {
+      estimate = c.mean;
+      break;
+    }
+    if (i === tdigestCentroids.length - 1) {
+      estimate = c.mean;
+    }
+  }
+
+  var error = exact !== 0 ? Math.abs(estimate - exact) / Math.abs(exact) * 100 : 0;
+  var errorColor = error < 2 ? 'var(--accent-green)' : error < 10 ? 'var(--accent-yellow)' : 'var(--accent-red)';
+
+  renderTDigest(q);
+  document.getElementById('tdigest-result').innerHTML =
+    'p' + pct + ' estimate: ' + estimate.toFixed(1) +
+    ' | Exact: ' + exact.toFixed(1) +
+    ' | Error: <span style="color:' + errorColor + '">' + error.toFixed(2) + '%</span>' +
+    (pct >= 99 ? '\n(Note: edge centroids are smaller = more precise at extremes)' : '');
+}
+
+function updateTDigestStats() {
+  if (tdigestCentroids.length === 0) return;
+  var edgeCentroids = tdigestCentroids.filter(function(c) { return c.isEdge; });
+  var midCentroids = tdigestCentroids.filter(function(c) { return !c.isEdge; });
+  var edgeAvgSize = 0, midAvgSize = 0;
+  edgeCentroids.forEach(function(c) { edgeAvgSize += c.count; });
+  midCentroids.forEach(function(c) { midAvgSize += c.count; });
+  edgeAvgSize = edgeCentroids.length > 0 ? (edgeAvgSize / edgeCentroids.length).toFixed(1) : '0';
+  midAvgSize = midCentroids.length > 0 ? (midAvgSize / midCentroids.length).toFixed(1) : '0';
+
+  document.getElementById('tdigest-stats').innerHTML =
+    'Centroids: ' + tdigestCentroids.length + ' | Edge centroids (q<5% or q>95%): ' + edgeCentroids.length +
+    ' (avg size: ' + edgeAvgSize + ') | Middle centroids: ' + midCentroids.length + ' (avg size: ' + midAvgSize + ')' +
+    '\nMemory: ~' + (tdigestCentroids.length * 12) + ' bytes (' + tdigestCentroids.length + ' centroids x 12 bytes) vs. exact: ' +
+    formatBytes(tdigestData.length * 8);
+}
+
+function tdigestReset() {
+  tdigestData = [];
+  tdigestCentroids = [];
+  renderTDigest();
+  document.getElementById('tdigest-result').innerHTML = 'Reset. Add samples to see adaptive binning. Notice denser bins at the edges.';
+  document.getElementById('tdigest-stats').innerHTML = '';
+}
+
+renderTDigest();
+
+</script>
+</body>
+</html>

@@ -1,0 +1,1505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Multi-tenancy Operations -- Day-2 Ops for B2B SaaS</title>
+<style>
+:root {
+  --bg: #0f0f15;
+  --surface: #181820;
+  --surface-2: #20202a;
+  --border: #2a2a35;
+  --text: #e6e6ea;
+  --text-2: #cfcfd6;
+  --text-3: #888;
+  --accent-red: #ff6b6b;
+  --accent-green: #51cf66;
+  --accent-blue: #339af0;
+  --accent-yellow: #ffd43b;
+  --accent-purple: #cc5de8;
+  --accent-cyan: #8be9fd;
+  --accent-orange: #ffa94d;
+}
+*, *::before, *::after { box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  padding: 32px 24px;
+  max-width: 1100px;
+  margin: 0 auto;
+  line-height: 1.55;
+}
+h1 { color: #fff; margin-bottom: 4px; }
+h1 + p.sub { color: var(--text-3); font-style: italic; margin-top: 0; margin-bottom: 24px; }
+h2 { color: #fff; margin-top: 48px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+h3 { color: var(--text-2); margin-top: 20px; }
+code {
+  background: var(--surface-2);
+  padding: 2px 6px;
+  border-radius: 3px;
+  color: var(--accent-cyan);
+  font-size: 13px;
+}
+pre {
+  background: var(--surface-2);
+  padding: 14px;
+  border-radius: 6px;
+  overflow-x: auto;
+  font-size: 13px;
+  color: var(--accent-cyan);
+  line-height: 1.5;
+  border: 1px solid var(--border);
+}
+svg {
+  background: var(--surface);
+  border-radius: 8px;
+  display: block;
+  margin: 14px auto;
+  width: 100%;
+  height: auto;
+}
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0;
+  align-items: center;
+}
+.controls button, .btn {
+  padding: 10px 16px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  border-radius: 6px;
+  cursor: pointer;
+  min-height: 44px;
+  font-size: 14px;
+  transition: background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+.controls button:hover, .btn:hover { background: var(--surface); }
+.controls button:disabled, .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.controls button.active-btn { border-color: var(--accent-blue); color: var(--accent-blue); }
+.controls button.danger { border-color: var(--accent-red); color: var(--accent-red); }
+.controls button.danger:hover { background: #2a1520; }
+.slider-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-3);
+  min-width: 180px;
+}
+.slider-group input[type="range"] {
+  flex: 1;
+  min-width: 80px;
+  accent-color: var(--accent-blue);
+}
+.slider-group label { white-space: nowrap; min-width: 60px; }
+.commentary {
+  background: var(--surface-2);
+  padding: 14px;
+  border-radius: 6px;
+  font-size: 14px;
+  color: var(--text-2);
+  margin: 12px 0;
+  min-height: 44px;
+  line-height: 1.5;
+}
+.takeaway {
+  background: #1a1a22;
+  border-left: 3px solid var(--accent-green);
+  padding: 12px 16px;
+  margin: 14px 0;
+  font-size: 14px;
+}
+.takeaway strong { color: var(--accent-green); }
+.takeaway ul { margin: 6px 0 0 0; padding-left: 18px; }
+.takeaway li { margin-bottom: 6px; }
+.bar-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  height: 200px;
+  padding: 10px 0;
+  margin: 14px 0;
+  background: var(--surface);
+  border-radius: 8px;
+  padding: 16px;
+}
+.bar-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+  justify-content: flex-end;
+}
+.bar-col .bar {
+  width: 100%;
+  max-width: 60px;
+  border-radius: 4px 4px 0 0;
+  transition: height 0.5s ease;
+  min-height: 2px;
+  position: relative;
+}
+.bar-col .bar-label {
+  font-size: 11px;
+  color: var(--text-3);
+  margin-top: 6px;
+  text-align: center;
+  white-space: nowrap;
+}
+.bar-col .bar-value {
+  font-size: 11px;
+  color: var(--text-2);
+  margin-bottom: 4px;
+}
+.timeline {
+  position: relative;
+  margin: 20px 0;
+  padding: 10px 0;
+}
+.timeline-track {
+  position: absolute;
+  top: 50%;
+  left: 24px;
+  right: 24px;
+  height: 3px;
+  background: var(--border);
+  transform: translateY(-50%);
+  border-radius: 2px;
+}
+.timeline-progress {
+  height: 100%;
+  background: var(--accent-blue);
+  border-radius: 2px;
+  transition: width 0.8s ease;
+  width: 0%;
+}
+.timeline-steps {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  padding: 0 24px;
+  z-index: 1;
+}
+.timeline-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 80px;
+}
+.timeline-dot {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--surface-2);
+  border: 2px solid var(--border);
+  transition: background 0.4s, border-color 0.4s;
+  margin-bottom: 8px;
+}
+.timeline-dot.active {
+  background: var(--accent-blue);
+  border-color: var(--accent-blue);
+}
+.timeline-dot.complete {
+  background: var(--accent-green);
+  border-color: var(--accent-green);
+}
+.timeline-step-label {
+  font-size: 11px;
+  color: var(--text-3);
+  text-align: center;
+  line-height: 1.3;
+}
+.timeline-step-label.active { color: var(--accent-blue); }
+.timeline-step-label.complete { color: var(--accent-green); }
+.pool-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(20px, 1fr));
+  gap: 3px;
+  margin: 10px 0;
+  max-width: 500px;
+}
+.pool-cell {
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 3px;
+  transition: background 0.3s;
+}
+.shard-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin: 14px 0;
+}
+.shard-box {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px;
+  min-height: 80px;
+}
+.shard-box h4 {
+  margin: 0 0 8px 0;
+  font-size: 13px;
+  color: var(--text-2);
+}
+.shard-box .load-bar {
+  height: 8px;
+  background: var(--border);
+  border-radius: 4px;
+  margin-top: 6px;
+  overflow: hidden;
+}
+.shard-box .load-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.6s ease, background 0.3s;
+}
+.tenant-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin: 1px;
+}
+.cost-row {
+  display: grid;
+  grid-template-columns: 200px 1fr 100px;
+  gap: 12px;
+  align-items: center;
+  margin: 6px 0;
+  font-size: 14px;
+}
+.cost-row label { color: var(--text-2); }
+.cost-row input[type="range"] { width: 100%; accent-color: var(--accent-blue); }
+.cost-row .cost-val { text-align: right; font-family: 'SF Mono', monospace; color: var(--accent-cyan); }
+.cost-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+  margin: 14px 0;
+}
+.cost-card {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 14px;
+  text-align: center;
+}
+.cost-card .cost-label { font-size: 12px; color: var(--text-3); margin-bottom: 4px; }
+.cost-card .cost-amount { font-size: 22px; font-weight: 600; font-family: 'SF Mono', monospace; }
+.cost-card .cost-margin { font-size: 12px; margin-top: 4px; }
+.checklist { list-style: none; padding: 0; margin: 14px 0; }
+.checklist li {
+  padding: 10px 14px;
+  border-left: 3px solid var(--border);
+  margin-bottom: 6px;
+  font-size: 14px;
+  background: var(--surface-2);
+  border-radius: 0 6px 6px 0;
+}
+.checklist li::before { content: none; }
+.checklist li .check { color: var(--accent-green); margin-right: 8px; font-weight: 700; }
+.cache-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(32px, 1fr));
+  gap: 2px;
+  margin: 10px 0;
+  background: var(--surface);
+  border-radius: 6px;
+  padding: 8px;
+  max-width: 600px;
+}
+.cache-cell {
+  aspect-ratio: 1;
+  border-radius: 2px;
+  transition: background 0.3s;
+  position: relative;
+}
+.section-intro {
+  color: var(--text-2);
+  font-size: 15px;
+  margin-bottom: 16px;
+}
+.algo-list {
+  margin: 10px 0;
+  padding: 0;
+  list-style: none;
+}
+.algo-list li {
+  padding: 8px 14px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  margin-bottom: 6px;
+  font-size: 14px;
+}
+.algo-list li strong { color: var(--accent-blue); }
+.dual-panel {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin: 14px 0;
+}
+.dual-panel .panel-header {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+.migration-detail {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 14px;
+  margin: 12px 0;
+  font-size: 14px;
+  color: var(--text-2);
+  min-height: 60px;
+  line-height: 1.5;
+}
+.senior-tell {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  border: 1px solid var(--accent-blue);
+  border-radius: 8px;
+  padding: 20px;
+  margin: 24px 0;
+  font-size: 15px;
+  line-height: 1.6;
+}
+.senior-tell strong { color: var(--accent-blue); }
+@media (max-width: 720px) {
+  body { padding: 20px 14px; }
+  .dual-panel { grid-template-columns: 1fr; }
+  .shard-grid { grid-template-columns: repeat(2, 1fr); }
+  .cost-row { grid-template-columns: 1fr; gap: 4px; }
+  .cost-row label { font-size: 13px; }
+  .timeline-step { width: 60px; }
+  .timeline-step-label { font-size: 10px; }
+}
+@media (max-width: 480px) {
+  .controls { flex-direction: column; }
+  .controls button { width: 100%; }
+  .slider-group { width: 100%; min-width: auto; }
+  .shard-grid { grid-template-columns: 1fr 1fr; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Multi-tenancy operations</h1>
+  <p class="sub">Noisy-neighbor controls, tenant-aware caching/sharding, zero-downtime tenant migration, per-tenant cost. The day-2 ops that turn a multi-tenant architecture into a sustainable B2B SaaS.</p>
+</header>
+
+<!-- ============================================================ -->
+<!-- SECTION 1: NOISY-NEIGHBOR CONTROLS                            -->
+<!-- ============================================================ -->
+<section id="noisy-neighbor">
+<h2>1. Noisy-neighbor controls</h2>
+<p class="section-intro">The pool problem: tenant X consumes all CPU / queue / connections, and tenant Y starves. Three control mechanisms prevent this.</p>
+
+<h3>Control mechanisms</h3>
+<ul class="algo-list">
+  <li><strong>Rate limit per tenant</strong> -- token bucket scoped per <code>tenant_id</code>. Tenant X can do 100 req/s; bursts allowed up to 200. Independent of other tenants.</li>
+  <li><strong>Quota per tenant</strong> -- monthly cap. "Free tier: 10K events/month." Triggers degraded service or block when hit.</li>
+  <li><strong>Fair queuing</strong> -- when serving a shared queue (DB pool, request queue, message queue), interleave per-tenant rather than FIFO. Prevents one tenant's burst from monopolizing.</li>
+</ul>
+
+<h3>Fair queuing algorithms</h3>
+<ul class="algo-list">
+  <li><strong>Round-robin</strong> by tenant: simple, all tenants equal weight.</li>
+  <li><strong>Weighted Fair Queuing (WFQ)</strong>: each tenant has a weight proportional to their tier. Premium tenants get 3x the throughput of free-tier tenants.</li>
+  <li><strong>Deficit Round Robin (DRR)</strong>: balance bytes/cycles served per tenant; favor under-served tenant on next round.</li>
+  <li><strong>Stochastic Fair Queuing (SFQ)</strong>: hash flow ID to bucket; inter-bucket fair scheduling, intra-bucket FIFO.</li>
+</ul>
+
+<h3>FIFO vs WFQ -- interactive comparison</h3>
+<p>5 tenants compete for a single worker. Tenant A is a "heavy hitter" submitting 10x the requests. Watch how FIFO lets A dominate while WFQ gives every tenant a fair share.</p>
+
+<div class="controls">
+  <button onclick="startFairQueueSim('fifo')" id="btn-fifo" class="active-btn">Run FIFO</button>
+  <button onclick="startFairQueueSim('wfq')" id="btn-wfq">Run WFQ</button>
+  <button onclick="resetFairQueueSim()">Reset</button>
+  <div class="slider-group">
+    <label>Speed</label>
+    <input type="range" min="1" max="5" value="3" id="fq-speed">
+  </div>
+</div>
+
+<div class="dual-panel">
+  <div>
+    <div class="panel-header" style="color: var(--accent-red)">FIFO queue</div>
+    <div class="bar-chart" id="fifo-chart" style="height: 220px;"></div>
+  </div>
+  <div>
+    <div class="panel-header" style="color: var(--accent-green)">WFQ (weighted fair)</div>
+    <div class="bar-chart" id="wfq-chart" style="height: 220px;"></div>
+  </div>
+</div>
+<div class="commentary" id="fq-commentary">Press "Run FIFO" or "Run WFQ" to see the difference. Tenant A submits 10x the requests of other tenants.</div>
+
+<div class="takeaway">
+  <strong>Takeaway:</strong> Pool only works with isolation mechanisms inside it. Rate limit + quota for ingress; fair queuing for shared workers. Without these, one heavy tenant degrades every other tenant.
+</div>
+</section>
+
+<!-- ============================================================ -->
+<!-- SECTION 2: PER-TENANT CONNECTION POOLING                      -->
+<!-- ============================================================ -->
+<section id="conn-pool">
+<h2>2. Per-tenant connection pooling</h2>
+<p class="section-intro"><strong>Anti-pattern:</strong> shared connection pool where one tenant's slow queries hold connections and others get 503. <strong>Fix:</strong> per-tenant connection pool with caps + <code>statement_timeout</code> for slow-query containment.</p>
+
+<h3>Shared pool vs per-tenant pool</h3>
+
+<div class="controls">
+  <button onclick="startPoolSim('shared')" id="btn-shared" class="active-btn">Shared Pool (anti-pattern)</button>
+  <button onclick="startPoolSim('pertenant')" id="btn-pertenant">Per-tenant Pool (fix)</button>
+  <button onclick="resetPoolSim()">Reset</button>
+</div>
+
+<div class="dual-panel">
+  <div>
+    <div class="panel-header">Connection pool (100 connections)</div>
+    <div class="pool-grid" id="pool-grid"></div>
+    <div style="font-size: 12px; color: var(--text-3); margin-top: 6px;">Each cell = 1 connection. Color = owning tenant. Gray = free.</div>
+  </div>
+  <div>
+    <div class="panel-header">Request success rate</div>
+    <div id="pool-status" style="margin-top: 10px;"></div>
+  </div>
+</div>
+<div class="commentary" id="pool-commentary">Click a scenario to simulate. In "Shared Pool," Tenant A fires 100 slow queries and locks out everyone else.</div>
+
+<div class="takeaway">
+  <strong>Takeaway:</strong> Per-tenant connection pool is the senior fix for cross-tenant request starvation. Combine with <code>statement_timeout</code> for slow-query containment. Tenant A locks 20? Fine -- the remaining 80 connections serve other tenants.
+</div>
+</section>
+
+<!-- ============================================================ -->
+<!-- SECTION 3: TENANT MIGRATION WITHOUT DOWNTIME                  -->
+<!-- ============================================================ -->
+<section id="migration">
+<h2>3. Tenant migration without downtime</h2>
+<p class="section-intro">Scenario: a tenant has outgrown the pool DB and needs to move to a dedicated DB (silo). Naive approach = stop service, dump, restore, restart. Downtime = many minutes to hours. The online migration pattern gives zero downtime.</p>
+
+<h3>Online migration pattern -- 6 steps</h3>
+<div class="controls">
+  <button onclick="startMigration()" id="btn-migrate">Start Migration</button>
+  <button onclick="resetMigration()">Reset</button>
+</div>
+
+<div class="timeline" style="height: 80px;">
+  <div class="timeline-track"><div class="timeline-progress" id="mig-progress"></div></div>
+  <div class="timeline-steps" id="mig-steps">
+    <div class="timeline-step"><div class="timeline-dot" id="mig-dot-0"></div><div class="timeline-step-label" id="mig-label-0">Dual-write</div></div>
+    <div class="timeline-step"><div class="timeline-dot" id="mig-dot-1"></div><div class="timeline-step-label" id="mig-label-1">Backfill</div></div>
+    <div class="timeline-step"><div class="timeline-dot" id="mig-dot-2"></div><div class="timeline-step-label" id="mig-label-2">Verify</div></div>
+    <div class="timeline-step"><div class="timeline-dot" id="mig-dot-3"></div><div class="timeline-step-label" id="mig-label-3">Read flip</div></div>
+    <div class="timeline-step"><div class="timeline-dot" id="mig-dot-4"></div><div class="timeline-step-label" id="mig-label-4">Stop dual-write</div></div>
+    <div class="timeline-step"><div class="timeline-dot" id="mig-dot-5"></div><div class="timeline-step-label" id="mig-label-5">Cleanup</div></div>
+  </div>
+</div>
+
+<div class="migration-detail" id="mig-detail">Click "Start Migration" to walk through the 6-step zero-downtime migration.</div>
+
+<svg id="mig-diagram" viewBox="0 0 800 260" style="height: 260px;">
+  <!-- Old DB -->
+  <rect x="60" y="100" width="120" height="60" rx="8" fill="#2a2a35" stroke="#ff6b6b" stroke-width="2" id="mig-old-db"/>
+  <text x="120" y="135" text-anchor="middle" fill="#e6e6ea" font-size="13">Pool DB (old)</text>
+  <!-- New DB -->
+  <rect x="620" y="100" width="120" height="60" rx="8" fill="#2a2a35" stroke="#51cf66" stroke-width="2" id="mig-new-db"/>
+  <text x="680" y="135" text-anchor="middle" fill="#e6e6ea" font-size="13">Silo DB (new)</text>
+  <!-- App -->
+  <rect x="320" y="20" width="160" height="50" rx="8" fill="#1a2744" stroke="#339af0" stroke-width="2"/>
+  <text x="400" y="50" text-anchor="middle" fill="#e6e6ea" font-size="13">Application</text>
+  <!-- Write arrows -->
+  <line x1="360" y1="70" x2="170" y2="100" stroke="#ff6b6b" stroke-width="2" id="mig-write-old" marker-end="url(#arrowRed)"/>
+  <line x1="440" y1="70" x2="630" y2="100" stroke="#51cf66" stroke-width="2" id="mig-write-new" opacity="0.2" marker-end="url(#arrowGreen)"/>
+  <!-- Read arrows -->
+  <line x1="170" y1="160" x2="360" y2="200" stroke="#ffa94d" stroke-width="2" id="mig-read-old" marker-end="url(#arrowOrange)"/>
+  <line x1="630" y1="160" x2="440" y2="200" stroke="#8be9fd" stroke-width="2" id="mig-read-new" opacity="0.2" marker-end="url(#arrowCyan)"/>
+  <!-- Read label -->
+  <text x="400" y="220" text-anchor="middle" fill="#e6e6ea" font-size="12" id="mig-read-label">Reads: Pool DB</text>
+  <!-- Backfill arrow -->
+  <line x1="180" y1="140" x2="620" y2="140" stroke="#ffd43b" stroke-width="2" stroke-dasharray="6,4" id="mig-backfill" opacity="0"/>
+  <text x="400" y="155" text-anchor="middle" fill="#ffd43b" font-size="11" id="mig-backfill-label" opacity="0">backfill historical data</text>
+  <!-- Arrow markers -->
+  <defs>
+    <marker id="arrowRed" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#ff6b6b"/></marker>
+    <marker id="arrowGreen" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#51cf66"/></marker>
+    <marker id="arrowOrange" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#ffa94d"/></marker>
+    <marker id="arrowCyan" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#8be9fd"/></marker>
+  </defs>
+</svg>
+
+<h3>Edge cases</h3>
+<ul class="algo-list">
+  <li><strong>Schema drift</strong> -- new DB might have different schema. Dual-write needs to translate at the message level.</li>
+  <li><strong>Transactions across DBs</strong> -- avoid. Design dual-write at message-level (event from outbox); each DB consumes independently.</li>
+  <li><strong>Failure during cutover</strong> -- rollback-able because old DB still has data and dual-write keeps it current. Easy to revert.</li>
+</ul>
+
+<p style="font-size: 13px; color: var(--text-3);">Tools: Stripe's migration framework, Vitess online schema changes, pg_logical for Postgres.</p>
+
+<div class="takeaway">
+  <strong>Takeaway:</strong> Dual-write + backfill + verify + flip = the canonical zero-downtime migration. Works for tenant migrations, schema migrations, datacenter migrations. The key insight: keep old DB current so rollback is always safe.
+</div>
+</section>
+
+<!-- ============================================================ -->
+<!-- SECTION 4: TENANT-AWARE CACHING                               -->
+<!-- ============================================================ -->
+<section id="caching">
+<h2>4. Tenant-aware caching</h2>
+<p class="section-intro">Naive cache: <code>cache.get('user:42:profile')</code>. Bug: which tenant's user 42? <strong>Cross-tenant cache leak</strong> -- a security bug, not just performance. Fix: always include <code>tenant_id</code> in every cache key.</p>
+
+<pre>// WRONG -- cross-tenant leak
+cache.get('user:42:profile')
+
+// CORRECT -- tenant-scoped
+cache.get('tenant:abc:user:42:profile')
+
+// Pattern: cache wrapper auto-prefixes with tenant context
+class TenantCache {
+  get(key) { return cache.get(`tenant:${ctx.tenantId}:${key}`); }
+  set(key, val, ttl) { cache.set(`tenant:${ctx.tenantId}:${key}`, val, ttl); }
+}</pre>
+
+<h3>Cache eviction -- shared vs per-tenant LRU</h3>
+<p>Without per-tenant limits, one tenant's hot data evicts other tenants from cache. Per-tenant LRU buckets keep fairness.</p>
+
+<div class="controls">
+  <button onclick="startCacheSim('shared')" id="btn-cache-shared" class="active-btn">Shared LRU (unfair)</button>
+  <button onclick="startCacheSim('pertenant')" id="btn-cache-pertenant">Per-tenant LRU (fair)</button>
+  <button onclick="resetCacheSim()">Reset Cache</button>
+</div>
+
+<div class="dual-panel">
+  <div>
+    <div class="panel-header">Cache slots (64 total)</div>
+    <div class="cache-grid" id="cache-grid" style="grid-template-columns: repeat(8, 1fr);"></div>
+    <div style="font-size: 12px; color: var(--text-3); margin-top: 6px;">Each cell = 1 cache slot. Color = tenant. Empty = available.</div>
+  </div>
+  <div>
+    <div class="panel-header">Cache hit rate per tenant</div>
+    <div id="cache-hit-rates" style="margin-top: 10px;"></div>
+  </div>
+</div>
+<div class="commentary" id="cache-commentary">Click a mode to simulate. Tenant A writes 10x more cache entries than others.</div>
+
+<h3>Eviction strategies</h3>
+<ul class="algo-list">
+  <li><strong>Per-tenant TTL</strong> -- large tenants get longer TTL (cache more aggressively); small tenants shorter.</li>
+  <li><strong>Per-tenant size limits</strong> -- tenant X can use up to N MB of cache; LRU evicts within tenant's bucket.</li>
+  <li><strong>Cache segmentation</strong> -- dedicated Redis cluster per tier; pool tenants share one cluster, premium tenants share another.</li>
+</ul>
+
+<div class="takeaway">
+  <strong>Takeaway:</strong> Cache key MUST include <code>tenant_id</code>. Per-tenant LRU buckets prevent one tenant from evicting others. Cache leakage between tenants is a security bug, not just performance.
+</div>
+</section>
+
+<!-- ============================================================ -->
+<!-- SECTION 5: TENANT-AWARE SHARDING                              -->
+<!-- ============================================================ -->
+<section id="sharding">
+<h2>5. Tenant-aware sharding</h2>
+<p class="section-intro">The sharding key choice determines whether queries are efficient (single-shard) or expensive (scatter-gather). For B2B SaaS, tenant_id as partition column is almost always right.</p>
+
+<h3>Sharding strategies</h3>
+<ul class="algo-list">
+  <li><strong>Hash by tenant_id</strong> -- even distribution, but tenant data spread across all shards. Every single-tenant query is scatter-gather.</li>
+  <li><strong>Hash by (tenant_id, pk)</strong> -- composite hash. Same tradeoff: even distribution, but no locality.</li>
+  <li><strong>Tenant_id as partition column</strong> (Citus, Vitess) -- all of one tenant's data on one shard. Single-tenant queries hit one shard. Multi-tenant queries scatter. The right default for B2B.</li>
+</ul>
+
+<h3>Interactive: sharding strategies compared</h3>
+<div class="controls">
+  <button onclick="setShardMode('hash')" id="btn-shard-hash">Hash by tenant_id</button>
+  <button onclick="setShardMode('partition')" id="btn-shard-partition" class="active-btn">Tenant as partition</button>
+  <button onclick="triggerHotTenant()" id="btn-hot" class="danger">Hot tenant!</button>
+  <button onclick="isolateHotTenant()" id="btn-isolate" style="display:none;">Isolate whale</button>
+  <button onclick="resetShardSim()">Reset</button>
+</div>
+
+<div class="shard-grid" id="shard-grid"></div>
+
+<div class="commentary" id="shard-commentary">Showing "Tenant as partition" mode. Each tenant's data lives entirely on one shard. Single-tenant queries hit one shard only.</div>
+
+<h3>Hot-tenant mitigations</h3>
+<ul class="algo-list">
+  <li><strong>Sub-shard</strong> the hot tenant -- split its partition across multiple shards.</li>
+  <li><strong>Isolate whale</strong> -- move hot tenant to dedicated shard (silo for whales). Click "Hot tenant!" then "Isolate whale" above to see this.</li>
+  <li><strong>Read replicas</strong> of the hot shard -- offload reads to replicas while writes go to primary.</li>
+</ul>
+
+<div class="takeaway">
+  <strong>Takeaway:</strong> Tenant-as-partition column = the right default for B2B SaaS. Cross-shard joins are rare; intra-tenant locality is high. Hot tenants get isolated on demand.
+</div>
+</section>
+
+<!-- ============================================================ -->
+<!-- SECTION 6: COST ESTIMATION PER TENANT                         -->
+<!-- ============================================================ -->
+<section id="cost">
+<h2>6. Cost estimation per tenant</h2>
+<p class="section-intro">The unit economics question: how much does it cost to serve tenant X? If you cannot compute it, you are losing money on whales while overcharging long-tail tenants.</p>
+
+<h3>Direct costs (per tenant)</h3>
+<p style="font-size: 14px; color: var(--text-2);">Compute (req/s x CPU cost) + DB (storage + IOPS) + Network (cross-AZ traffic) + S3 (storage + ops) + Logs/metrics (volume).</p>
+
+<h3>Shared costs (allocated)</h3>
+<p style="font-size: 14px; color: var(--text-2);">Control plane, engineering/SRE, LB/NAT/shared infra. Allocated pro-rata by usage, revenue, or tier-based markup.</p>
+
+<h3>Interactive cost calculator</h3>
+<p style="font-size: 13px; color: var(--text-3);">4 tenants of varying size. Adjust sliders to see direct + allocated cost per tenant + margin per tier.</p>
+
+<div style="background: var(--surface-2); border-radius: 8px; padding: 16px; margin: 14px 0; border: 1px solid var(--border);">
+  <div style="display: grid; grid-template-columns: 120px 1fr 1fr 1fr; gap: 8px; font-size: 12px; color: var(--text-3); margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid var(--border);">
+    <div></div><div>CPU (req/s)</div><div>DB storage (GB)</div><div>Log volume (GB/mo)</div>
+  </div>
+  <div id="cost-sliders"></div>
+  <div style="margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border);">
+    <div class="cost-row">
+      <label style="color: var(--text-3); font-size: 13px;">Shared infra cost</label>
+      <input type="range" min="500" max="5000" value="2000" step="100" id="shared-cost-slider" oninput="updateCosts()">
+      <span class="cost-val" id="shared-cost-val">$2,000</span>
+    </div>
+  </div>
+</div>
+
+<div class="cost-summary" id="cost-cards"></div>
+
+<div style="background: var(--surface); border-radius: 8px; padding: 16px; margin: 14px 0;">
+  <div style="font-size: 13px; color: var(--text-3); margin-bottom: 10px;">Cost distribution (shows 80/20 power law)</div>
+  <div class="bar-chart" id="cost-chart" style="height: 180px;"></div>
+</div>
+
+<div class="takeaway">
+  <strong>Takeaway:</strong> Per-tenant cost visibility is the first step to pricing tiers. If you cannot compute it, you are losing money on whales while overcharging long-tail tenants. The typical B2B SaaS sees 20% of tenants driving 80% of cost.
+</div>
+</section>
+
+<!-- ============================================================ -->
+<!-- SECTION 7: OPERATIONAL CHECKLIST                               -->
+<!-- ============================================================ -->
+<section id="checklist">
+<h2>7. Operational checklist</h2>
+<p class="section-intro">Quick reference for multi-tenant production readiness.</p>
+
+<ul class="checklist">
+  <li><span class="check">OK</span> <code>tenant_id</code> in every log line / metric label / trace span.</li>
+  <li><span class="check">OK</span> <code>tenant_id</code> in every cache key.</li>
+  <li><span class="check">OK</span> Tenant-aware rate limit at gateway.</li>
+  <li><span class="check">OK</span> RLS in DB (or equivalent) for cross-tenant leak defense.</li>
+  <li><span class="check">OK</span> Per-tenant cost dashboard.</li>
+  <li><span class="check">OK</span> Tenant migration runbook (rehearsed).</li>
+  <li><span class="check">OK</span> Whale tenant isolation path (silo DB on demand).</li>
+  <li><span class="check">OK</span> Compliance escalation path (regulated tenant gets dedicated tier).</li>
+</ul>
+
+<div class="senior-tell">
+  <strong>The senior tell.</strong> "Pool with per-tenant rate limit + RLS for leak defense + tenant_id in every log/cache/metric/trace. Whale tenants get their own DB on demand. Cost dashboard shows direct + allocated per tenant -- that is where pricing tiers start."
+</div>
+</section>
+
+<script>
+/* ============================================================
+   Color palette for tenants
+   ============================================================ */
+const TENANT_COLORS = ['#ff6b6b', '#339af0', '#51cf66', '#ffd43b', '#cc5de8'];
+const TENANT_NAMES  = ['A', 'B', 'C', 'D', 'E'];
+const TENANT_LABELS = ['Tenant A (heavy)', 'Tenant B', 'Tenant C', 'Tenant D', 'Tenant E'];
+
+/* ============================================================
+   SECTION 1: Fair Queue Simulation
+   ============================================================ */
+let fqInterval = null;
+let fqCounts = { fifo: [0,0,0,0,0], wfq: [0,0,0,0,0] };
+let fqTick = 0;
+const FQ_MAX_TICKS = 200;
+
+function initBarChart(containerId, labels, colors) {
+  const c = document.getElementById(containerId);
+  c.innerHTML = '';
+  labels.forEach((l, i) => {
+    const col = document.createElement('div');
+    col.className = 'bar-col';
+    col.innerHTML = `<div class="bar-value" id="${containerId}-val-${i}">0</div>
+      <div class="bar" id="${containerId}-bar-${i}" style="height:2px;background:${colors[i]}"></div>
+      <div class="bar-label">${l}</div>`;
+    c.appendChild(col);
+  });
+}
+
+function updateBarChart(containerId, values, maxVal) {
+  const mx = maxVal || Math.max(...values, 1);
+  values.forEach((v, i) => {
+    const bar = document.getElementById(`${containerId}-bar-${i}`);
+    const val = document.getElementById(`${containerId}-val-${i}`);
+    if (bar) {
+      bar.style.height = Math.max(2, (v / mx) * 170) + 'px';
+    }
+    if (val) val.textContent = v;
+  });
+}
+
+function initFairQueueCharts() {
+  initBarChart('fifo-chart', TENANT_NAMES, TENANT_COLORS);
+  initBarChart('wfq-chart', TENANT_NAMES, TENANT_COLORS);
+}
+
+function startFairQueueSim(mode) {
+  if (fqInterval) clearInterval(fqInterval);
+  fqCounts = { fifo: [0,0,0,0,0], wfq: [0,0,0,0,0] };
+  fqTick = 0;
+  initFairQueueCharts();
+
+  document.getElementById('btn-fifo').classList.toggle('active-btn', mode === 'fifo');
+  document.getElementById('btn-wfq').classList.toggle('active-btn', mode === 'wfq');
+
+  /* Build the request queue. Tenant A submits 10x more. */
+  const queue = [];
+  for (let t = 0; t < FQ_MAX_TICKS; t++) {
+    for (let i = 0; i < 10; i++) queue.push(0); // Tenant A: 10 per tick
+    for (let j = 1; j < 5; j++) queue.push(j);  // Others: 1 per tick
+  }
+
+  /* For WFQ: build per-tenant queues with weights */
+  const perTenantQueue = [[], [], [], [], []];
+  queue.forEach(t => perTenantQueue[t].push(t));
+  const weights = [2, 2, 2, 2, 2]; // Equal weights for fairness
+  let wfqIdx = [0, 0, 0, 0, 0];
+  let wfqRound = 0;
+
+  /* FIFO just pops from front */
+  let fifoIdx = 0;
+
+  const speed = parseInt(document.getElementById('fq-speed').value);
+  const interval = Math.max(10, 80 - speed * 15);
+  const processPerTick = 2;
+
+  fqInterval = setInterval(() => {
+    fqTick++;
+    if (fqTick > FQ_MAX_TICKS) {
+      clearInterval(fqInterval);
+      fqInterval = null;
+      document.getElementById('fq-commentary').textContent =
+        `Simulation complete. FIFO: Tenant A processed ${fqCounts.fifo[0]} events, others averaged ${Math.round((fqCounts.fifo[1]+fqCounts.fifo[2]+fqCounts.fifo[3]+fqCounts.fifo[4])/4)}. WFQ: all tenants served fairly (~${Math.round(fqCounts.wfq.reduce((a,b)=>a+b,0)/5)} each).`;
+      return;
+    }
+
+    /* FIFO: process next N from the global queue */
+    for (let p = 0; p < processPerTick && fifoIdx < queue.length; p++) {
+      const tenant = queue[fifoIdx++];
+      fqCounts.fifo[tenant]++;
+    }
+
+    /* WFQ: round-robin through tenants, 1 per tenant per tick */
+    let served = 0;
+    for (let r = 0; r < processPerTick; r++) {
+      const t = wfqRound % 5;
+      if (wfqIdx[t] < perTenantQueue[t].length) {
+        fqCounts.wfq[t]++;
+        wfqIdx[t]++;
+        served++;
+      }
+      wfqRound++;
+    }
+
+    const maxVal = Math.max(...fqCounts.fifo, ...fqCounts.wfq, 1);
+    updateBarChart('fifo-chart', fqCounts.fifo, maxVal);
+    updateBarChart('wfq-chart', fqCounts.wfq, maxVal);
+
+    const pct = Math.round(fqTick / FQ_MAX_TICKS * 100);
+    document.getElementById('fq-commentary').textContent =
+      `Tick ${fqTick}/${FQ_MAX_TICKS} (${pct}%). FIFO lets Tenant A's 10x volume dominate the worker. WFQ interleaves fairly across all tenants.`;
+  }, interval);
+}
+
+function resetFairQueueSim() {
+  if (fqInterval) { clearInterval(fqInterval); fqInterval = null; }
+  fqCounts = { fifo: [0,0,0,0,0], wfq: [0,0,0,0,0] };
+  fqTick = 0;
+  initFairQueueCharts();
+  document.getElementById('fq-commentary').textContent =
+    'Press "Run FIFO" or "Run WFQ" to see the difference. Tenant A submits 10x the requests of other tenants.';
+}
+
+/* ============================================================
+   SECTION 2: Connection Pool Simulation
+   ============================================================ */
+const POOL_SIZE = 100;
+let poolCells = [];
+let poolInterval = null;
+let poolTenantConns = [0,0,0,0,0];
+
+function initPoolGrid() {
+  const grid = document.getElementById('pool-grid');
+  grid.innerHTML = '';
+  grid.style.gridTemplateColumns = 'repeat(20, 1fr)';
+  poolCells = [];
+  for (let i = 0; i < POOL_SIZE; i++) {
+    const cell = document.createElement('div');
+    cell.className = 'pool-cell';
+    cell.style.background = 'var(--border)';
+    grid.appendChild(cell);
+    poolCells.push(cell);
+  }
+  poolTenantConns = [0,0,0,0,0];
+  updatePoolStatus([100,100,100,100,100]);
+}
+
+function updatePoolStatus(rates) {
+  const el = document.getElementById('pool-status');
+  let html = '';
+  TENANT_NAMES.forEach((n, i) => {
+    const color = rates[i] >= 90 ? 'var(--accent-green)' : rates[i] >= 50 ? 'var(--accent-yellow)' : 'var(--accent-red)';
+    html += `<div style="display:flex;align-items:center;gap:8px;margin:6px 0;font-size:14px;">
+      <span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${TENANT_COLORS[i]}"></span>
+      Tenant ${n}: <span style="color:${color};font-weight:600">${rates[i]}%</span> success
+      <span style="color:var(--text-3);font-size:12px;">(${poolTenantConns[i]} conns)</span>
+    </div>`;
+  });
+  el.innerHTML = html;
+}
+
+function startPoolSim(mode) {
+  if (poolInterval) { clearInterval(poolInterval); poolInterval = null; }
+  initPoolGrid();
+  document.getElementById('btn-shared').classList.toggle('active-btn', mode === 'shared');
+  document.getElementById('btn-pertenant').classList.toggle('active-btn', mode === 'pertenant');
+
+  let step = 0;
+  const maxSteps = 50;
+
+  poolInterval = setInterval(() => {
+    step++;
+    if (step > maxSteps) {
+      clearInterval(poolInterval);
+      poolInterval = null;
+      return;
+    }
+
+    if (mode === 'shared') {
+      /* Tenant A grabs connections greedily */
+      const aTarget = Math.min(POOL_SIZE, Math.floor(step * 2.2));
+      let assigned = 0;
+      for (let i = 0; i < POOL_SIZE; i++) {
+        if (assigned < aTarget) {
+          poolCells[i].style.background = TENANT_COLORS[0];
+          assigned++;
+        } else {
+          /* Others get scraps */
+          const t = ((i - aTarget) % 4) + 1;
+          if (i < aTarget + 4) {
+            poolCells[i].style.background = TENANT_COLORS[t];
+          } else {
+            poolCells[i].style.background = 'var(--border)';
+          }
+        }
+      }
+      poolTenantConns = [aTarget, Math.max(0, Math.min(1, POOL_SIZE - aTarget)), Math.max(0, Math.min(1, POOL_SIZE - aTarget - 1)), Math.max(0, Math.min(1, POOL_SIZE - aTarget - 2)), Math.max(0, Math.min(1, POOL_SIZE - aTarget - 3))];
+      if (aTarget >= 96) poolTenantConns = [aTarget, 1, 1, 1, 1];
+      if (aTarget >= POOL_SIZE) poolTenantConns = [POOL_SIZE, 0, 0, 0, 0];
+      const rates = poolTenantConns.map(c => c > 0 ? Math.min(100, Math.round(c / 20 * 100)) : 0);
+      if (aTarget >= POOL_SIZE) {
+        rates[1] = rates[2] = rates[3] = rates[4] = 0;
+      }
+      rates[0] = 100;
+      updatePoolStatus(rates);
+      document.getElementById('pool-commentary').textContent =
+        `Step ${step}: Tenant A holds ${aTarget} of ${POOL_SIZE} connections. ${aTarget >= 96 ? 'Other tenants are starved -- 503 errors!' : 'Other tenants are running out of connections.'}`;
+    } else {
+      /* Per-tenant: each tenant gets max 20 connections */
+      const perTenantCap = 20;
+      const aConns = Math.min(perTenantCap, Math.floor(step * 2.2));
+      const otherConns = Math.min(perTenantCap, Math.floor(step * 0.6));
+      let idx = 0;
+      /* Tenant A: first 20 slots */
+      for (let i = 0; i < perTenantCap; i++) {
+        poolCells[idx].style.background = i < aConns ? TENANT_COLORS[0] : 'var(--border)';
+        idx++;
+      }
+      /* Other tenants: 20 slots each */
+      for (let t = 1; t < 5; t++) {
+        for (let i = 0; i < perTenantCap; i++) {
+          poolCells[idx].style.background = i < otherConns ? TENANT_COLORS[t] : 'var(--border)';
+          idx++;
+        }
+      }
+      poolTenantConns = [aConns, otherConns, otherConns, otherConns, otherConns];
+      updatePoolStatus([100, 100, 100, 100, 100]);
+      document.getElementById('pool-commentary').textContent =
+        `Step ${step}: Per-tenant cap = ${perTenantCap}. Tenant A uses ${aConns} connections but cannot exceed ${perTenantCap}. Other tenants unaffected at ${otherConns} each.`;
+    }
+  }, 120);
+}
+
+function resetPoolSim() {
+  if (poolInterval) { clearInterval(poolInterval); poolInterval = null; }
+  initPoolGrid();
+  document.getElementById('pool-commentary').textContent =
+    'Click a scenario to simulate. In "Shared Pool," Tenant A fires 100 slow queries and locks out everyone else.';
+}
+
+/* ============================================================
+   SECTION 3: Migration Simulation
+   ============================================================ */
+const MIG_STEPS = [
+  {
+    title: 'Step 1: Dual-write',
+    detail: 'Application writes to BOTH old and new DB simultaneously. Reads still come from old DB. New DB is being populated for all new writes going forward.',
+    writeOld: 1, writeNew: 1, readOld: 1, readNew: 0, backfill: 0
+  },
+  {
+    title: 'Step 2: Backfill',
+    detail: 'Bulk-copy historical data from old DB to new DB. Reconcile against dual-writes to ensure no data loss. This can take hours for large tenants but the app is fully operational.',
+    writeOld: 1, writeNew: 1, readOld: 1, readNew: 0, backfill: 1
+  },
+  {
+    title: 'Step 3: Verification',
+    detail: 'Compare old vs new DB for the tenant -- sample queries, row counts, checksums. Confirm data integrity before cutting over reads.',
+    writeOld: 1, writeNew: 1, readOld: 1, readNew: 0.4, backfill: 0
+  },
+  {
+    title: 'Step 4: Read switchover',
+    detail: 'Flip reads to new DB. Writes still dual-writing to both. This is the moment of truth -- if reads fail, flip back instantly.',
+    writeOld: 1, writeNew: 1, readOld: 0.2, readNew: 1, backfill: 0
+  },
+  {
+    title: 'Step 5: Stop dual-write',
+    detail: 'Writes go only to new DB. Old DB still has data for rollback safety. Keep old DB warm for days as a rollback safety net.',
+    writeOld: 0.2, writeNew: 1, readOld: 0, readNew: 1, backfill: 0
+  },
+  {
+    title: 'Step 6: Cleanup',
+    detail: 'Delete tenant\'s data from old DB (eventually). Migration complete. Zero downtime achieved -- the tenant never saw an error.',
+    writeOld: 0, writeNew: 1, readOld: 0, readNew: 1, backfill: 0
+  }
+];
+
+let migStep = -1;
+let migInterval = null;
+
+function updateMigDiagram(s) {
+  const step = MIG_STEPS[s];
+  document.getElementById('mig-write-old').setAttribute('opacity', step.writeOld);
+  document.getElementById('mig-write-new').setAttribute('opacity', step.writeNew);
+  document.getElementById('mig-read-old').setAttribute('opacity', step.readOld);
+  document.getElementById('mig-read-new').setAttribute('opacity', step.readNew);
+  document.getElementById('mig-backfill').setAttribute('opacity', step.backfill);
+  document.getElementById('mig-backfill-label').setAttribute('opacity', step.backfill);
+
+  const readLabel = document.getElementById('mig-read-label');
+  if (step.readNew >= 1 && step.readOld <= 0.2) {
+    readLabel.textContent = 'Reads: Silo DB';
+    readLabel.setAttribute('fill', '#8be9fd');
+  } else if (step.readNew > 0 && step.readOld > 0) {
+    readLabel.textContent = 'Reads: verifying both';
+    readLabel.setAttribute('fill', '#ffd43b');
+  } else {
+    readLabel.textContent = 'Reads: Pool DB';
+    readLabel.setAttribute('fill', '#ffa94d');
+  }
+
+  /* Update old DB stroke based on activity */
+  const oldDb = document.getElementById('mig-old-db');
+  if (step.writeOld <= 0 && step.readOld <= 0) {
+    oldDb.setAttribute('stroke', 'var(--border)');
+    oldDb.setAttribute('stroke-dasharray', '4,4');
+  } else {
+    oldDb.setAttribute('stroke', '#ff6b6b');
+    oldDb.setAttribute('stroke-dasharray', 'none');
+  }
+}
+
+function startMigration() {
+  if (migInterval) { clearInterval(migInterval); migInterval = null; }
+  migStep = -1;
+  resetMigDots();
+
+  migInterval = setInterval(() => {
+    migStep++;
+    if (migStep >= 6) {
+      clearInterval(migInterval);
+      migInterval = null;
+      document.getElementById('mig-detail').innerHTML =
+        '<strong style="color:var(--accent-green)">Migration complete.</strong> Zero downtime. The tenant never saw an error. Old DB data kept for days as rollback safety, then cleaned up.';
+      return;
+    }
+
+    /* Update dots */
+    for (let i = 0; i < 6; i++) {
+      const dot = document.getElementById(`mig-dot-${i}`);
+      const label = document.getElementById(`mig-label-${i}`);
+      if (i < migStep) {
+        dot.className = 'timeline-dot complete';
+        label.className = 'timeline-step-label complete';
+      } else if (i === migStep) {
+        dot.className = 'timeline-dot active';
+        label.className = 'timeline-step-label active';
+      } else {
+        dot.className = 'timeline-dot';
+        label.className = 'timeline-step-label';
+      }
+    }
+
+    /* Update progress bar */
+    const pct = ((migStep + 1) / 6) * 100;
+    document.getElementById('mig-progress').style.width = pct + '%';
+
+    /* Update detail */
+    const s = MIG_STEPS[migStep];
+    document.getElementById('mig-detail').innerHTML =
+      `<strong style="color:var(--accent-blue)">${s.title}</strong><br>${s.detail}`;
+
+    /* Update diagram */
+    updateMigDiagram(migStep);
+  }, 2500);
+}
+
+function resetMigDots() {
+  for (let i = 0; i < 6; i++) {
+    document.getElementById(`mig-dot-${i}`).className = 'timeline-dot';
+    document.getElementById(`mig-label-${i}`).className = 'timeline-step-label';
+  }
+  document.getElementById('mig-progress').style.width = '0%';
+}
+
+function resetMigration() {
+  if (migInterval) { clearInterval(migInterval); migInterval = null; }
+  migStep = -1;
+  resetMigDots();
+  document.getElementById('mig-detail').textContent = 'Click "Start Migration" to walk through the 6-step zero-downtime migration.';
+  /* Reset diagram */
+  document.getElementById('mig-write-old').setAttribute('opacity', '1');
+  document.getElementById('mig-write-new').setAttribute('opacity', '0.2');
+  document.getElementById('mig-read-old').setAttribute('opacity', '1');
+  document.getElementById('mig-read-new').setAttribute('opacity', '0.2');
+  document.getElementById('mig-backfill').setAttribute('opacity', '0');
+  document.getElementById('mig-backfill-label').setAttribute('opacity', '0');
+  document.getElementById('mig-read-label').textContent = 'Reads: Pool DB';
+  document.getElementById('mig-read-label').setAttribute('fill', '#ffa94d');
+  const oldDb = document.getElementById('mig-old-db');
+  oldDb.setAttribute('stroke', '#ff6b6b');
+  oldDb.setAttribute('stroke-dasharray', 'none');
+}
+
+/* ============================================================
+   SECTION 4: Cache Simulation
+   ============================================================ */
+const CACHE_SIZE = 64;
+let cacheCells = [];
+let cacheSlots = []; // which tenant owns each slot, -1 = empty
+let cacheInterval = null;
+let cacheHits = [0,0,0,0,0];
+let cacheMisses = [0,0,0,0,0];
+
+function initCacheGrid() {
+  const grid = document.getElementById('cache-grid');
+  grid.innerHTML = '';
+  cacheCells = [];
+  cacheSlots = new Array(CACHE_SIZE).fill(-1);
+  cacheHits = [0,0,0,0,0];
+  cacheMisses = [0,0,0,0,0];
+  for (let i = 0; i < CACHE_SIZE; i++) {
+    const cell = document.createElement('div');
+    cell.className = 'cache-cell';
+    cell.style.background = 'var(--border)';
+    grid.appendChild(cell);
+    cacheCells.push(cell);
+  }
+  updateCacheHitRates();
+}
+
+function updateCacheHitRates() {
+  const el = document.getElementById('cache-hit-rates');
+  let html = '';
+  TENANT_NAMES.forEach((n, i) => {
+    const total = cacheHits[i] + cacheMisses[i];
+    const rate = total > 0 ? Math.round(cacheHits[i] / total * 100) : 0;
+    const color = rate >= 70 ? 'var(--accent-green)' : rate >= 40 ? 'var(--accent-yellow)' : 'var(--accent-red)';
+    const slots = cacheSlots.filter(s => s === i).length;
+    html += `<div style="display:flex;align-items:center;gap:8px;margin:6px 0;font-size:14px;">
+      <span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${TENANT_COLORS[i]}"></span>
+      Tenant ${n}: <span style="color:${color};font-weight:600">${rate}%</span> hit rate
+      <span style="color:var(--text-3);font-size:12px;">(${slots} slots)</span>
+    </div>`;
+  });
+  el.innerHTML = html;
+}
+
+function startCacheSim(mode) {
+  if (cacheInterval) { clearInterval(cacheInterval); cacheInterval = null; }
+  initCacheGrid();
+
+  document.getElementById('btn-cache-shared').classList.toggle('active-btn', mode === 'shared');
+  document.getElementById('btn-cache-pertenant').classList.toggle('active-btn', mode === 'pertenant');
+
+  let tick = 0;
+  const maxTicks = 150;
+
+  /* Per-tenant mode: each tenant gets 12-13 slots max */
+  const perTenantCap = Math.floor(CACHE_SIZE / 5);
+
+  cacheInterval = setInterval(() => {
+    tick++;
+    if (tick > maxTicks) {
+      clearInterval(cacheInterval);
+      cacheInterval = null;
+      document.getElementById('cache-commentary').textContent =
+        mode === 'shared'
+          ? 'Shared LRU: Tenant A\'s hot data filled the cache, evicting others. Tenants B-E have poor hit rates.'
+          : 'Per-tenant LRU: Each tenant keeps its fair share. Hit rates are balanced across all tenants.';
+      return;
+    }
+
+    /* Tenant A writes 3x per tick, others write 1x */
+    const writes = mode === 'shared'
+      ? [3, 1, 1, 1, 1]
+      : [3, 1, 1, 1, 1];
+
+    for (let t = 0; t < 5; t++) {
+      for (let w = 0; w < writes[t]; w++) {
+        /* Check for "hit" -- tenant already has data */
+        const ownedSlots = [];
+        cacheSlots.forEach((s, idx) => { if (s === t) ownedSlots.push(idx); });
+
+        if (ownedSlots.length > 0 && Math.random() < 0.3) {
+          cacheHits[t]++;
+          continue;
+        }
+        cacheMisses[t]++;
+
+        if (mode === 'shared') {
+          /* Global LRU: find empty slot or evict oldest (simulate by finding first non-A slot) */
+          let placed = false;
+          const emptyIdx = cacheSlots.indexOf(-1);
+          if (emptyIdx >= 0) {
+            cacheSlots[emptyIdx] = t;
+            cacheCells[emptyIdx].style.background = TENANT_COLORS[t];
+            placed = true;
+          } else {
+            /* Evict: LRU = find a slot from a different tenant */
+            for (let e = 0; e < CACHE_SIZE; e++) {
+              if (cacheSlots[e] !== t) {
+                cacheSlots[e] = t;
+                cacheCells[e].style.background = TENANT_COLORS[t];
+                placed = true;
+                break;
+              }
+            }
+          }
+        } else {
+          /* Per-tenant LRU: count this tenant's slots, evict within own bucket if at cap */
+          const mySlots = [];
+          cacheSlots.forEach((s, idx) => { if (s === t) mySlots.push(idx); });
+
+          if (mySlots.length >= perTenantCap) {
+            /* Evict oldest of OWN slots */
+            const evictIdx = mySlots[0];
+            cacheSlots[evictIdx] = t; // re-use own slot
+            cacheCells[evictIdx].style.background = TENANT_COLORS[t];
+          } else {
+            /* Find empty slot */
+            const emptyIdx = cacheSlots.indexOf(-1);
+            if (emptyIdx >= 0) {
+              cacheSlots[emptyIdx] = t;
+              cacheCells[emptyIdx].style.background = TENANT_COLORS[t];
+            }
+          }
+        }
+      }
+    }
+
+    updateCacheHitRates();
+
+    if (tick % 10 === 0) {
+      const aSlots = cacheSlots.filter(s => s === 0).length;
+      document.getElementById('cache-commentary').textContent =
+        mode === 'shared'
+          ? `Tick ${tick}: Tenant A owns ${aSlots}/${CACHE_SIZE} cache slots. Other tenants being evicted.`
+          : `Tick ${tick}: Per-tenant cap = ${perTenantCap} slots. Tenant A capped, others retain their data.`;
+    }
+  }, 60);
+}
+
+function resetCacheSim() {
+  if (cacheInterval) { clearInterval(cacheInterval); cacheInterval = null; }
+  initCacheGrid();
+  document.getElementById('cache-commentary').textContent =
+    'Click a mode to simulate. Tenant A writes 10x more cache entries than others.';
+}
+
+/* ============================================================
+   SECTION 5: Sharding Simulation
+   ============================================================ */
+const NUM_SHARDS = 4;
+const NUM_TENANTS = 12;
+let shardMode = 'partition';
+let shardAssignments = []; // tenant -> [shard indices]
+let shardLoads = [25, 25, 25, 25]; // percentage
+let hotTenant = -1;
+
+const SHARD_TENANT_COLORS = [
+  '#ff6b6b', '#339af0', '#51cf66', '#ffd43b', '#cc5de8',
+  '#ffa94d', '#8be9fd', '#ff8787', '#74c0fc', '#69db7c',
+  '#ffe066', '#da77f2'
+];
+
+function buildShardGrid() {
+  const grid = document.getElementById('shard-grid');
+  grid.innerHTML = '';
+  shardAssignments = [];
+
+  for (let s = 0; s < NUM_SHARDS; s++) {
+    const box = document.createElement('div');
+    box.className = 'shard-box';
+    box.id = `shard-${s}`;
+
+    let title = `Shard ${s + 1}`;
+    let tenantDots = '';
+    let tenants = [];
+
+    if (shardMode === 'hash') {
+      /* Every tenant appears on every shard */
+      for (let t = 0; t < NUM_TENANTS; t++) {
+        tenantDots += `<span class="tenant-dot" style="background:${SHARD_TENANT_COLORS[t]}" title="T${t+1}"></span>`;
+        tenants.push(t);
+      }
+    } else {
+      /* Partition: each tenant on one shard */
+      for (let t = 0; t < NUM_TENANTS; t++) {
+        if (t % NUM_SHARDS === s) {
+          tenantDots += `<span class="tenant-dot" style="background:${SHARD_TENANT_COLORS[t]}" title="T${t+1}"></span>`;
+          tenants.push(t);
+        }
+      }
+    }
+
+    shardAssignments[s] = tenants;
+    const load = shardLoads[s];
+    const loadColor = load > 80 ? 'var(--accent-red)' : load > 50 ? 'var(--accent-yellow)' : 'var(--accent-green)';
+
+    box.innerHTML = `<h4>${title}</h4>
+      <div style="font-size: 12px; margin-bottom: 4px;">${tenantDots}</div>
+      <div style="font-size: 11px; color: var(--text-3);">${tenants.length} tenant${tenants.length !== 1 ? 's' : ''}</div>
+      <div class="load-bar"><div class="load-fill" style="width:${load}%;background:${loadColor}"></div></div>
+      <div style="font-size: 11px; color: var(--text-3); margin-top: 4px;">Load: ${load}%</div>`;
+    grid.appendChild(box);
+  }
+}
+
+function setShardMode(mode) {
+  shardMode = mode;
+  hotTenant = -1;
+  shardLoads = [25, 25, 25, 25];
+  document.getElementById('btn-shard-hash').classList.toggle('active-btn', mode === 'hash');
+  document.getElementById('btn-shard-partition').classList.toggle('active-btn', mode === 'partition');
+  document.getElementById('btn-isolate').style.display = 'none';
+  buildShardGrid();
+
+  document.getElementById('shard-commentary').textContent =
+    mode === 'hash'
+      ? 'Hash by tenant_id: every tenant\'s data appears on every shard. Single-tenant queries require scatter-gather across all 4 shards.'
+      : 'Tenant as partition: each tenant\'s data lives entirely on one shard. Single-tenant queries hit one shard only.';
+}
+
+function triggerHotTenant() {
+  hotTenant = 0; // Tenant 1 is hot
+  if (shardMode === 'partition') {
+    /* Tenant 1 is on shard 1 (index 0) */
+    shardLoads = [92, 12, 15, 10];
+  } else {
+    /* Hash: hot tenant spreads load across all shards */
+    shardLoads = [55, 55, 55, 55];
+  }
+  buildShardGrid();
+  document.getElementById('btn-isolate').style.display = shardMode === 'partition' ? 'inline-block' : 'none';
+  document.getElementById('shard-commentary').textContent =
+    shardMode === 'partition'
+      ? 'Tenant 1 (hot) overloads Shard 1 to 92% while others sit at 10-15%. Click "Isolate whale" to move it to a dedicated shard.'
+      : 'Hash mode: hot tenant spreads load evenly. All shards at ~55%. No isolation path -- every shard has the hot tenant\'s data.';
+}
+
+function isolateHotTenant() {
+  if (shardMode !== 'partition') return;
+  /* Add a 5th shard just for the whale */
+  shardLoads = [15, 12, 15, 10, 88];
+  const grid = document.getElementById('shard-grid');
+  grid.style.gridTemplateColumns = 'repeat(5, 1fr)';
+
+  /* Rebuild: remove tenant 0 from shard 0, add dedicated shard */
+  grid.innerHTML = '';
+  for (let s = 0; s < 5; s++) {
+    const box = document.createElement('div');
+    box.className = 'shard-box';
+
+    let tenantDots = '';
+    let tenants = [];
+
+    if (s === 4) {
+      /* Dedicated shard for whale */
+      tenantDots = `<span class="tenant-dot" style="background:${SHARD_TENANT_COLORS[0]};width:14px;height:14px;" title="T1 (whale)"></span>`;
+      tenants = [0];
+      box.style.borderColor = 'var(--accent-orange)';
+    } else {
+      for (let t = 0; t < NUM_TENANTS; t++) {
+        if (t === 0) continue; // whale moved out
+        if (t % NUM_SHARDS === s) {
+          tenantDots += `<span class="tenant-dot" style="background:${SHARD_TENANT_COLORS[t]}" title="T${t+1}"></span>`;
+          tenants.push(t);
+        }
+      }
+    }
+
+    const load = shardLoads[s];
+    const loadColor = load > 80 ? 'var(--accent-red)' : load > 50 ? 'var(--accent-yellow)' : 'var(--accent-green)';
+    const title = s === 4 ? 'Shard 5 (whale)' : `Shard ${s + 1}`;
+
+    box.innerHTML = `<h4>${title}</h4>
+      <div style="font-size: 12px; margin-bottom: 4px;">${tenantDots}</div>
+      <div style="font-size: 11px; color: var(--text-3);">${tenants.length} tenant${tenants.length !== 1 ? 's' : ''}</div>
+      <div class="load-bar"><div class="load-fill" style="width:${load}%;background:${loadColor}"></div></div>
+      <div style="font-size: 11px; color: var(--text-3); margin-top: 4px;">Load: ${load}%</div>`;
+    grid.appendChild(box);
+  }
+
+  document.getElementById('btn-isolate').style.display = 'none';
+  document.getElementById('shard-commentary').textContent =
+    'Whale tenant isolated to dedicated Shard 5. Original shards rebalanced to 10-15% load. This is the "silo for whales" pattern.';
+}
+
+function resetShardSim() {
+  hotTenant = -1;
+  shardLoads = [25, 25, 25, 25];
+  shardMode = 'partition';
+  document.getElementById('btn-shard-hash').classList.remove('active-btn');
+  document.getElementById('btn-shard-partition').classList.add('active-btn');
+  document.getElementById('btn-isolate').style.display = 'none';
+  const grid = document.getElementById('shard-grid');
+  grid.style.gridTemplateColumns = 'repeat(4, 1fr)';
+  buildShardGrid();
+  document.getElementById('shard-commentary').textContent =
+    'Showing "Tenant as partition" mode. Each tenant\'s data lives entirely on one shard. Single-tenant queries hit one shard only.';
+}
+
+/* ============================================================
+   SECTION 6: Cost Calculator
+   ============================================================ */
+const COST_TENANTS = [
+  { name: 'Acme Corp', tier: 'Enterprise', revenue: 5000, cpu: 800, db: 200, logs: 50, color: '#ff6b6b' },
+  { name: 'Beta LLC',  tier: 'Pro',        revenue: 500,  cpu: 200, db: 50,  logs: 15, color: '#339af0' },
+  { name: 'Gamma Inc', tier: 'Pro',        revenue: 500,  cpu: 150, db: 30,  logs: 10, color: '#51cf66' },
+  { name: 'Delta Co',  tier: 'Free',       revenue: 0,    cpu: 50,  db: 5,   logs: 2,  color: '#ffd43b' }
+];
+
+/* Pricing constants */
+const CPU_COST_PER_REQ = 0.0005;  // $/req/s/month
+const DB_COST_PER_GB = 0.23;       // $/GB/month
+const LOG_COST_PER_GB = 1.27;      // $/GB/month
+
+function initCostSliders() {
+  const container = document.getElementById('cost-sliders');
+  container.innerHTML = '';
+
+  COST_TENANTS.forEach((t, i) => {
+    const row = document.createElement('div');
+    row.style.cssText = 'display:grid;grid-template-columns:120px 1fr 1fr 1fr;gap:8px;align-items:center;margin:8px 0;';
+    row.innerHTML = `
+      <div style="font-size:13px;"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${t.color};margin-right:6px;"></span>${t.name}<br><span style="font-size:11px;color:var(--text-3)">${t.tier}</span></div>
+      <div><input type="range" min="10" max="2000" value="${t.cpu}" style="width:100%;accent-color:${t.color}" id="cost-cpu-${i}" oninput="updateCosts()"><div style="text-align:center;font-size:11px;color:var(--text-3)" id="cost-cpu-val-${i}">${t.cpu} req/s</div></div>
+      <div><input type="range" min="1" max="500" value="${t.db}" style="width:100%;accent-color:${t.color}" id="cost-db-${i}" oninput="updateCosts()"><div style="text-align:center;font-size:11px;color:var(--text-3)" id="cost-db-val-${i}">${t.db} GB</div></div>
+      <div><input type="range" min="1" max="100" value="${t.logs}" style="width:100%;accent-color:${t.color}" id="cost-log-${i}" oninput="updateCosts()"><div style="text-align:center;font-size:11px;color:var(--text-3)" id="cost-log-val-${i}">${t.logs} GB</div></div>
+    `;
+    container.appendChild(row);
+  });
+
+  updateCosts();
+}
+
+function updateCosts() {
+  const sharedCost = parseInt(document.getElementById('shared-cost-slider').value);
+  document.getElementById('shared-cost-val').textContent = '$' + sharedCost.toLocaleString();
+
+  const directCosts = [];
+  const totalUsage = { cpu: 0, db: 0, logs: 0 };
+
+  /* Calculate direct costs */
+  COST_TENANTS.forEach((t, i) => {
+    const cpu = parseInt(document.getElementById(`cost-cpu-${i}`).value);
+    const db = parseInt(document.getElementById(`cost-db-${i}`).value);
+    const logs = parseInt(document.getElementById(`cost-log-${i}`).value);
+
+    document.getElementById(`cost-cpu-val-${i}`).textContent = cpu + ' req/s';
+    document.getElementById(`cost-db-val-${i}`).textContent = db + ' GB';
+    document.getElementById(`cost-log-val-${i}`).textContent = logs + ' GB';
+
+    const cpuCost = cpu * CPU_COST_PER_REQ * 30 * 24; // monthly
+    const dbCost = db * DB_COST_PER_GB;
+    const logCost = logs * LOG_COST_PER_GB;
+    const direct = cpuCost + dbCost + logCost;
+
+    directCosts.push(direct);
+    totalUsage.cpu += cpu;
+    totalUsage.db += db;
+    totalUsage.logs += logs;
+  });
+
+  /* Allocate shared costs pro-rata by total direct cost */
+  const totalDirect = directCosts.reduce((a, b) => a + b, 0);
+
+  const cards = document.getElementById('cost-cards');
+  cards.innerHTML = '';
+
+  const totalCosts = [];
+
+  COST_TENANTS.forEach((t, i) => {
+    const allocated = totalDirect > 0 ? sharedCost * (directCosts[i] / totalDirect) : sharedCost / 4;
+    const total = directCosts[i] + allocated;
+    totalCosts.push(total);
+    const margin = t.revenue > 0 ? ((t.revenue - total) / t.revenue * 100) : -100;
+    const marginColor = margin > 50 ? 'var(--accent-green)' : margin > 0 ? 'var(--accent-yellow)' : 'var(--accent-red)';
+
+    const card = document.createElement('div');
+    card.className = 'cost-card';
+    card.innerHTML = `
+      <div class="cost-label"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${t.color};margin-right:4px;"></span>${t.name} (${t.tier})</div>
+      <div class="cost-amount" style="color:${t.color}">$${Math.round(total).toLocaleString()}</div>
+      <div style="font-size:11px;color:var(--text-3);margin-top:2px;">Direct: $${Math.round(directCosts[i])} | Shared: $${Math.round(allocated)}</div>
+      <div class="cost-margin" style="color:${marginColor}">
+        ${t.revenue > 0 ? `Revenue: $${t.revenue}/mo | Margin: ${margin.toFixed(0)}%` : 'Free tier -- no revenue'}
+      </div>
+    `;
+    cards.appendChild(card);
+  });
+
+  /* Update cost distribution bar chart */
+  initBarChart('cost-chart', COST_TENANTS.map(t => t.name), COST_TENANTS.map(t => t.color));
+  updateBarChart('cost-chart', totalCosts.map(c => Math.round(c)));
+}
+
+/* ============================================================
+   INIT
+   ============================================================ */
+function init() {
+  initFairQueueCharts();
+  initPoolGrid();
+  initCacheGrid();
+  buildShardGrid();
+  initCostSliders();
+}
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>

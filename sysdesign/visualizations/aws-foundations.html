@@ -1,0 +1,1309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AWS Foundations -- IAM, VPC, Costs</title>
+<style>
+:root {
+  --bg: #0f0f15;
+  --surface: #181820;
+  --surface-2: #20202a;
+  --border: #2a2a35;
+  --text: #e6e6ea;
+  --text-2: #cfcfd6;
+  --text-3: #888;
+  --accent-red: #ff6b6b;
+  --accent-green: #51cf66;
+  --accent-blue: #339af0;
+  --accent-yellow: #ffd43b;
+  --accent-purple: #cc5de8;
+  --accent-cyan: #8be9fd;
+  --accent-orange: #ffa94d;
+}
+*, *::before, *::after { box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  padding: 32px 24px;
+  max-width: 1100px;
+  margin: 0 auto;
+  line-height: 1.55;
+}
+h1 { color: #fff; margin-bottom: 4px; }
+h1 + p.sub { color: var(--text-3); font-style: italic; margin-top: 0; margin-bottom: 24px; }
+h2 { color: #fff; margin-top: 40px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+h3 { color: var(--text-2); margin-top: 20px; }
+code {
+  background: var(--surface-2);
+  padding: 2px 6px;
+  border-radius: 3px;
+  color: var(--accent-cyan);
+  font-size: 13px;
+}
+svg {
+  background: var(--surface);
+  border-radius: 8px;
+  display: block;
+  margin: 14px auto;
+  width: 100%;
+  height: auto;
+}
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0;
+  align-items: center;
+}
+.controls button, .btn {
+  padding: 10px 16px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  border-radius: 6px;
+  cursor: pointer;
+  min-height: 44px;
+  font-size: 14px;
+  transition: background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+.controls button:hover, .btn:hover { background: var(--surface); }
+.controls button:disabled, .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.controls button.active-btn { border-color: var(--accent-blue); color: var(--accent-blue); }
+.controls button.danger { border-color: var(--accent-red); color: var(--accent-red); }
+.controls button.danger:hover { background: #2a1520; }
+.commentary {
+  background: var(--surface-2);
+  padding: 14px;
+  border-radius: 6px;
+  font-size: 14px;
+  color: var(--text-2);
+  margin: 12px 0;
+  min-height: 44px;
+  line-height: 1.5;
+}
+.takeaway {
+  background: #1a1a22;
+  border-left: 3px solid var(--accent-green);
+  padding: 12px 16px;
+  margin: 14px 0;
+  font-size: 14px;
+}
+.takeaway strong { color: var(--accent-green); }
+.takeaway ul { margin: 6px 0 0 0; padding-left: 18px; }
+.takeaway li { margin-bottom: 6px; }
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 14px 0;
+  font-size: 14px;
+}
+th, td {
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+}
+th {
+  background: var(--surface-2);
+  color: #fff;
+  font-weight: 600;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+td { background: var(--surface); color: var(--text-2); }
+tr:hover td { background: var(--surface-2); }
+.cost-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px 20px;
+  margin: 10px 0;
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+.cost-card .cost-icon {
+  font-size: 22px;
+  min-width: 32px;
+  text-align: center;
+  color: var(--accent-red);
+  font-weight: 700;
+}
+.cost-card .cost-body { flex: 1; }
+.cost-card .cost-title {
+  color: #fff;
+  font-weight: 600;
+  font-size: 15px;
+  margin-bottom: 4px;
+}
+.cost-card .cost-price {
+  color: var(--accent-orange);
+  font-size: 13px;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  margin-bottom: 6px;
+}
+.cost-card .cost-desc { color: var(--text-2); font-size: 13px; line-height: 1.5; }
+.cost-card .cost-fix {
+  color: var(--accent-green);
+  font-size: 13px;
+  margin-top: 4px;
+}
+/* Evaluation step boxes */
+.eval-pipeline {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin: 14px 0;
+}
+.eval-step {
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 18px;
+  position: relative;
+  transition: border-color 0.4s, background 0.4s;
+}
+.eval-step.active {
+  border-color: var(--accent-blue);
+  background: #14142a;
+}
+.eval-step.pass {
+  border-color: var(--accent-green);
+  background: #121a14;
+}
+.eval-step.fail {
+  border-color: var(--accent-red);
+  background: #1a1214;
+}
+.eval-step .step-num {
+  display: inline-block;
+  width: 28px;
+  height: 28px;
+  line-height: 28px;
+  text-align: center;
+  border-radius: 50%;
+  background: var(--surface-2);
+  color: var(--text-3);
+  font-size: 13px;
+  font-weight: 700;
+  margin-right: 10px;
+  transition: background 0.3s, color 0.3s;
+}
+.eval-step.active .step-num { background: var(--accent-blue); color: #fff; }
+.eval-step.pass .step-num { background: var(--accent-green); color: #fff; }
+.eval-step.fail .step-num { background: var(--accent-red); color: #fff; }
+.eval-step .step-title { font-weight: 600; color: #fff; }
+.eval-step .step-detail { color: var(--text-3); font-size: 13px; margin-top: 4px; }
+.eval-step .step-result {
+  float: right;
+  font-weight: 700;
+  font-size: 13px;
+  padding: 2px 10px;
+  border-radius: 4px;
+}
+.eval-step.pass .step-result { color: var(--accent-green); }
+.eval-step.fail .step-result { color: var(--accent-red); }
+.eval-connector {
+  width: 2px;
+  height: 16px;
+  background: var(--border);
+  margin-left: 32px;
+  transition: background 0.3s;
+}
+.eval-connector.reached { background: var(--accent-blue); }
+.eval-result-box {
+  margin-top: 12px;
+  padding: 16px 20px;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 700;
+  text-align: center;
+  transition: opacity 0.3s;
+}
+.eval-result-box.allow { background: #0d2818; border: 2px solid var(--accent-green); color: var(--accent-green); }
+.eval-result-box.deny { background: #2a0d0d; border: 2px solid var(--accent-red); color: var(--accent-red); }
+.scenario-btns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 14px 0;
+}
+.scenario-btns button {
+  padding: 10px 16px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  border-radius: 6px;
+  cursor: pointer;
+  min-height: 44px;
+  font-size: 13px;
+  transition: background 0.15s, border-color 0.15s;
+}
+.scenario-btns button:hover { background: var(--surface); }
+.scenario-btns button.active-btn { border-color: var(--accent-blue); color: var(--accent-blue); }
+/* VPC diagram interactive */
+.vpc-path-label {
+  fill: var(--text-3);
+  font-size: 11px;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+.vpc-path-label.visible { opacity: 1; }
+/* Identity type cards */
+.id-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 10px;
+  margin: 14px 0;
+}
+.id-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 16px;
+}
+.id-card .id-name { color: #fff; font-weight: 600; font-size: 14px; margin-bottom: 4px; }
+.id-card .id-cred { font-size: 12px; margin-bottom: 6px; }
+.id-card .id-desc { color: var(--text-3); font-size: 12px; line-height: 1.45; }
+.id-card.preferred { border-color: var(--accent-green); }
+.id-card.avoid { border-color: var(--accent-red); }
+/* Pillar row highlight */
+.pillar-row td:first-child { font-weight: 600; white-space: nowrap; }
+/* Probe table */
+.probe-q { color: var(--accent-cyan); font-weight: 500; }
+@media (max-width: 720px) {
+  body { padding: 20px 14px; }
+  table { font-size: 13px; }
+  th, td { padding: 8px 10px; }
+  .id-cards { grid-template-columns: 1fr; }
+  .cost-card { flex-direction: column; gap: 8px; }
+}
+@media (max-width: 480px) {
+  .controls { flex-direction: column; }
+  .controls button { width: 100%; }
+  .scenario-btns { flex-direction: column; }
+  .scenario-btns button { width: 100%; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>AWS foundations -- IAM, VPC, costs</h1>
+  <p class="sub">Click through the IAM policy evaluator. Watch traffic route through public/private subnets. Memorize the bills that surprise you. The three categories that derail real AWS rounds.</p>
+</header>
+
+<!-- ============================================================ -->
+<!-- SECTION 1: IAM                                                -->
+<!-- ============================================================ -->
+<h2>1. IAM Identity Types + Policy Evaluation</h2>
+
+<p>Every AWS auth question is the policy evaluator running through these sources in order. The core tuple: <code>Principal</code> + <code>Action</code> + <code>Resource</code> + <code>Condition</code>.</p>
+
+<h3>Identity Types</h3>
+
+<div class="id-cards">
+  <div class="id-card avoid">
+    <div class="id-name">IAM User</div>
+    <div class="id-cred" style="color:var(--accent-red)">Long-term credentials (access key + secret)</div>
+    <div class="id-desc">Permanent identity with password/keys. Avoid for workloads -- use for break-glass admin only. Keys rotate manually, leak easily.</div>
+  </div>
+  <div class="id-card preferred">
+    <div class="id-name">IAM Role</div>
+    <div class="id-cred" style="color:var(--accent-green)">Short-term assumed credentials (STS)</div>
+    <div class="id-desc">Preferred for everything. EC2 instance profiles, Lambda execution roles, cross-account access. Credentials auto-rotate via STS (15 min -- 12 hr).</div>
+  </div>
+  <div class="id-card">
+    <div class="id-name">IAM Group</div>
+    <div class="id-cred" style="color:var(--text-3)">Collection of users</div>
+    <div class="id-desc">Attach policies to the group, not individual users. Groups cannot be nested. A user can be in up to 10 groups.</div>
+  </div>
+  <div class="id-card">
+    <div class="id-name">Service-Linked Role</div>
+    <div class="id-cred" style="color:var(--accent-purple)">AWS-managed, service-specific</div>
+    <div class="id-desc">Pre-defined by the AWS service (e.g., ElasticSearch, ECS). You can view but not edit the trust policy. AWS manages the permissions.</div>
+  </div>
+  <div class="id-card">
+    <div class="id-name">Federated Identity</div>
+    <div class="id-cred" style="color:var(--accent-orange)">External IdP (SAML / OIDC / Identity Center)</div>
+    <div class="id-desc">SSO via corporate directory (Active Directory, Okta). Maps external groups to IAM roles. IAM Identity Center (formerly SSO) is the modern path.</div>
+  </div>
+</div>
+
+<h3>Policy Evaluation Order</h3>
+
+<p>Select a scenario, then click <strong>Evaluate</strong> to walk through each evaluation source. Default is implicit deny. Any explicit deny at any level is terminal. In same-account, identity-based + resource-based policies are OR (either can grant). Cross-account requires AND (both must allow).</p>
+
+<div class="scenario-btns" id="iam-scenarios"></div>
+
+<div class="commentary" id="iam-scenario-desc">Select a scenario above to see the evaluation setup.</div>
+
+<div class="controls">
+  <button class="btn" id="iam-eval-btn" onclick="IAM.evaluate()">Evaluate</button>
+  <button class="btn" onclick="IAM.reset()">Reset</button>
+</div>
+
+<div class="eval-pipeline" id="iam-pipeline">
+  <div class="eval-step" id="iam-step-1">
+    <span class="step-result" id="iam-r1"></span>
+    <span class="step-num">1</span>
+    <span class="step-title">Explicit Deny Check</span>
+    <div class="step-detail" id="iam-d1">Scan all applicable policies for an explicit Deny on this action+resource. Any explicit deny = DENY (terminal).</div>
+  </div>
+  <div class="eval-connector" id="iam-c1"></div>
+  <div class="eval-step" id="iam-step-2">
+    <span class="step-result" id="iam-r2"></span>
+    <span class="step-num">2</span>
+    <span class="step-title">SCP (Service Control Policy)</span>
+    <div class="step-detail" id="iam-d2">Organization-level guardrail. SCPs restrict what member accounts can do. If SCP does not allow this action, DENY.</div>
+  </div>
+  <div class="eval-connector" id="iam-c2"></div>
+  <div class="eval-step" id="iam-step-3">
+    <span class="step-result" id="iam-r3"></span>
+    <span class="step-num">3</span>
+    <span class="step-title">Resource-Based Policy</span>
+    <div class="step-detail" id="iam-d3">Policy attached to the resource (S3 bucket policy, SQS queue policy, KMS key policy). In same-account, a resource-based Allow is sufficient alone.</div>
+  </div>
+  <div class="eval-connector" id="iam-c3"></div>
+  <div class="eval-step" id="iam-step-4">
+    <span class="step-result" id="iam-r4"></span>
+    <span class="step-num">4</span>
+    <span class="step-title">Identity-Based Policy</span>
+    <div class="step-detail" id="iam-d4">Policies attached to the IAM user/role/group performing the action. Inline policies and managed policies are both checked.</div>
+  </div>
+  <div class="eval-connector" id="iam-c4"></div>
+  <div class="eval-step" id="iam-step-5">
+    <span class="step-result" id="iam-r5"></span>
+    <span class="step-num">5</span>
+    <span class="step-title">Permissions Boundary</span>
+    <div class="step-detail" id="iam-d5">A managed policy used as a cap on identity-based permissions. If set, the effective permission is the INTERSECTION of identity policy and boundary.</div>
+  </div>
+  <div class="eval-connector" id="iam-c5"></div>
+  <div class="eval-step" id="iam-step-6">
+    <span class="step-result" id="iam-r6"></span>
+    <span class="step-num">6</span>
+    <span class="step-title">Session Policy</span>
+    <div class="step-detail" id="iam-d6">Optional policy passed during AssumeRole or GetFederationToken. Caps the session permissions to the INTERSECTION of the role policy and the session policy.</div>
+  </div>
+</div>
+
+<div class="eval-result-box" id="iam-final-result" style="display:none;"></div>
+
+<div class="takeaway">
+  <strong>Takeaway</strong>
+  <ul>
+    <li>Default = implicit deny. Any explicit deny wins over any allow, at any level.</li>
+    <li>Same-account: identity-based + resource-based = OR (either can grant access).</li>
+    <li>Cross-account: both sides must allow = AND (the trusting account's resource policy AND the trusted account's identity policy).</li>
+    <li>Permissions boundaries and session policies are caps (intersection), not grants.</li>
+  </ul>
+</div>
+
+
+<!-- ============================================================ -->
+<!-- SECTION 2: VPC NETWORKING                                     -->
+<!-- ============================================================ -->
+<h2>2. VPC Networking</h2>
+
+<p>A 2-AZ VPC with public and private subnets. Public subnets route to the Internet Gateway directly. Private subnets reach the internet only through a NAT Gateway in the public subnet. VPC endpoints bypass NAT entirely -- saving cost and latency.</p>
+
+<h3>VPC Architecture (2-AZ)</h3>
+
+<svg id="vpc-svg" viewBox="0 0 960 620" preserveAspectRatio="xMidYMid meet">
+  <defs>
+    <marker id="vpc-arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#555"/>
+    </marker>
+    <marker id="vpc-arrow-blue" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#339af0"/>
+    </marker>
+    <marker id="vpc-arrow-green" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#51cf66"/>
+    </marker>
+    <marker id="vpc-arrow-orange" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#ffa94d"/>
+    </marker>
+    <marker id="vpc-arrow-purple" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#cc5de8"/>
+    </marker>
+  </defs>
+
+  <!-- VPC boundary -->
+  <rect x="30" y="70" width="900" height="540" rx="12" fill="none" stroke="var(--accent-blue)" stroke-width="2" stroke-dasharray="8,4"/>
+  <text x="50" y="95" fill="var(--accent-blue)" font-size="14" font-weight="700">VPC 10.0.0.0/16</text>
+
+  <!-- Internet -->
+  <rect x="380" y="5" width="200" height="40" rx="8" fill="#12121a" stroke="var(--text-3)" stroke-width="1.5"/>
+  <text x="480" y="30" text-anchor="middle" fill="var(--text-3)" font-size="13" font-weight="600">Internet</text>
+
+  <!-- IGW -->
+  <rect x="430" y="75" width="100" height="36" rx="6" fill="#14142a" stroke="var(--accent-blue)" stroke-width="2"/>
+  <text x="480" y="98" text-anchor="middle" fill="var(--accent-blue)" font-size="12" font-weight="700">IGW</text>
+  <line x1="480" y1="45" x2="480" y2="75" stroke="#555" stroke-width="1.5" marker-end="url(#vpc-arrow)"/>
+
+  <!-- AZ 1 -->
+  <rect x="50" y="130" width="420" height="460" rx="8" fill="none" stroke="#333" stroke-width="1" stroke-dasharray="4,4"/>
+  <text x="70" y="155" fill="var(--text-3)" font-size="12" font-weight="600">AZ-1 (us-east-1a)</text>
+
+  <!-- Public Subnet AZ1 -->
+  <rect x="70" y="170" width="380" height="140" rx="6" fill="#101825" stroke="var(--accent-green)" stroke-width="1.5"/>
+  <text x="90" y="195" fill="var(--accent-green)" font-size="12" font-weight="600">Public Subnet 10.0.1.0/24</text>
+
+  <!-- ALB -->
+  <rect x="100" y="210" width="120" height="45" rx="6" fill="#181820" stroke="var(--accent-orange)" stroke-width="1.5"/>
+  <text x="160" y="237" text-anchor="middle" fill="var(--accent-orange)" font-size="11" font-weight="600">ALB</text>
+
+  <!-- NAT GW -->
+  <rect x="280" y="210" width="140" height="45" rx="6" fill="#181820" stroke="var(--accent-yellow)" stroke-width="1.5"/>
+  <text x="350" y="237" text-anchor="middle" fill="var(--accent-yellow)" font-size="11" font-weight="600">NAT Gateway</text>
+
+  <!-- Route Table Public AZ1 -->
+  <rect x="100" y="268" width="320" height="28" rx="4" fill="#0f0f15" stroke="#333" stroke-width="1"/>
+  <text x="110" y="286" fill="var(--text-3)" font-size="10">RT: 10.0.0.0/16 -> local | 0.0.0.0/0 -> igw-xxx</text>
+
+  <!-- Private Subnet AZ1 -->
+  <rect x="70" y="320" width="380" height="150" rx="6" fill="#18101a" stroke="var(--accent-purple)" stroke-width="1.5"/>
+  <text x="90" y="345" fill="var(--accent-purple)" font-size="12" font-weight="600">Private Subnet 10.0.3.0/24</text>
+
+  <!-- App Server -->
+  <rect x="100" y="360" width="140" height="45" rx="6" fill="#181820" stroke="var(--accent-cyan)" stroke-width="1.5"/>
+  <text x="170" y="387" text-anchor="middle" fill="var(--accent-cyan)" font-size="11" font-weight="600">App Server (EC2)</text>
+
+  <!-- RDS -->
+  <rect x="280" y="360" width="140" height="45" rx="6" fill="#181820" stroke="var(--accent-red)" stroke-width="1.5"/>
+  <text x="350" y="387" text-anchor="middle" fill="var(--accent-red)" font-size="11" font-weight="600">RDS (Postgres)</text>
+
+  <!-- Route Table Private AZ1 -->
+  <rect x="100" y="420" width="320" height="28" rx="4" fill="#0f0f15" stroke="#333" stroke-width="1"/>
+  <text x="110" y="438" fill="var(--text-3)" font-size="10">RT: 10.0.0.0/16 -> local | 0.0.0.0/0 -> nat-xxx</text>
+
+  <!-- AZ 2 -->
+  <rect x="490" y="130" width="420" height="460" rx="8" fill="none" stroke="#333" stroke-width="1" stroke-dasharray="4,4"/>
+  <text x="510" y="155" fill="var(--text-3)" font-size="12" font-weight="600">AZ-2 (us-east-1b)</text>
+
+  <!-- Public Subnet AZ2 -->
+  <rect x="510" y="170" width="380" height="140" rx="6" fill="#101825" stroke="var(--accent-green)" stroke-width="1.5"/>
+  <text x="530" y="195" fill="var(--accent-green)" font-size="12" font-weight="600">Public Subnet 10.0.2.0/24</text>
+
+  <!-- ALB AZ2 -->
+  <rect x="540" y="210" width="120" height="45" rx="6" fill="#181820" stroke="var(--accent-orange)" stroke-width="1.5"/>
+  <text x="600" y="237" text-anchor="middle" fill="var(--accent-orange)" font-size="11" font-weight="600">ALB (standby)</text>
+
+  <!-- NAT GW AZ2 -->
+  <rect x="720" y="210" width="140" height="45" rx="6" fill="#181820" stroke="var(--accent-yellow)" stroke-width="1.5"/>
+  <text x="790" y="237" text-anchor="middle" fill="var(--accent-yellow)" font-size="11" font-weight="600">NAT Gateway</text>
+
+  <!-- Route Table Public AZ2 -->
+  <rect x="540" y="268" width="320" height="28" rx="4" fill="#0f0f15" stroke="#333" stroke-width="1"/>
+  <text x="550" y="286" fill="var(--text-3)" font-size="10">RT: 10.0.0.0/16 -> local | 0.0.0.0/0 -> igw-xxx</text>
+
+  <!-- Private Subnet AZ2 -->
+  <rect x="510" y="320" width="380" height="150" rx="6" fill="#18101a" stroke="var(--accent-purple)" stroke-width="1.5"/>
+  <text x="530" y="345" fill="var(--accent-purple)" font-size="12" font-weight="600">Private Subnet 10.0.4.0/24</text>
+
+  <!-- App Server AZ2 -->
+  <rect x="540" y="360" width="140" height="45" rx="6" fill="#181820" stroke="var(--accent-cyan)" stroke-width="1.5"/>
+  <text x="610" y="387" text-anchor="middle" fill="var(--accent-cyan)" font-size="11" font-weight="600">App Server (EC2)</text>
+
+  <!-- RDS Standby AZ2 -->
+  <rect x="720" y="360" width="140" height="45" rx="6" fill="#181820" stroke="var(--accent-red)" stroke-width="1.5"/>
+  <text x="790" y="387" text-anchor="middle" fill="var(--accent-red)" font-size="11" font-weight="600">RDS (Standby)</text>
+
+  <!-- Route Table Private AZ2 -->
+  <rect x="540" y="420" width="320" height="28" rx="4" fill="#0f0f15" stroke="#333" stroke-width="1"/>
+  <text x="550" y="438" fill="var(--text-3)" font-size="10">RT: 10.0.0.0/16 -> local | 0.0.0.0/0 -> nat-xxx</text>
+
+  <!-- VPC Endpoint (S3 Gateway) -->
+  <rect x="200" y="490" width="560" height="36" rx="6" fill="#14142a" stroke="var(--accent-purple)" stroke-width="1.5" stroke-dasharray="4,4"/>
+  <text x="480" y="513" text-anchor="middle" fill="var(--accent-purple)" font-size="11" font-weight="600">VPC Gateway Endpoint (S3 / DynamoDB) -- bypasses NAT</text>
+
+  <!-- S3 external -->
+  <rect x="380" y="545" width="200" height="40" rx="8" fill="#12121a" stroke="var(--accent-orange)" stroke-width="1.5"/>
+  <text x="480" y="570" text-anchor="middle" fill="var(--accent-orange)" font-size="12" font-weight="600">Amazon S3</text>
+
+  <!-- Static connection lines -->
+  <!-- IGW to ALBs -->
+  <line x1="460" y1="111" x2="200" y2="210" stroke="#333" stroke-width="1" stroke-dasharray="4,4"/>
+  <line x1="500" y1="111" x2="600" y2="210" stroke="#333" stroke-width="1" stroke-dasharray="4,4"/>
+
+  <!-- ALB to App Servers -->
+  <line x1="160" y1="255" x2="170" y2="360" stroke="#333" stroke-width="1" stroke-dasharray="4,4"/>
+  <line x1="600" y1="255" x2="610" y2="360" stroke="#333" stroke-width="1" stroke-dasharray="4,4"/>
+
+  <!-- App to RDS -->
+  <line x1="240" y1="382" x2="280" y2="382" stroke="#333" stroke-width="1" stroke-dasharray="4,4"/>
+  <line x1="680" y1="382" x2="720" y2="382" stroke="#333" stroke-width="1" stroke-dasharray="4,4"/>
+
+  <!-- Cross-AZ RDS replication -->
+  <line x1="420" y1="382" x2="540" y2="382" stroke="var(--accent-red)" stroke-width="1" stroke-dasharray="3,3" opacity="0.4"/>
+  <text x="480" y="376" text-anchor="middle" fill="var(--accent-red)" font-size="9" opacity="0.5">replication</text>
+
+  <!-- NAT to IGW -->
+  <line x1="350" y1="210" x2="460" y2="111" stroke="#333" stroke-width="1" stroke-dasharray="4,4"/>
+  <line x1="790" y1="210" x2="510" y2="111" stroke="#333" stroke-width="1" stroke-dasharray="4,4"/>
+
+  <!-- Animated paths (populated by JS) -->
+  <g id="vpc-anim-paths"></g>
+</svg>
+
+<div class="controls">
+  <button class="btn" onclick="VPC.animateInbound()">Inbound: Internet -> App</button>
+  <button class="btn" onclick="VPC.animateOutbound()">Outbound from Private</button>
+  <button class="btn" onclick="VPC.animateVPCEndpoint()">S3 via VPC Endpoint</button>
+  <button class="btn" onclick="VPC.clearAnim()">Clear</button>
+</div>
+
+<div class="commentary" id="vpc-commentary">Click a button above to animate traffic flow through the VPC. Inbound: traffic enters through IGW, hits the ALB in the public subnet, and is forwarded to the app server in the private subnet. Outbound: private instances route through the NAT Gateway to reach the internet. VPC Endpoint: traffic to S3/DynamoDB stays on the AWS backbone, bypassing NAT entirely.</div>
+
+<h3>Security Groups vs NACLs</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Security Group (SG)</th>
+      <th>Network ACL (NACL)</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Scope</td>
+      <td>Per resource (ENI level)</td>
+      <td>Per subnet</td>
+    </tr>
+    <tr>
+      <td>Statefulness</td>
+      <td><strong style="color:var(--accent-green)">Stateful</strong> -- return traffic auto-allowed</td>
+      <td><strong style="color:var(--accent-red)">Stateless</strong> -- must explicitly allow return traffic</td>
+    </tr>
+    <tr>
+      <td>Rules</td>
+      <td>Allow only (implicit deny all)</td>
+      <td>Allow + Deny, evaluated in number order</td>
+    </tr>
+    <tr>
+      <td>Default</td>
+      <td>Deny all inbound, allow all outbound</td>
+      <td>Allow all inbound + outbound</td>
+    </tr>
+    <tr>
+      <td>Interview tell</td>
+      <td>Use for service-to-service rules ("ALB SG allows 443 from 0.0.0.0/0; App SG allows 8080 from ALB SG")</td>
+      <td>Use as subnet-level deny list (block known bad IPs, compliance requirements)</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Connectivity: VPC Peering vs Transit Gateway</h3>
+
+<svg id="vpc-conn-svg" viewBox="0 0 960 340" preserveAspectRatio="xMidYMid meet">
+  <!-- Peering side -->
+  <text x="230" y="25" text-anchor="middle" fill="#fff" font-size="14" font-weight="700">VPC Peering (1:1, no transitive)</text>
+
+  <rect x="80" y="50" width="70" height="40" rx="6" fill="#181820" stroke="var(--accent-blue)" stroke-width="1.5"/>
+  <text x="115" y="75" text-anchor="middle" fill="var(--accent-blue)" font-size="11">VPC A</text>
+  <rect x="230" y="50" width="70" height="40" rx="6" fill="#181820" stroke="var(--accent-green)" stroke-width="1.5"/>
+  <text x="265" y="75" text-anchor="middle" fill="var(--accent-green)" font-size="11">VPC B</text>
+  <rect x="380" y="50" width="70" height="40" rx="6" fill="#181820" stroke="var(--accent-orange)" stroke-width="1.5"/>
+  <text x="415" y="75" text-anchor="middle" fill="var(--accent-orange)" font-size="11">VPC C</text>
+  <rect x="80" y="130" width="70" height="40" rx="6" fill="#181820" stroke="var(--accent-purple)" stroke-width="1.5"/>
+  <text x="115" y="155" text-anchor="middle" fill="var(--accent-purple)" font-size="11">VPC D</text>
+  <rect x="230" y="130" width="70" height="40" rx="6" fill="#181820" stroke="var(--accent-cyan)" stroke-width="1.5"/>
+  <text x="265" y="155" text-anchor="middle" fill="var(--accent-cyan)" font-size="11">VPC E</text>
+
+  <!-- 10 peering lines -->
+  <line x1="150" y1="70" x2="230" y2="70" stroke="#555" stroke-width="1"/>
+  <line x1="300" y1="70" x2="380" y2="70" stroke="#555" stroke-width="1"/>
+  <line x1="150" y1="70" x2="380" y2="70" stroke="#555" stroke-width="1" stroke-dasharray="3,3" opacity="0.4"/>
+  <line x1="150" y1="80" x2="115" y2="130" stroke="#555" stroke-width="1"/>
+  <line x1="150" y1="80" x2="245" y2="130" stroke="#555" stroke-width="1" stroke-dasharray="3,3" opacity="0.4"/>
+  <line x1="265" y1="90" x2="115" y2="130" stroke="#555" stroke-width="1" stroke-dasharray="3,3" opacity="0.4"/>
+  <line x1="265" y1="90" x2="265" y2="130" stroke="#555" stroke-width="1"/>
+  <line x1="415" y1="90" x2="115" y2="130" stroke="#555" stroke-width="1" stroke-dasharray="3,3" opacity="0.4"/>
+  <line x1="415" y1="90" x2="265" y2="130" stroke="#555" stroke-width="1" stroke-dasharray="3,3" opacity="0.4"/>
+  <line x1="150" y1="150" x2="230" y2="150" stroke="#555" stroke-width="1"/>
+
+  <text x="230" y="200" text-anchor="middle" fill="var(--accent-red)" font-size="12" font-weight="600">5 VPCs = 10 connections (n*(n-1)/2)</text>
+  <text x="230" y="220" text-anchor="middle" fill="var(--text-3)" font-size="11">Not transitive: A-B peering + B-C peering does NOT let A reach C</text>
+
+  <!-- Transit Gateway side -->
+  <text x="720" y="25" text-anchor="middle" fill="#fff" font-size="14" font-weight="700">Transit Gateway (hub-and-spoke)</text>
+
+  <!-- Hub -->
+  <rect x="680" y="100" width="80" height="50" rx="8" fill="#14142a" stroke="var(--accent-yellow)" stroke-width="2"/>
+  <text x="720" y="130" text-anchor="middle" fill="var(--accent-yellow)" font-size="12" font-weight="700">TGW</text>
+
+  <!-- Spoke VPCs -->
+  <rect x="560" y="50" width="70" height="40" rx="6" fill="#181820" stroke="var(--accent-blue)" stroke-width="1.5"/>
+  <text x="595" y="75" text-anchor="middle" fill="var(--accent-blue)" font-size="11">VPC A</text>
+  <rect x="810" y="50" width="70" height="40" rx="6" fill="#181820" stroke="var(--accent-green)" stroke-width="1.5"/>
+  <text x="845" y="75" text-anchor="middle" fill="var(--accent-green)" font-size="11">VPC B</text>
+  <rect x="560" y="190" width="70" height="40" rx="6" fill="#181820" stroke="var(--accent-orange)" stroke-width="1.5"/>
+  <text x="595" y="215" text-anchor="middle" fill="var(--accent-orange)" font-size="11">VPC C</text>
+  <rect x="810" y="190" width="70" height="40" rx="6" fill="#181820" stroke="var(--accent-purple)" stroke-width="1.5"/>
+  <text x="845" y="215" text-anchor="middle" fill="var(--accent-purple)" font-size="11">VPC D</text>
+  <rect x="685" y="220" width="70" height="40" rx="6" fill="#181820" stroke="var(--accent-cyan)" stroke-width="1.5"/>
+  <text x="720" y="245" text-anchor="middle" fill="var(--accent-cyan)" font-size="11">VPC E</text>
+
+  <!-- Spoke lines to TGW -->
+  <line x1="630" y1="75" x2="680" y2="115" stroke="var(--accent-yellow)" stroke-width="1.5"/>
+  <line x1="810" y1="75" x2="760" y2="115" stroke="var(--accent-yellow)" stroke-width="1.5"/>
+  <line x1="630" y1="205" x2="680" y2="150" stroke="var(--accent-yellow)" stroke-width="1.5"/>
+  <line x1="810" y1="205" x2="760" y2="150" stroke="var(--accent-yellow)" stroke-width="1.5"/>
+  <line x1="720" y1="220" x2="720" y2="150" stroke="var(--accent-yellow)" stroke-width="1.5"/>
+
+  <text x="720" y="290" text-anchor="middle" fill="var(--accent-green)" font-size="12" font-weight="600">5 VPCs = 5 connections</text>
+  <text x="720" y="310" text-anchor="middle" fill="var(--text-3)" font-size="11">Transitive routing. Also connects VPN, Direct Connect, other TGWs.</text>
+</svg>
+
+<div class="takeaway">
+  <strong>Takeaway</strong>
+  <ul>
+    <li>Public subnet = route table has <code>0.0.0.0/0 -> IGW</code>. Private subnet = route table has <code>0.0.0.0/0 -> NAT GW</code>.</li>
+    <li>VPC endpoints for S3/DynamoDB (Gateway type, free) and other services (Interface type, ENI-based, costs per hour + per GB). Always use them to avoid NAT costs.</li>
+    <li>Security Groups are stateful (track connections); NACLs are stateless (need explicit inbound + outbound rules). SGs for service isolation, NACLs for subnet-level deny lists.</li>
+    <li>VPC Peering is 1:1 and non-transitive. Transit Gateway is hub-and-spoke and transitive. At 3+ VPCs, TGW wins on management overhead.</li>
+  </ul>
+</div>
+
+
+<!-- ============================================================ -->
+<!-- SECTION 3: COST GOTCHAS                                       -->
+<!-- ============================================================ -->
+<h2>3. Cost Gotchas</h2>
+
+<p>AWS bills happen at the hops you did not model. These are the line items that surprise teams in their first real deployment. NAT Gateway + cross-AZ traffic are the #1 category.</p>
+
+<div class="cost-card">
+  <div class="cost-icon">$</div>
+  <div class="cost-body">
+    <div class="cost-title">NAT Gateway</div>
+    <div class="cost-price">$0.045/hr + $0.045/GB processed</div>
+    <div class="cost-desc">The per-GB charge is the killer. Private subnets pulling container images, software updates, or large API responses through NAT rack up fast. A single NAT GW processing 10 TB/month = $450 in data charges alone, plus $32 hourly.</div>
+    <div class="cost-fix">Mitigation: VPC Gateway Endpoints for S3/DynamoDB (free). Interface Endpoints for ECR, CloudWatch, STS. Pull container images through ECR endpoint.</div>
+  </div>
+</div>
+
+<div class="cost-card">
+  <div class="cost-icon">$</div>
+  <div class="cost-body">
+    <div class="cost-title">Cross-AZ Traffic</div>
+    <div class="cost-price">$0.01/GB each way (in + out = $0.02/GB round-trip)</div>
+    <div class="cost-desc">Every hop between AZs is billed. App server in AZ-1 calling a cache in AZ-2 = $0.02/GB for every request-response. Chatty microservices across AZs compound quickly.</div>
+    <div class="cost-fix">Mitigation: co-locate chatty services in the same AZ. Use AZ-aware routing (ALB cross-zone load balancing can be disabled). Accept reduced availability for cost-sensitive workloads.</div>
+  </div>
+</div>
+
+<div class="cost-card">
+  <div class="cost-icon">$</div>
+  <div class="cost-body">
+    <div class="cost-title">Cross-Region Traffic</div>
+    <div class="cost-price">$0.02/GB (varies by region pair)</div>
+    <div class="cost-desc">Replicating data across regions for disaster recovery or multi-region deployments. DynamoDB Global Tables, S3 Cross-Region Replication, Aurora Global Database all incur this.</div>
+    <div class="cost-fix">Mitigation: replicate only what is needed. Compress before transfer. Avoid cross-region in hot paths -- use CDN (CloudFront) for read-heavy global access.</div>
+  </div>
+</div>
+
+<div class="cost-card">
+  <div class="cost-icon">$</div>
+  <div class="cost-body">
+    <div class="cost-title">Route 53 Queries</div>
+    <div class="cost-price">$0.40 per million queries (standard), $0.60 per million (latency/geo)</div>
+    <div class="cost-desc">High-volume services with short DNS TTLs generate millions of queries. Each health check = $0.50/month (+ $1.00 for HTTPS + string matching).</div>
+    <div class="cost-fix">Mitigation: set appropriate TTLs (60-300s for most services). Use caching resolvers. Consolidate health checks.</div>
+  </div>
+</div>
+
+<div class="cost-card">
+  <div class="cost-icon">$</div>
+  <div class="cost-body">
+    <div class="cost-title">DynamoDB Hot Partition</div>
+    <div class="cost-price">Throttling + on-demand billing spikes from key skew</div>
+    <div class="cost-desc">A single hot partition key can exhaust its share of provisioned capacity (or spike on-demand costs). On-demand mode has no throughput cap but bills per request -- a viral event on a skewed key = surprise bill.</div>
+    <div class="cost-fix">Mitigation: design partition keys for uniform distribution. Use write sharding (append random suffix) for hot keys. Monitor ConsumedCapacity metrics.</div>
+  </div>
+</div>
+
+<div class="cost-card">
+  <div class="cost-icon">$</div>
+  <div class="cost-body">
+    <div class="cost-title">S3 LIST + GET Requests</div>
+    <div class="cost-price">$0.005 per 1,000 LIST/GET requests</div>
+    <div class="cost-desc">Listing huge prefixes with millions of objects = thousands of LIST calls. A data pipeline that lists a prefix before processing can cost more in LIST requests than in storage.</div>
+    <div class="cost-fix">Mitigation: use S3 Inventory for bulk enumeration instead of LIST. Structure prefixes for bounded listing. Use S3 Event Notifications instead of polling.</div>
+  </div>
+</div>
+
+<div class="cost-card">
+  <div class="cost-icon">$</div>
+  <div class="cost-body">
+    <div class="cost-title">CloudWatch Logs Ingestion</div>
+    <div class="cost-price">$0.50/GB ingested</div>
+    <div class="cost-desc">Log cardinality explosion: a Lambda logging full request/response bodies at scale, or a Kubernetes cluster with verbose debug logging. 100 GB/day = $1,500/month in ingestion alone.</div>
+    <div class="cost-fix">Mitigation: log only what you query. Use log levels in production (WARN+ERROR only). Sample verbose logs. Ship bulk logs to S3 directly, query with Athena.</div>
+  </div>
+</div>
+
+<div class="cost-card">
+  <div class="cost-icon">$</div>
+  <div class="cost-body">
+    <div class="cost-title">EBS Snapshots</div>
+    <div class="cost-price">$0.05/GB-month (incremental but cumulative)</div>
+    <div class="cost-desc">Each snapshot is incremental, but the total stored data grows over time. Without lifecycle policies, snapshots accumulate indefinitely. 50 snapshots of a 500 GB volume can store significant unique blocks.</div>
+    <div class="cost-fix">Mitigation: Amazon Data Lifecycle Manager for automated snapshot retention. Tag snapshots. Delete orphaned snapshots from terminated instances.</div>
+  </div>
+</div>
+
+<div class="cost-card">
+  <div class="cost-icon">$</div>
+  <div class="cost-body">
+    <div class="cost-title">Idle Resources</div>
+    <div class="cost-price">Varies -- but always more than $0</div>
+    <div class="cost-desc">Stopped EC2 instances still bill for attached EBS volumes. Unattached Elastic IPs bill $0.005/hr. Idle load balancers bill ~$16/month minimum. Unused RDS instances bill full hourly rate. Dev/staging environments left running over weekends.</div>
+    <div class="cost-fix">Mitigation: tag everything. Use AWS Cost Explorer anomaly detection. Schedule dev environments to stop nights/weekends. Audit unattached EBS volumes + EIPs monthly.</div>
+  </div>
+</div>
+
+<div class="takeaway">
+  <strong>Takeaway</strong>
+  <ul>
+    <li>AWS bills happen at the hops you did not model. NAT GW + cross-AZ are the #1 surprise.</li>
+    <li>Use VPC endpoints. Gateway endpoints (S3, DynamoDB) are free. Interface endpoints cost but are cheaper than NAT for high-volume traffic.</li>
+    <li>Locality matters. Co-locate chatty services. Avoid cross-AZ in hot paths unless availability requires it.</li>
+    <li>Tagging + lifecycle policies are not optional -- they are cost controls.</li>
+  </ul>
+</div>
+
+
+<!-- ============================================================ -->
+<!-- SECTION 4: WELL-ARCHITECTED FRAMEWORK                         -->
+<!-- ============================================================ -->
+<h2>4. Well-Architected Framework -- 6 Pillars</h2>
+
+<p>AWS asks about these in behavioral / architecture rounds. Know each pillar, its one-line ask, and one concrete tell.</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Pillar</th>
+      <th>What It Asks</th>
+      <th>Interview Tell</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr class="pillar-row">
+      <td style="color:var(--accent-blue)">Operational Excellence</td>
+      <td>Run and monitor systems to deliver business value; continuously improve processes and procedures.</td>
+      <td>IaC (CloudFormation/CDK/Terraform), runbooks, automated deployments, observability (CloudWatch dashboards + alarms), post-incident reviews.</td>
+    </tr>
+    <tr class="pillar-row">
+      <td style="color:var(--accent-red)">Security</td>
+      <td>Protect data, systems, and assets through risk assessment and mitigation.</td>
+      <td>Least privilege IAM, encryption at rest (KMS) + in transit (TLS), VPC isolation, GuardDuty for threat detection, SCPs for org-wide guardrails.</td>
+    </tr>
+    <tr class="pillar-row">
+      <td style="color:var(--accent-green)">Reliability</td>
+      <td>Ensure a workload performs its intended function correctly and consistently.</td>
+      <td>Multi-AZ deployments, auto-scaling, health checks, circuit breakers, chaos engineering, backup/restore tested regularly, defined RPO/RTO.</td>
+    </tr>
+    <tr class="pillar-row">
+      <td style="color:var(--accent-orange)">Performance Efficiency</td>
+      <td>Use computing resources efficiently to meet system requirements and maintain efficiency as demand changes.</td>
+      <td>Right-sizing instances (Compute Optimizer), caching (ElastiCache/CloudFront), read replicas, purpose-built databases, serverless for bursty workloads.</td>
+    </tr>
+    <tr class="pillar-row">
+      <td style="color:var(--accent-yellow)">Cost Optimization</td>
+      <td>Avoid unnecessary costs; understand spending and control fund allocation.</td>
+      <td>Reserved Instances / Savings Plans for steady-state, Spot for fault-tolerant batch, right-sizing, S3 lifecycle policies, VPC endpoints to avoid NAT costs.</td>
+    </tr>
+    <tr class="pillar-row">
+      <td style="color:var(--accent-purple)">Sustainability</td>
+      <td>Minimize environmental impact of running cloud workloads.</td>
+      <td>Right-size to reduce waste, use managed services (higher utilization), Graviton instances (better perf/watt), S3 Intelligent-Tiering, region selection for carbon intensity.</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="takeaway">
+  <strong>Takeaway</strong>
+  <ul>
+    <li>In an interview, name the pillar by name, then give one concrete action. "From a Reliability perspective, I would deploy across 3 AZs with auto-scaling and define RPO < 1 hour, RTO < 15 minutes."</li>
+    <li>Security and Reliability are the two most commonly probed in system design rounds. Cost Optimization comes up in "how would you reduce the bill?" follow-ups.</li>
+  </ul>
+</div>
+
+
+<!-- ============================================================ -->
+<!-- SECTION 5: COMMON INTERVIEW PROBES                            -->
+<!-- ============================================================ -->
+<h2>5. Common Interview Probes</h2>
+
+<p>When they ask X, the answer should mention Y. These are the most common AWS-specific follow-up questions in system design rounds.</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Probe</th>
+      <th>Expected Response Pattern</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td class="probe-q">"How would you handle 10x traffic?"</td>
+      <td>ASG (Auto Scaling Groups) with target tracking policies + ALB to distribute. RDS read replicas for read-heavy. CloudFront for static/cacheable content. ElastiCache for hot data. DynamoDB auto-scaling or on-demand mode. Queue (SQS) to decouple and absorb spikes.</td>
+    </tr>
+    <tr>
+      <td class="probe-q">"Multi-region resilience?"</td>
+      <td>Route 53 with health checks for failover routing. DynamoDB Global Tables (active-active, last-writer-wins) OR Aurora Global Database (one writer region, <1s replication). S3 Cross-Region Replication. Define RPO and RTO explicitly. Call out the trade-off: multi-region active-active is complex (conflict resolution, data consistency); active-passive is simpler but has non-zero RTO.</td>
+    </tr>
+    <tr>
+      <td class="probe-q">"How does S3 give you 11 9s durability?"</td>
+      <td>Erasure coding across a minimum of 3 AZs within a region (default for S3 Standard). Data is split into fragments, parity fragments added, distributed across physically separate facilities. Can tolerate loss of 2 AZs simultaneously. 99.999999999% = you would lose one object out of 10 billion in 10,000 years.</td>
+    </tr>
+    <tr>
+      <td class="probe-q">"Why not Lambda for this?"</td>
+      <td>Cold start latency (100ms-several seconds, language-dependent). 15-minute execution timeout. 10 GB memory cap. 250 MB deployment package (unzipped). 1000 default concurrent executions per region. Connection pooling is hard (no persistent connections between invocations). Good for: event-driven, bursty, short-lived. Bad for: long-running, latency-sensitive, connection-heavy.</td>
+    </tr>
+    <tr>
+      <td class="probe-q">"Why DynamoDB over RDS?"</td>
+      <td>Access pattern fits single-table design (known query patterns at design time). No joins required. Need global scale (Global Tables). Need single-digit millisecond latency at any scale. Need auto-scaling with zero operational overhead. Bad for: ad-hoc queries, complex relationships, transactions across items (limited to 100 items / 4 MB), analytics workloads.</td>
+    </tr>
+    <tr>
+      <td class="probe-q">"How do you secure data at rest and in transit?"</td>
+      <td>At rest: AWS KMS (managed keys or CMK), S3 SSE-S3/SSE-KMS, EBS encryption, RDS encryption. In transit: TLS everywhere (ALB terminates TLS, internal service mesh with mTLS or VPC-internal). Key rotation via KMS automatic rotation (annual for CMKs). Envelope encryption for large objects.</td>
+    </tr>
+    <tr>
+      <td class="probe-q">"How would you reduce the AWS bill by 30%?"</td>
+      <td>Savings Plans / Reserved Instances for steady-state compute (up to 72% savings). Spot Instances for fault-tolerant batch/worker workloads. Right-size instances (AWS Compute Optimizer). S3 Intelligent-Tiering or Glacier for cold data. VPC endpoints to eliminate NAT data processing charges. Shut down non-production environments nights/weekends. Delete unattached EBS volumes, unused EIPs, idle load balancers.</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="takeaway">
+  <strong>Takeaway</strong>
+  <ul>
+    <li>Every probe has a "shape" -- name the service, state the trade-off, give a number. "Lambda cold starts are 100ms-seconds; for p99 < 50ms we need a persistent compute layer."</li>
+    <li>Always state RPO/RTO when discussing resilience. "RPO = 0 means synchronous replication; RPO = minutes means async."</li>
+    <li>Cost questions are architecture questions in disguise. "Reduce the bill" = "which architectural choices are wasteful?"</li>
+  </ul>
+</div>
+
+
+<!-- ============================================================ -->
+<!-- JAVASCRIPT                                                     -->
+<!-- ============================================================ -->
+<script>
+/* ================================================================
+   Section 1: IAM Policy Evaluator
+   ================================================================ */
+const IAM = (() => {
+  const scenarios = [
+    {
+      name: 'Basic Allow',
+      desc: 'Role "AppRole" calls s3:GetObject on arn:aws:s3:::my-bucket/*. Identity policy allows s3:GetObject. No SCP, no boundary, no resource policy deny.',
+      principal: 'AppRole',
+      action: 's3:GetObject',
+      resource: 'arn:aws:s3:::my-bucket/*',
+      crossAccount: false,
+      steps: [
+        { result: 'pass', detail: 'No explicit deny found in any policy.' },
+        { result: 'pass', detail: 'No SCP attached (or SCP allows s3:*).' },
+        { result: 'skip', detail: 'No resource-based policy on this bucket.' },
+        { result: 'pass', detail: 'Identity policy: Allow s3:GetObject on arn:aws:s3:::my-bucket/*.' },
+        { result: 'skip', detail: 'No permissions boundary set on AppRole.' },
+        { result: 'skip', detail: 'No session policy (direct role, not assumed with policy).' }
+      ],
+      finalResult: 'ALLOW',
+      finalDetail: 'Identity policy grants access. No deny anywhere.'
+    },
+    {
+      name: 'SCP Deny',
+      desc: 'Role "DevRole" calls ec2:TerminateInstances. Identity policy allows ec2:*. But the Organization SCP denies ec2:TerminateInstances for all non-admin roles.',
+      principal: 'DevRole',
+      action: 'ec2:TerminateInstances',
+      resource: 'arn:aws:ec2:*:*:instance/*',
+      crossAccount: false,
+      steps: [
+        { result: 'pass', detail: 'No explicit deny in identity or resource policies.' },
+        { result: 'fail', detail: 'SCP: Deny ec2:TerminateInstances unless principal tag = admin. DevRole is not admin.' },
+        { result: 'skip', detail: 'Evaluation stopped at SCP.' },
+        { result: 'skip', detail: 'Evaluation stopped at SCP.' },
+        { result: 'skip', detail: 'Evaluation stopped at SCP.' },
+        { result: 'skip', detail: 'Evaluation stopped at SCP.' }
+      ],
+      finalResult: 'DENY',
+      finalDetail: 'SCP does not allow this action for non-admin roles. SCP is a ceiling -- it cannot grant, only restrict.'
+    },
+    {
+      name: 'Boundary Caps Identity',
+      desc: 'Role "InternRole" has identity policy allowing s3:* and dynamodb:*. But a permissions boundary is set that only allows s3:GetObject and s3:PutObject. InternRole tries dynamodb:PutItem.',
+      principal: 'InternRole',
+      action: 'dynamodb:PutItem',
+      resource: 'arn:aws:dynamodb:*:*:table/MyTable',
+      crossAccount: false,
+      steps: [
+        { result: 'pass', detail: 'No explicit deny found.' },
+        { result: 'pass', detail: 'SCP allows dynamodb:* (no restriction).' },
+        { result: 'skip', detail: 'No resource-based policy on DynamoDB table.' },
+        { result: 'pass', detail: 'Identity policy: Allow dynamodb:* on all tables.' },
+        { result: 'fail', detail: 'Permissions boundary only allows s3:GetObject and s3:PutObject. dynamodb:PutItem is NOT in the boundary.' },
+        { result: 'skip', detail: 'Evaluation stopped at boundary.' }
+      ],
+      finalResult: 'DENY',
+      finalDetail: 'Permissions boundary does not include dynamodb:*. Effective permissions = intersection of identity policy AND boundary. DynamoDB access is outside the boundary.'
+    },
+    {
+      name: 'Cross-Account (AND logic)',
+      desc: 'Account B\'s role "CrossRole" tries s3:GetObject on a bucket in Account A. Account A\'s bucket policy allows CrossRole. But Account B\'s identity policy does NOT grant s3:GetObject.',
+      principal: 'CrossRole (Account B)',
+      action: 's3:GetObject',
+      resource: 'arn:aws:s3:::account-a-bucket/*',
+      crossAccount: true,
+      steps: [
+        { result: 'pass', detail: 'No explicit deny in either account.' },
+        { result: 'pass', detail: 'SCPs in both accounts allow s3:GetObject.' },
+        { result: 'pass', detail: 'Account A bucket policy: Allow s3:GetObject for arn:aws:iam::AccountB:role/CrossRole.' },
+        { result: 'fail', detail: 'Account B identity policy does NOT grant s3:GetObject. Cross-account requires AND: both resource policy (Account A) AND identity policy (Account B) must allow.' },
+        { result: 'skip', detail: 'Evaluation stopped -- identity policy missing.' },
+        { result: 'skip', detail: 'Evaluation stopped.' }
+      ],
+      finalResult: 'DENY',
+      finalDetail: 'Cross-account = AND logic. Account A\'s bucket policy allows, but Account B\'s identity policy does not grant. Both must allow.'
+    },
+    {
+      name: 'Explicit Deny Wins',
+      desc: 'Role "AdminRole" has identity policy allowing s3:*. A resource-based bucket policy also allows s3:*. But a separate identity policy explicitly denies s3:DeleteObject on this bucket.',
+      principal: 'AdminRole',
+      action: 's3:DeleteObject',
+      resource: 'arn:aws:s3:::critical-bucket/*',
+      crossAccount: false,
+      steps: [
+        { result: 'fail', detail: 'Explicit deny found: identity policy #2 denies s3:DeleteObject on arn:aws:s3:::critical-bucket/*. Explicit deny is terminal.' },
+        { result: 'skip', detail: 'Evaluation stopped -- explicit deny.' },
+        { result: 'skip', detail: 'Evaluation stopped -- explicit deny.' },
+        { result: 'skip', detail: 'Evaluation stopped -- explicit deny.' },
+        { result: 'skip', detail: 'Evaluation stopped -- explicit deny.' },
+        { result: 'skip', detail: 'Evaluation stopped -- explicit deny.' }
+      ],
+      finalResult: 'DENY',
+      finalDetail: 'Explicit deny always wins, regardless of any allow anywhere. This is the #1 rule of IAM evaluation.'
+    },
+    {
+      name: 'Session Policy Caps',
+      desc: 'Role "BroadRole" allows s3:* and dynamodb:*. A developer assumes BroadRole with a session policy that only allows s3:GetObject. The session then tries s3:PutObject.',
+      principal: 'BroadRole (session)',
+      action: 's3:PutObject',
+      resource: 'arn:aws:s3:::dev-bucket/*',
+      crossAccount: false,
+      steps: [
+        { result: 'pass', detail: 'No explicit deny found.' },
+        { result: 'pass', detail: 'SCP allows s3:* (no restriction).' },
+        { result: 'skip', detail: 'No resource-based policy on this bucket.' },
+        { result: 'pass', detail: 'Identity policy (BroadRole): Allow s3:* on all resources.' },
+        { result: 'skip', detail: 'No permissions boundary set.' },
+        { result: 'fail', detail: 'Session policy only allows s3:GetObject. s3:PutObject is NOT in the session policy. Session = intersection with role policy.' }
+      ],
+      finalResult: 'DENY',
+      finalDetail: 'Session policy restricts the assumed role to s3:GetObject only. Effective permissions = intersection of role policy AND session policy. PutObject is outside the session.'
+    }
+  ];
+
+  let currentScenario = null;
+  let animating = false;
+
+  function init() {
+    const container = document.getElementById('iam-scenarios');
+    scenarios.forEach((s, i) => {
+      const btn = document.createElement('button');
+      btn.textContent = s.name;
+      btn.onclick = () => selectScenario(i);
+      container.appendChild(btn);
+    });
+    selectScenario(0);
+  }
+
+  function selectScenario(idx) {
+    currentScenario = scenarios[idx];
+    const btns = document.querySelectorAll('#iam-scenarios button');
+    btns.forEach((b, i) => {
+      b.classList.toggle('active-btn', i === idx);
+    });
+    document.getElementById('iam-scenario-desc').innerHTML =
+      '<strong>' + currentScenario.name + ':</strong> ' + currentScenario.desc +
+      '<br><code>' + currentScenario.principal + '</code> -> <code>' + currentScenario.action +
+      '</code> -> <code>' + currentScenario.resource + '</code>' +
+      (currentScenario.crossAccount ? ' <span style="color:var(--accent-orange)">[cross-account]</span>' : '');
+    resetPipeline();
+  }
+
+  function resetPipeline() {
+    for (let i = 1; i <= 6; i++) {
+      const step = document.getElementById('iam-step-' + i);
+      step.className = 'eval-step';
+      document.getElementById('iam-r' + i).textContent = '';
+      const conn = document.getElementById('iam-c' + i);
+      if (conn) conn.className = 'eval-connector';
+    }
+    // Reset details to defaults
+    const defaults = [
+      'Scan all applicable policies for an explicit Deny on this action+resource. Any explicit deny = DENY (terminal).',
+      'Organization-level guardrail. SCPs restrict what member accounts can do. If SCP does not allow this action, DENY.',
+      'Policy attached to the resource (S3 bucket policy, SQS queue policy, KMS key policy). In same-account, a resource-based Allow is sufficient alone.',
+      'Policies attached to the IAM user/role/group performing the action. Inline policies and managed policies are both checked.',
+      'A managed policy used as a cap on identity-based permissions. If set, the effective permission is the INTERSECTION of identity policy and boundary.',
+      'Optional policy passed during AssumeRole or GetFederationToken. Caps the session permissions to the INTERSECTION of the role policy and the session policy.'
+    ];
+    for (let i = 1; i <= 6; i++) {
+      document.getElementById('iam-d' + i).textContent = defaults[i - 1];
+    }
+    document.getElementById('iam-final-result').style.display = 'none';
+    animating = false;
+  }
+
+  async function evaluate() {
+    if (animating || !currentScenario) return;
+    animating = true;
+    resetPipeline();
+    await sleep(200);
+
+    const steps = currentScenario.steps;
+    let stopped = false;
+
+    for (let i = 0; i < steps.length; i++) {
+      if (stopped) break;
+
+      const stepEl = document.getElementById('iam-step-' + (i + 1));
+      const resultEl = document.getElementById('iam-r' + (i + 1));
+      const detailEl = document.getElementById('iam-d' + (i + 1));
+      const connEl = document.getElementById('iam-c' + (i + 1));
+
+      // Activate
+      stepEl.className = 'eval-step active';
+      if (connEl) connEl.className = 'eval-connector reached';
+      await sleep(600);
+
+      // Show result
+      detailEl.textContent = steps[i].detail;
+
+      if (steps[i].result === 'pass') {
+        stepEl.className = 'eval-step pass';
+        resultEl.textContent = 'PASS';
+      } else if (steps[i].result === 'fail') {
+        stepEl.className = 'eval-step fail';
+        resultEl.textContent = 'DENY';
+        stopped = true;
+      } else {
+        stepEl.className = 'eval-step';
+        resultEl.textContent = 'skip';
+        resultEl.style.color = 'var(--text-3)';
+      }
+
+      await sleep(400);
+    }
+
+    // Show final result
+    await sleep(300);
+    const finalBox = document.getElementById('iam-final-result');
+    finalBox.style.display = 'block';
+    if (currentScenario.finalResult === 'ALLOW') {
+      finalBox.className = 'eval-result-box allow';
+      finalBox.innerHTML = 'ALLOW -- ' + currentScenario.finalDetail;
+    } else {
+      finalBox.className = 'eval-result-box deny';
+      finalBox.innerHTML = 'DENY -- ' + currentScenario.finalDetail;
+    }
+    animating = false;
+  }
+
+  function reset() {
+    resetPipeline();
+  }
+
+  function sleep(ms) {
+    return new Promise(r => setTimeout(r, ms));
+  }
+
+  return { init, evaluate, reset, selectScenario };
+})();
+
+
+/* ================================================================
+   Section 2: VPC Routing Animations
+   ================================================================ */
+const VPC = (() => {
+  const svg = document.getElementById('vpc-svg');
+  const animGroup = document.getElementById('vpc-anim-paths');
+  const commentary = document.getElementById('vpc-commentary');
+  let animTimer = null;
+
+  function clearAnim() {
+    if (animTimer) { clearInterval(animTimer); animTimer = null; }
+    animGroup.innerHTML = '';
+    commentary.textContent = 'Click a button above to animate traffic flow through the VPC.';
+  }
+
+  function createPacket(color) {
+    const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    circle.setAttribute('r', '6');
+    circle.setAttribute('fill', color);
+    circle.setAttribute('opacity', '0.9');
+    return circle;
+  }
+
+  function animateAlongPath(packet, waypoints, duration, onDone) {
+    const totalSegments = waypoints.length - 1;
+    const segDuration = duration / totalSegments;
+    let seg = 0;
+
+    packet.setAttribute('cx', waypoints[0][0]);
+    packet.setAttribute('cy', waypoints[0][1]);
+    animGroup.appendChild(packet);
+
+    function nextSeg() {
+      if (seg >= totalSegments) {
+        if (onDone) onDone();
+        return;
+      }
+      const [sx, sy] = waypoints[seg];
+      const [ex, ey] = waypoints[seg + 1];
+      const startTime = performance.now();
+
+      function step(now) {
+        const t = Math.min((now - startTime) / segDuration, 1);
+        const x = sx + (ex - sx) * t;
+        const y = sy + (ey - sy) * t;
+        packet.setAttribute('cx', x);
+        packet.setAttribute('cy', y);
+        if (t < 1) {
+          requestAnimationFrame(step);
+        } else {
+          seg++;
+          nextSeg();
+        }
+      }
+      requestAnimationFrame(step);
+    }
+    nextSeg();
+  }
+
+  function addLabel(x, y, text, color) {
+    const t = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    t.setAttribute('x', x);
+    t.setAttribute('y', y);
+    t.setAttribute('text-anchor', 'middle');
+    t.setAttribute('fill', color || 'var(--text-3)');
+    t.setAttribute('font-size', '10');
+    t.setAttribute('font-weight', '600');
+    t.textContent = text;
+    t.style.opacity = '0';
+    animGroup.appendChild(t);
+    requestAnimationFrame(() => {
+      t.style.transition = 'opacity 0.3s';
+      t.style.opacity = '1';
+    });
+    return t;
+  }
+
+  function animateInbound() {
+    clearAnim();
+    commentary.innerHTML = '<strong>Inbound path:</strong> Internet -> IGW -> ALB (public subnet) -> App Server (private subnet). ' +
+      'The ALB lives in the public subnet with a Security Group allowing 80/443 from 0.0.0.0/0. ' +
+      'The App Server SG allows inbound only from the ALB Security Group on port 8080.';
+
+    // Path: Internet -> IGW -> ALB -> App Server
+    const waypoints = [
+      [480, 25],   // Internet
+      [480, 93],   // IGW
+      [300, 180],  // route to public subnet
+      [160, 232],  // ALB
+      [160, 300],  // through subnet boundary
+      [170, 382],  // App Server
+    ];
+
+    const pkt = createPacket('var(--accent-green)');
+    addLabel(480, 60, 'HTTPS :443', 'var(--accent-green)');
+
+    animateAlongPath(pkt, waypoints, 2500, () => {
+      addLabel(160, 320, 'SG: allow 8080 from ALB-SG', 'var(--accent-cyan)');
+      // Add glow effect
+      pkt.setAttribute('opacity', '0.3');
+      setTimeout(() => { pkt.setAttribute('opacity', '0.9'); }, 200);
+      setTimeout(() => { pkt.setAttribute('opacity', '0.3'); }, 400);
+      setTimeout(() => { pkt.setAttribute('opacity', '0.9'); }, 600);
+    });
+  }
+
+  function animateOutbound() {
+    clearAnim();
+    commentary.innerHTML = '<strong>Outbound from private subnet:</strong> App Server -> NAT Gateway (public subnet) -> IGW -> Internet. ' +
+      'The private subnet route table sends 0.0.0.0/0 to the NAT Gateway. ' +
+      'The NAT Gateway translates the private IP to its own Elastic IP, then routes through the IGW. ' +
+      '<span style="color:var(--accent-red)">This path costs $0.045/GB in NAT data processing charges.</span>';
+
+    // Path: App Server -> NAT GW -> IGW -> Internet
+    const waypoints = [
+      [170, 382],  // App Server
+      [170, 310],  // up through private subnet
+      [350, 270],  // to NAT GW area
+      [350, 232],  // NAT GW
+      [430, 180],  // route to IGW
+      [480, 93],   // IGW
+      [480, 25],   // Internet
+    ];
+
+    const pkt = createPacket('var(--accent-orange)');
+    addLabel(270, 254, '0.0.0.0/0 -> nat-xxx', 'var(--accent-yellow)');
+    addLabel(420, 150, '$0.045/GB', 'var(--accent-red)');
+
+    animateAlongPath(pkt, waypoints, 2800, () => {
+      pkt.setAttribute('opacity', '0.3');
+    });
+  }
+
+  function animateVPCEndpoint() {
+    clearAnim();
+    commentary.innerHTML = '<strong>S3 via VPC Gateway Endpoint:</strong> App Server -> VPC Endpoint -> S3. ' +
+      'Traffic stays on the AWS backbone. Does NOT traverse the NAT Gateway. ' +
+      '<span style="color:var(--accent-green)">Gateway Endpoints for S3 and DynamoDB are FREE. No data processing charges.</span> ' +
+      'This is the #1 cost optimization for private subnets accessing S3.';
+
+    // Path: App Server -> VPC Endpoint -> S3
+    const waypoints = [
+      [170, 382],  // App Server
+      [170, 450],  // down through private subnet
+      [300, 508],  // to VPC endpoint
+      [480, 508],  // along VPC endpoint
+      [480, 545],  // down to S3
+      [480, 565],  // S3
+    ];
+
+    const pkt = createPacket('var(--accent-purple)');
+    addLabel(330, 480, 'Bypasses NAT -- stays on AWS backbone', 'var(--accent-purple)');
+    addLabel(480, 540, 'FREE (Gateway Endpoint)', 'var(--accent-green)');
+
+    animateAlongPath(pkt, waypoints, 2200, () => {
+      pkt.setAttribute('opacity', '0.3');
+      setTimeout(() => { pkt.setAttribute('opacity', '0.9'); }, 200);
+      setTimeout(() => { pkt.setAttribute('opacity', '0.3'); }, 400);
+      setTimeout(() => { pkt.setAttribute('opacity', '0.9'); }, 600);
+    });
+  }
+
+  return { animateInbound, animateOutbound, animateVPCEndpoint, clearAnim };
+})();
+
+
+/* ================================================================
+   Init
+   ================================================================ */
+document.addEventListener('DOMContentLoaded', () => {
+  IAM.init();
+});
+</script>
+
+</body>
+</html>

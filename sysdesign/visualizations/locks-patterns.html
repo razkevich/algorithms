@@ -1,0 +1,1921 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Coordination + Concurrency Patterns</title>
+<style>
+:root {
+  --bg: #0f0f15;
+  --surface: #181820;
+  --surface-2: #20202a;
+  --border: #2a2a35;
+  --text: #e6e6ea;
+  --text-2: #cfcfd6;
+  --text-3: #888;
+  --accent-red: #ff6b6b;
+  --accent-green: #51cf66;
+  --accent-blue: #339af0;
+  --accent-yellow: #ffd43b;
+  --accent-purple: #cc5de8;
+  --accent-cyan: #8be9fd;
+  --accent-orange: #ffa94d;
+}
+*, *::before, *::after { box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  padding: 32px 24px;
+  max-width: 1100px;
+  margin: 0 auto;
+  line-height: 1.55;
+}
+h1 { color: #fff; margin-bottom: 4px; }
+h1 + p.sub { color: var(--text-3); font-style: italic; margin-top: 0; margin-bottom: 24px; }
+h2 { color: #fff; margin-top: 48px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+h3 { color: var(--text-2); margin-top: 20px; }
+code {
+  background: var(--surface-2);
+  padding: 2px 6px;
+  border-radius: 3px;
+  color: var(--accent-cyan);
+  font-size: 13px;
+}
+svg {
+  background: var(--surface);
+  border-radius: 8px;
+  display: block;
+  margin: 14px auto;
+  width: 100%;
+  height: auto;
+}
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0;
+  align-items: center;
+}
+.controls button, .btn {
+  padding: 10px 16px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  border-radius: 6px;
+  cursor: pointer;
+  min-height: 44px;
+  font-size: 14px;
+  transition: background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+.controls button:hover, .btn:hover { background: var(--surface); }
+.controls button:disabled, .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.controls button.active-btn { border-color: var(--accent-blue); color: var(--accent-blue); }
+.commentary {
+  background: var(--surface-2);
+  padding: 14px;
+  border-radius: 6px;
+  font-size: 14px;
+  color: var(--text-2);
+  margin: 12px 0;
+  min-height: 44px;
+  line-height: 1.5;
+}
+.takeaway {
+  background: #1a1a22;
+  border-left: 3px solid var(--accent-green);
+  padding: 12px 16px;
+  margin: 14px 0;
+  font-size: 14px;
+}
+.takeaway strong { color: var(--accent-green); }
+.takeaway ul { margin: 6px 0 0 0; padding-left: 18px; }
+.takeaway li { margin-bottom: 6px; }
+.side-by-side {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin: 14px 0;
+}
+.side-by-side > div { min-width: 0; }
+.three-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 16px;
+  margin: 14px 0;
+}
+.three-col > div { min-width: 0; }
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+}
+.panel h3 { margin-top: 0; text-align: center; font-size: 15px; }
+.log-box {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px;
+  font-size: 12px;
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+  color: var(--text-2);
+  min-height: 80px;
+  max-height: 160px;
+  overflow-y: auto;
+  line-height: 1.6;
+}
+.log-box .log-line { margin: 2px 0; }
+.log-box .log-line.blocked { color: var(--accent-red); }
+.log-box .log-line.acquired { color: var(--accent-green); }
+.log-box .log-line.released { color: var(--accent-blue); }
+.log-box .log-line.waiting { color: var(--accent-yellow); }
+.log-box .log-line.retry { color: var(--accent-orange); }
+.log-box .log-line.success { color: var(--accent-green); }
+.log-box .log-line.fail { color: var(--accent-red); }
+.log-box .log-line.info { color: var(--accent-cyan); }
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 14px 0;
+  font-size: 14px;
+}
+th, td {
+  padding: 10px 12px;
+  text-align: left;
+  border: 1px solid var(--border);
+}
+th {
+  background: var(--surface-2);
+  color: var(--accent-cyan);
+  font-weight: 600;
+}
+td { background: var(--surface); }
+tr:hover td { background: var(--surface-2); }
+.thread-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0;
+  font-size: 13px;
+}
+.thread-label {
+  width: 30px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+.thread-bar-container {
+  flex: 1;
+  height: 28px;
+  background: var(--surface-2);
+  border-radius: 4px;
+  position: relative;
+  overflow: hidden;
+}
+.thread-bar {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.3s ease, background 0.3s ease;
+  display: flex;
+  align-items: center;
+  padding-left: 8px;
+  font-size: 11px;
+  color: #fff;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.thread-status {
+  width: 80px;
+  font-size: 12px;
+  flex-shrink: 0;
+  text-align: right;
+}
+@media (max-width: 720px) {
+  body { padding: 20px 14px; }
+  .side-by-side, .three-col { grid-template-columns: 1fr; }
+}
+@media (max-width: 480px) {
+  .controls { flex-direction: column; }
+  .controls button { width: 100%; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Coordination + concurrency patterns</h1>
+  <p class="sub">Mutex, RWLock, semaphore, CAS, leader election, deadlock prevention, barriers, idempotency keys. The toolkit and the failure modes for shared-state coordination across threads, processes, and machines.</p>
+</header>
+
+<!-- ================================================================== -->
+<!-- SECTION 1: Mutex / RWLock / Semaphore -->
+<!-- ================================================================== -->
+<h2>1. Mutex / RWLock / Semaphore</h2>
+
+<div class="controls">
+  <button onclick="sec1Run()" id="sec1-run-btn">Run animation</button>
+  <button onclick="sec1Reset()">Reset</button>
+</div>
+
+<div class="three-col" id="sec1-container">
+  <!-- Mutex panel -->
+  <div class="panel">
+    <h3>Mutex</h3>
+    <p style="font-size:13px;color:var(--text-3);text-align:center;margin:0 0 8px">1 holder at a time</p>
+    <div id="mutex-threads"></div>
+    <div class="log-box" id="mutex-log"></div>
+  </div>
+  <!-- RWLock panel -->
+  <div class="panel">
+    <h3>RWLock</h3>
+    <p style="font-size:13px;color:var(--text-3);text-align:center;margin:0 0 8px">Many readers OR 1 writer</p>
+    <div id="rwlock-threads"></div>
+    <div class="log-box" id="rwlock-log"></div>
+  </div>
+  <!-- Semaphore panel -->
+  <div class="panel">
+    <h3>Semaphore (3 permits)</h3>
+    <p style="font-size:13px;color:var(--text-3);text-align:center;margin:0 0 8px">N concurrent holders</p>
+    <div id="sem-threads"></div>
+    <div class="log-box" id="sem-log"></div>
+  </div>
+</div>
+
+<div class="takeaway">
+  <strong>Takeaway:</strong>
+  <ul>
+    <li><strong>Mutex</strong> -- exclusive access. Simple, safe, can bottleneck.</li>
+    <li><strong>RWLock</strong> -- when reads dominate AND writes are rare AND writes must exclude all readers.</li>
+    <li><strong>Semaphore</strong> -- bounded concurrency: connection pools, rate limiting, worker slots.</li>
+  </ul>
+</div>
+
+<!-- ================================================================== -->
+<!-- SECTION 2: Optimistic vs Pessimistic Concurrency Control -->
+<!-- ================================================================== -->
+<h2>2. Optimistic vs pessimistic concurrency control</h2>
+
+<p>Same scenario: two clients update the same bank account balance ($1000). Client A subtracts $200, Client B subtracts $300.</p>
+
+<div class="controls">
+  <button onclick="sec2Run()" id="sec2-run-btn">Run animation</button>
+  <button onclick="sec2Reset()">Reset</button>
+</div>
+
+<div class="side-by-side">
+  <!-- Pessimistic -->
+  <div class="panel">
+    <h3>Pessimistic (SELECT ... FOR UPDATE)</h3>
+    <div style="text-align:center;margin:8px 0">
+      <span style="font-size:13px;color:var(--text-3)">Balance: $</span><span id="pess-balance" style="font-size:20px;font-weight:700;color:var(--accent-blue)">1000</span>
+      <span style="font-size:13px;color:var(--text-3);margin-left:12px">Lock:</span>
+      <span id="pess-lock" style="font-size:14px;font-weight:600;color:var(--accent-green)">FREE</span>
+    </div>
+    <div class="log-box" id="pess-log"></div>
+  </div>
+  <!-- Optimistic -->
+  <div class="panel">
+    <h3>Optimistic (CAS / version column)</h3>
+    <div style="text-align:center;margin:8px 0">
+      <span style="font-size:13px;color:var(--text-3)">Balance: $</span><span id="opt-balance" style="font-size:20px;font-weight:700;color:var(--accent-blue)">1000</span>
+      <span style="font-size:13px;color:var(--text-3);margin-left:12px">Version:</span>
+      <span id="opt-version" style="font-size:14px;font-weight:600;color:var(--accent-purple)">1</span>
+    </div>
+    <div class="log-box" id="opt-log"></div>
+  </div>
+</div>
+
+<h3>OCC + MVCC (Postgres snapshot isolation)</h3>
+<div class="controls">
+  <button onclick="sec2MvccRun()" id="sec2-mvcc-btn">Run MVCC animation</button>
+  <button onclick="sec2MvccReset()">Reset</button>
+</div>
+<div class="panel">
+  <div style="text-align:center;margin:8px 0">
+    <span style="font-size:13px;color:var(--text-3)">Balance: $</span><span id="mvcc-balance" style="font-size:20px;font-weight:700;color:var(--accent-blue)">1000</span>
+    <span style="font-size:13px;color:var(--text-3);margin-left:12px">xmin/xmax tracking active</span>
+  </div>
+  <div class="log-box" id="mvcc-log"></div>
+</div>
+
+<div class="takeaway">
+  <strong>Takeaway:</strong>
+  <ul>
+    <li><strong>Pessimistic</strong> = block. Guarantees no conflict but reduces throughput.</li>
+    <li><strong>Optimistic</strong> = retry. Higher throughput under low contention; retry storms under high contention.</li>
+    <li><strong>MVCC</strong> = engine-level optimistic control. No explicit version column needed; the DB checks tuple visibility at commit time.</li>
+    <li>Optimistic wins when most transactions don't collide. Pessimistic wins when they usually do.</li>
+  </ul>
+</div>
+
+<!-- ================================================================== -->
+<!-- SECTION 3: CAS + Lock-Free Patterns -->
+<!-- ================================================================== -->
+<h2>3. CAS + lock-free patterns</h2>
+
+<h3>Compare-And-Swap: the atomic building block</h3>
+<div class="controls">
+  <button onclick="sec3CasRun()" id="sec3-cas-btn">Run CAS counter</button>
+  <button onclick="sec3CasReset()">Reset</button>
+</div>
+<div class="panel">
+  <div style="text-align:center;margin:8px 0">
+    <span style="font-size:13px;color:var(--text-3)">Shared counter:</span>
+    <span id="cas-counter" style="font-size:24px;font-weight:700;color:var(--accent-blue);margin:0 8px">0</span>
+    <span style="font-size:13px;color:var(--text-3)">(target: 3 increments)</span>
+  </div>
+  <div class="log-box" id="cas-log"></div>
+</div>
+
+<h3>The ABA problem</h3>
+<div class="controls">
+  <button onclick="sec3AbaRun()" id="sec3-aba-btn">Run ABA demo</button>
+  <button onclick="sec3AbaReset()">Reset</button>
+</div>
+<div class="panel">
+  <div style="text-align:center;margin:8px 0">
+    <span style="font-size:13px;color:var(--text-3)">Shared value X:</span>
+    <span id="aba-value" style="font-size:24px;font-weight:700;color:var(--accent-blue);margin:0 8px">10</span>
+    <span style="font-size:13px;color:var(--text-3);margin-left:12px">Tagged version:</span>
+    <span id="aba-tag" style="font-size:14px;font-weight:600;color:var(--accent-purple)">0</span>
+  </div>
+  <div class="log-box" id="aba-log"></div>
+</div>
+
+<h3>Lock-free queue (Michael-Scott)</h3>
+<div class="controls">
+  <button onclick="sec3QueueRun()" id="sec3-queue-btn">Run enqueue/dequeue</button>
+  <button onclick="sec3QueueReset()">Reset</button>
+</div>
+<div class="panel">
+  <div style="text-align:center;margin:8px 0;font-size:13px;color:var(--text-3)">
+    Queue state: <span id="queue-display" style="color:var(--accent-cyan);font-family:'SF Mono','Fira Code',monospace">[ HEAD ] -> null</span>
+  </div>
+  <div class="log-box" id="queue-log"></div>
+</div>
+
+<div class="takeaway">
+  <strong>Takeaway:</strong>
+  <ul>
+    <li><strong>CAS</strong> = the foundation of every lock-free data structure. Read, compute, swap-if-unchanged, retry on failure.</li>
+    <li><strong>ABA</strong>: value returns to original between read and CAS -- CAS succeeds incorrectly. Fix: tagged pointers (version + value).</li>
+    <li>Lock-free is faster on the fast path, harder to write correctly. Memory reclamation (hazard pointers, epoch-based) is the real complexity.</li>
+  </ul>
+</div>
+
+<!-- ================================================================== -->
+<!-- SECTION 4: Leader Election Patterns -->
+<!-- ================================================================== -->
+<h2>4. Leader election patterns</h2>
+
+<div class="controls">
+  <button onclick="sec4Run()" id="sec4-run-btn">Run election</button>
+  <button onclick="sec4Crash()" id="sec4-crash-btn" disabled>Crash leader</button>
+  <button onclick="sec4Reset()">Reset</button>
+</div>
+
+<div class="three-col">
+  <!-- Bully -->
+  <div class="panel">
+    <h3>Bully algorithm</h3>
+    <p style="font-size:12px;color:var(--text-3);text-align:center;margin:0 0 8px">Highest ID wins. Academic.</p>
+    <svg id="bully-svg" viewBox="0 0 300 200"></svg>
+    <div class="log-box" id="bully-log" style="max-height:120px"></div>
+  </div>
+  <!-- Lease-based -->
+  <div class="panel">
+    <h3>Lease-based (etcd/ZK)</h3>
+    <p style="font-size:12px;color:var(--text-3);text-align:center;margin:0 0 8px">Time-bounded lease + renewal.</p>
+    <svg id="lease-svg" viewBox="0 0 300 200"></svg>
+    <div class="log-box" id="lease-log" style="max-height:120px"></div>
+  </div>
+  <!-- K8s -->
+  <div class="panel">
+    <h3>K8s lease objects</h3>
+    <p style="font-size:12px;color:var(--text-3);text-align:center;margin:0 0 8px">etcd-backed via apiserver.</p>
+    <svg id="k8s-svg" viewBox="0 0 300 200"></svg>
+    <div class="log-box" id="k8s-log" style="max-height:120px"></div>
+  </div>
+</div>
+
+<div class="takeaway">
+  <strong>Takeaway:</strong>
+  <ul>
+    <li><strong>Lease-based</strong> is the production answer -- cheap, simple, well-understood failure modes.</li>
+    <li>Underlying coordination via etcd / ZooKeeper / Chubby. The coordinator is the hard part.</li>
+    <li><strong>Bully</strong> is mostly academic (O(n^2) messages, assumes reliable failure detection).</li>
+    <li><strong>Raft/Paxos</strong> election is per-term voting -- covered separately. Paxos is multi-proposer; Raft restricts to single leader per term.</li>
+  </ul>
+</div>
+
+<!-- ================================================================== -->
+<!-- SECTION 5: Deadlock -- Detection + Prevention -->
+<!-- ================================================================== -->
+<h2>5. Deadlock -- detection + prevention</h2>
+
+<h3>Wait-for graph: 4-thread deadlock</h3>
+<div class="controls">
+  <button onclick="sec5DeadlockRun()" id="sec5-dl-btn">Run deadlock</button>
+  <button onclick="sec5DeadlockReset()">Reset</button>
+</div>
+<div class="panel">
+  <svg id="deadlock-svg" viewBox="0 0 500 320"></svg>
+  <div class="log-box" id="deadlock-log"></div>
+</div>
+
+<h3>Prevention: canonical lock ordering</h3>
+<div class="controls">
+  <button onclick="sec5PreventRun()" id="sec5-prev-btn">Run with ordering</button>
+  <button onclick="sec5PreventReset()">Reset</button>
+</div>
+<div class="panel">
+  <svg id="prevent-svg" viewBox="0 0 500 220"></svg>
+  <div class="log-box" id="prevent-log"></div>
+</div>
+
+<h3>Livelock: mutual invalidation</h3>
+<div class="controls">
+  <button onclick="sec5LivelockRun()" id="sec5-ll-btn">Run livelock</button>
+  <button onclick="sec5LivelockReset()">Reset</button>
+</div>
+<div class="panel">
+  <div style="text-align:center;margin:8px 0">
+    <span style="font-size:13px;color:var(--text-3)">Shared value:</span>
+    <span id="livelock-val" style="font-size:20px;font-weight:700;color:var(--accent-blue);margin:0 8px">0</span>
+    <span style="font-size:13px;color:var(--text-3);margin-left:12px">Retries:</span>
+    <span id="livelock-retries" style="font-size:14px;font-weight:600;color:var(--accent-red)">0</span>
+  </div>
+  <div class="log-box" id="livelock-log"></div>
+</div>
+
+<div class="takeaway">
+  <strong>Takeaway:</strong>
+  <ul>
+    <li><strong>Prevention via lock ordering</strong> = always works, requires discipline. Acquire locks in canonical (e.g. lexicographic) order of resource IDs. No cycle possible.</li>
+    <li><strong>Detection + abort</strong> = engine-level (Postgres builds wait-for graph periodically, aborts one transaction on cycle). Transparent but costly.</li>
+    <li><strong>Livelock</strong> = threads keep retrying CAS, each invalidating the other. Fix: exponential backoff with jitter.</li>
+  </ul>
+</div>
+
+<!-- ================================================================== -->
+<!-- SECTION 6: Coordination Primitives -->
+<!-- ================================================================== -->
+<h2>6. Coordination primitives</h2>
+
+<div class="controls">
+  <button onclick="sec6Run()" id="sec6-run-btn">Run all</button>
+  <button onclick="sec6Reset()">Reset</button>
+</div>
+
+<div class="side-by-side">
+  <!-- Barrier -->
+  <div class="panel">
+    <h3>Barrier (4 workers)</h3>
+    <p style="font-size:12px;color:var(--text-3);text-align:center;margin:0 0 8px">None proceed until all N arrive.</p>
+    <div id="barrier-threads"></div>
+    <div class="log-box" id="barrier-log" style="max-height:120px"></div>
+  </div>
+  <!-- CountDownLatch -->
+  <div class="panel">
+    <h3>CountDownLatch (count=4)</h3>
+    <p style="font-size:12px;color:var(--text-3);text-align:center;margin:0 0 8px">Countdown to zero, then release. One-shot.</p>
+    <div style="text-align:center;margin:4px 0">
+      <span style="font-size:13px;color:var(--text-3)">Counter:</span>
+      <span id="latch-counter" style="font-size:20px;font-weight:700;color:var(--accent-yellow);margin:0 6px">4</span>
+    </div>
+    <div id="latch-threads"></div>
+    <div class="log-box" id="latch-log" style="max-height:120px"></div>
+  </div>
+</div>
+
+<div class="side-by-side">
+  <!-- Condition variable -->
+  <div class="panel">
+    <h3>Condition variable (producer-consumer)</h3>
+    <p style="font-size:12px;color:var(--text-3);text-align:center;margin:0 0 8px">wait() releases mutex + sleeps; notify() wakes + re-acquires.</p>
+    <div style="text-align:center;margin:4px 0">
+      <span style="font-size:13px;color:var(--text-3)">Buffer:</span>
+      <span id="condvar-buffer" style="font-size:14px;font-weight:600;color:var(--accent-cyan);margin:0 6px;font-family:'SF Mono','Fira Code',monospace">[ ]</span>
+    </div>
+    <div class="log-box" id="condvar-log" style="max-height:140px"></div>
+  </div>
+  <!-- Memory barrier -->
+  <div class="panel">
+    <h3>Memory barrier (CPU-level)</h3>
+    <p style="font-size:12px;color:var(--text-3);text-align:center;margin:0 0 8px">Ordering guarantees for memory operations.</p>
+    <div style="padding:12px;font-size:13px;color:var(--text-2);line-height:1.7">
+      <p style="margin:0 0 8px"><strong style="color:var(--accent-yellow)">Store barrier</strong> (sfence): all stores before the barrier are visible before any store after it.</p>
+      <p style="margin:0 0 8px"><strong style="color:var(--accent-blue)">Load barrier</strong> (lfence): all loads before the barrier complete before any load after it.</p>
+      <p style="margin:0 0 8px"><strong style="color:var(--accent-purple)">Full barrier</strong> (mfence): both. Java <code>volatile</code> inserts full barriers. Go <code>sync/atomic</code> likewise.</p>
+      <p style="margin:0;color:var(--text-3);font-size:12px">Rarely managed directly in application code. Relevant when reasoning about <code>volatile</code>, <code>AtomicReference</code>, or <code>sync.Once</code>.</p>
+    </div>
+  </div>
+</div>
+
+<div class="takeaway">
+  <strong>Takeaway:</strong>
+  <ul>
+    <li><strong>Barrier</strong> = rendezvous point. All N must arrive before any proceed. Use: parallel computation phases (MapReduce shuffle boundary).</li>
+    <li><strong>CountDownLatch</strong> = one-shot signal. Workers count down; waiters released at zero. Use: "wait for all services to be ready."</li>
+    <li><strong>Condition variable</strong> = event subscription paired with a mutex. The fundamental building block for producer-consumer, bounded buffers, thread pools.</li>
+    <li><strong>Memory barrier</strong> = CPU-level ordering. You rarely manage it directly, but you must know that <code>volatile</code> / atomics insert them.</li>
+  </ul>
+</div>
+
+<!-- ================================================================== -->
+<!-- SECTION 7: Practical Patterns Library -->
+<!-- ================================================================== -->
+<h2>7. Practical patterns library</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>Pattern</th>
+      <th>Use case</th>
+      <th>Primitive</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Idempotency key</strong></td>
+      <td>Exactly-once across retries (payment, order creation)</td>
+      <td>DB unique index OR Redis <code>SETNX</code> with TTL</td>
+    </tr>
+    <tr>
+      <td><strong>Distributed mutex</strong></td>
+      <td>Cross-process critical section (migration, batch job)</td>
+      <td>etcd lease + <strong>fencing token</strong></td>
+    </tr>
+    <tr>
+      <td><strong>Resource pool</strong></td>
+      <td>Bounded concurrency (DB connections, HTTP clients)</td>
+      <td>Counting semaphore</td>
+    </tr>
+    <tr>
+      <td><strong>Worker pool dispatch</strong></td>
+      <td>Distribute jobs to workers fairly</td>
+      <td>SQS / Postgres <code>FOR UPDATE SKIP LOCKED</code></td>
+    </tr>
+    <tr>
+      <td><strong>Single-leader execution</strong></td>
+      <td>Exactly-once cron, scheduler, singleton service</td>
+      <td>Lease-based leader election</td>
+    </tr>
+    <tr>
+      <td><strong>Cross-service ordering</strong></td>
+      <td>Preserve causal order across microservices</td>
+      <td>Partitioning by key (Kafka) OR sequence on resource server</td>
+    </tr>
+    <tr>
+      <td><strong>Backpressure</strong></td>
+      <td>Upstream throttle when downstream is saturated</td>
+      <td>Semaphore at gateway / rate-limit token bucket</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="takeaway" style="border-left-color: var(--accent-yellow);">
+  <strong style="color: var(--accent-yellow);">The two senior signals:</strong>
+  <ul>
+    <li><strong>Name the failure mode explicitly.</strong> Process pause, network partition, GC stop-the-world, clock skew. "What happens when the lock holder pauses for 30 seconds?" -- you should have an answer.</li>
+    <li><strong>Mention fencing tokens whenever distributed locks come up.</strong> A lock without a fencing token is not safe: the holder can pause past its lease expiry, another node acquires the lock, and now two nodes think they hold it. The fencing token (monotonically increasing, checked by the storage layer) prevents stale writes. Most engineers don't mention this.</li>
+  </ul>
+</div>
+
+<!-- ================================================================== -->
+<!-- JAVASCRIPT -->
+<!-- ================================================================== -->
+<script>
+/* ---- Utility ---- */
+function addLog(id, text, cls) {
+  var box = document.getElementById(id);
+  var d = document.createElement('div');
+  d.className = 'log-line' + (cls ? ' ' + cls : '');
+  d.textContent = text;
+  box.appendChild(d);
+  box.scrollTop = box.scrollHeight;
+}
+function clearLog(id) { document.getElementById(id).innerHTML = ''; }
+
+function delay(ms) { return new Promise(function(r) { setTimeout(r, ms); }); }
+
+function makeThreadRows(containerId, labels, colors) {
+  var c = document.getElementById(containerId);
+  c.innerHTML = '';
+  labels.forEach(function(lbl, i) {
+    var row = document.createElement('div');
+    row.className = 'thread-row';
+    row.innerHTML = '<div class="thread-label" style="color:' + colors[i] + '">' + lbl + '</div>' +
+      '<div class="thread-bar-container"><div class="thread-bar" id="' + containerId + '-bar-' + i + '" style="width:0%;background:' + colors[i] + '"></div></div>' +
+      '<div class="thread-status" id="' + containerId + '-status-' + i + '" style="color:var(--text-3)">idle</div>';
+    c.appendChild(row);
+  });
+}
+
+function setBar(containerId, idx, pct, statusText, statusColor) {
+  var bar = document.getElementById(containerId + '-bar-' + idx);
+  var st = document.getElementById(containerId + '-status-' + idx);
+  if (bar) bar.style.width = pct + '%';
+  if (st) { st.textContent = statusText; st.style.color = statusColor || 'var(--text-3)'; }
+}
+
+/* ================================================================== */
+/* SECTION 1: Mutex / RWLock / Semaphore                              */
+/* ================================================================== */
+var sec1Running = false;
+
+function sec1Init() {
+  var mutexColors = ['var(--accent-red)', 'var(--accent-blue)', 'var(--accent-green)'];
+  makeThreadRows('mutex-threads', ['T1', 'T2', 'T3'], mutexColors);
+  var rwColors = ['var(--accent-cyan)', 'var(--accent-blue)', 'var(--accent-green)', 'var(--accent-purple)', 'var(--accent-yellow)', 'var(--accent-red)'];
+  makeThreadRows('rwlock-threads', ['R1', 'R2', 'R3', 'R4', 'R5', 'W1'], rwColors);
+  var semColors = ['var(--accent-red)', 'var(--accent-blue)', 'var(--accent-green)', 'var(--accent-yellow)', 'var(--accent-purple)'];
+  makeThreadRows('sem-threads', ['T1', 'T2', 'T3', 'T4', 'T5'], semColors);
+}
+
+async function sec1Run() {
+  if (sec1Running) return;
+  sec1Running = true;
+  document.getElementById('sec1-run-btn').disabled = true;
+  sec1Reset();
+  sec1Init();
+  await Promise.all([animMutex(), animRWLock(), animSemaphore()]);
+  sec1Running = false;
+  document.getElementById('sec1-run-btn').disabled = false;
+}
+
+function sec1Reset() {
+  sec1Running = false;
+  clearLog('mutex-log'); clearLog('rwlock-log'); clearLog('sem-log');
+  sec1Init();
+  document.getElementById('sec1-run-btn').disabled = false;
+}
+
+async function animMutex() {
+  var labels = ['T1', 'T2', 'T3'];
+  var order = [0, 1, 2];
+  // T1 tries first, gets lock
+  addLog('mutex-log', 'T1: lock()', 'waiting');
+  setBar('mutex-threads', 0, 30, 'waiting', 'var(--accent-yellow)');
+  await delay(400);
+  addLog('mutex-log', 'T1: acquired', 'acquired');
+  setBar('mutex-threads', 0, 100, 'HOLDING', 'var(--accent-green)');
+  // T2 tries, blocked
+  await delay(300);
+  addLog('mutex-log', 'T2: lock() -- blocked', 'blocked');
+  setBar('mutex-threads', 1, 30, 'blocked', 'var(--accent-red)');
+  // T3 tries, blocked
+  await delay(300);
+  addLog('mutex-log', 'T3: lock() -- blocked', 'blocked');
+  setBar('mutex-threads', 2, 30, 'blocked', 'var(--accent-red)');
+  // T1 releases
+  await delay(800);
+  addLog('mutex-log', 'T1: unlock()', 'released');
+  setBar('mutex-threads', 0, 0, 'done', 'var(--text-3)');
+  // T2 gets lock
+  await delay(200);
+  addLog('mutex-log', 'T2: acquired', 'acquired');
+  setBar('mutex-threads', 1, 100, 'HOLDING', 'var(--accent-green)');
+  await delay(800);
+  addLog('mutex-log', 'T2: unlock()', 'released');
+  setBar('mutex-threads', 1, 0, 'done', 'var(--text-3)');
+  // T3 gets lock
+  await delay(200);
+  addLog('mutex-log', 'T3: acquired', 'acquired');
+  setBar('mutex-threads', 2, 100, 'HOLDING', 'var(--accent-green)');
+  await delay(800);
+  addLog('mutex-log', 'T3: unlock()', 'released');
+  setBar('mutex-threads', 2, 0, 'done', 'var(--text-3)');
+  addLog('mutex-log', '-- all threads done --', 'info');
+}
+
+async function animRWLock() {
+  // Phase 1: 5 readers concurrently
+  addLog('rwlock-log', 'R1-R5: read_lock()', 'waiting');
+  for (var i = 0; i < 5; i++) {
+    setBar('rwlock-threads', i, 100, 'READING', 'var(--accent-green)');
+  }
+  await delay(200);
+  addLog('rwlock-log', 'R1-R5: all reading concurrently', 'acquired');
+  // Writer tries, blocked
+  await delay(600);
+  addLog('rwlock-log', 'W1: write_lock() -- blocked by readers', 'blocked');
+  setBar('rwlock-threads', 5, 30, 'blocked', 'var(--accent-red)');
+  // Readers drain one by one
+  await delay(500);
+  for (var i = 0; i < 5; i++) {
+    await delay(200);
+    addLog('rwlock-log', 'R' + (i+1) + ': read_unlock()', 'released');
+    setBar('rwlock-threads', i, 0, 'done', 'var(--text-3)');
+  }
+  // Writer acquires
+  await delay(200);
+  addLog('rwlock-log', 'W1: acquired (exclusive)', 'acquired');
+  setBar('rwlock-threads', 5, 100, 'WRITING', 'var(--accent-orange)');
+  // New readers arrive during write, blocked
+  await delay(400);
+  addLog('rwlock-log', 'R1-R3: read_lock() -- blocked by writer', 'blocked');
+  for (var i = 0; i < 3; i++) {
+    setBar('rwlock-threads', i, 30, 'blocked', 'var(--accent-red)');
+  }
+  // Writer releases
+  await delay(600);
+  addLog('rwlock-log', 'W1: write_unlock()', 'released');
+  setBar('rwlock-threads', 5, 0, 'done', 'var(--text-3)');
+  await delay(200);
+  addLog('rwlock-log', 'R1-R3: reading again', 'acquired');
+  for (var i = 0; i < 3; i++) {
+    setBar('rwlock-threads', i, 100, 'READING', 'var(--accent-green)');
+  }
+  await delay(600);
+  for (var i = 0; i < 3; i++) {
+    setBar('rwlock-threads', i, 0, 'done', 'var(--text-3)');
+  }
+  addLog('rwlock-log', '-- all threads done --', 'info');
+}
+
+async function animSemaphore() {
+  // 3 permits, 5 contenders
+  var permits = 3;
+  var acquired = [];
+  // First 3 acquire
+  for (var i = 0; i < 3; i++) {
+    addLog('sem-log', 'T' + (i+1) + ': acquire() -- permit granted (' + (permits - i - 1) + ' left)', 'acquired');
+    setBar('sem-threads', i, 100, 'HOLDING', 'var(--accent-green)');
+  }
+  await delay(300);
+  // T4, T5 blocked
+  addLog('sem-log', 'T4: acquire() -- no permits, waiting', 'blocked');
+  setBar('sem-threads', 3, 30, 'blocked', 'var(--accent-red)');
+  await delay(200);
+  addLog('sem-log', 'T5: acquire() -- no permits, waiting', 'blocked');
+  setBar('sem-threads', 4, 30, 'blocked', 'var(--accent-red)');
+  // T1 releases
+  await delay(700);
+  addLog('sem-log', 'T1: release()', 'released');
+  setBar('sem-threads', 0, 0, 'done', 'var(--text-3)');
+  await delay(200);
+  addLog('sem-log', 'T4: acquired', 'acquired');
+  setBar('sem-threads', 3, 100, 'HOLDING', 'var(--accent-green)');
+  // T2 releases
+  await delay(500);
+  addLog('sem-log', 'T2: release()', 'released');
+  setBar('sem-threads', 1, 0, 'done', 'var(--text-3)');
+  await delay(200);
+  addLog('sem-log', 'T5: acquired', 'acquired');
+  setBar('sem-threads', 4, 100, 'HOLDING', 'var(--accent-green)');
+  // Remaining release
+  await delay(500);
+  addLog('sem-log', 'T3: release()', 'released');
+  setBar('sem-threads', 2, 0, 'done', 'var(--text-3)');
+  await delay(500);
+  addLog('sem-log', 'T4: release()', 'released');
+  setBar('sem-threads', 3, 0, 'done', 'var(--text-3)');
+  await delay(500);
+  addLog('sem-log', 'T5: release()', 'released');
+  setBar('sem-threads', 4, 0, 'done', 'var(--text-3)');
+  addLog('sem-log', '-- all threads done --', 'info');
+}
+
+sec1Init();
+
+/* ================================================================== */
+/* SECTION 2: Optimistic vs Pessimistic                               */
+/* ================================================================== */
+var sec2Running = false;
+
+function sec2Reset() {
+  sec2Running = false;
+  document.getElementById('pess-balance').textContent = '1000';
+  document.getElementById('pess-lock').textContent = 'FREE';
+  document.getElementById('pess-lock').style.color = 'var(--accent-green)';
+  document.getElementById('opt-balance').textContent = '1000';
+  document.getElementById('opt-version').textContent = '1';
+  clearLog('pess-log'); clearLog('opt-log');
+  document.getElementById('sec2-run-btn').disabled = false;
+}
+
+async function sec2Run() {
+  if (sec2Running) return;
+  sec2Running = true;
+  document.getElementById('sec2-run-btn').disabled = true;
+  sec2Reset();
+  await Promise.all([animPessimistic(), animOptimistic()]);
+  sec2Running = false;
+  document.getElementById('sec2-run-btn').disabled = false;
+}
+
+async function animPessimistic() {
+  var balEl = document.getElementById('pess-balance');
+  var lockEl = document.getElementById('pess-lock');
+
+  addLog('pess-log', 'A: BEGIN', 'info');
+  await delay(300);
+  addLog('pess-log', 'A: SELECT balance FROM accounts WHERE id=1 FOR UPDATE', 'info');
+  await delay(300);
+  addLog('pess-log', 'A: acquired row lock, balance=$1000', 'acquired');
+  lockEl.textContent = 'A'; lockEl.style.color = 'var(--accent-red)';
+
+  await delay(300);
+  addLog('pess-log', 'B: BEGIN', 'info');
+  await delay(200);
+  addLog('pess-log', 'B: SELECT ... FOR UPDATE -- BLOCKED (A holds lock)', 'blocked');
+
+  await delay(600);
+  addLog('pess-log', 'A: UPDATE balance = 1000 - 200 = 800', 'info');
+  balEl.textContent = '800';
+  await delay(300);
+  addLog('pess-log', 'A: COMMIT -- lock released', 'released');
+  lockEl.textContent = 'FREE'; lockEl.style.color = 'var(--accent-green)';
+
+  await delay(200);
+  addLog('pess-log', 'B: lock acquired, reads balance=$800', 'acquired');
+  lockEl.textContent = 'B'; lockEl.style.color = 'var(--accent-blue)';
+  await delay(400);
+  addLog('pess-log', 'B: UPDATE balance = 800 - 300 = 500', 'info');
+  balEl.textContent = '500';
+  await delay(300);
+  addLog('pess-log', 'B: COMMIT', 'released');
+  lockEl.textContent = 'FREE'; lockEl.style.color = 'var(--accent-green)';
+  addLog('pess-log', 'Final balance: $500 (correct)', 'success');
+}
+
+async function animOptimistic() {
+  var balEl = document.getElementById('opt-balance');
+  var verEl = document.getElementById('opt-version');
+
+  await delay(100);
+  addLog('opt-log', 'A: SELECT balance, version WHERE id=1', 'info');
+  addLog('opt-log', 'A: reads balance=$1000, version=1', 'info');
+  await delay(200);
+  addLog('opt-log', 'B: SELECT balance, version WHERE id=1', 'info');
+  addLog('opt-log', 'B: reads balance=$1000, version=1', 'info');
+
+  await delay(600);
+  addLog('opt-log', 'A: UPDATE SET balance=800, version=2 WHERE version=1', 'info');
+  await delay(300);
+  addLog('opt-log', 'A: 1 row affected -- success', 'success');
+  balEl.textContent = '800'; verEl.textContent = '2';
+
+  await delay(400);
+  addLog('opt-log', 'B: UPDATE SET balance=700, version=2 WHERE version=1', 'info');
+  await delay(300);
+  addLog('opt-log', 'B: 0 rows affected -- version mismatch!', 'fail');
+
+  await delay(300);
+  addLog('opt-log', 'B: RETRY -- re-read balance=$800, version=2', 'retry');
+  await delay(400);
+  addLog('opt-log', 'B: UPDATE SET balance=500, version=3 WHERE version=2', 'info');
+  await delay(300);
+  addLog('opt-log', 'B: 1 row affected -- success', 'success');
+  balEl.textContent = '500'; verEl.textContent = '3';
+  addLog('opt-log', 'Final balance: $500 (correct after retry)', 'success');
+}
+
+/* MVCC */
+var sec2MvccRunning = false;
+
+function sec2MvccReset() {
+  sec2MvccRunning = false;
+  document.getElementById('mvcc-balance').textContent = '1000';
+  clearLog('mvcc-log');
+  document.getElementById('sec2-mvcc-btn').disabled = false;
+}
+
+async function sec2MvccRun() {
+  if (sec2MvccRunning) return;
+  sec2MvccRunning = true;
+  document.getElementById('sec2-mvcc-btn').disabled = true;
+  sec2MvccReset();
+
+  var balEl = document.getElementById('mvcc-balance');
+
+  addLog('mvcc-log', 'T1 begins (txid=100), snapshot at current state', 'info');
+  await delay(300);
+  addLog('mvcc-log', 'T1: SELECT balance => $1000 (visible: xmin<100, no xmax)', 'info');
+
+  await delay(400);
+  addLog('mvcc-log', 'T2 begins (txid=101), snapshot at current state', 'info');
+  await delay(300);
+  addLog('mvcc-log', 'T2: SELECT balance => $1000 (same snapshot)', 'info');
+
+  await delay(500);
+  addLog('mvcc-log', 'T2: UPDATE balance=700 -- creates new tuple (xmin=101)', 'info');
+  await delay(300);
+  addLog('mvcc-log', 'T2: COMMIT -- tuple (xmin=101) now visible to new txns', 'success');
+  balEl.textContent = '700';
+
+  await delay(500);
+  addLog('mvcc-log', 'T1: UPDATE balance=800 -- writes to same row', 'info');
+  await delay(300);
+  addLog('mvcc-log', 'T1: COMMIT attempt...', 'waiting');
+  await delay(400);
+  addLog('mvcc-log', 'T1: CONFLICT -- row was modified by T2 (committed after T1 snapshot)', 'fail');
+  addLog('mvcc-log', 'T1: ERROR: could not serialize access -- transaction aborted', 'fail');
+
+  await delay(300);
+  addLog('mvcc-log', 'T1: must retry with fresh snapshot', 'retry');
+  await delay(300);
+  addLog('mvcc-log', 'T1 (retry, txid=102): SELECT => $700, UPDATE => $500', 'info');
+  await delay(300);
+  addLog('mvcc-log', 'T1: COMMIT -- success', 'success');
+  balEl.textContent = '500';
+  addLog('mvcc-log', 'Final balance: $500 (correct, T1 retried)', 'success');
+
+  sec2MvccRunning = false;
+  document.getElementById('sec2-mvcc-btn').disabled = false;
+}
+
+/* ================================================================== */
+/* SECTION 3: CAS + Lock-Free                                         */
+/* ================================================================== */
+
+/* CAS counter */
+var sec3CasRunning = false;
+function sec3CasReset() {
+  sec3CasRunning = false;
+  document.getElementById('cas-counter').textContent = '0';
+  clearLog('cas-log');
+  document.getElementById('sec3-cas-btn').disabled = false;
+}
+
+async function sec3CasRun() {
+  if (sec3CasRunning) return;
+  sec3CasRunning = true;
+  document.getElementById('sec3-cas-btn').disabled = true;
+  sec3CasReset();
+
+  var ctrEl = document.getElementById('cas-counter');
+  var counter = 0;
+
+  // Worker A increments
+  addLog('cas-log', 'Worker A: read counter = 0', 'info');
+  await delay(300);
+  addLog('cas-log', 'Worker B: read counter = 0', 'info');
+  await delay(400);
+
+  // A tries CAS(0,1) -- succeeds
+  addLog('cas-log', 'Worker A: CAS(expected=0, new=1)', 'info');
+  await delay(200);
+  counter = 1; ctrEl.textContent = '1';
+  addLog('cas-log', 'Worker A: SUCCESS -- counter is now 1', 'success');
+
+  await delay(300);
+  // B tries CAS(0,1) -- fails (counter is now 1)
+  addLog('cas-log', 'Worker B: CAS(expected=0, new=1)', 'info');
+  await delay(200);
+  addLog('cas-log', 'Worker B: FAILED -- expected 0 but found 1', 'fail');
+
+  await delay(300);
+  // B retries: read again
+  addLog('cas-log', 'Worker B: retry -- re-read counter = 1', 'retry');
+  await delay(300);
+  addLog('cas-log', 'Worker B: CAS(expected=1, new=2)', 'info');
+  await delay(200);
+  counter = 2; ctrEl.textContent = '2';
+  addLog('cas-log', 'Worker B: SUCCESS -- counter is now 2', 'success');
+
+  await delay(300);
+  // Worker C
+  addLog('cas-log', 'Worker C: read counter = 2', 'info');
+  await delay(300);
+  addLog('cas-log', 'Worker C: CAS(expected=2, new=3)', 'info');
+  await delay(200);
+  counter = 3; ctrEl.textContent = '3';
+  addLog('cas-log', 'Worker C: SUCCESS -- counter is now 3', 'success');
+  addLog('cas-log', '-- all 3 increments complete --', 'info');
+
+  sec3CasRunning = false;
+  document.getElementById('sec3-cas-btn').disabled = false;
+}
+
+/* ABA problem */
+var sec3AbaRunning = false;
+function sec3AbaReset() {
+  sec3AbaRunning = false;
+  document.getElementById('aba-value').textContent = '10';
+  document.getElementById('aba-tag').textContent = '0';
+  clearLog('aba-log');
+  document.getElementById('sec3-aba-btn').disabled = false;
+}
+
+async function sec3AbaRun() {
+  if (sec3AbaRunning) return;
+  sec3AbaRunning = true;
+  document.getElementById('sec3-aba-btn').disabled = true;
+  sec3AbaReset();
+
+  var valEl = document.getElementById('aba-value');
+  var tagEl = document.getElementById('aba-tag');
+
+  addLog('aba-log', '--- Without tagged pointer (BUG) ---', 'info');
+  addLog('aba-log', 'Thread A: reads X = 10, wants to set X = 11', 'info');
+  await delay(400);
+  addLog('aba-log', 'Thread A: preempted (GC pause / context switch)', 'waiting');
+
+  await delay(400);
+  addLog('aba-log', 'Thread B: X = 10 -> X = 20', 'info');
+  valEl.textContent = '20';
+  await delay(300);
+  addLog('aba-log', 'Thread B: X = 20 -> X = 10 (reverted!)', 'info');
+  valEl.textContent = '10';
+
+  await delay(400);
+  addLog('aba-log', 'Thread A: wakes up, CAS(expected=10, new=11)', 'info');
+  await delay(200);
+  valEl.textContent = '11';
+  addLog('aba-log', 'Thread A: SUCCESS -- but X went 10->20->10 in between!', 'fail');
+  addLog('aba-log', 'A missed B\'s intermediate state. Data corruption possible.', 'fail');
+
+  await delay(600);
+  valEl.textContent = '10'; tagEl.textContent = '0';
+  addLog('aba-log', '', 'info');
+  addLog('aba-log', '--- With tagged pointer (SAFE) ---', 'info');
+  addLog('aba-log', 'Thread A: reads (X=10, tag=0), wants (X=11, tag=1)', 'info');
+
+  await delay(400);
+  addLog('aba-log', 'Thread A: preempted', 'waiting');
+  await delay(300);
+  addLog('aba-log', 'Thread B: CAS((10,0) -> (20,1)) SUCCESS', 'info');
+  valEl.textContent = '20'; tagEl.textContent = '1';
+  await delay(300);
+  addLog('aba-log', 'Thread B: CAS((20,1) -> (10,2)) SUCCESS', 'info');
+  valEl.textContent = '10'; tagEl.textContent = '2';
+
+  await delay(400);
+  addLog('aba-log', 'Thread A: wakes, CAS(expected=(10,0), new=(11,1))', 'info');
+  await delay(200);
+  addLog('aba-log', 'Thread A: FAILED -- tag is 2, expected 0', 'success');
+  addLog('aba-log', 'Thread A: retries with fresh read -- safe', 'success');
+
+  sec3AbaRunning = false;
+  document.getElementById('sec3-aba-btn').disabled = false;
+}
+
+/* Lock-free queue */
+var sec3QueueRunning = false;
+function sec3QueueReset() {
+  sec3QueueRunning = false;
+  document.getElementById('queue-display').textContent = '[ HEAD ] -> null';
+  clearLog('queue-log');
+  document.getElementById('sec3-queue-btn').disabled = false;
+}
+
+async function sec3QueueRun() {
+  if (sec3QueueRunning) return;
+  sec3QueueRunning = true;
+  document.getElementById('sec3-queue-btn').disabled = true;
+  sec3QueueReset();
+
+  var qEl = document.getElementById('queue-display');
+  var queue = [];
+
+  function renderQ() {
+    if (queue.length === 0) { qEl.textContent = '[ HEAD ] -> null'; return; }
+    qEl.textContent = '[ HEAD ] -> ' + queue.map(function(v) { return '[' + v + ']'; }).join(' -> ') + ' -> null  (TAIL)';
+  }
+
+  addLog('queue-log', 'Michael-Scott lock-free queue (CAS on tail/head pointers)', 'info');
+  await delay(400);
+
+  // Enqueue A
+  addLog('queue-log', 'P1: enqueue("A") -- read tail, CAS tail.next = A', 'info');
+  await delay(300);
+  queue.push('A'); renderQ();
+  addLog('queue-log', 'P1: CAS tail -> A (swing tail forward)', 'success');
+
+  await delay(400);
+  // Enqueue B -- concurrent with C
+  addLog('queue-log', 'P2: enqueue("B") -- read tail (= A)', 'info');
+  await delay(200);
+  addLog('queue-log', 'P3: enqueue("C") -- read tail (= A) concurrently', 'info');
+  await delay(300);
+  addLog('queue-log', 'P2: CAS A.next = B -- SUCCESS', 'success');
+  queue.push('B'); renderQ();
+  await delay(200);
+  addLog('queue-log', 'P3: CAS A.next = C -- FAILED (A.next is B now)', 'fail');
+  await delay(200);
+  addLog('queue-log', 'P3: help advance tail to B, retry', 'retry');
+  await delay(300);
+  addLog('queue-log', 'P3: CAS B.next = C -- SUCCESS', 'success');
+  queue.push('C'); renderQ();
+
+  await delay(400);
+  // Dequeue
+  addLog('queue-log', 'C1: dequeue() -- CAS head from sentinel to A', 'info');
+  await delay(300);
+  queue.shift(); renderQ();
+  addLog('queue-log', 'C1: got "A"', 'success');
+
+  await delay(300);
+  addLog('queue-log', 'C1: dequeue() -- CAS head to B', 'info');
+  await delay(200);
+  queue.shift(); renderQ();
+  addLog('queue-log', 'C1: got "B"', 'success');
+
+  await delay(300);
+  addLog('queue-log', '-- key insight: "helping" (P3 advances tail for P2) --', 'info');
+  addLog('queue-log', '-- memory reclamation (hazard pointers / epoch) is the hard part --', 'info');
+
+  sec3QueueRunning = false;
+  document.getElementById('sec3-queue-btn').disabled = false;
+}
+
+/* ================================================================== */
+/* SECTION 4: Leader Election                                         */
+/* ================================================================== */
+var sec4Running = false;
+var sec4Leaders = { bully: -1, lease: -1, k8s: -1 };
+
+function drawNode(svg, x, y, id, label, state) {
+  var colors = { leader: 'var(--accent-green)', follower: 'var(--accent-blue)', crashed: 'var(--accent-red)', candidate: 'var(--accent-yellow)' };
+  var c = colors[state] || colors.follower;
+  var g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  g.id = svg.id + '-node-' + id;
+
+  var circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+  circle.setAttribute('cx', x); circle.setAttribute('cy', y); circle.setAttribute('r', 22);
+  circle.setAttribute('fill', 'none'); circle.setAttribute('stroke', c); circle.setAttribute('stroke-width', '2');
+
+  var text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+  text.setAttribute('x', x); text.setAttribute('y', y + 5);
+  text.setAttribute('text-anchor', 'middle'); text.setAttribute('fill', c);
+  text.setAttribute('font-size', '14'); text.setAttribute('font-weight', '600');
+  text.textContent = label;
+
+  var stateText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+  stateText.setAttribute('x', x); stateText.setAttribute('y', y + 38);
+  stateText.setAttribute('text-anchor', 'middle'); stateText.setAttribute('fill', c);
+  stateText.setAttribute('font-size', '10');
+  stateText.textContent = state;
+
+  g.appendChild(circle); g.appendChild(text); g.appendChild(stateText);
+  svg.appendChild(g);
+}
+
+function updateNode(svgId, nodeId, state) {
+  var g = document.getElementById(svgId + '-node-' + nodeId);
+  if (!g) return;
+  var colors = { leader: '#51cf66', follower: '#339af0', crashed: '#ff6b6b', candidate: '#ffd43b' };
+  var c = colors[state] || colors.follower;
+  var circle = g.querySelector('circle');
+  var texts = g.querySelectorAll('text');
+  circle.setAttribute('stroke', c);
+  texts[0].setAttribute('fill', c);
+  texts[1].setAttribute('fill', c);
+  texts[1].textContent = state;
+}
+
+function drawArrow(svg, x1, y1, x2, y2, color, label) {
+  var g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  g.classList.add('msg-arrow');
+
+  var dx = x2-x1, dy = y2-y1, len = Math.sqrt(dx*dx+dy*dy);
+  var ux = dx/len, uy = dy/len;
+  var sx = x1 + ux*25, sy = y1 + uy*25;
+  var ex = x2 - ux*25, ey = y2 - uy*25;
+
+  var line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+  line.setAttribute('x1', sx); line.setAttribute('y1', sy);
+  line.setAttribute('x2', ex); line.setAttribute('y2', ey);
+  line.setAttribute('stroke', color); line.setAttribute('stroke-width', '1.5');
+  line.setAttribute('marker-end', 'url(#arrowhead)');
+
+  var text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+  text.setAttribute('x', (sx+ex)/2 + uy*12); text.setAttribute('y', (sy+ey)/2 - ux*12);
+  text.setAttribute('text-anchor', 'middle'); text.setAttribute('fill', color);
+  text.setAttribute('font-size', '9');
+  text.textContent = label || '';
+
+  g.appendChild(line); if (label) g.appendChild(text);
+  svg.appendChild(g);
+  return g;
+}
+
+function clearArrows(svg) {
+  var arrows = svg.querySelectorAll('.msg-arrow');
+  arrows.forEach(function(a) { a.remove(); });
+}
+
+function initSvg(id) {
+  var svg = document.getElementById(id);
+  svg.innerHTML = '';
+  // arrowhead marker
+  var defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+  var marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
+  marker.setAttribute('id', 'arrowhead'); marker.setAttribute('markerWidth', '8');
+  marker.setAttribute('markerHeight', '6'); marker.setAttribute('refX', '8');
+  marker.setAttribute('refY', '3'); marker.setAttribute('orient', 'auto');
+  var path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  path.setAttribute('d', 'M0,0 L8,3 L0,6 Z'); path.setAttribute('fill', '#888');
+  marker.appendChild(path); defs.appendChild(marker); svg.appendChild(defs);
+  return svg;
+}
+
+function sec4InitSvgs() {
+  // Bully: 3 nodes
+  var b = initSvg('bully-svg');
+  drawNode(b, 75, 90, 0, 'N1', 'follower');
+  drawNode(b, 150, 90, 1, 'N2', 'follower');
+  drawNode(b, 225, 90, 2, 'N3', 'follower');
+
+  // Lease: 3 nodes + coordinator
+  var l = initSvg('lease-svg');
+  // coordinator at top
+  var coordRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+  coordRect.setAttribute('x', 110); coordRect.setAttribute('y', 15);
+  coordRect.setAttribute('width', 80); coordRect.setAttribute('height', 30);
+  coordRect.setAttribute('rx', 6); coordRect.setAttribute('fill', 'none');
+  coordRect.setAttribute('stroke', '#888'); coordRect.setAttribute('stroke-width', '1.5');
+  l.appendChild(coordRect);
+  var coordText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+  coordText.setAttribute('x', 150); coordText.setAttribute('y', 36);
+  coordText.setAttribute('text-anchor', 'middle'); coordText.setAttribute('fill', '#888');
+  coordText.setAttribute('font-size', '12');
+  coordText.textContent = 'etcd';
+  l.appendChild(coordText);
+  drawNode(l, 60, 140, 0, 'N1', 'follower');
+  drawNode(l, 150, 140, 1, 'N2', 'follower');
+  drawNode(l, 240, 140, 2, 'N3', 'follower');
+
+  // K8s: 3 pods + apiserver
+  var k = initSvg('k8s-svg');
+  var apiRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+  apiRect.setAttribute('x', 95); apiRect.setAttribute('y', 15);
+  apiRect.setAttribute('width', 110); apiRect.setAttribute('height', 30);
+  apiRect.setAttribute('rx', 6); apiRect.setAttribute('fill', 'none');
+  apiRect.setAttribute('stroke', '#888'); apiRect.setAttribute('stroke-width', '1.5');
+  k.appendChild(apiRect);
+  var apiText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+  apiText.setAttribute('x', 150); apiText.setAttribute('y', 36);
+  apiText.setAttribute('text-anchor', 'middle'); apiText.setAttribute('fill', '#888');
+  apiText.setAttribute('font-size', '11');
+  apiText.textContent = 'apiserver (etcd)';
+  k.appendChild(apiText);
+  drawNode(k, 60, 140, 0, 'P1', 'follower');
+  drawNode(k, 150, 140, 1, 'P2', 'follower');
+  drawNode(k, 240, 140, 2, 'P3', 'follower');
+}
+
+function sec4Reset() {
+  sec4Running = false;
+  sec4Leaders = { bully: -1, lease: -1, k8s: -1 };
+  clearLog('bully-log'); clearLog('lease-log'); clearLog('k8s-log');
+  sec4InitSvgs();
+  document.getElementById('sec4-run-btn').disabled = false;
+  document.getElementById('sec4-crash-btn').disabled = true;
+}
+
+async function sec4Run() {
+  if (sec4Running) return;
+  sec4Running = true;
+  document.getElementById('sec4-run-btn').disabled = true;
+  sec4Reset();
+  sec4InitSvgs();
+  await Promise.all([animBully(), animLease(), animK8s()]);
+  document.getElementById('sec4-crash-btn').disabled = false;
+}
+
+async function animBully() {
+  var svg = document.getElementById('bully-svg');
+  // N1 suspects leader is dead, starts election
+  addLog('bully-log', 'N1: suspects leader failure', 'info');
+  await delay(400);
+  addLog('bully-log', 'N1: sends ELECTION to N2, N3', 'waiting');
+  var a1 = drawArrow(svg, 75, 90, 150, 90, '#ffd43b', 'ELECT');
+  var a2 = drawArrow(svg, 75, 90, 225, 90, '#ffd43b', 'ELECT');
+  updateNode('bully-svg', 0, 'candidate');
+  await delay(500);
+
+  addLog('bully-log', 'N2: responds OK (higher ID)', 'info');
+  addLog('bully-log', 'N3: responds OK (highest ID)', 'info');
+  clearArrows(svg);
+  await delay(300);
+
+  addLog('bully-log', 'N2: sends ELECTION to N3', 'waiting');
+  drawArrow(svg, 150, 90, 225, 90, '#ffd43b', 'ELECT');
+  updateNode('bully-svg', 1, 'candidate');
+  await delay(400);
+
+  addLog('bully-log', 'N3: responds OK, starts own election', 'info');
+  clearArrows(svg);
+  updateNode('bully-svg', 2, 'candidate');
+  await delay(400);
+
+  addLog('bully-log', 'N3: no higher ID exists', 'info');
+  addLog('bully-log', 'N3: sends COORDINATOR to N1, N2', 'acquired');
+  drawArrow(svg, 225, 90, 150, 90, '#51cf66', 'COORD');
+  drawArrow(svg, 225, 90, 75, 90, '#51cf66', 'COORD');
+  await delay(400);
+  clearArrows(svg);
+
+  updateNode('bully-svg', 2, 'leader');
+  updateNode('bully-svg', 1, 'follower');
+  updateNode('bully-svg', 0, 'follower');
+  sec4Leaders.bully = 2;
+  addLog('bully-log', 'N3 is leader (highest ID)', 'success');
+  addLog('bully-log', 'O(n^2) messages, fragile', 'info');
+}
+
+async function animLease() {
+  var svg = document.getElementById('lease-svg');
+  addLog('lease-log', 'N1: requests lease from etcd', 'info');
+  drawArrow(svg, 60, 140, 150, 30, '#339af0', 'acquire');
+  await delay(400);
+  clearArrows(svg);
+
+  addLog('lease-log', 'N2: requests lease from etcd', 'info');
+  drawArrow(svg, 150, 140, 150, 30, '#339af0', 'acquire');
+  await delay(300);
+  clearArrows(svg);
+
+  addLog('lease-log', 'etcd: grants lease to N1 (first request)', 'acquired');
+  drawArrow(svg, 150, 30, 60, 140, '#51cf66', 'granted');
+  await delay(300);
+  clearArrows(svg);
+  updateNode('lease-svg', 0, 'leader');
+  sec4Leaders.lease = 0;
+
+  addLog('lease-log', 'etcd: rejects N2 (lease held by N1)', 'blocked');
+  updateNode('lease-svg', 1, 'follower');
+  await delay(400);
+
+  addLog('lease-log', 'N1: heartbeat / renew lease', 'info');
+  drawArrow(svg, 60, 140, 150, 30, '#51cf66', 'renew');
+  await delay(400);
+  clearArrows(svg);
+  addLog('lease-log', 'Lease TTL=15s, renew every 5s', 'info');
+  addLog('lease-log', 'N1 is leader via lease', 'success');
+}
+
+async function animK8s() {
+  var svg = document.getElementById('k8s-svg');
+  addLog('k8s-log', 'P1: create Lease object via apiserver', 'info');
+  drawArrow(svg, 60, 140, 150, 30, '#339af0', 'create');
+  await delay(500);
+  clearArrows(svg);
+
+  addLog('k8s-log', 'apiserver: Lease created, holder=P1', 'acquired');
+  updateNode('k8s-svg', 0, 'leader');
+  sec4Leaders.k8s = 0;
+  await delay(300);
+
+  addLog('k8s-log', 'P2: try update Lease -- rejected (held)', 'blocked');
+  addLog('k8s-log', 'P3: try update Lease -- rejected (held)', 'blocked');
+  await delay(400);
+
+  addLog('k8s-log', 'P1: renewTime updated every 10s', 'info');
+  drawArrow(svg, 60, 140, 150, 30, '#51cf66', 'renew');
+  await delay(400);
+  clearArrows(svg);
+  addLog('k8s-log', 'P1 is leader (K8s Lease object)', 'success');
+  addLog('k8s-log', 'Same pattern: kube-controller-manager, scheduler', 'info');
+}
+
+async function sec4Crash() {
+  document.getElementById('sec4-crash-btn').disabled = true;
+  // Crash leaders in all three panels
+  await Promise.all([crashBully(), crashLease(), crashK8s()]);
+}
+
+async function crashBully() {
+  var svg = document.getElementById('bully-svg');
+  clearArrows(svg);
+  updateNode('bully-svg', 2, 'crashed');
+  addLog('bully-log', 'N3 CRASHED', 'fail');
+  await delay(500);
+  addLog('bully-log', 'N1: heartbeat timeout, starts election', 'waiting');
+  updateNode('bully-svg', 0, 'candidate');
+  await delay(300);
+  addLog('bully-log', 'N1: ELECTION to N2', 'info');
+  drawArrow(svg, 75, 90, 150, 90, '#ffd43b', 'ELECT');
+  await delay(300);
+  clearArrows(svg);
+  addLog('bully-log', 'N2: responds, starts own election', 'info');
+  updateNode('bully-svg', 1, 'candidate');
+  await delay(300);
+  addLog('bully-log', 'N2: no response from N3 (crashed)', 'info');
+  addLog('bully-log', 'N2: sends COORDINATOR to N1', 'acquired');
+  updateNode('bully-svg', 1, 'leader');
+  updateNode('bully-svg', 0, 'follower');
+  addLog('bully-log', 'N2 is new leader', 'success');
+}
+
+async function crashLease() {
+  var svg = document.getElementById('lease-svg');
+  clearArrows(svg);
+  updateNode('lease-svg', 0, 'crashed');
+  addLog('lease-log', 'N1 CRASHED', 'fail');
+  await delay(500);
+  addLog('lease-log', 'Lease TTL expires (15s)...', 'waiting');
+  await delay(800);
+  addLog('lease-log', 'N2: lease expired, attempts acquire', 'info');
+  drawArrow(svg, 150, 140, 150, 30, '#ffd43b', 'acquire');
+  await delay(400);
+  clearArrows(svg);
+  addLog('lease-log', 'etcd: grants lease to N2', 'acquired');
+  updateNode('lease-svg', 1, 'leader');
+  addLog('lease-log', 'N2 is new leader', 'success');
+}
+
+async function crashK8s() {
+  var svg = document.getElementById('k8s-svg');
+  clearArrows(svg);
+  updateNode('k8s-svg', 0, 'crashed');
+  addLog('k8s-log', 'P1 CRASHED', 'fail');
+  await delay(500);
+  addLog('k8s-log', 'Lease renewTime stale > leaseDuration', 'waiting');
+  await delay(800);
+  addLog('k8s-log', 'P2: attempts Lease update', 'info');
+  drawArrow(svg, 150, 140, 150, 30, '#ffd43b', 'update');
+  await delay(400);
+  clearArrows(svg);
+  addLog('k8s-log', 'apiserver: Lease updated, holder=P2', 'acquired');
+  updateNode('k8s-svg', 1, 'leader');
+  addLog('k8s-log', 'P2 is new leader', 'success');
+}
+
+sec4InitSvgs();
+
+/* ================================================================== */
+/* SECTION 5: Deadlock                                                */
+/* ================================================================== */
+
+/* Deadlock visualization */
+var sec5DlRunning = false;
+function sec5DeadlockReset() {
+  sec5DlRunning = false;
+  clearLog('deadlock-log');
+  initDeadlockSvg();
+  document.getElementById('sec5-dl-btn').disabled = false;
+}
+
+function initDeadlockSvg() {
+  var svg = document.getElementById('deadlock-svg');
+  svg.innerHTML = '';
+  // Draw 4 threads and 4 resources
+  var threads = [
+    { x: 80, y: 60, label: 'T1' },
+    { x: 260, y: 60, label: 'T2' },
+    { x: 420, y: 60, label: 'T3' },
+    { x: 340, y: 240, label: 'T4' }
+  ];
+  var resources = [
+    { x: 80, y: 200, label: 'A' },
+    { x: 180, y: 140, label: 'B' },
+    { x: 340, y: 120, label: 'C' },
+    { x: 420, y: 220, label: 'D' }
+  ];
+
+  // Draw resources as squares
+  resources.forEach(function(r) {
+    var rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    rect.setAttribute('x', r.x - 18); rect.setAttribute('y', r.y - 18);
+    rect.setAttribute('width', 36); rect.setAttribute('height', 36);
+    rect.setAttribute('rx', 4); rect.setAttribute('fill', 'none');
+    rect.setAttribute('stroke', '#888'); rect.setAttribute('stroke-width', '1.5');
+    svg.appendChild(rect);
+    var text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    text.setAttribute('x', r.x); text.setAttribute('y', r.y + 5);
+    text.setAttribute('text-anchor', 'middle'); text.setAttribute('fill', '#888');
+    text.setAttribute('font-size', '14'); text.setAttribute('font-weight', '600');
+    text.textContent = r.label;
+    svg.appendChild(text);
+  });
+
+  // Draw threads as circles
+  threads.forEach(function(t) {
+    var circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    circle.setAttribute('cx', t.x); circle.setAttribute('cy', t.y);
+    circle.setAttribute('r', 20); circle.setAttribute('fill', 'none');
+    circle.setAttribute('stroke', 'var(--accent-blue)'); circle.setAttribute('stroke-width', '2');
+    svg.appendChild(circle);
+    var text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    text.setAttribute('x', t.x); text.setAttribute('y', t.y + 5);
+    text.setAttribute('text-anchor', 'middle'); text.setAttribute('fill', 'var(--accent-blue)');
+    text.setAttribute('font-size', '14'); text.setAttribute('font-weight', '600');
+    text.textContent = t.label;
+    svg.appendChild(text);
+  });
+
+  // Legend
+  var leg = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+  leg.setAttribute('x', 10); leg.setAttribute('y', 310);
+  leg.setAttribute('fill', 'var(--text-3)'); leg.setAttribute('font-size', '11');
+  leg.textContent = 'Green = holds, Red = wants';
+  svg.appendChild(leg);
+}
+
+function drawEdge(svgId, x1, y1, x2, y2, color, label, id) {
+  var svg = document.getElementById(svgId);
+  var g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  g.id = id || '';
+  g.classList.add('dl-edge');
+
+  var dx = x2-x1, dy = y2-y1, len = Math.sqrt(dx*dx+dy*dy);
+  var ux = dx/len, uy = dy/len;
+  var sx = x1 + ux*22, sy = y1 + uy*22;
+  var ex = x2 - ux*22, ey = y2 - uy*22;
+
+  var line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+  line.setAttribute('x1', sx); line.setAttribute('y1', sy);
+  line.setAttribute('x2', ex); line.setAttribute('y2', ey);
+  line.setAttribute('stroke', color); line.setAttribute('stroke-width', '2');
+  line.setAttribute('stroke-dasharray', color === '#ff6b6b' ? '4,3' : 'none');
+
+  if (label) {
+    var t = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    t.setAttribute('x', (sx+ex)/2 + uy*10); t.setAttribute('y', (sy+ey)/2 - ux*10);
+    t.setAttribute('text-anchor', 'middle'); t.setAttribute('fill', color);
+    t.setAttribute('font-size', '10');
+    t.textContent = label;
+    g.appendChild(t);
+  }
+
+  g.appendChild(line);
+  svg.appendChild(g);
+}
+
+async function sec5DeadlockRun() {
+  if (sec5DlRunning) return;
+  sec5DlRunning = true;
+  document.getElementById('sec5-dl-btn').disabled = true;
+  sec5DeadlockReset();
+
+  var threads = [
+    { x: 80, y: 60 },
+    { x: 260, y: 60 },
+    { x: 420, y: 60 },
+    { x: 340, y: 240 }
+  ];
+  var resources = [
+    { x: 80, y: 200 },
+    { x: 180, y: 140 },
+    { x: 340, y: 120 },
+    { x: 420, y: 220 }
+  ];
+
+  // T1 holds A
+  addLog('deadlock-log', 'T1: lock(A) -- acquired', 'acquired');
+  drawEdge('deadlock-svg', threads[0].x, threads[0].y, resources[0].x, resources[0].y, '#51cf66', 'holds');
+  await delay(400);
+
+  // T2 holds B
+  addLog('deadlock-log', 'T2: lock(B) -- acquired', 'acquired');
+  drawEdge('deadlock-svg', threads[1].x, threads[1].y, resources[1].x, resources[1].y, '#51cf66', 'holds');
+  await delay(400);
+
+  // T3 holds C
+  addLog('deadlock-log', 'T3: lock(C) -- acquired', 'acquired');
+  drawEdge('deadlock-svg', threads[2].x, threads[2].y, resources[2].x, resources[2].y, '#51cf66', 'holds');
+  await delay(400);
+
+  // T4 holds D
+  addLog('deadlock-log', 'T4: lock(D) -- acquired', 'acquired');
+  drawEdge('deadlock-svg', threads[3].x, threads[3].y, resources[3].x, resources[3].y, '#51cf66', 'holds');
+  await delay(400);
+
+  // Now the wants -- forming cycle
+  addLog('deadlock-log', 'T1: lock(B) -- BLOCKED (held by T2)', 'blocked');
+  drawEdge('deadlock-svg', threads[0].x, threads[0].y, resources[1].x, resources[1].y, '#ff6b6b', 'wants');
+  await delay(400);
+
+  addLog('deadlock-log', 'T2: lock(C) -- BLOCKED (held by T3)', 'blocked');
+  drawEdge('deadlock-svg', threads[1].x, threads[1].y, resources[2].x, resources[2].y, '#ff6b6b', 'wants');
+  await delay(400);
+
+  addLog('deadlock-log', 'T3: lock(D) -- BLOCKED (held by T4)', 'blocked');
+  drawEdge('deadlock-svg', threads[2].x, threads[2].y, resources[3].x, resources[3].y, '#ff6b6b', 'wants');
+  await delay(400);
+
+  addLog('deadlock-log', 'T4: lock(A) -- BLOCKED (held by T1)', 'blocked');
+  drawEdge('deadlock-svg', threads[3].x, threads[3].y, resources[0].x, resources[0].y, '#ff6b6b', 'wants');
+  await delay(500);
+
+  addLog('deadlock-log', '', 'info');
+  addLog('deadlock-log', 'DEADLOCK DETECTED: cycle in wait-for graph', 'fail');
+  addLog('deadlock-log', 'T1->B->T2->C->T3->D->T4->A->T1', 'fail');
+  addLog('deadlock-log', 'Resolution: abort T4, release D', 'retry');
+
+  // Draw cycle highlight
+  var svg = document.getElementById('deadlock-svg');
+  var cycleText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+  cycleText.setAttribute('x', 250); cycleText.setAttribute('y', 300);
+  cycleText.setAttribute('text-anchor', 'middle');
+  cycleText.setAttribute('fill', 'var(--accent-red)');
+  cycleText.setAttribute('font-size', '13'); cycleText.setAttribute('font-weight', '600');
+  cycleText.textContent = 'DEADLOCK: circular wait detected';
+  svg.appendChild(cycleText);
+
+  sec5DlRunning = false;
+  document.getElementById('sec5-dl-btn').disabled = false;
+}
+
+/* Prevention */
+var sec5PrevRunning = false;
+function sec5PreventReset() {
+  sec5PrevRunning = false;
+  clearLog('prevent-log');
+  initPreventSvg();
+  document.getElementById('sec5-prev-btn').disabled = false;
+}
+
+function initPreventSvg() {
+  var svg = document.getElementById('prevent-svg');
+  svg.innerHTML = '';
+
+  var threads = [{ x: 120, y: 60, label: 'T1' }, { x: 380, y: 60, label: 'T2' }];
+  var resources = [{ x: 170, y: 170, label: 'A' }, { x: 330, y: 170, label: 'B' }];
+
+  resources.forEach(function(r) {
+    var rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    rect.setAttribute('x', r.x - 18); rect.setAttribute('y', r.y - 18);
+    rect.setAttribute('width', 36); rect.setAttribute('height', 36);
+    rect.setAttribute('rx', 4); rect.setAttribute('fill', 'none');
+    rect.setAttribute('stroke', '#888'); rect.setAttribute('stroke-width', '1.5');
+    svg.appendChild(rect);
+    var text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    text.setAttribute('x', r.x); text.setAttribute('y', r.y + 5);
+    text.setAttribute('text-anchor', 'middle'); text.setAttribute('fill', '#888');
+    text.setAttribute('font-size', '14'); text.setAttribute('font-weight', '600');
+    text.textContent = r.label;
+    svg.appendChild(text);
+  });
+
+  threads.forEach(function(t) {
+    var circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    circle.setAttribute('cx', t.x); circle.setAttribute('cy', t.y);
+    circle.setAttribute('r', 20); circle.setAttribute('fill', 'none');
+    circle.setAttribute('stroke', 'var(--accent-blue)'); circle.setAttribute('stroke-width', '2');
+    svg.appendChild(circle);
+    var text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    text.setAttribute('x', t.x); text.setAttribute('y', t.y + 5);
+    text.setAttribute('text-anchor', 'middle'); text.setAttribute('fill', 'var(--accent-blue)');
+    text.setAttribute('font-size', '14'); text.setAttribute('font-weight', '600');
+    text.textContent = t.label;
+    svg.appendChild(text);
+  });
+
+  var leg = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+  leg.setAttribute('x', 250); leg.setAttribute('y', 15);
+  leg.setAttribute('text-anchor', 'middle');
+  leg.setAttribute('fill', 'var(--text-3)'); leg.setAttribute('font-size', '11');
+  leg.textContent = 'Canonical order: always acquire A before B';
+  svg.appendChild(leg);
+}
+
+async function sec5PreventRun() {
+  if (sec5PrevRunning) return;
+  sec5PrevRunning = true;
+  document.getElementById('sec5-prev-btn').disabled = true;
+  sec5PreventReset();
+
+  var threads = [{ x: 120, y: 60 }, { x: 380, y: 60 }];
+  var resources = [{ x: 170, y: 170 }, { x: 330, y: 170 }];
+
+  addLog('prevent-log', 'Rule: both T1 and T2 need A and B.', 'info');
+  addLog('prevent-log', 'Canonical order: always lock A first, then B.', 'info');
+  await delay(500);
+
+  // T1 locks A
+  addLog('prevent-log', 'T1: lock(A) -- acquired', 'acquired');
+  drawEdge('prevent-svg', threads[0].x, threads[0].y, resources[0].x, resources[0].y, '#51cf66', 'holds');
+  await delay(400);
+
+  // T2 also tries A first (canonical order!)
+  addLog('prevent-log', 'T2: lock(A) -- BLOCKED (held by T1)', 'blocked');
+  drawEdge('prevent-svg', threads[1].x, threads[1].y, resources[0].x, resources[0].y, '#ff6b6b', 'wants');
+  await delay(400);
+
+  // T1 locks B (no contention)
+  addLog('prevent-log', 'T1: lock(B) -- acquired', 'acquired');
+  drawEdge('prevent-svg', threads[0].x, threads[0].y, resources[1].x, resources[1].y, '#51cf66', 'holds');
+  await delay(500);
+
+  addLog('prevent-log', 'T1: critical section -- done', 'info');
+  await delay(400);
+
+  // T1 releases both
+  addLog('prevent-log', 'T1: unlock(B), unlock(A)', 'released');
+  // Clear T1 edges
+  var edges = document.getElementById('prevent-svg').querySelectorAll('.dl-edge');
+  edges.forEach(function(e) { e.remove(); });
+  await delay(300);
+
+  // T2 acquires A
+  addLog('prevent-log', 'T2: lock(A) -- acquired', 'acquired');
+  drawEdge('prevent-svg', threads[1].x, threads[1].y, resources[0].x, resources[0].y, '#51cf66', 'holds');
+  await delay(300);
+
+  // T2 acquires B
+  addLog('prevent-log', 'T2: lock(B) -- acquired', 'acquired');
+  drawEdge('prevent-svg', threads[1].x, threads[1].y, resources[1].x, resources[1].y, '#51cf66', 'holds');
+  await delay(400);
+
+  addLog('prevent-log', 'T2: critical section -- done', 'info');
+  addLog('prevent-log', '', 'info');
+  addLog('prevent-log', 'No deadlock possible -- both follow A-before-B order.', 'success');
+
+  var svg = document.getElementById('prevent-svg');
+  var okText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+  okText.setAttribute('x', 250); okText.setAttribute('y', 210);
+  okText.setAttribute('text-anchor', 'middle');
+  okText.setAttribute('fill', 'var(--accent-green)');
+  okText.setAttribute('font-size', '12'); okText.setAttribute('font-weight', '600');
+  okText.textContent = 'NO DEADLOCK -- canonical ordering prevents cycles';
+  svg.appendChild(okText);
+
+  sec5PrevRunning = false;
+  document.getElementById('sec5-prev-btn').disabled = false;
+}
+
+/* Livelock */
+var sec5LlRunning = false;
+function sec5LivelockReset() {
+  sec5LlRunning = false;
+  document.getElementById('livelock-val').textContent = '0';
+  document.getElementById('livelock-retries').textContent = '0';
+  clearLog('livelock-log');
+  document.getElementById('sec5-ll-btn').disabled = false;
+}
+
+async function sec5LivelockRun() {
+  if (sec5LlRunning) return;
+  sec5LlRunning = true;
+  document.getElementById('sec5-ll-btn').disabled = true;
+  sec5LivelockReset();
+
+  var valEl = document.getElementById('livelock-val');
+  var retEl = document.getElementById('livelock-retries');
+  var retries = 0;
+
+  addLog('livelock-log', 'T1 and T2 both want to increment shared value', 'info');
+  addLog('livelock-log', 'Both use CAS with immediate retry (no backoff)', 'info');
+  await delay(400);
+
+  // Simulate 4 rounds of mutual invalidation
+  for (var round = 0; round < 4; round++) {
+    var val = parseInt(valEl.textContent);
+    addLog('livelock-log', 'T1: reads value=' + val + ', wants ' + (val+1), 'info');
+    addLog('livelock-log', 'T2: reads value=' + val + ', wants ' + (val+1), 'info');
+    await delay(300);
+
+    // T1 succeeds first
+    addLog('livelock-log', 'T1: CAS(' + val + ',' + (val+1) + ') SUCCESS', 'success');
+    valEl.textContent = (val+1);
+    await delay(150);
+
+    // T2 fails
+    addLog('livelock-log', 'T2: CAS(' + val + ',' + (val+1) + ') FAILED', 'fail');
+    retries++; retEl.textContent = retries;
+    await delay(150);
+
+    // T2 retries, succeeds, but T1 now reads stale
+    addLog('livelock-log', 'T2: retry, reads ' + (val+1) + ', CAS(' + (val+1) + ',' + (val+2) + ') SUCCESS', 'success');
+    valEl.textContent = (val+2);
+    await delay(150);
+
+    // T1 was also trying -- fails
+    addLog('livelock-log', 'T1: CAS(' + (val+1) + ',' + (val+2) + ') FAILED', 'fail');
+    retries++; retEl.textContent = retries;
+    await delay(200);
+  }
+
+  addLog('livelock-log', '', 'info');
+  addLog('livelock-log', 'Both threads are making progress, but wasting CPU on retries.', 'fail');
+  addLog('livelock-log', 'Under high contention, CAS retry rate > useful work rate.', 'fail');
+  await delay(400);
+  addLog('livelock-log', '', 'info');
+  addLog('livelock-log', 'FIX: exponential backoff with jitter', 'info');
+  addLog('livelock-log', '  retry_delay = base * 2^attempt + random(0, base)', 'info');
+  addLog('livelock-log', '  Jitter desynchronizes competing threads.', 'success');
+
+  sec5LlRunning = false;
+  document.getElementById('sec5-ll-btn').disabled = false;
+}
+
+initDeadlockSvg();
+initPreventSvg();
+
+/* ================================================================== */
+/* SECTION 6: Coordination Primitives                                 */
+/* ================================================================== */
+var sec6Running = false;
+
+function sec6InitThreads() {
+  var bColors = ['var(--accent-red)', 'var(--accent-blue)', 'var(--accent-green)', 'var(--accent-yellow)'];
+  makeThreadRows('barrier-threads', ['W1', 'W2', 'W3', 'W4'], bColors);
+  makeThreadRows('latch-threads', ['W1', 'W2', 'W3', 'W4'], bColors);
+  document.getElementById('latch-counter').textContent = '4';
+  document.getElementById('condvar-buffer').textContent = '[ ]';
+}
+
+function sec6Reset() {
+  sec6Running = false;
+  clearLog('barrier-log'); clearLog('latch-log'); clearLog('condvar-log');
+  sec6InitThreads();
+  document.getElementById('sec6-run-btn').disabled = false;
+}
+
+async function sec6Run() {
+  if (sec6Running) return;
+  sec6Running = true;
+  document.getElementById('sec6-run-btn').disabled = true;
+  sec6Reset();
+  sec6InitThreads();
+  await Promise.all([animBarrier(), animLatch(), animCondVar()]);
+  sec6Running = false;
+  document.getElementById('sec6-run-btn').disabled = false;
+}
+
+async function animBarrier() {
+  var arrivals = [300, 600, 200, 900]; // staggered arrival times
+  var arrived = 0;
+
+  for (var i = 0; i < 4; i++) {
+    await delay(arrivals[i]);
+    arrived++;
+    addLog('barrier-log', 'W' + (i+1) + ': barrier.wait() [' + arrived + '/4]', 'waiting');
+    setBar('barrier-threads', i, 50, 'waiting', 'var(--accent-yellow)');
+  }
+
+  await delay(300);
+  addLog('barrier-log', 'All 4 arrived -- barrier opens!', 'acquired');
+  for (var i = 0; i < 4; i++) {
+    setBar('barrier-threads', i, 100, 'RUNNING', 'var(--accent-green)');
+  }
+  await delay(600);
+  for (var i = 0; i < 4; i++) {
+    setBar('barrier-threads', i, 0, 'done', 'var(--text-3)');
+  }
+  addLog('barrier-log', '-- all proceeded together --', 'info');
+}
+
+async function animLatch() {
+  var latchEl = document.getElementById('latch-counter');
+  var count = 4;
+
+  addLog('latch-log', 'Main thread: latch.await() -- blocked', 'blocked');
+  await delay(500);
+
+  for (var i = 0; i < 4; i++) {
+    await delay(400 + Math.random() * 300);
+    count--;
+    latchEl.textContent = count;
+    addLog('latch-log', 'W' + (i+1) + ': countDown() [count=' + count + ']', 'info');
+    setBar('latch-threads', i, 100, 'done', 'var(--accent-green)');
+  }
+
+  await delay(200);
+  addLog('latch-log', 'count=0 -- main thread unblocked!', 'acquired');
+  addLog('latch-log', 'One-shot: latch cannot be reset.', 'info');
+}
+
+async function animCondVar() {
+  var bufEl = document.getElementById('condvar-buffer');
+  var buffer = [];
+
+  function renderBuf() {
+    bufEl.textContent = '[ ' + buffer.join(', ') + ' ]';
+  }
+
+  addLog('condvar-log', 'Consumer: wait(cond) -- releases mutex, sleeps', 'blocked');
+  await delay(500);
+
+  addLog('condvar-log', 'Producer: acquires mutex', 'acquired');
+  await delay(300);
+  buffer.push('item1'); renderBuf();
+  addLog('condvar-log', 'Producer: buffer.add("item1")', 'info');
+  await delay(200);
+  addLog('condvar-log', 'Producer: notify(cond) -- wakes consumer', 'info');
+  addLog('condvar-log', 'Producer: releases mutex', 'released');
+
+  await delay(300);
+  addLog('condvar-log', 'Consumer: woken, re-acquires mutex', 'acquired');
+  await delay(200);
+  var item = buffer.shift(); renderBuf();
+  addLog('condvar-log', 'Consumer: got "' + item + '", releases mutex', 'success');
+
+  await delay(400);
+  addLog('condvar-log', 'Consumer: wait(cond) again -- sleeps', 'blocked');
+  await delay(400);
+
+  addLog('condvar-log', 'Producer: buffer.add("item2"), buffer.add("item3")', 'info');
+  buffer.push('item2'); buffer.push('item3'); renderBuf();
+  await delay(200);
+  addLog('condvar-log', 'Producer: notifyAll(cond)', 'info');
+
+  await delay(300);
+  addLog('condvar-log', 'Consumer: woken, drains buffer', 'acquired');
+  buffer = []; renderBuf();
+  addLog('condvar-log', 'Consumer: got "item2", "item3"', 'success');
+  addLog('condvar-log', '-- spurious wakeup: always check condition in a loop --', 'info');
+}
+
+sec6InitThreads();
+
+</script>
+
+</body>
+</html>

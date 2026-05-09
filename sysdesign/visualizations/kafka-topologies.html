@@ -1,0 +1,2083 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kafka Topologies -- Interactive Simulation</title>
+<style>
+:root {
+  --bg: #0f0f15;
+  --surface: #181820;
+  --surface-2: #20202a;
+  --border: #2a2a35;
+  --text: #e6e6ea;
+  --text-2: #cfcfd6;
+  --text-3: #888;
+  --accent-red: #ff6b6b;
+  --accent-green: #51cf66;
+  --accent-blue: #339af0;
+  --accent-yellow: #ffd43b;
+  --accent-purple: #cc5de8;
+  --accent-cyan: #8be9fd;
+  --accent-orange: #ffa94d;
+}
+*, *::before, *::after { box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  padding: 32px 24px;
+  max-width: 1100px;
+  margin: 0 auto;
+  line-height: 1.55;
+}
+h1 { color: #fff; margin-bottom: 4px; }
+h1 + p.sub { color: var(--text-3); font-style: italic; margin-top: 0; margin-bottom: 24px; }
+h2 { color: #fff; margin-top: 32px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+h3 { color: var(--text-2); margin-top: 20px; }
+code {
+  background: var(--surface-2);
+  padding: 2px 6px;
+  border-radius: 3px;
+  color: var(--accent-cyan);
+  font-size: 13px;
+}
+svg {
+  background: var(--surface);
+  border-radius: 8px;
+  display: block;
+  margin: 14px auto;
+  width: 100%;
+  height: auto;
+}
+.tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+.tabs button {
+  padding: 10px 20px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-2);
+  border-radius: 6px;
+  cursor: pointer;
+  min-height: 44px;
+  font-size: 14px;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.tabs button:hover { background: var(--surface); }
+.tabs button.active {
+  border-color: var(--accent-blue);
+  border-bottom: 2px solid var(--accent-blue);
+  color: #fff;
+}
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0;
+  align-items: center;
+}
+.controls button, .btn {
+  padding: 10px 16px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  border-radius: 6px;
+  cursor: pointer;
+  min-height: 44px;
+  font-size: 14px;
+  transition: background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+.controls button:hover, .btn:hover { background: var(--surface); }
+.controls button:disabled, .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.controls button.active-btn { border-color: var(--accent-blue); color: var(--accent-blue); }
+.controls button.danger { border-color: var(--accent-red); color: var(--accent-red); }
+.controls button.danger:hover { background: #2a1520; }
+.controls select {
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  border-radius: 6px;
+  min-height: 44px;
+  font-size: 14px;
+  cursor: pointer;
+}
+.commentary {
+  background: var(--surface-2);
+  padding: 14px;
+  border-radius: 6px;
+  font-size: 14px;
+  color: var(--text-2);
+  margin: 12px 0;
+  min-height: 44px;
+  line-height: 1.5;
+}
+.takeaway {
+  background: #1a1a22;
+  border-left: 3px solid var(--accent-green);
+  padding: 12px 16px;
+  margin: 14px 0;
+  font-size: 14px;
+}
+.takeaway strong { color: var(--accent-green); }
+.takeaway ul { margin: 6px 0 0 0; padding-left: 18px; }
+.takeaway li { margin-bottom: 6px; }
+section[hidden] { display: none !important; }
+.legend-row {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  font-size: 13px;
+  color: var(--text-3);
+  margin: 8px 0;
+}
+.legend-row span {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+@media (max-width: 720px) {
+  body { padding: 20px 14px; }
+}
+@media (max-width: 600px) {
+  .tabs { gap: 4px; }
+  .tabs button { padding: 10px 12px; font-size: 13px; flex: 1; min-width: 80px; text-align: center; }
+}
+@media (max-width: 480px) {
+  .controls { flex-direction: column; }
+  .controls button { width: 100%; }
+  .controls select { width: 100%; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Kafka topologies</h1>
+  <p class="sub">Brokers + KRaft, ISR replication, producer acks, consumer groups, the rebalance protocol that's the source of so many production incidents. Click "kill leader," watch failover. Pick <code>acks=1</code>, watch a message disappear.</p>
+</header>
+
+<nav class="tabs">
+  <button class="active" onclick="setActiveTab('broker')">Broker Cluster + KRaft</button>
+  <button onclick="setActiveTab('producer')">Producer</button>
+  <button onclick="setActiveTab('consumer')">Consumer Groups</button>
+  <button onclick="setActiveTab('replication')">Replication + ISR</button>
+  <button onclick="setActiveTab('tiered')">Tiered Storage</button>
+</nav>
+
+<!-- ============================================================ -->
+<!-- TAB 1: BROKER CLUSTER + KRAFT                                 -->
+<!-- ============================================================ -->
+<section data-tab="broker">
+  <h2>Broker Cluster + KRaft Controller Quorum</h2>
+  <p>5 brokers. Topic <code>events</code> with 4 partitions, replication factor 3. Three brokers double as KRaft controller-eligible nodes; one is the active controller leader.</p>
+
+  <svg id="bk-svg" viewBox="0 0 900 500" preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <marker id="bk-arr" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="#555"/>
+      </marker>
+    </defs>
+    <g id="bk-scene"></g>
+  </svg>
+
+  <div class="controls">
+    <button onclick="BK.produce()">Produce (key='user42')</button>
+    <button onclick="BK.toggleMode()" id="bk-mode-btn">Mode: KRaft</button>
+    <button onclick="BK.killController()" id="bk-kill-btn" class="danger">Kill Controller</button>
+    <button onclick="BK.reset()">Reset</button>
+  </div>
+
+  <div class="commentary" id="bk-commentary">Each partition is a single-writer (leader) replicated log. Brokers 0, 1, 2 are controller-eligible. B0 is the active KRaft controller leader -- it owns metadata changes (partition assignment, leader election, broker membership). The metadata log is replicated via Raft among the controller quorum.</div>
+
+  <div class="takeaway">
+    <strong>Takeaway</strong>
+    <ul>
+      <li>Each partition has exactly one leader broker that handles all reads and writes for that partition. Followers replicate via pull (FetchRequest).</li>
+      <li>The cluster has ONE active controller that owns metadata changes. In KRaft mode, metadata lives in an internal Kafka log replicated via Raft -- no external ZooKeeper needed.</li>
+      <li>KRaft wins: simpler ops (no separate ZK cluster), faster controller failover (Raft election vs ZK ephemeral node expiry), better scalability (millions of partitions).</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- TAB 2: PRODUCER                                               -->
+<!-- ============================================================ -->
+<section data-tab="producer" hidden>
+  <h2>Producer: Partitioning, Acks, Idempotence</h2>
+  <p>3 producers writing to topic <code>events</code> with 4 partitions. Partitioning determines which partition a record goes to. Acks determine durability guarantees.</p>
+
+  <svg id="pr-svg" viewBox="0 0 900 420" preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <marker id="pr-arr" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="#555"/>
+      </marker>
+    </defs>
+    <g id="pr-scene"></g>
+  </svg>
+
+  <div class="controls">
+    <button onclick="PR.produce(true)">Produce with key='user42'</button>
+    <button onclick="PR.produce(false)">Produce (no key)</button>
+    <button onclick="PR.burst()">Burst 6 messages (no key)</button>
+    <select id="pr-acks" onchange="PR.updateAcks()">
+      <option value="0">acks=0 (fire and forget)</option>
+      <option value="1">acks=1 (leader only)</option>
+      <option value="all" selected>acks=all (ISR quorum)</option>
+    </select>
+    <button onclick="PR.killLeader()" id="pr-kill-btn" class="danger">Kill leader (P2)</button>
+    <button onclick="PR.toggleIdempotent()" id="pr-idemp-btn">Idempotent: OFF</button>
+    <button onclick="PR.reset()">Reset</button>
+  </div>
+
+  <div class="commentary" id="pr-commentary">With a key present, partition = hash(key) % numPartitions -- all records with the same key go to the same partition, preserving ordering per key. The sticky partitioner (default since 2.4) batches keyless records to one partition until the batch fills, then switches -- reducing the number of in-flight batches and network round-trips.</div>
+
+  <div class="takeaway">
+    <strong>Takeaway</strong>
+    <ul>
+      <li><code>acks=all</code> + idempotent producer + <code>min.insync.replicas=2</code> = no data loss with normal failures. This is the default in modern Kafka stacks.</li>
+      <li>Idempotent producer: each producer gets a PID; each (partition, PID, sequence) is deduped at the broker. Prevents duplicates from retries at zero throughput cost.</li>
+      <li>Compression (lz4/zstd) is per record batch. Compresses on producer, stays compressed on broker disk, decompresses on consumer. Reduces network + disk at the cost of CPU.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- TAB 3: CONSUMER + CONSUMER GROUP                              -->
+<!-- ============================================================ -->
+<section data-tab="consumer" hidden>
+  <h2>Consumer Groups + Rebalance Protocol</h2>
+  <p>Topic with 6 partitions. Consumer group <code>g1</code> starts with 3 consumers. Each partition is assigned to exactly one consumer in the group. Watch what happens when you add a 4th consumer -- and the difference between eager and cooperative-sticky rebalance.</p>
+
+  <svg id="cg-svg" viewBox="0 0 900 460" preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <marker id="cg-arr" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="#555"/>
+      </marker>
+    </defs>
+    <g id="cg-scene"></g>
+  </svg>
+
+  <div class="controls">
+    <button onclick="CG.addConsumer()" id="cg-add-btn">Add Consumer C4</button>
+    <button onclick="CG.removeConsumer()" id="cg-remove-btn" class="danger">Remove Consumer C3</button>
+    <select id="cg-strategy" onchange="CG.changeStrategy()">
+      <option value="range">Range (default)</option>
+      <option value="roundrobin">Round-Robin</option>
+      <option value="sticky">Sticky</option>
+      <option value="cooperative" selected>Cooperative-Sticky</option>
+    </select>
+    <button onclick="CG.triggerRebalance()" id="cg-rebal-btn">Trigger Rebalance</button>
+    <select id="cg-commit" onchange="CG.changeCommit()">
+      <option value="auto">Auto-commit (default)</option>
+      <option value="manual">Manual commitSync</option>
+    </select>
+    <button onclick="CG.reset()">Reset</button>
+  </div>
+
+  <div class="commentary" id="cg-commentary">Consumer group = parallelism unit. Each partition is consumed by exactly one consumer in the group. With 3 consumers and 6 partitions, each consumer handles 2 partitions. Consumers heartbeat to the group coordinator (a broker) to signal liveness.</div>
+
+  <div class="takeaway">
+    <strong>Takeaway</strong>
+    <ul>
+      <li>Number of consumers in a group cannot exceed number of partitions -- extras sit idle. This is the scaling ceiling for a single consumer group.</li>
+      <li>Cooperative-sticky rebalance (default in modern Kafka): only the partitions that need to move are reassigned; other consumers keep consuming without pause. Eager rebalance stops ALL consumers for full reassignment -- visible as a "rebalance storm" under high churn.</li>
+      <li>Auto-commit risks duplicate processing: consumer processes records, crashes before commit interval, new consumer re-processes from last committed offset. Manual <code>commitSync</code> after processing gives at-least-once semantics with tighter control.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- TAB 4: REPLICATION + ISR                                      -->
+<!-- ============================================================ -->
+<section data-tab="replication" hidden>
+  <h2>Replication + ISR (In-Sync Replicas)</h2>
+  <p>One partition with leader on B0 + followers on B1 and B2. Followers fetch from the leader via FetchRequest (pull model). Only data at or below the high watermark (HW) is visible to consumers.</p>
+
+  <svg id="isr-svg" viewBox="0 0 900 500" preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <marker id="isr-arr" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="#555"/>
+      </marker>
+    </defs>
+    <g id="isr-scene"></g>
+  </svg>
+
+  <div class="controls">
+    <button onclick="ISR.produceRecord()">Produce Record</button>
+    <button onclick="ISR.lagFollower()" id="isr-lag-btn">Lag B2 (slow follower)</button>
+    <button onclick="ISR.killLeader()" id="isr-kill-btn" class="danger">Kill Leader (B0)</button>
+    <button onclick="ISR.toggleUnclean()" id="isr-unclean-btn">Unclean Election: OFF</button>
+    <button onclick="ISR.reset()">Reset</button>
+  </div>
+
+  <div class="commentary" id="isr-commentary">Happy path: producer sends to leader B0. B0 appends to local log. Followers B1 and B2 issue FetchRequests and replicate. Once all ISR members have the record, B0 advances the high watermark (HW). Only records at or below HW are visible to consumers.</div>
+
+  <div class="takeaway">
+    <strong>Takeaway</strong>
+    <ul>
+      <li>ISR is the durability set. A follower that lags beyond <code>replica.lag.time.max.ms</code> (default 30s) is removed from ISR. <code>min.insync.replicas</code> blocks producer writes when ISR shrinks below the threshold.</li>
+      <li>Leader election picks from ISR only (by default). The new leader is the ISR member with the highest replicated offset.</li>
+      <li>Unclean leader election (default OFF): if all ISR members are dead and a non-ISR replica is alive, electing it causes data loss -- its log is behind. Keep it OFF unless you explicitly trade durability for availability.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- TAB 5: TIERED STORAGE                                         -->
+<!-- ============================================================ -->
+<section data-tab="tiered" hidden>
+  <h2>Tiered Storage (KIP-405)</h2>
+  <p>Hot data lives on broker local disk. Cold data (older than the local retention threshold) is offloaded to remote object storage (S3 / GCS / Azure Blob). Same Kafka API -- transparent to clients.</p>
+
+  <svg id="ts-svg" viewBox="0 0 900 420" preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <marker id="ts-arr" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="#555"/>
+      </marker>
+    </defs>
+    <g id="ts-scene"></g>
+  </svg>
+
+  <div class="controls">
+    <button onclick="TS.produceRecent()">Produce (recent data)</button>
+    <button onclick="TS.consumeRecent()">Consume Recent</button>
+    <button onclick="TS.consumeOld()">Consume Old (cold tier)</button>
+    <button onclick="TS.advanceTime()">Advance Time (age segments)</button>
+    <button onclick="TS.reset()">Reset</button>
+  </div>
+
+  <div class="commentary" id="ts-commentary">Tiered storage separates retention cost from broker disk capacity. Recent segments stay on fast local disks. Older segments are copied to cheap object storage. Consumers reading recent data see no difference; consumers reading cold data pay higher latency but the data is still accessible through the standard Kafka consumer API.</div>
+
+  <div class="takeaway">
+    <strong>Takeaway</strong>
+    <ul>
+      <li>Pro: cheap long retention (compliance, replay-from-archive, ML retraining). Broker disk is no longer the retention bottleneck.</li>
+      <li>Con: read latency on cold tier (S3 GET latency ~50-200ms vs local disk ~1ms). Not suitable for latency-sensitive real-time consumers reading old data.</li>
+      <li>Use case: event sourcing replay, audit logs, regulatory retention (7+ years), training data pipelines. The hot/cold boundary is configured per topic via <code>local.retention.ms</code>.</li>
+    </ul>
+  </div>
+</section>
+
+<script>
+/* ================================================================
+   SHARED UTILITIES
+   ================================================================ */
+function delay(ms) { return new Promise(function(r) { setTimeout(r, ms); }); }
+
+function setActiveTab(name) {
+  var tabNames = ['broker', 'producer', 'consumer', 'replication', 'tiered'];
+  var btns = document.querySelectorAll('nav.tabs button');
+  btns.forEach(function(b, i) { b.classList.toggle('active', tabNames[i] === name); });
+  document.querySelectorAll('section[data-tab]').forEach(function(s) {
+    s.hidden = s.getAttribute('data-tab') !== name;
+  });
+}
+
+function svgEl(tag, attrs) {
+  var el = document.createElementNS('http://www.w3.org/2000/svg', tag);
+  if (attrs) { for (var k in attrs) { el.setAttribute(k, attrs[k]); } }
+  return el;
+}
+
+function svgText(x, y, text, opts) {
+  var t = svgEl('text', Object.assign({
+    x: x, y: y, 'text-anchor': 'middle', fill: '#888', 'font-size': '11'
+  }, opts || {}));
+  t.textContent = text;
+  return t;
+}
+
+function svgRect(x, y, w, h, opts) {
+  return svgEl('rect', Object.assign({
+    x: x, y: y, width: w, height: h, rx: 6, fill: '#181820', stroke: '#333', 'stroke-width': 1
+  }, opts || {}));
+}
+
+function animPkt(scene, fx, fy, tx, ty, color, label, ms) {
+  return new Promise(function(resolve) {
+    var g = svgEl('g', {});
+    g.appendChild(svgEl('circle', { cx: fx, cy: fy, r: 6, fill: color, opacity: '0.9' }));
+    if (label) {
+      g.appendChild(svgText(fx, fy - 12, label, { fill: color, 'font-size': '9', 'font-weight': '600' }));
+    }
+    scene.appendChild(g);
+    requestAnimationFrame(function() {
+      var ch = g.children;
+      for (var i = 0; i < ch.length; i++) {
+        ch[i].style.transition = 'all ' + ms + 'ms ease';
+        if (ch[i].tagName === 'circle') {
+          ch[i].setAttribute('cx', tx);
+          ch[i].setAttribute('cy', ty);
+        } else {
+          ch[i].setAttribute('x', tx);
+          ch[i].setAttribute('y', ty - 12);
+        }
+      }
+    });
+    setTimeout(function() {
+      if (g.parentNode) g.parentNode.removeChild(g);
+      resolve();
+    }, ms + 30);
+  });
+}
+
+
+/* ================================================================
+   TAB 1 -- BROKER CLUSTER + KRAFT
+   ================================================================ */
+var BK = (function() {
+  var PARTITION_COLORS = ['#ff6b6b', '#51cf66', '#ffd43b', '#cc5de8'];
+  var PARTITION_LABELS = ['P0', 'P1', 'P2', 'P3'];
+
+  /* Partition layout: leader broker + 2 follower brokers for each partition
+     P0: leader=B0, followers=B1,B2
+     P1: leader=B1, followers=B2,B3
+     P2: leader=B2, followers=B3,B4
+     P3: leader=B3, followers=B4,B0 */
+  var partitionMap = [
+    { leader: 0, followers: [1, 2] },
+    { leader: 1, followers: [2, 3] },
+    { leader: 2, followers: [3, 4] },
+    { leader: 3, followers: [4, 0] }
+  ];
+
+  var mode = 'kraft'; // 'kraft' or 'zk'
+  var controllerBroker = 0;
+  var controllerAlive = true;
+  var animating = false;
+  var scene;
+
+  /* Broker positions */
+  var brokers = [];
+  for (var i = 0; i < 5; i++) {
+    brokers.push({
+      id: i,
+      x: 130 + i * 160,
+      y: 200,
+      alive: true,
+      controllerEligible: i < 3
+    });
+  }
+
+  function draw() {
+    scene = document.getElementById('bk-scene');
+    scene.innerHTML = '';
+
+    /* -- KRaft / ZK box -- */
+    if (mode === 'kraft') {
+      /* KRaft controller quorum box around the 3 eligible brokers */
+      var qx = brokers[0].x - 50;
+      var qw = brokers[2].x - brokers[0].x + 100;
+      scene.appendChild(svgRect(qx, 90, qw, 50, {
+        fill: 'none', stroke: '#cc5de844', 'stroke-width': 1, 'stroke-dasharray': '6,4', rx: 8
+      }));
+      scene.appendChild(svgText(qx + qw / 2, 108, 'KRaft Controller Quorum (Raft)', {
+        fill: '#cc5de8', 'font-size': '10', 'font-weight': '600'
+      }));
+      scene.appendChild(svgText(qx + qw / 2, 125, 'Metadata log replicated internally', {
+        fill: '#cc5de855', 'font-size': '9'
+      }));
+    } else {
+      /* ZooKeeper external box */
+      scene.appendChild(svgRect(660, 20, 200, 80, {
+        fill: '#181820', stroke: '#ffa94d', 'stroke-width': 1.5, rx: 8
+      }));
+      scene.appendChild(svgText(760, 50, 'ZooKeeper Ensemble', {
+        fill: '#ffa94d', 'font-size': '12', 'font-weight': '600'
+      }));
+      scene.appendChild(svgText(760, 68, 'External metadata store', {
+        fill: '#ffa94d88', 'font-size': '9'
+      }));
+      scene.appendChild(svgText(760, 82, '(separate cluster to operate)', {
+        fill: '#ffa94d55', 'font-size': '9'
+      }));
+
+      /* Dashed lines from brokers to ZK */
+      for (var zi = 0; zi < 5; zi++) {
+        scene.appendChild(svgEl('line', {
+          x1: brokers[zi].x, y1: brokers[zi].y - 38,
+          x2: 660, y2: 60 + zi * 8,
+          stroke: '#ffa94d15', 'stroke-width': 1, 'stroke-dasharray': '3,4'
+        }));
+      }
+    }
+
+    /* -- Brokers -- */
+    for (var bi = 0; bi < 5; bi++) {
+      var b = brokers[bi];
+      var isController = bi === controllerBroker && controllerAlive;
+      var stroke = b.alive ? (isController ? '#cc5de8' : '#339af0') : '#ff6b6b';
+      var fill = b.alive ? '#181820' : '#1f1015';
+
+      scene.appendChild(svgRect(b.x - 40, b.y - 35, 80, 70, {
+        fill: fill, stroke: stroke, 'stroke-width': isController ? 2.5 : 1.5, rx: 8
+      }));
+
+      scene.appendChild(svgText(b.x, b.y - 15, 'B' + bi, {
+        fill: stroke, 'font-size': '14', 'font-weight': '700'
+      }));
+
+      /* Controller badge */
+      if (isController && b.alive) {
+        scene.appendChild(svgText(b.x, b.y - 48, 'CONTROLLER', {
+          fill: '#cc5de8', 'font-size': '8', 'font-weight': '700'
+        }));
+      }
+
+      /* Controller eligible marker */
+      if (b.controllerEligible && mode === 'kraft') {
+        scene.appendChild(svgEl('circle', {
+          cx: b.x + 34, cy: b.y - 29, r: 5,
+          fill: isController ? '#cc5de8' : '#cc5de844'
+        }));
+      }
+
+      /* Partitions hosted on this broker */
+      var hosted = [];
+      for (var pi = 0; pi < 4; pi++) {
+        var pm = partitionMap[pi];
+        if (pm.leader === bi) hosted.push({ part: pi, role: 'L' });
+        else if (pm.followers.indexOf(bi) !== -1) hosted.push({ part: pi, role: 'F' });
+      }
+
+      var startX = b.x - (hosted.length * 18) / 2 + 9;
+      for (var hi = 0; hi < hosted.length; hi++) {
+        var h = hosted[hi];
+        var px = startX + hi * 18;
+        var py = b.y + 10;
+        var pc = PARTITION_COLORS[h.part];
+        var opacity = b.alive ? (h.role === 'L' ? '1' : '0.4') : '0.15';
+        scene.appendChild(svgEl('rect', {
+          x: px - 7, y: py - 7, width: 14, height: 14, rx: 2,
+          fill: pc, opacity: opacity
+        }));
+        scene.appendChild(svgText(px, py + 3, h.role, {
+          fill: '#fff', 'font-size': '7', 'font-weight': '700'
+        }));
+      }
+
+      /* Dead X */
+      if (!b.alive) {
+        scene.appendChild(svgEl('line', { x1: b.x - 20, y1: b.y - 20, x2: b.x + 20, y2: b.y + 20, stroke: '#ff6b6b', 'stroke-width': 3 }));
+        scene.appendChild(svgEl('line', { x1: b.x + 20, y1: b.y - 20, x2: b.x - 20, y2: b.y + 20, stroke: '#ff6b6b', 'stroke-width': 3 }));
+      }
+    }
+
+    /* -- Partition legend -- */
+    var legendY = 310;
+    scene.appendChild(svgText(450, legendY, 'Topic: events (4 partitions, replication factor 3)', {
+      fill: '#666', 'font-size': '11', 'font-weight': '600'
+    }));
+
+    for (var li = 0; li < 4; li++) {
+      var lx = 200 + li * 140;
+      var pm2 = partitionMap[li];
+      scene.appendChild(svgEl('rect', {
+        x: lx - 8, y: legendY + 12, width: 16, height: 16, rx: 2,
+        fill: PARTITION_COLORS[li], opacity: '0.8'
+      }));
+      scene.appendChild(svgText(lx + 50, legendY + 24, PARTITION_LABELS[li] + ': L=B' + pm2.leader + ' F=B' + pm2.followers.join(',B'), {
+        fill: '#888', 'font-size': '10', 'text-anchor': 'middle'
+      }));
+    }
+
+    /* -- Client/producer at bottom -- */
+    scene.appendChild(svgRect(370, 380, 160, 45, {
+      fill: '#181820', stroke: '#51cf66', 'stroke-width': 1.5
+    }));
+    scene.appendChild(svgText(450, 405, 'Producer', {
+      fill: '#51cf66', 'font-size': '13', 'font-weight': '600'
+    }));
+    scene.appendChild(svgText(450, 418, 'produce(events, key, val)', {
+      fill: '#51cf6688', 'font-size': '9'
+    }));
+
+    /* Dashed line from producer to partition leader */
+    scene.appendChild(svgEl('line', {
+      x1: 450, y1: 380,
+      x2: 450, y2: 360,
+      stroke: '#51cf6622', 'stroke-width': 1, 'stroke-dasharray': '3,4'
+    }));
+
+    /* Arrow label */
+    scene.appendChild(svgText(450, 355, 'writes go to partition leader only', {
+      fill: '#51cf6644', 'font-size': '9'
+    }));
+  }
+
+  draw();
+
+  function commentary(text) {
+    document.getElementById('bk-commentary').textContent = text;
+  }
+
+  async function produce() {
+    if (animating) return;
+    animating = true;
+    /* hash('user42') % 4 = 2, so partition P2 */
+    var targetPartition = 2;
+    var pm = partitionMap[targetPartition];
+    var leaderBroker = brokers[pm.leader];
+
+    commentary('produce(events, key="user42", val="...") -- partitioner: hash("user42") % 4 = 2 -- connects to B' + pm.leader + ' (leader of P2).');
+
+    /* Animate: producer -> leader broker */
+    await animPkt(scene, 450, 380, leaderBroker.x, leaderBroker.y, PARTITION_COLORS[targetPartition], 'P2: user42', 600);
+
+    commentary('Message written to B' + pm.leader + ' (leader of P2). Followers B' + pm.followers.join(' and B') + ' will replicate via FetchRequest.');
+
+    /* Animate: leader -> each follower */
+    for (var fi = 0; fi < pm.followers.length; fi++) {
+      var fb = brokers[pm.followers[fi]];
+      if (fb.alive) {
+        animPkt(scene, leaderBroker.x, leaderBroker.y, fb.x, fb.y, PARTITION_COLORS[targetPartition] + '88', 'REPL', 400);
+      }
+    }
+    await delay(500);
+    animating = false;
+  }
+
+  function toggleMode() {
+    mode = mode === 'kraft' ? 'zk' : 'kraft';
+    document.getElementById('bk-mode-btn').textContent = 'Mode: ' + (mode === 'kraft' ? 'KRaft' : 'ZooKeeper');
+    draw();
+    if (mode === 'zk') {
+      commentary('ZooKeeper mode (legacy, pre-3.3): metadata is stored in an external ZK ensemble. The controller is a broker elected via ZK ephemeral nodes. Downside: separate ZK cluster to operate, slower failover (ZK session timeout ~18s), partition count ceiling (~200k).');
+    } else {
+      commentary('KRaft mode (default since 3.3+): metadata lives in an internal __cluster_metadata topic replicated via Raft among controller-eligible brokers. No external dependency. Controller failover in milliseconds (Raft election) vs seconds (ZK session expiry).');
+    }
+  }
+
+  async function killController() {
+    if (!controllerAlive || animating) return;
+    animating = true;
+    var oldController = controllerBroker;
+    brokers[oldController].alive = false;
+    controllerAlive = false;
+    draw();
+
+    commentary('Controller broker B' + oldController + ' is dead. ' +
+      (mode === 'kraft'
+        ? 'Raft detects missing heartbeats. Controller quorum runs leader election among remaining eligible brokers.'
+        : 'ZK session expires after timeout (~18s). ZK triggers ephemeral node deletion. Remaining brokers race to create new controller node.'));
+
+    await delay(1500);
+
+    /* Pick new controller from eligible, alive brokers */
+    var newController = -1;
+    for (var ci = 0; ci < 5; ci++) {
+      if (ci !== oldController && brokers[ci].controllerEligible && brokers[ci].alive) {
+        newController = ci;
+        break;
+      }
+    }
+    if (newController === -1) {
+      /* Fall back to any alive broker */
+      for (var ci2 = 0; ci2 < 5; ci2++) {
+        if (brokers[ci2].alive) { newController = ci2; break; }
+      }
+    }
+
+    controllerBroker = newController;
+    controllerAlive = true;
+
+    /* Re-assign partitions that had leader on dead broker */
+    for (var pi2 = 0; pi2 < 4; pi2++) {
+      if (partitionMap[pi2].leader === oldController) {
+        /* Pick new leader from followers that are alive */
+        for (var fi2 = 0; fi2 < partitionMap[pi2].followers.length; fi2++) {
+          var candidate = partitionMap[pi2].followers[fi2];
+          if (brokers[candidate].alive) {
+            partitionMap[pi2].leader = candidate;
+            partitionMap[pi2].followers = partitionMap[pi2].followers.filter(function(f) { return f !== candidate; });
+            break;
+          }
+        }
+      }
+      /* Remove dead broker from followers */
+      partitionMap[pi2].followers = partitionMap[pi2].followers.filter(function(f) { return f !== oldController; });
+    }
+
+    draw();
+
+    commentary('B' + newController + ' elected as new controller' +
+      (mode === 'kraft' ? ' via Raft (milliseconds)' : ' via ZK ephemeral node race (seconds)') +
+      '. Partitions that had leaders on B' + oldController + ' have been reassigned. Cluster keeps operating with reduced replication factor for affected partitions.');
+
+    document.getElementById('bk-kill-btn').disabled = true;
+    animating = false;
+  }
+
+  function reset() {
+    mode = 'kraft';
+    controllerBroker = 0;
+    controllerAlive = true;
+    animating = false;
+    partitionMap[0] = { leader: 0, followers: [1, 2] };
+    partitionMap[1] = { leader: 1, followers: [2, 3] };
+    partitionMap[2] = { leader: 2, followers: [3, 4] };
+    partitionMap[3] = { leader: 3, followers: [4, 0] };
+    for (var ri = 0; ri < 5; ri++) {
+      brokers[ri].alive = true;
+    }
+    document.getElementById('bk-kill-btn').disabled = false;
+    document.getElementById('bk-mode-btn').textContent = 'Mode: KRaft';
+    draw();
+    commentary('Each partition is a single-writer (leader) replicated log. Brokers 0, 1, 2 are controller-eligible. B0 is the active KRaft controller leader -- it owns metadata changes (partition assignment, leader election, broker membership). The metadata log is replicated via Raft among the controller quorum.');
+  }
+
+  return { produce: produce, toggleMode: toggleMode, killController: killController, reset: reset };
+})();
+
+
+/* ================================================================
+   TAB 2 -- PRODUCER
+   ================================================================ */
+var PR = (function() {
+  var PART_COLORS = ['#ff6b6b', '#51cf66', '#ffd43b', '#cc5de8'];
+  var acks = 'all';
+  var idempotent = false;
+  var leaderAlive = true;
+  var stickyPartition = 1; /* current sticky target */
+  var stickyCount = 0;
+  var msgSeq = 0;
+  var animating = false;
+  var scene;
+
+  /* Layout: 3 producers on left, 4 partitions on right */
+  var producers = [
+    { x: 80, y: 80, label: 'Producer A', color: '#ff6b6b' },
+    { x: 80, y: 200, label: 'Producer B', color: '#51cf66' },
+    { x: 80, y: 320, label: 'Producer C', color: '#339af0' }
+  ];
+
+  var partitions = [
+    { x: 550, y: 50,  label: 'P0', leaderBroker: 'B0', isrCount: 3, alive: true },
+    { x: 550, y: 140, label: 'P1', leaderBroker: 'B1', isrCount: 3, alive: true },
+    { x: 550, y: 230, label: 'P2', leaderBroker: 'B2', isrCount: 3, alive: true },
+    { x: 550, y: 320, label: 'P3', leaderBroker: 'B3', isrCount: 3, alive: true }
+  ];
+
+  function draw() {
+    scene = document.getElementById('pr-scene');
+    scene.innerHTML = '';
+
+    /* Acks mode indicator */
+    var acksColor = acks === '0' ? '#ffa94d' : acks === '1' ? '#ffd43b' : '#51cf66';
+    scene.appendChild(svgRect(310, 370, 270, 40, {
+      fill: '#12121a', stroke: acksColor + '66', 'stroke-width': 1
+    }));
+    var acksLabel = acks === '0' ? 'acks=0 (fire-and-forget)'
+                  : acks === '1' ? 'acks=1 (leader ack only)'
+                  : 'acks=all (ISR quorum ack)';
+    scene.appendChild(svgText(445, 395, acksLabel, {
+      fill: acksColor, 'font-size': '11', 'font-weight': '600'
+    }));
+
+    /* Idempotent indicator */
+    if (idempotent) {
+      scene.appendChild(svgRect(610, 370, 180, 40, {
+        fill: '#12121a', stroke: '#339af066', 'stroke-width': 1
+      }));
+      scene.appendChild(svgText(700, 395, 'Idempotent: PID+Seq', {
+        fill: '#339af0', 'font-size': '11', 'font-weight': '600'
+      }));
+    }
+
+    /* Producers */
+    for (var pi = 0; pi < producers.length; pi++) {
+      var p = producers[pi];
+      scene.appendChild(svgRect(p.x - 55, p.y - 25, 110, 50, {
+        fill: '#181820', stroke: p.color, 'stroke-width': 1.5
+      }));
+      scene.appendChild(svgText(p.x, p.y, p.label, {
+        fill: p.color, 'font-size': '12', 'font-weight': '600'
+      }));
+    }
+
+    /* Partitions */
+    for (var qi = 0; qi < partitions.length; qi++) {
+      var q = partitions[qi];
+      var stroke = q.alive ? PART_COLORS[qi] : '#ff6b6b';
+      var fill = q.alive ? '#181820' : '#1f1015';
+      scene.appendChild(svgRect(q.x - 60, q.y - 30, 280, 60, {
+        fill: fill, stroke: stroke, 'stroke-width': 1.5
+      }));
+      scene.appendChild(svgText(q.x - 30, q.y + 4, q.label, {
+        fill: stroke, 'font-size': '14', 'font-weight': '700'
+      }));
+      scene.appendChild(svgText(q.x + 30, q.y - 8, 'Leader: ' + q.leaderBroker, {
+        fill: '#888', 'font-size': '10'
+      }));
+      scene.appendChild(svgText(q.x + 30, q.y + 8, 'ISR: ' + q.isrCount + '/3', {
+        fill: q.isrCount === 3 ? '#51cf66' : '#ffa94d', 'font-size': '10'
+      }));
+
+      /* Log segments visualization */
+      var logX = q.x + 80;
+      for (var si = 0; si < 6; si++) {
+        var segFill = si < 4 ? PART_COLORS[qi] + '33' : '#12121a';
+        scene.appendChild(svgEl('rect', {
+          x: logX + si * 22, y: q.y - 8, width: 20, height: 16, rx: 2,
+          fill: segFill, stroke: '#333', 'stroke-width': 0.5
+        }));
+        if (si < 4) {
+          scene.appendChild(svgText(logX + si * 22 + 10, q.y + 4, '' + si, {
+            fill: '#888', 'font-size': '7'
+          }));
+        }
+      }
+
+      /* Dead X */
+      if (!q.alive) {
+        scene.appendChild(svgEl('line', { x1: q.x - 15, y1: q.y - 15, x2: q.x + 15, y2: q.y + 15, stroke: '#ff6b6b', 'stroke-width': 3 }));
+        scene.appendChild(svgEl('line', { x1: q.x + 15, y1: q.y - 15, x2: q.x - 15, y2: q.y + 15, stroke: '#ff6b6b', 'stroke-width': 3 }));
+      }
+    }
+
+    /* Partitioning explanation */
+    scene.appendChild(svgText(310, 30, 'Partitioning logic:', {
+      fill: '#666', 'font-size': '10', 'text-anchor': 'start', 'font-weight': '600'
+    }));
+    scene.appendChild(svgText(310, 44, 'Key present: hash(key) % 4', {
+      fill: '#555', 'font-size': '9', 'text-anchor': 'start'
+    }));
+    scene.appendChild(svgText(310, 57, 'No key: sticky batch (switch on full)', {
+      fill: '#555', 'font-size': '9', 'text-anchor': 'start'
+    }));
+  }
+
+  draw();
+
+  function commentary(text) {
+    document.getElementById('pr-commentary').textContent = text;
+  }
+
+  function updateAcks() {
+    acks = document.getElementById('pr-acks').value;
+    draw();
+    if (acks === '0') {
+      commentary('acks=0: producer sends the record and does not wait for any acknowledgment. Fastest, but if the broker is down or the record is lost in transit, there is no notification. Use only for metrics/telemetry where individual record loss is acceptable.');
+    } else if (acks === '1') {
+      commentary('acks=1: producer waits for the partition leader to acknowledge the write to its local log. If the leader crashes after acknowledging but BEFORE followers replicate, the record is lost. The gap between leader-ack and follower-replication is the data loss window.');
+    } else {
+      commentary('acks=all (-1): producer waits until all ISR members have replicated the record. Combined with min.insync.replicas=2, this guarantees the record survives any single broker failure. The tradeoff is higher latency (wait for slowest ISR member).');
+    }
+  }
+
+  async function produce(withKey) {
+    if (animating) return;
+    animating = true;
+    msgSeq++;
+
+    var targetPartition;
+    var prodIdx = msgSeq % 3;
+    var prod = producers[prodIdx];
+
+    if (withKey) {
+      /* hash('user42') % 4 = 2 */
+      targetPartition = 2;
+      commentary('Key="user42": hash("user42") % 4 = 2. All records with key "user42" go to partition P2 -- this guarantees ordering per key.');
+    } else {
+      /* Sticky partitioner */
+      stickyCount++;
+      if (stickyCount > 3) {
+        stickyPartition = (stickyPartition + 1) % 4;
+        stickyCount = 1;
+      }
+      targetPartition = stickyPartition;
+      commentary('No key -- sticky partitioner: batching to P' + targetPartition + ' (batch ' + stickyCount + '/3 before switch). Reduces number of in-flight requests compared to round-robin.');
+    }
+
+    var part = partitions[targetPartition];
+
+    if (!part.alive) {
+      commentary('P' + targetPartition + ' leader is dead! Producer receives NOT_LEADER_OR_FOLLOWER error. It refreshes metadata and retries. If acks=all and ISR is too small, producer gets NOT_ENOUGH_REPLICAS.');
+      animating = false;
+      return;
+    }
+
+    /* Animate: producer -> partition leader */
+    await animPkt(scene, prod.x + 55, prod.y, part.x - 60, part.y, PART_COLORS[targetPartition], 'msg#' + msgSeq, 500);
+
+    if (acks === '0') {
+      commentary('acks=0: record sent to P' + targetPartition + ' leader. No acknowledgment waited. Producer moves on immediately. If the broker crashed mid-write, this record is silently lost.');
+      animating = false;
+      return;
+    }
+
+    if (acks === '1') {
+      /* Leader acks */
+      await animPkt(scene, part.x - 60, part.y, prod.x + 55, prod.y, '#51cf66', 'ACK', 400);
+      commentary('acks=1: P' + targetPartition + ' leader acknowledged. Record is in leader log but NOT yet replicated. If leader crashes now, followers do not have this record -- it is lost on leader election.');
+      animating = false;
+      return;
+    }
+
+    /* acks=all: wait for ISR */
+    commentary('acks=all: P' + targetPartition + ' leader received record. Waiting for all ISR members to replicate before acknowledging...');
+    await delay(300);
+
+    /* Show replication to followers */
+    await animPkt(scene, part.x + 100, part.y - 15, part.x + 150, part.y - 15, PART_COLORS[targetPartition] + '88', 'REPL', 350);
+    await animPkt(scene, part.x + 100, part.y + 15, part.x + 150, part.y + 15, PART_COLORS[targetPartition] + '88', 'REPL', 350);
+
+    /* ISR ack back to producer */
+    await animPkt(scene, part.x - 60, part.y, prod.x + 55, prod.y, '#51cf66', 'ACK (all ISR)', 400);
+
+    if (idempotent) {
+      commentary('acks=all + idempotent: P' + targetPartition + ' ISR confirmed. Record has PID=' + prodIdx + ', seq=' + msgSeq + '. If producer retries this exact (partition, PID, seq), broker deduplicates. Zero data loss, zero duplicates.');
+    } else {
+      commentary('acks=all: all ISR members for P' + targetPartition + ' confirmed replication. Record is durable against any single broker failure. Without idempotent producer, a retry after timeout could create a duplicate.');
+    }
+    animating = false;
+  }
+
+  async function burst() {
+    if (animating) return;
+    for (var bi = 0; bi < 6; bi++) {
+      await produce(false);
+      await delay(200);
+    }
+  }
+
+  async function killLeader() {
+    if (!leaderAlive || animating) return;
+    animating = true;
+    leaderAlive = false;
+    partitions[2].alive = false;
+    partitions[2].isrCount = 0;
+    draw();
+
+    commentary('P2 leader (B2) crashed! Producer with acks=1 that received ACK just before crash -- that record is LOST because followers had not replicated it yet. With acks=all, the producer would NOT have received ACK until ISR replicated, so no loss.');
+
+    await delay(2000);
+
+    if (acks === '1') {
+      /* Show the lost message */
+      commentary('DATA LOSS with acks=1: the last acknowledged record was only on the leader log. Followers elect a new leader from ISR, but the unfinished replication means a gap in the log. With acks=all, this scenario is impossible -- the producer blocks until ISR confirms.');
+    }
+
+    /* Recovery: elect new leader */
+    await delay(1000);
+    partitions[2].alive = true;
+    partitions[2].leaderBroker = 'B3';
+    partitions[2].isrCount = 2;
+    draw();
+    commentary('New leader elected for P2: B3 (was a follower in ISR). ISR is now 2/3 -- reduced redundancy until B2 rejoins and catches up.');
+
+    document.getElementById('pr-kill-btn').disabled = true;
+    animating = false;
+  }
+
+  function toggleIdempotent() {
+    idempotent = !idempotent;
+    var btn = document.getElementById('pr-idemp-btn');
+    btn.textContent = 'Idempotent: ' + (idempotent ? 'ON' : 'OFF');
+    btn.classList.toggle('active-btn', idempotent);
+    draw();
+    if (idempotent) {
+      commentary('Idempotent producer enabled (enable.idempotence=true). Each producer gets a unique PID (producer ID). Each record gets a monotonic sequence number per partition. The broker deduplicates by (partition, PID, sequence). If the producer retries after a timeout, the broker recognizes the duplicate and discards it. Zero throughput cost.');
+    } else {
+      commentary('Idempotent producer disabled. Retries after timeout may produce duplicate records. In exactly-once pipelines, always enable idempotence.');
+    }
+  }
+
+  function reset() {
+    acks = 'all';
+    idempotent = false;
+    leaderAlive = true;
+    stickyPartition = 1;
+    stickyCount = 0;
+    msgSeq = 0;
+    animating = false;
+    partitions[0] = { x: 550, y: 50,  label: 'P0', leaderBroker: 'B0', isrCount: 3, alive: true };
+    partitions[1] = { x: 550, y: 140, label: 'P1', leaderBroker: 'B1', isrCount: 3, alive: true };
+    partitions[2] = { x: 550, y: 230, label: 'P2', leaderBroker: 'B2', isrCount: 3, alive: true };
+    partitions[3] = { x: 550, y: 320, label: 'P3', leaderBroker: 'B3', isrCount: 3, alive: true };
+    document.getElementById('pr-acks').value = 'all';
+    document.getElementById('pr-kill-btn').disabled = false;
+    document.getElementById('pr-idemp-btn').textContent = 'Idempotent: OFF';
+    document.getElementById('pr-idemp-btn').classList.remove('active-btn');
+    draw();
+    commentary('With a key present, partition = hash(key) % numPartitions -- all records with the same key go to the same partition, preserving ordering per key. The sticky partitioner (default since 2.4) batches keyless records to one partition until the batch fills, then switches -- reducing the number of in-flight batches and network round-trips.');
+  }
+
+  return { produce: produce, burst: burst, killLeader: killLeader, updateAcks: updateAcks, toggleIdempotent: toggleIdempotent, reset: reset };
+})();
+
+
+/* ================================================================
+   TAB 3 -- CONSUMER + CONSUMER GROUP
+   ================================================================ */
+var CG = (function() {
+  var PART_COLORS = ['#ff6b6b', '#51cf66', '#ffd43b', '#cc5de8', '#ffa94d', '#8be9fd'];
+  var strategy = 'cooperative';
+  var commitMode = 'auto';
+  var numConsumers = 3;
+  var animating = false;
+  var scene;
+
+  /* 6 partitions */
+  var partitions = [];
+  for (var pi = 0; pi < 6; pi++) {
+    partitions.push({
+      label: 'P' + pi,
+      x: 100 + pi * 120,
+      y: 80,
+      assignedTo: -1,
+      offset: pi * 100,
+      committed: pi * 100
+    });
+  }
+
+  /* Consumers */
+  var consumers = [];
+  function initConsumers(n) {
+    consumers = [];
+    for (var ci = 0; ci < n; ci++) {
+      consumers.push({
+        label: 'C' + (ci + 1),
+        color: ['#ff6b6b', '#51cf66', '#339af0', '#ffa94d'][ci],
+        x: 0,
+        y: 300,
+        paused: false,
+        alive: true
+      });
+    }
+    layoutConsumers();
+  }
+
+  function layoutConsumers() {
+    var n = consumers.length;
+    var spacing = 800 / (n + 1);
+    for (var ci = 0; ci < n; ci++) {
+      consumers[ci].x = 50 + spacing * (ci + 1);
+    }
+  }
+
+  function assign() {
+    /* Clear assignments */
+    for (var pi = 0; pi < 6; pi++) {
+      partitions[pi].assignedTo = -1;
+    }
+
+    var alive = [];
+    for (var ci = 0; ci < consumers.length; ci++) {
+      if (consumers[ci].alive) alive.push(ci);
+    }
+    if (alive.length === 0) return;
+
+    if (strategy === 'range') {
+      /* Contiguous ranges: P0-P1 -> C1, P2-P3 -> C2, P4-P5 -> C3, etc. */
+      var perConsumer = Math.floor(6 / alive.length);
+      var extra = 6 % alive.length;
+      var pidx = 0;
+      for (var ai = 0; ai < alive.length; ai++) {
+        var count = perConsumer + (ai < extra ? 1 : 0);
+        for (var k = 0; k < count; k++) {
+          if (pidx < 6) partitions[pidx++].assignedTo = alive[ai];
+        }
+      }
+    } else if (strategy === 'roundrobin') {
+      for (var ri = 0; ri < 6; ri++) {
+        partitions[ri].assignedTo = alive[ri % alive.length];
+      }
+    } else {
+      /* Sticky / cooperative-sticky: same as round-robin for initial, but minimize movement on rebalance */
+      for (var si = 0; si < 6; si++) {
+        partitions[si].assignedTo = alive[si % alive.length];
+      }
+    }
+  }
+
+  function draw() {
+    scene = document.getElementById('cg-scene');
+    scene.innerHTML = '';
+
+    /* Group coordinator */
+    scene.appendChild(svgRect(700, 10, 170, 45, {
+      fill: '#181820', stroke: '#cc5de8', 'stroke-width': 1.5
+    }));
+    scene.appendChild(svgText(785, 30, 'Group Coordinator', {
+      fill: '#cc5de8', 'font-size': '11', 'font-weight': '600'
+    }));
+    scene.appendChild(svgText(785, 45, '(broker that manages g1)', {
+      fill: '#cc5de855', 'font-size': '9'
+    }));
+
+    /* Strategy + commit labels */
+    var stratLabel = strategy === 'range' ? 'Range' : strategy === 'roundrobin' ? 'Round-Robin' : strategy === 'sticky' ? 'Sticky' : 'Cooperative-Sticky';
+    scene.appendChild(svgText(100, 25, 'Strategy: ' + stratLabel, {
+      fill: '#888', 'font-size': '11', 'font-weight': '600', 'text-anchor': 'start'
+    }));
+    scene.appendChild(svgText(100, 42, 'Commit: ' + (commitMode === 'auto' ? 'auto (every 5s)' : 'manual commitSync'), {
+      fill: '#888', 'font-size': '10', 'text-anchor': 'start'
+    }));
+
+    /* Partitions */
+    for (var pi = 0; pi < 6; pi++) {
+      var p = partitions[pi];
+      var assigned = p.assignedTo >= 0 && p.assignedTo < consumers.length;
+      var pColor = PART_COLORS[pi];
+      var consumerColor = assigned ? consumers[p.assignedTo].color : '#555';
+
+      scene.appendChild(svgRect(p.x - 40, p.y - 30, 80, 60, {
+        fill: '#181820', stroke: pColor, 'stroke-width': 1.5
+      }));
+      scene.appendChild(svgText(p.x, p.y - 8, p.label, {
+        fill: pColor, 'font-size': '14', 'font-weight': '700'
+      }));
+
+      /* Show assignment */
+      if (assigned) {
+        scene.appendChild(svgText(p.x, p.y + 12, consumers[p.assignedTo].label, {
+          fill: consumerColor, 'font-size': '10', 'font-weight': '600'
+        }));
+        /* Assignment line */
+        scene.appendChild(svgEl('line', {
+          x1: p.x, y1: p.y + 30,
+          x2: consumers[p.assignedTo].x, y2: consumers[p.assignedTo].y - 30,
+          stroke: consumerColor + '44', 'stroke-width': 1.5, 'stroke-dasharray': '4,4'
+        }));
+      } else {
+        scene.appendChild(svgText(p.x, p.y + 12, 'unassigned', {
+          fill: '#555', 'font-size': '9'
+        }));
+      }
+
+      /* Offset bar */
+      var barW = 60;
+      var committed = Math.min(p.committed, p.offset);
+      var commitPct = p.offset > 0 ? (committed / (p.offset + 50)) * barW : 0;
+      var offsetPct = p.offset > 0 ? (p.offset / (p.offset + 50)) * barW : 0;
+
+      scene.appendChild(svgEl('rect', {
+        x: p.x - 30, y: p.y + 22, width: barW, height: 4, rx: 2,
+        fill: '#333'
+      }));
+      scene.appendChild(svgEl('rect', {
+        x: p.x - 30, y: p.y + 22, width: commitPct, height: 4, rx: 2,
+        fill: '#51cf6688'
+      }));
+    }
+
+    /* Consumers */
+    for (var ci = 0; ci < consumers.length; ci++) {
+      var c = consumers[ci];
+      var cStroke = c.alive ? c.color : '#ff6b6b';
+      var cFill = c.alive ? '#181820' : '#1f1015';
+
+      scene.appendChild(svgRect(c.x - 50, c.y - 25, 100, 55, {
+        fill: cFill, stroke: cStroke, 'stroke-width': 1.5
+      }));
+      scene.appendChild(svgText(c.x, c.y - 5, c.label, {
+        fill: cStroke, 'font-size': '14', 'font-weight': '700'
+      }));
+
+      /* Count assigned partitions */
+      var assignedCount = 0;
+      for (var pc = 0; pc < 6; pc++) {
+        if (partitions[pc].assignedTo === ci) assignedCount++;
+      }
+      scene.appendChild(svgText(c.x, c.y + 14, assignedCount + ' partitions', {
+        fill: '#888', 'font-size': '10'
+      }));
+
+      /* Paused indicator */
+      if (c.paused) {
+        scene.appendChild(svgRect(c.x - 30, c.y + 28, 60, 18, {
+          fill: '#ff6b6b22', stroke: '#ff6b6b66', 'stroke-width': 1
+        }));
+        scene.appendChild(svgText(c.x, c.y + 40, 'PAUSED', {
+          fill: '#ff6b6b', 'font-size': '9', 'font-weight': '700'
+        }));
+      }
+
+      /* Heartbeat line to coordinator */
+      if (c.alive && !c.paused) {
+        scene.appendChild(svgEl('line', {
+          x1: c.x + 50, y1: c.y - 10,
+          x2: 700, y2: 55,
+          stroke: '#cc5de810', 'stroke-width': 1, 'stroke-dasharray': '3,6'
+        }));
+      }
+
+      /* Dead X */
+      if (!c.alive) {
+        scene.appendChild(svgEl('line', { x1: c.x - 15, y1: c.y - 15, x2: c.x + 15, y2: c.y + 15, stroke: '#ff6b6b', 'stroke-width': 3 }));
+        scene.appendChild(svgEl('line', { x1: c.x + 15, y1: c.y - 15, x2: c.x - 15, y2: c.y + 15, stroke: '#ff6b6b', 'stroke-width': 3 }));
+      }
+    }
+
+    /* Idle consumer note */
+    for (var ic = 0; ic < consumers.length; ic++) {
+      var idleCount = 0;
+      for (var pp = 0; pp < 6; pp++) {
+        if (partitions[pp].assignedTo === ic) idleCount++;
+      }
+      if (idleCount === 0 && consumers[ic].alive) {
+        scene.appendChild(svgText(consumers[ic].x, consumers[ic].y + 42, 'IDLE (no partitions)', {
+          fill: '#ffa94d', 'font-size': '9', 'font-weight': '600'
+        }));
+      }
+    }
+  }
+
+  initConsumers(3);
+  assign();
+  draw();
+
+  function commentary(text) {
+    document.getElementById('cg-commentary').textContent = text;
+  }
+
+  function changeStrategy() {
+    strategy = document.getElementById('cg-strategy').value;
+    assign();
+    draw();
+    var descs = {
+      range: 'Range: contiguous ranges of partitions per consumer. P0-P1 to C1, P2-P3 to C2, P4-P5 to C3. Simple but can cause imbalance when partition count is not evenly divisible.',
+      roundrobin: 'Round-Robin: partitions distributed one at a time across consumers. P0->C1, P1->C2, P2->C3, P3->C1, P4->C2, P5->C3. Even distribution per record, but more batches in flight.',
+      sticky: 'Sticky: like round-robin for initial assignment, but on rebalance it minimizes partition movement. Keeps partitions on the same consumer where possible. Still uses "eager" (stop-the-world) rebalance protocol.',
+      cooperative: 'Cooperative-Sticky (default in modern Kafka): same sticky logic but uses incremental rebalance protocol. Only partitions that need to move are revoked and reassigned -- other consumers keep consuming without pause.'
+    };
+    commentary(descs[strategy]);
+  }
+
+  function changeCommit() {
+    commitMode = document.getElementById('cg-commit').value;
+    if (commitMode === 'auto') {
+      commentary('Auto-commit: consumer commits offsets every auto.commit.interval.ms (default 5s). Risk: consumer processes records, crashes before next auto-commit. New consumer re-processes from last committed offset -- duplicate processing. Acceptable for idempotent consumers.');
+    } else {
+      commentary('Manual commitSync: consumer calls commitSync() after processing each batch. At-least-once semantics: if consumer crashes after processing but before commit, records are re-delivered on rebalance. Tighter control than auto-commit.');
+    }
+  }
+
+  async function addConsumer() {
+    if (numConsumers >= 7 || animating) return;
+    animating = true;
+    numConsumers++;
+
+    if (numConsumers > 6) {
+      consumers.push({
+        label: 'C' + numConsumers,
+        color: '#888',
+        x: 0, y: 300,
+        paused: false, alive: true
+      });
+      layoutConsumers();
+      assign();
+      draw();
+      commentary('C' + numConsumers + ' added but there are only 6 partitions. Consumer is IDLE -- it receives zero partitions. More consumers than partitions = wasted resources. This is the scaling ceiling for a single consumer group.');
+      animating = false;
+      return;
+    }
+
+    /* Show rebalance */
+    var isCooperative = strategy === 'cooperative';
+    var oldAssignments = [];
+    for (var oi = 0; oi < 6; oi++) {
+      oldAssignments.push(partitions[oi].assignedTo);
+    }
+
+    consumers.push({
+      label: 'C' + numConsumers,
+      color: ['#ff6b6b', '#51cf66', '#339af0', '#ffa94d', '#cc5de8', '#8be9fd'][numConsumers - 1] || '#888',
+      x: 0, y: 300,
+      paused: false, alive: true
+    });
+    layoutConsumers();
+
+    if (!isCooperative) {
+      /* Eager rebalance: ALL consumers pause */
+      commentary('EAGER rebalance triggered by C' + numConsumers + ' joining. ALL consumers STOP consuming. Group coordinator revokes ALL partitions and runs full reassignment. No consumption during this period -- visible latency spike.');
+
+      for (var ei = 0; ei < consumers.length - 1; ei++) {
+        consumers[ei].paused = true;
+      }
+      /* Clear all assignments during rebalance */
+      for (var ep = 0; ep < 6; ep++) {
+        partitions[ep].assignedTo = -1;
+      }
+      draw();
+      await delay(2000);
+
+      /* Reassign */
+      assign();
+      for (var ei2 = 0; ei2 < consumers.length; ei2++) {
+        consumers[ei2].paused = false;
+      }
+      draw();
+
+      commentary('Eager rebalance complete. All consumers resumed. Every consumer was paused during reassignment -- even those whose partition assignment did not change. This "stop-the-world" pause is the rebalance storm problem.');
+    } else {
+      /* Cooperative-sticky: only move affected partitions */
+      commentary('COOPERATIVE rebalance: C' + numConsumers + ' joins. Only partitions that need to move are revoked from their current owner. Other consumers keep consuming uninterrupted.');
+
+      /* First: show which partitions will move */
+      assign(); /* compute new assignments */
+
+      var moved = [];
+      var unchanged = [];
+      for (var ci2 = 0; ci2 < 6; ci2++) {
+        if (partitions[ci2].assignedTo !== oldAssignments[ci2]) {
+          moved.push(ci2);
+        } else {
+          unchanged.push(ci2);
+        }
+      }
+
+      /* Only pause/revoke the moved partitions' old consumers */
+      for (var mi = 0; mi < moved.length; mi++) {
+        partitions[moved[mi]].assignedTo = -1; /* temporarily unassigned */
+      }
+      draw();
+      await delay(1500);
+
+      /* Reassign moved partitions */
+      assign();
+      draw();
+
+      commentary('Cooperative rebalance complete. Only P' + moved.join(', P') + ' were reassigned. P' + unchanged.join(', P') + ' continued consuming without interruption. No global pause -- this is why cooperative-sticky is the modern default.');
+    }
+    animating = false;
+  }
+
+  async function removeConsumer() {
+    if (numConsumers <= 1 || animating) return;
+    animating = true;
+
+    var removedIdx = numConsumers - 1;
+    var isCooperative = strategy === 'cooperative';
+
+    consumers[removedIdx].alive = false;
+    draw();
+
+    commentary('C' + (removedIdx + 1) + ' left the group (or crashed -- group coordinator detects missed heartbeat after session.timeout.ms). Rebalance triggered to reassign orphaned partitions.');
+    await delay(1500);
+
+    consumers.splice(removedIdx, 1);
+    numConsumers--;
+    layoutConsumers();
+
+    if (!isCooperative) {
+      /* Eager: pause all */
+      for (var ei = 0; ei < consumers.length; ei++) {
+        consumers[ei].paused = true;
+      }
+      for (var ep = 0; ep < 6; ep++) {
+        partitions[ep].assignedTo = -1;
+      }
+      draw();
+      await delay(1500);
+      for (var ei2 = 0; ei2 < consumers.length; ei2++) {
+        consumers[ei2].paused = false;
+      }
+    }
+
+    assign();
+    draw();
+
+    if (!isCooperative) {
+      commentary('Eager rebalance after C' + (removedIdx + 1) + ' left: all consumers paused, full reassignment, resumed. Remaining ' + numConsumers + ' consumers now handle 6 partitions.');
+    } else {
+      commentary('Cooperative rebalance: orphaned partitions from C' + (removedIdx + 1) + ' reassigned. Other consumers kept consuming during the reassignment.');
+    }
+    animating = false;
+  }
+
+  async function triggerRebalance() {
+    if (animating) return;
+    animating = true;
+    var isCooperative = strategy === 'cooperative';
+
+    if (!isCooperative) {
+      commentary('Eager rebalance: ALL consumers stop. All partitions revoked. Full reassignment computed. All consumers resume. This stop-the-world pause can last seconds under load.');
+      for (var ei = 0; ei < consumers.length; ei++) {
+        consumers[ei].paused = true;
+      }
+      for (var ep = 0; ep < 6; ep++) {
+        partitions[ep].assignedTo = -1;
+      }
+      draw();
+      await delay(2500);
+
+      assign();
+      for (var ei2 = 0; ei2 < consumers.length; ei2++) {
+        consumers[ei2].paused = false;
+      }
+      draw();
+      commentary('Eager rebalance complete. All consumers resumed. In production, this is felt as a consumption lag spike.');
+    } else {
+      commentary('Cooperative rebalance: partition reassignment with minimal disruption. Only partitions that change ownership are briefly unassigned. Others continue.');
+      await delay(1500);
+      assign();
+      draw();
+      commentary('Cooperative rebalance complete. Minimal disruption.');
+    }
+    animating = false;
+  }
+
+  function reset() {
+    numConsumers = 3;
+    strategy = 'cooperative';
+    commitMode = 'auto';
+    animating = false;
+    initConsumers(3);
+    for (var pi = 0; pi < 6; pi++) {
+      partitions[pi].assignedTo = -1;
+      partitions[pi].offset = pi * 100;
+      partitions[pi].committed = pi * 100;
+    }
+    assign();
+    document.getElementById('cg-strategy').value = 'cooperative';
+    document.getElementById('cg-commit').value = 'auto';
+    draw();
+    commentary('Consumer group = parallelism unit. Each partition is consumed by exactly one consumer in the group. With 3 consumers and 6 partitions, each consumer handles 2 partitions. Consumers heartbeat to the group coordinator (a broker) to signal liveness.');
+  }
+
+  return { addConsumer: addConsumer, removeConsumer: removeConsumer, changeStrategy: changeStrategy, changeCommit: changeCommit, triggerRebalance: triggerRebalance, reset: reset };
+})();
+
+
+/* ================================================================
+   TAB 4 -- REPLICATION + ISR
+   ================================================================ */
+var ISR = (function() {
+  var scene;
+  var animating = false;
+  var uncleanEnabled = false;
+
+  /* Broker state */
+  var brokerState = [
+    { id: 'B0', role: 'leader', alive: true, color: '#339af0', log: [0, 1, 2, 3], hw: 3 },
+    { id: 'B1', role: 'follower', alive: true, color: '#8be9fd', log: [0, 1, 2, 3], hw: 3, inISR: true },
+    { id: 'B2', role: 'follower', alive: true, color: '#51cf66', log: [0, 1, 2, 3], hw: 3, inISR: true }
+  ];
+  var nextOffset = 4;
+  var hwGlobal = 3;
+  var isrList = ['B0', 'B1', 'B2'];
+
+  var positions = [
+    { x: 200, y: 100 },
+    { x: 200, y: 250 },
+    { x: 200, y: 400 }
+  ];
+
+  function draw() {
+    scene = document.getElementById('isr-scene');
+    scene.innerHTML = '';
+
+    /* ISR status box */
+    scene.appendChild(svgRect(600, 30, 260, 90, {
+      fill: '#12121a', stroke: '#339af044', 'stroke-width': 1
+    }));
+    scene.appendChild(svgText(730, 52, 'ISR: [' + isrList.join(', ') + ']', {
+      fill: '#339af0', 'font-size': '12', 'font-weight': '600'
+    }));
+    scene.appendChild(svgText(730, 72, 'High Watermark (HW): offset ' + hwGlobal, {
+      fill: '#51cf66', 'font-size': '11'
+    }));
+    scene.appendChild(svgText(730, 90, 'min.insync.replicas = 2', {
+      fill: '#888', 'font-size': '10'
+    }));
+    scene.appendChild(svgText(730, 106, 'Unclean election: ' + (uncleanEnabled ? 'ON' : 'OFF'), {
+      fill: uncleanEnabled ? '#ff6b6b' : '#51cf66', 'font-size': '10', 'font-weight': '600'
+    }));
+
+    /* Producer */
+    scene.appendChild(svgRect(20, 60, 100, 40, {
+      fill: '#181820', stroke: '#ffa94d', 'stroke-width': 1.5
+    }));
+    scene.appendChild(svgText(70, 84, 'Producer', {
+      fill: '#ffa94d', 'font-size': '12', 'font-weight': '600'
+    }));
+
+    /* Arrow from producer to leader */
+    scene.appendChild(svgEl('line', {
+      x1: 120, y1: 80,
+      x2: 160, y2: positions[0].y,
+      stroke: '#ffa94d33', 'stroke-width': 1.5,
+      'marker-end': 'url(#isr-arr)'
+    }));
+
+    /* Consumer */
+    scene.appendChild(svgRect(20, 430, 100, 40, {
+      fill: '#181820', stroke: '#51cf66', 'stroke-width': 1.5
+    }));
+    scene.appendChild(svgText(70, 454, 'Consumer', {
+      fill: '#51cf66', 'font-size': '12', 'font-weight': '600'
+    }));
+    scene.appendChild(svgText(70, 468, '(reads <= HW only)', {
+      fill: '#51cf6666', 'font-size': '8'
+    }));
+
+    /* Arrow from consumer to leader */
+    scene.appendChild(svgEl('line', {
+      x1: 120, y1: 450,
+      x2: 160, y2: positions[0].y + 10,
+      stroke: '#51cf6633', 'stroke-width': 1.5,
+      'marker-end': 'url(#isr-arr)'
+    }));
+
+    /* Brokers */
+    for (var bi = 0; bi < 3; bi++) {
+      var b = brokerState[bi];
+      var pos = positions[bi];
+      var stroke = b.alive ? b.color : '#ff6b6b';
+      var fill = b.alive ? '#181820' : '#1f1015';
+
+      /* Container */
+      scene.appendChild(svgRect(pos.x - 30, pos.y - 40, 440, 80, {
+        fill: fill, stroke: stroke, 'stroke-width': b.role === 'leader' ? 2 : 1.5
+      }));
+
+      /* Label */
+      scene.appendChild(svgText(pos.x, pos.y - 15, b.id, {
+        fill: stroke, 'font-size': '14', 'font-weight': '700'
+      }));
+      scene.appendChild(svgText(pos.x, pos.y + 5, b.role.toUpperCase(), {
+        fill: b.role === 'leader' ? '#339af0' : '#888', 'font-size': '10', 'font-weight': '600'
+      }));
+
+      /* ISR badge */
+      if (b.inISR !== false && b.alive) {
+        scene.appendChild(svgText(pos.x, pos.y + 22, 'IN ISR', {
+          fill: '#51cf66', 'font-size': '8', 'font-weight': '600'
+        }));
+      } else if (b.alive && b.inISR === false) {
+        scene.appendChild(svgText(pos.x, pos.y + 22, 'OUT OF ISR', {
+          fill: '#ff6b6b', 'font-size': '8', 'font-weight': '600'
+        }));
+      }
+
+      /* Log visualization */
+      var logStartX = pos.x + 60;
+      for (var li = 0; li < b.log.length; li++) {
+        var offset = b.log[li];
+        var isAboveHW = offset > hwGlobal;
+        var segColor = isAboveHW ? '#ffa94d44' : b.color + '66';
+        var segStroke = isAboveHW ? '#ffa94d66' : '#333';
+
+        scene.appendChild(svgEl('rect', {
+          x: logStartX + li * 40, y: pos.y - 18, width: 35, height: 36, rx: 3,
+          fill: segColor, stroke: segStroke, 'stroke-width': 1
+        }));
+        scene.appendChild(svgText(logStartX + li * 40 + 17, pos.y + 4, '' + offset, {
+          fill: isAboveHW ? '#ffa94d' : '#ddd', 'font-size': '11', 'font-weight': '600'
+        }));
+      }
+
+      /* HW marker line on the log */
+      if (b.log.length > 0 && b.alive) {
+        var hwIdx = -1;
+        for (var hwi = 0; hwi < b.log.length; hwi++) {
+          if (b.log[hwi] <= hwGlobal) hwIdx = hwi;
+        }
+        if (hwIdx >= 0) {
+          var hwX = logStartX + (hwIdx + 1) * 40 - 2;
+          scene.appendChild(svgEl('line', {
+            x1: hwX, y1: pos.y - 22, x2: hwX, y2: pos.y + 22,
+            stroke: '#51cf66', 'stroke-width': 2, 'stroke-dasharray': '3,2'
+          }));
+          scene.appendChild(svgText(hwX, pos.y - 27, 'HW', {
+            fill: '#51cf66', 'font-size': '8', 'font-weight': '700'
+          }));
+        }
+      }
+
+      /* FetchRequest arrows between leader and followers */
+      if (bi > 0 && b.alive && brokerState[0].alive) {
+        scene.appendChild(svgEl('line', {
+          x1: positions[0].x + 40, y1: positions[0].y + 10 * bi,
+          x2: pos.x + 40, y2: pos.y - 40,
+          stroke: b.color + '22', 'stroke-width': 1, 'stroke-dasharray': '4,4'
+        }));
+        scene.appendChild(svgText(positions[0].x + 50, (positions[0].y + pos.y) / 2, 'FetchReq (pull)', {
+          fill: '#55555544', 'font-size': '8'
+        }));
+      }
+
+      /* Dead X */
+      if (!b.alive) {
+        scene.appendChild(svgEl('line', { x1: pos.x - 15, y1: pos.y - 15, x2: pos.x + 15, y2: pos.y + 15, stroke: '#ff6b6b', 'stroke-width': 3 }));
+        scene.appendChild(svgEl('line', { x1: pos.x + 15, y1: pos.y - 15, x2: pos.x - 15, y2: pos.y + 15, stroke: '#ff6b6b', 'stroke-width': 3 }));
+      }
+    }
+
+    /* Legend: above HW vs below HW */
+    scene.appendChild(svgRect(600, 150, 260, 70, {
+      fill: '#12121a', stroke: '#333', 'stroke-width': 1
+    }));
+    scene.appendChild(svgEl('rect', { x: 620, y: 165, width: 20, height: 14, rx: 2, fill: '#339af066' }));
+    scene.appendChild(svgText(665, 176, '<= HW: visible to consumers', {
+      fill: '#888', 'font-size': '10', 'text-anchor': 'start'
+    }));
+    scene.appendChild(svgEl('rect', { x: 620, y: 190, width: 20, height: 14, rx: 2, fill: '#ffa94d44', stroke: '#ffa94d66', 'stroke-width': 1 }));
+    scene.appendChild(svgText(665, 201, '> HW: not yet replicated to all ISR', {
+      fill: '#888', 'font-size': '10', 'text-anchor': 'start'
+    }));
+  }
+
+  draw();
+
+  function commentary(text) {
+    document.getElementById('isr-commentary').textContent = text;
+  }
+
+  async function produceRecord() {
+    if (animating) return;
+    animating = true;
+    var offset = nextOffset++;
+
+    /* 1. Write to leader */
+    brokerState[0].log.push(offset);
+    draw();
+    commentary('Producer sends record (offset ' + offset + ') to leader B0. B0 appends to its local log. Record is above the high watermark -- not yet visible to consumers.');
+
+    await animPkt(scene, 120, 80, positions[0].x + 60 + brokerState[0].log.length * 40 - 20, positions[0].y, '#ffa94d', 'offset ' + offset, 500);
+    await delay(500);
+
+    /* 2. Followers fetch and replicate */
+    var replicated = 0;
+    for (var fi = 1; fi < 3; fi++) {
+      if (brokerState[fi].alive && brokerState[fi].inISR !== false) {
+        commentary('B' + fi + ' issues FetchRequest and replicates offset ' + offset + '. Pull model -- followers initiate the fetch, not the leader.');
+        brokerState[fi].log.push(offset);
+        replicated++;
+        draw();
+        await delay(400);
+      }
+    }
+
+    /* 3. Advance HW if all ISR replicated */
+    if (replicated > 0) {
+      hwGlobal = offset;
+      for (var hi = 0; hi < 3; hi++) {
+        brokerState[hi].hw = hwGlobal;
+      }
+      draw();
+      commentary('All ISR members have replicated offset ' + offset + '. Leader advances high watermark to ' + hwGlobal + '. Record is now visible to consumers. Producer receives ack (if acks=all).');
+    } else {
+      commentary('No ISR followers available to replicate offset ' + offset + '. High watermark stays at ' + hwGlobal + '. Record exists only on leader -- vulnerable to data loss.');
+    }
+    animating = false;
+  }
+
+  async function lagFollower() {
+    if (animating) return;
+    animating = true;
+
+    brokerState[2].inISR = false;
+    isrList = ['B0', 'B1'];
+    draw();
+
+    commentary('B2 is lagging beyond replica.lag.time.max.ms (default 30s). Leader removes B2 from ISR. ISR shrinks to [B0, B1]. With min.insync.replicas=2, writes still proceed. If another follower drops, ISR shrinks below min.insync.replicas and producer gets NotEnoughReplicasException.');
+
+    await delay(1500);
+
+    /* Produce a record that only replicates to B1 */
+    var offset = nextOffset++;
+    brokerState[0].log.push(offset);
+    brokerState[1].log.push(offset);
+    hwGlobal = offset;
+    brokerState[0].hw = hwGlobal;
+    brokerState[1].hw = hwGlobal;
+    draw();
+
+    commentary('Record offset ' + offset + ' replicated to ISR [B0, B1] only. B2 (out of ISR) does not have it. If B2 rejoins, it must catch up from the leader. HW advanced because ISR quorum is met.');
+
+    document.getElementById('isr-lag-btn').disabled = true;
+    animating = false;
+  }
+
+  async function killLeader() {
+    if (animating || !brokerState[0].alive) return;
+    animating = true;
+    brokerState[0].alive = false;
+
+    draw();
+    commentary('Leader B0 is dead. Controller detects failure via heartbeat timeout. Must elect new leader from ISR.');
+
+    await delay(1500);
+
+    /* Elect new leader from ISR */
+    var newLeader = -1;
+    for (var ci = 1; ci < 3; ci++) {
+      if (brokerState[ci].alive && brokerState[ci].inISR !== false) {
+        newLeader = ci;
+        break;
+      }
+    }
+
+    if (newLeader >= 0) {
+      brokerState[newLeader].role = 'leader';
+      brokerState[newLeader].color = '#339af0';
+
+      /* Update ISR */
+      isrList = [];
+      for (var ii = 0; ii < 3; ii++) {
+        if (brokerState[ii].alive && brokerState[ii].inISR !== false) {
+          isrList.push(brokerState[ii].id);
+        }
+      }
+
+      /* Swap positions so new leader is on top */
+      var tmp = positions[0];
+      positions[0] = positions[newLeader];
+      positions[newLeader] = tmp;
+
+      draw();
+      commentary('B' + newLeader + ' elected as new leader (highest replicated offset in ISR). Consumers reconnect to B' + newLeader + '. Any records that were on B0 above the HW and not yet replicated are lost -- this is why acks=all prevents this scenario (producer never got ACK for unreplicated records).');
+    } else if (uncleanEnabled) {
+      /* Unclean election: pick non-ISR replica */
+      for (var ui = 1; ui < 3; ui++) {
+        if (brokerState[ui].alive) {
+          brokerState[ui].role = 'leader';
+          brokerState[ui].color = '#ff6b6b';
+          isrList = [brokerState[ui].id];
+          newLeader = ui;
+
+          var tmp2 = positions[0];
+          positions[0] = positions[ui];
+          positions[ui] = tmp2;
+          break;
+        }
+      }
+      draw();
+      commentary('UNCLEAN LEADER ELECTION: B' + newLeader + ' elected despite being out of ISR. Its log is BEHIND the old leader -- records between B' + newLeader + "'s last offset and B0's last offset are PERMANENTLY LOST. This is why unclean election should be OFF (default). It trades data loss for availability.");
+    } else {
+      draw();
+      commentary('No ISR members alive. With unclean.leader.election.enable=false (default), the partition goes OFFLINE rather than lose data. Producer receives LeaderNotAvailableException. Turn on unclean election toggle to see the data-loss path.');
+    }
+
+    document.getElementById('isr-kill-btn').disabled = true;
+    animating = false;
+  }
+
+  function toggleUnclean() {
+    uncleanEnabled = !uncleanEnabled;
+    var btn = document.getElementById('isr-unclean-btn');
+    btn.textContent = 'Unclean Election: ' + (uncleanEnabled ? 'ON' : 'OFF');
+    btn.classList.toggle('danger', uncleanEnabled);
+    btn.classList.toggle('active-btn', !uncleanEnabled);
+    draw();
+    if (uncleanEnabled) {
+      commentary('Unclean leader election ENABLED. If all ISR members die, a non-ISR replica can become leader -- at the cost of data loss (its log is behind). Keep this OFF in production unless you explicitly trade durability for availability.');
+    } else {
+      commentary('Unclean leader election DISABLED (default). If all ISR members die, the partition goes offline rather than lose data. This is the safe default for most workloads.');
+    }
+  }
+
+  function reset() {
+    animating = false;
+    uncleanEnabled = false;
+    nextOffset = 4;
+    hwGlobal = 3;
+    isrList = ['B0', 'B1', 'B2'];
+    brokerState = [
+      { id: 'B0', role: 'leader', alive: true, color: '#339af0', log: [0, 1, 2, 3], hw: 3 },
+      { id: 'B1', role: 'follower', alive: true, color: '#8be9fd', log: [0, 1, 2, 3], hw: 3, inISR: true },
+      { id: 'B2', role: 'follower', alive: true, color: '#51cf66', log: [0, 1, 2, 3], hw: 3, inISR: true }
+    ];
+    positions = [
+      { x: 200, y: 100 },
+      { x: 200, y: 250 },
+      { x: 200, y: 400 }
+    ];
+    document.getElementById('isr-kill-btn').disabled = false;
+    document.getElementById('isr-lag-btn').disabled = false;
+    document.getElementById('isr-unclean-btn').textContent = 'Unclean Election: OFF';
+    document.getElementById('isr-unclean-btn').classList.remove('danger');
+    document.getElementById('isr-unclean-btn').classList.remove('active-btn');
+    draw();
+    commentary('Happy path: producer sends to leader B0. B0 appends to local log. Followers B1 and B2 issue FetchRequests and replicate. Once all ISR members have the record, B0 advances the high watermark (HW). Only records at or below HW are visible to consumers.');
+  }
+
+  return { produceRecord: produceRecord, lagFollower: lagFollower, killLeader: killLeader, toggleUnclean: toggleUnclean, reset: reset };
+})();
+
+
+/* ================================================================
+   TAB 5 -- TIERED STORAGE
+   ================================================================ */
+var TS = (function() {
+  var scene;
+  var animating = false;
+
+  /* Segments: each has age, tier */
+  var segments = [
+    { id: 0, age: 0, tier: 'local', label: 'S0 (newest)' },
+    { id: 1, age: 1, tier: 'local', label: 'S1' },
+    { id: 2, age: 2, tier: 'local', label: 'S2' },
+    { id: 3, age: 3, tier: 'remote', label: 'S3' },
+    { id: 4, age: 4, tier: 'remote', label: 'S4' },
+    { id: 5, age: 5, tier: 'remote', label: 'S5 (oldest)' }
+  ];
+
+  var retentionThreshold = 3; /* segments with age >= this go to remote */
+
+  function draw() {
+    scene = document.getElementById('ts-scene');
+    scene.innerHTML = '';
+
+    /* Broker box */
+    scene.appendChild(svgRect(80, 50, 350, 300, {
+      fill: '#12121a', stroke: '#339af0', 'stroke-width': 1.5, rx: 10
+    }));
+    scene.appendChild(svgText(255, 75, 'Broker (Local Disk)', {
+      fill: '#339af0', 'font-size': '14', 'font-weight': '700'
+    }));
+    scene.appendChild(svgText(255, 92, 'Fast: ~1ms read latency', {
+      fill: '#339af066', 'font-size': '10'
+    }));
+
+    /* Remote storage box */
+    scene.appendChild(svgRect(520, 50, 340, 300, {
+      fill: '#12121a', stroke: '#ffa94d', 'stroke-width': 1.5, rx: 10
+    }));
+    scene.appendChild(svgText(690, 75, 'Remote Storage (S3 / GCS)', {
+      fill: '#ffa94d', 'font-size': '14', 'font-weight': '700'
+    }));
+    scene.appendChild(svgText(690, 92, 'Cheap: ~50-200ms read latency', {
+      fill: '#ffa94d66', 'font-size': '10'
+    }));
+
+    /* Retention boundary label */
+    scene.appendChild(svgText(430, 45, 'local.retention.ms boundary', {
+      fill: '#888', 'font-size': '9'
+    }));
+    scene.appendChild(svgEl('line', {
+      x1: 430, y1: 50, x2: 430, y2: 350,
+      stroke: '#555', 'stroke-width': 1, 'stroke-dasharray': '6,4'
+    }));
+
+    /* Draw segments */
+    var localSegs = segments.filter(function(s) { return s.tier === 'local'; });
+    var remoteSegs = segments.filter(function(s) { return s.tier === 'remote'; });
+
+    for (var li = 0; li < localSegs.length; li++) {
+      var s = localSegs[li];
+      var sy = 115 + li * 55;
+      var freshness = 1 - (s.age / 6);
+      var color = '#339af0';
+      var opacity = 0.3 + freshness * 0.5;
+
+      scene.appendChild(svgRect(120, sy, 270, 40, {
+        fill: color, stroke: color, 'stroke-width': 1, opacity: opacity
+      }));
+      scene.appendChild(svgText(255, sy + 18, s.label, {
+        fill: '#fff', 'font-size': '11', 'font-weight': '600'
+      }));
+      scene.appendChild(svgText(255, sy + 32, 'age: ' + s.age + ' periods', {
+        fill: '#ffffff88', 'font-size': '9'
+      }));
+    }
+
+    for (var ri = 0; ri < remoteSegs.length; ri++) {
+      var rs = remoteSegs[ri];
+      var ry = 115 + ri * 55;
+      var color2 = '#ffa94d';
+      var opacity2 = 0.3 + (1 - rs.age / 6) * 0.4;
+
+      scene.appendChild(svgRect(560, ry, 260, 40, {
+        fill: color2, stroke: color2, 'stroke-width': 1, opacity: opacity2
+      }));
+      scene.appendChild(svgText(690, ry + 18, rs.label, {
+        fill: '#fff', 'font-size': '11', 'font-weight': '600'
+      }));
+      scene.appendChild(svgText(690, ry + 32, 'age: ' + rs.age + ' periods', {
+        fill: '#ffffff88', 'font-size': '9'
+      }));
+    }
+
+    /* Producer arrow */
+    scene.appendChild(svgRect(20, 115, 50, 40, {
+      fill: '#181820', stroke: '#51cf66', 'stroke-width': 1.5
+    }));
+    scene.appendChild(svgText(45, 140, 'Prod', {
+      fill: '#51cf66', 'font-size': '10', 'font-weight': '600'
+    }));
+    scene.appendChild(svgEl('line', {
+      x1: 70, y1: 135, x2: 118, y2: 135,
+      stroke: '#51cf6644', 'stroke-width': 1.5, 'marker-end': 'url(#ts-arr)'
+    }));
+
+    /* Consumer boxes */
+    scene.appendChild(svgRect(20, 220, 50, 40, {
+      fill: '#181820', stroke: '#8be9fd', 'stroke-width': 1.5
+    }));
+    scene.appendChild(svgText(45, 240, 'C1', {
+      fill: '#8be9fd', 'font-size': '10', 'font-weight': '600'
+    }));
+    scene.appendChild(svgText(45, 252, 'recent', {
+      fill: '#8be9fd88', 'font-size': '8'
+    }));
+
+    scene.appendChild(svgRect(20, 300, 50, 40, {
+      fill: '#181820', stroke: '#cc5de8', 'stroke-width': 1.5
+    }));
+    scene.appendChild(svgText(45, 320, 'C2', {
+      fill: '#cc5de8', 'font-size': '10', 'font-weight': '600'
+    }));
+    scene.appendChild(svgText(45, 332, 'replay', {
+      fill: '#cc5de888', 'font-size': '8'
+    }));
+
+    /* Cost comparison */
+    scene.appendChild(svgRect(520, 370, 340, 40, {
+      fill: '#12121a', stroke: '#333', 'stroke-width': 1
+    }));
+    scene.appendChild(svgText(690, 394, 'S3: ~$0.023/GB/mo vs EBS: ~$0.10/GB/mo (4x cheaper)', {
+      fill: '#888', 'font-size': '10'
+    }));
+  }
+
+  draw();
+
+  function commentary(text) {
+    document.getElementById('ts-commentary').textContent = text;
+  }
+
+  async function produceRecent() {
+    if (animating) return;
+    animating = true;
+
+    commentary('Producer writes new record to the active segment on broker local disk. Recent data always hits fast local storage. The tiered storage layer is transparent -- the producer API is identical.');
+
+    await animPkt(scene, 70, 135, 255, 115, '#51cf66', 'write', 500);
+    await delay(300);
+
+    commentary('Record written to newest local segment. It will stay on local disk until it ages past the local.retention.ms threshold, at which point the segment is copied to remote storage and the local copy is eventually deleted.');
+    animating = false;
+  }
+
+  async function consumeRecent() {
+    if (animating) return;
+    animating = true;
+
+    var localSegs = segments.filter(function(s) { return s.tier === 'local'; });
+    if (localSegs.length === 0) {
+      commentary('No local segments available. All data has been tiered to remote storage.');
+      animating = false;
+      return;
+    }
+
+    commentary('Consumer C1 reads recent data. Request hits broker local disk -- ~1ms latency, same as non-tiered Kafka. No difference for real-time consumers.');
+
+    await animPkt(scene, 70, 240, 255, 135, '#8be9fd', 'fetch', 400);
+    await animPkt(scene, 255, 135, 70, 240, '#8be9fd', 'data', 400);
+
+    commentary('Recent data served from local disk at full speed. Tiered storage has zero impact on real-time consumption latency. Only consumers seeking to old offsets hit the cold tier.');
+    animating = false;
+  }
+
+  async function consumeOld() {
+    if (animating) return;
+    animating = true;
+
+    var remoteSegs = segments.filter(function(s) { return s.tier === 'remote'; });
+    if (remoteSegs.length === 0) {
+      commentary('No remote segments yet. Click "Advance Time" to age segments past the retention threshold.');
+      animating = false;
+      return;
+    }
+
+    commentary('Consumer C2 replays from old offset. Broker does not have the segment locally -- transparently fetches from S3/GCS. Higher latency (~50-200ms per fetch) but same consumer API.');
+
+    /* Show fetch path: consumer -> broker -> remote -> broker -> consumer */
+    await animPkt(scene, 70, 320, 255, 200, '#cc5de8', 'fetch old', 400);
+
+    commentary('Broker checks local disk -- segment not found. Transparently issues GET to remote storage...');
+    await animPkt(scene, 390, 200, 690, 200, '#ffa94d', 'S3 GET', 600);
+    await animPkt(scene, 690, 200, 255, 200, '#ffa94d', 'data', 500);
+
+    await animPkt(scene, 255, 320, 70, 320, '#cc5de8', 'data', 400);
+
+    commentary('Cold data served from S3. Latency is higher (~50-200ms per fetch vs ~1ms local), but the consumer API is identical. Use case: compliance replay, ML retraining, audit logs. Not suitable for latency-sensitive real-time pipelines reading old data.');
+    animating = false;
+  }
+
+  function advanceTime() {
+    if (animating) return;
+
+    /* Age all segments */
+    for (var si = 0; si < segments.length; si++) {
+      segments[si].age++;
+    }
+
+    /* Move segments past threshold to remote */
+    for (var si2 = 0; si2 < segments.length; si2++) {
+      if (segments[si2].age >= retentionThreshold && segments[si2].tier === 'local') {
+        segments[si2].tier = 'remote';
+      }
+    }
+
+    /* Add a new segment */
+    var maxId = 0;
+    for (var mi = 0; mi < segments.length; mi++) {
+      if (segments[mi].id > maxId) maxId = segments[mi].id;
+    }
+    segments.unshift({
+      id: maxId + 1,
+      age: 0,
+      tier: 'local',
+      label: 'S' + (maxId + 1) + ' (newest)'
+    });
+
+    /* Update labels */
+    for (var ui = 0; ui < segments.length; ui++) {
+      if (ui === 0) {
+        segments[ui].label = 'S' + segments[ui].id + ' (newest)';
+      } else if (ui === segments.length - 1) {
+        segments[ui].label = 'S' + segments[ui].id + ' (oldest)';
+      } else {
+        segments[ui].label = 'S' + segments[ui].id;
+      }
+    }
+
+    /* Cap total segments to avoid overflow */
+    if (segments.length > 8) {
+      segments.pop();
+    }
+
+    draw();
+
+    var localCount = segments.filter(function(s) { return s.tier === 'local'; }).length;
+    var remoteCount = segments.filter(function(s) { return s.tier === 'remote'; }).length;
+    commentary('Time advanced. ' + localCount + ' segments on local disk, ' + remoteCount + ' segments on remote storage. Segments older than ' + retentionThreshold + ' periods are automatically copied to S3/GCS. Broker disk usage stays bounded; retention is limited only by object storage cost.');
+  }
+
+  function reset() {
+    animating = false;
+    segments = [
+      { id: 0, age: 0, tier: 'local', label: 'S0 (newest)' },
+      { id: 1, age: 1, tier: 'local', label: 'S1' },
+      { id: 2, age: 2, tier: 'local', label: 'S2' },
+      { id: 3, age: 3, tier: 'remote', label: 'S3' },
+      { id: 4, age: 4, tier: 'remote', label: 'S4' },
+      { id: 5, age: 5, tier: 'remote', label: 'S5 (oldest)' }
+    ];
+    draw();
+    commentary('Tiered storage separates retention cost from broker disk capacity. Recent segments stay on fast local disks. Older segments are copied to cheap object storage. Consumers reading recent data see no difference; consumers reading cold data pay higher latency but the data is still accessible through the standard Kafka consumer API.');
+  }
+
+  return { produceRecent: produceRecent, consumeRecent: consumeRecent, consumeOld: consumeOld, advanceTime: advanceTime, reset: reset };
+})();
+</script>
+</body>
+</html>

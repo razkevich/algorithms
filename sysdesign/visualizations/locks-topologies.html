@@ -1,0 +1,1771 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Distributed Locks -- How They Actually Fail</title>
+<style>
+:root {
+  --bg: #0f0f15;
+  --surface: #181820;
+  --surface-2: #20202a;
+  --border: #2a2a35;
+  --text: #e6e6ea;
+  --text-2: #cfcfd6;
+  --text-3: #888;
+  --accent-red: #ff6b6b;
+  --accent-green: #51cf66;
+  --accent-blue: #339af0;
+  --accent-yellow: #ffd43b;
+  --accent-purple: #cc5de8;
+  --accent-cyan: #8be9fd;
+  --accent-orange: #ffa94d;
+}
+*, *::before, *::after { box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  padding: 32px 24px;
+  max-width: 1100px;
+  margin: 0 auto;
+  line-height: 1.55;
+}
+h1 { color: #fff; margin-bottom: 4px; }
+h1 + p.sub { color: var(--text-3); font-style: italic; margin-top: 0; margin-bottom: 24px; }
+h2 { color: #fff; margin-top: 32px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+h3 { color: var(--text-2); margin-top: 20px; }
+code {
+  background: var(--surface-2);
+  padding: 2px 6px;
+  border-radius: 3px;
+  color: var(--accent-cyan);
+  font-size: 13px;
+}
+svg {
+  background: var(--surface);
+  border-radius: 8px;
+  display: block;
+  margin: 14px auto;
+  width: 100%;
+  height: auto;
+}
+.tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+.tabs button {
+  padding: 10px 20px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-2);
+  border-radius: 6px;
+  cursor: pointer;
+  min-height: 44px;
+  font-size: 14px;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.tabs button:hover { background: var(--surface); }
+.tabs button.active {
+  border-color: var(--accent-blue);
+  border-bottom: 2px solid var(--accent-blue);
+  color: #fff;
+}
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0;
+  align-items: center;
+}
+.controls button, .btn {
+  padding: 10px 16px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  border-radius: 6px;
+  cursor: pointer;
+  min-height: 44px;
+  font-size: 14px;
+  transition: background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+.controls button:hover, .btn:hover { background: var(--surface); }
+.controls button:disabled, .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.controls button.active-btn { border-color: var(--accent-blue); color: var(--accent-blue); }
+.controls button.danger { border-color: var(--accent-red); color: var(--accent-red); }
+.controls button.danger:hover { background: #2a1520; }
+.slider-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-3);
+  min-width: 180px;
+}
+.slider-group input[type="range"] {
+  flex: 1;
+  min-width: 80px;
+  accent-color: var(--accent-blue);
+}
+.commentary {
+  background: var(--surface-2);
+  padding: 14px;
+  border-radius: 6px;
+  font-size: 14px;
+  color: var(--text-2);
+  margin: 12px 0;
+  min-height: 44px;
+  line-height: 1.5;
+}
+.takeaway {
+  background: #1a1a22;
+  border-left: 3px solid var(--accent-green);
+  padding: 12px 16px;
+  margin: 14px 0;
+  font-size: 14px;
+}
+.takeaway strong { color: var(--accent-green); }
+.takeaway ul { margin: 6px 0 0 0; padding-left: 18px; }
+.takeaway li { margin-bottom: 6px; }
+section[hidden] { display: none !important; }
+.table-wrap { overflow-x: auto; margin: 14px 0; }
+.table-wrap table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  min-width: 700px;
+}
+.table-wrap th {
+  background: var(--surface-2);
+  color: var(--accent-blue);
+  text-align: left;
+  padding: 10px 12px;
+  border-bottom: 2px solid var(--border);
+  white-space: nowrap;
+}
+.table-wrap td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-2);
+  vertical-align: top;
+}
+.table-wrap tr:hover td { background: var(--surface); }
+.table-wrap .cell-red { color: var(--accent-red); }
+.table-wrap .cell-green { color: var(--accent-green); }
+.table-wrap .cell-yellow { color: var(--accent-yellow); }
+@media (max-width: 720px) {
+  body { padding: 20px 14px; }
+}
+@media (max-width: 600px) {
+  .tabs { gap: 4px; }
+  .tabs button { padding: 10px 12px; font-size: 13px; flex: 1; min-width: 70px; text-align: center; }
+}
+@media (max-width: 480px) {
+  .controls { flex-direction: column; }
+  .controls button { width: 100%; }
+  .slider-group { width: 100%; min-width: auto; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Distributed locks -- how they actually fail</h1>
+  <p class="sub">The naive Redis lock has two failure modes. Redlock has a third. etcd is safer but slower. None of them are safe without fencing tokens. Click through the failure animations.</p>
+</header>
+
+<nav class="tabs">
+  <button class="active" onclick="setActiveTab('single')">Single Redis</button>
+  <button onclick="setActiveTab('redlock')">Redlock</button>
+  <button onclick="setActiveTab('consensus')">etcd / ZooKeeper</button>
+  <button onclick="setActiveTab('dblock')">DB Locks</button>
+  <button onclick="setActiveTab('fencing')">Fencing Tokens</button>
+  <button onclick="setActiveTab('matrix')">Comparison</button>
+</nav>
+
+<!-- ============================================================ -->
+<!-- TAB 1: SINGLE-INSTANCE REDIS LOCK                             -->
+<!-- ============================================================ -->
+<section data-tab="single">
+  <h2>Single-Instance Redis Lock (and why it fails)</h2>
+  <p>Lock = <code>SET lock:job clientId NX PX 10000</code>. Looks simple. Two failure modes make it unsafe for anything that matters.</p>
+
+  <svg id="s1-svg" viewBox="0 0 900 400" preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <marker id="s1-arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="#444"/>
+      </marker>
+    </defs>
+    <g id="s1-scene"></g>
+  </svg>
+
+  <div class="controls">
+    <button onclick="S1.happyPath()">Happy Path</button>
+    <button onclick="S1.failProcessPause()" class="danger">Failure: Process Pause</button>
+    <button onclick="S1.failMasterFailover()" class="danger">Failure: Master Failover</button>
+    <button onclick="S1.reset()">Reset</button>
+    <div class="slider-group">
+      <span>Speed</span>
+      <input type="range" min="50" max="200" value="100" id="s1-speed">
+      <span id="s1-speed-label">1.0x</span>
+    </div>
+  </div>
+
+  <div class="commentary" id="s1-commentary">Single-instance Redis lock: Client A calls SET lock:job A NX PX 10000. If OK, it holds the lock for up to 10 seconds. On release, DEL lock:job. Client B retries until the key is gone. Click "Happy Path" to see it work, then click the failure buttons.</div>
+
+  <div class="takeaway">
+    <strong>Takeaways</strong>
+    <ul>
+      <li>Single-instance lock is unsafe under both process pause AND async replication failover.</li>
+      <li>Process pause (GC, swap, network) can outlast the TTL -- the lock expires while the holder still thinks it owns it.</li>
+      <li>Master failover with async replication can lose the lock key entirely -- replica promoted without the write.</li>
+      <li>The naive <code>SET NX PX</code> answer in interviews fails this scrutiny. Name both failure modes to stand out.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- TAB 2: REDLOCK                                                -->
+<!-- ============================================================ -->
+<section data-tab="redlock" hidden>
+  <h2>Redlock (Multi-Instance Redis)</h2>
+  <p>Antirez's algorithm: N=5 independent Redis nodes (no replication). Client acquires on each within timeout T. If majority (3/5) within T minus clock drift, lock is held. Sounds safe -- Martin Kleppmann showed why it is not.</p>
+
+  <svg id="rl-svg" viewBox="0 0 900 420" preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <marker id="rl-arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="#444"/>
+      </marker>
+    </defs>
+    <g id="rl-scene"></g>
+  </svg>
+
+  <div class="controls">
+    <button onclick="RL.happyPath()">Acquire (happy path)</button>
+    <button onclick="RL.kleppmannAttack()" class="danger">Kleppmann Critique</button>
+    <button onclick="RL.reset()">Reset</button>
+    <div class="slider-group">
+      <span>Speed</span>
+      <input type="range" min="50" max="200" value="100" id="rl-speed">
+      <span id="rl-speed-label">1.0x</span>
+    </div>
+  </div>
+
+  <div class="commentary" id="rl-commentary">Redlock: client sends SETNX to 5 independent Redis nodes in parallel. If it acquires on 3/5 (majority) within timeout T minus safety drift, the lock is considered held. Click "Acquire" to see the happy path.</div>
+
+  <div class="takeaway">
+    <strong>Takeaways</strong>
+    <ul>
+      <li>Redlock is faster than consensus systems but does NOT provide a fencing token.</li>
+      <li>Kleppmann's critique: if any client experiences a process pause or clock jump after acquiring the majority, two clients can hold simultaneously.</li>
+      <li>Antirez's response: in practice the algorithm is fine for most use cases, but admits fencing tokens (which Redlock does not provide) are needed for shared-state writes.</li>
+      <li>Pair with token-checking on the resource side, OR use a real consensus system (etcd/ZK).</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- TAB 3: CONSENSUS-BACKED LEASES                                -->
+<!-- ============================================================ -->
+<section data-tab="consensus" hidden>
+  <h2>etcd / ZooKeeper -- Consensus-Backed Leases</h2>
+  <p>3 etcd nodes running Raft. Client creates a lease (e.g., 10s TTL), then <code>Put(key, value, leaseId)</code> with <code>Compare(version=0)</code> (CAS). Only one client wins. Lease auto-renews via KeepAlive heartbeats. On crash -- no heartbeat, lease expires, key deleted, next client wins.</p>
+
+  <svg id="cs-svg" viewBox="0 0 900 440" preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <marker id="cs-arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="#444"/>
+      </marker>
+    </defs>
+    <g id="cs-scene"></g>
+  </svg>
+
+  <div class="controls">
+    <button onclick="CS.acquireAndHeartbeat()">Acquire + Heartbeat</button>
+    <button onclick="CS.crashHolder()" class="danger">Crash Lock Holder</button>
+    <button onclick="CS.reset()">Reset</button>
+    <div class="slider-group">
+      <span>Speed</span>
+      <input type="range" min="50" max="200" value="100" id="cs-speed">
+      <span id="cs-speed-label">1.0x</span>
+    </div>
+  </div>
+
+  <div class="commentary" id="cs-commentary">etcd uses Raft consensus -- writes are committed when a majority of nodes agree. A lease is a TTL-bound session: the key exists as long as the lease is alive. KeepAlive heartbeats renew the lease. If heartbeats stop, the lease expires and the key is deleted.</div>
+
+  <div class="takeaway">
+    <strong>Takeaways</strong>
+    <ul>
+      <li>etcd/ZK = strongly consistent leases. Safer than Redlock. Slower (consensus per op).</li>
+      <li>ZooKeeper analog: ephemeral sequential nodes + watches. When client session ends, ephemeral node deleted, next-in-line is unblocked.</li>
+      <li>etcd provides a monotonic <code>revision</code> with each write -- this is a fencing token out of the box.</li>
+      <li>Use when correctness matters more than speed: leader election, job scheduling, config coordination.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- TAB 4: DATABASE LOCKS                                         -->
+<!-- ============================================================ -->
+<section data-tab="dblock" hidden>
+  <h2>Database-Based Locks (Postgres)</h2>
+  <p>Two flavors: <strong>advisory locks</strong> for application-level coordination, and <strong>row locks</strong> (<code>FOR UPDATE SKIP LOCKED</code>) for queue-style patterns. No extra infrastructure needed -- just your existing database.</p>
+
+  <svg id="db-svg" viewBox="0 0 900 400" preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <marker id="db-arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="#444"/>
+      </marker>
+    </defs>
+    <g id="db-scene"></g>
+  </svg>
+
+  <div class="controls">
+    <button onclick="DB.advisoryLock()">Advisory Lock Demo</button>
+    <button onclick="DB.skipLocked()">FOR UPDATE SKIP LOCKED</button>
+    <button onclick="DB.reset()">Reset</button>
+    <div class="slider-group">
+      <span>Speed</span>
+      <input type="range" min="50" max="200" value="100" id="db-speed">
+      <span id="db-speed-label">1.0x</span>
+    </div>
+  </div>
+
+  <div class="commentary" id="db-commentary">Postgres advisory locks: <code>pg_advisory_lock(key)</code> acquires an application-level lock. Per-session (released on disconnect) or per-transaction (released on commit). No data is locked -- it is purely a coordination primitive. Row locks with FOR UPDATE SKIP LOCKED let workers dequeue jobs without blocking each other.</div>
+
+  <div class="takeaway">
+    <strong>Takeaways</strong>
+    <ul>
+      <li>DB lock = simplest, strongest consistency. Best when you already have the DB and don't want extra infrastructure.</li>
+      <li><code>SKIP LOCKED</code> = the canonical Postgres-as-queue pattern. Workers grab the next unlocked row, skip locked ones, no contention.</li>
+      <li>Pros: strongly consistent (it is a real database), no extra infra, transactional semantics.</li>
+      <li>Cons: ties up DB connections; lock holder failure ties up rows until transaction timeout; doesn't scale to extreme throughput.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- TAB 5: FENCING TOKENS                                         -->
+<!-- ============================================================ -->
+<section data-tab="fencing" hidden>
+  <h2>Fencing Tokens -- The Missing Piece</h2>
+  <p>The Kleppmann diagram, made interactive. Without fencing tokens, no lock service is safe under process pauses. With fencing tokens, the <em>resource server</em> rejects stale writes -- the lock is just an optimization, not a safety mechanism.</p>
+
+  <h3>Without fencing token -- corruption</h3>
+  <svg id="fn-svg1" viewBox="0 0 900 320" preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <marker id="fn-arrow1" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="#444"/>
+      </marker>
+    </defs>
+    <g id="fn-scene1"></g>
+  </svg>
+
+  <h3>With fencing token -- safe</h3>
+  <svg id="fn-svg2" viewBox="0 0 900 320" preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <marker id="fn-arrow2" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="#444"/>
+      </marker>
+    </defs>
+    <g id="fn-scene2"></g>
+  </svg>
+
+  <div class="controls">
+    <button onclick="FN.runBoth()">Animate Both Scenarios</button>
+    <button onclick="FN.reset()">Reset</button>
+    <div class="slider-group">
+      <span>Speed</span>
+      <input type="range" min="50" max="200" value="100" id="fn-speed">
+      <span id="fn-speed-label">1.0x</span>
+    </div>
+  </div>
+
+  <div class="commentary" id="fn-commentary">Fencing tokens: the lock service issues a monotonically increasing token with each acquisition. The resource server tracks the highest token it has seen and rejects any write with a lower token. This makes the resource self-protecting -- even if two clients think they hold the lock, only the one with the higher token can write.</div>
+
+  <div class="takeaway">
+    <strong>Takeaways</strong>
+    <ul>
+      <li>Fencing tokens are the only way to be safe under process pauses. Any lock service without monotonic tokens is suspect for shared-state writes.</li>
+      <li>ZooKeeper provides <code>zxid</code> (transaction ID). etcd provides <code>revision</code>. Both are monotonic.</li>
+      <li>Redlock does NOT provide a fencing token -- you would have to layer one on top (e.g., from a separate counter), defeating the purpose.</li>
+      <li>The interview tell: naming fencing tokens unprompted signals deep understanding of distributed locking.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- TAB 6: COMPARISON MATRIX                                      -->
+<!-- ============================================================ -->
+<section data-tab="matrix" hidden>
+  <h2>Comparison Matrix</h2>
+  <p>Quick reference for interview answers. The key differentiator is safety -- which approaches actually prevent two clients from writing to the same resource simultaneously?</p>
+
+  <div class="table-wrap" style="overflow-x:auto">
+    <table>
+      <thead>
+        <tr>
+          <th>Approach</th>
+          <th>Throughput</th>
+          <th>Latency</th>
+          <th>Safety</th>
+          <th>Fencing Token</th>
+          <th>Ops Complexity</th>
+          <th>When to Pick</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Single Redis</strong></td>
+          <td class="cell-green">Very high (~100k/s)</td>
+          <td class="cell-green">Sub-ms</td>
+          <td class="cell-red">Unsafe (2 failure modes)</td>
+          <td class="cell-red">No</td>
+          <td class="cell-green">Trivial</td>
+          <td>Best-effort dedup, rate limiting, idempotency guards where occasional double-execution is tolerable</td>
+        </tr>
+        <tr>
+          <td><strong>Redlock (5 nodes)</strong></td>
+          <td class="cell-yellow">High (~10k/s)</td>
+          <td class="cell-yellow">~5-15ms</td>
+          <td class="cell-yellow">Contested (Kleppmann critique)</td>
+          <td class="cell-red">No</td>
+          <td class="cell-yellow">5 independent Redis instances</td>
+          <td>When you need better-than-single-Redis but cannot afford consensus latency; pair with fencing on the resource</td>
+        </tr>
+        <tr>
+          <td><strong>etcd lease</strong></td>
+          <td class="cell-yellow">Moderate (~5-10k/s)</td>
+          <td class="cell-yellow">~5-20ms</td>
+          <td class="cell-green">Strong (Raft consensus)</td>
+          <td class="cell-green">Yes (revision)</td>
+          <td class="cell-yellow">3-5 node etcd cluster</td>
+          <td>Leader election, job scheduling, config coordination -- correctness over speed</td>
+        </tr>
+        <tr>
+          <td><strong>ZooKeeper lease</strong></td>
+          <td class="cell-yellow">Moderate (~5-10k/s)</td>
+          <td class="cell-yellow">~5-20ms</td>
+          <td class="cell-green">Strong (ZAB consensus)</td>
+          <td class="cell-green">Yes (zxid)</td>
+          <td class="cell-red">Complex (JVM, quorum, sessions)</td>
+          <td>Same as etcd; prefer etcd in new systems unless ecosystem demands ZK (Kafka pre-KRaft, Hadoop)</td>
+        </tr>
+        <tr>
+          <td><strong>Postgres advisory</strong></td>
+          <td class="cell-yellow">Moderate (DB-bound)</td>
+          <td class="cell-yellow">~1-10ms</td>
+          <td class="cell-green">Strong (ACID)</td>
+          <td class="cell-yellow">Manual (use a sequence)</td>
+          <td class="cell-green">No extra infra</td>
+          <td>Already have Postgres; low lock volume; don't want to add Redis/etcd</td>
+        </tr>
+        <tr>
+          <td><strong>Postgres FOR UPDATE SKIP LOCKED</strong></td>
+          <td class="cell-yellow">Moderate (DB-bound)</td>
+          <td class="cell-yellow">~1-10ms</td>
+          <td class="cell-green">Strong (row-level ACID)</td>
+          <td class="cell-green">Yes (row version / xmin)</td>
+          <td class="cell-green">No extra infra</td>
+          <td>Queue/worker pattern -- each worker grabs next unlocked job, no contention</td>
+        </tr>
+        <tr>
+          <td><strong>DynamoDB conditional write</strong></td>
+          <td class="cell-green">High (partition-level)</td>
+          <td class="cell-yellow">~5-10ms</td>
+          <td class="cell-green">Strong (per-item linearizable)</td>
+          <td class="cell-yellow">Manual (use a counter attribute)</td>
+          <td class="cell-green">Managed service</td>
+          <td>AWS-native; per-item locking; condition expression on version attribute</td>
+        </tr>
+        <tr>
+          <td><strong>Chubby (Google)</strong></td>
+          <td class="cell-yellow">Moderate</td>
+          <td class="cell-yellow">~5-20ms</td>
+          <td class="cell-green">Strong (Paxos consensus)</td>
+          <td class="cell-green">Yes (sequencer)</td>
+          <td class="cell-red">Google-internal</td>
+          <td>Concept only -- Chubby's sequencer IS the fencing token pattern; cite as the origin</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="commentary" id="mx-commentary">The decision tree: (1) Is correctness critical? If no, single Redis is fine. If yes: (2) Do you already have Postgres? Use advisory locks or FOR UPDATE SKIP LOCKED. (3) Need distributed + correct? etcd lease with fencing token. (4) Redlock only if you accept the Kleppmann risk and layer your own fencing.</div>
+
+  <div class="takeaway">
+    <strong>Takeaways</strong>
+    <ul>
+      <li>No lock is safe without resource-side enforcement. Fencing tokens make the resource self-protecting.</li>
+      <li>The decision is not "which lock is best" -- it is "how much correctness do I need, and what infrastructure do I already have?"</li>
+      <li>In interviews: name single-Redis as the baseline, acknowledge its failure modes, propose etcd/ZK for correctness, and mention fencing tokens unprompted. That is the signal.</li>
+    </ul>
+  </div>
+</section>
+
+<script>
+/* ================================================================
+   SHARED UTILITIES
+   ================================================================ */
+function delay(ms) { return new Promise(function(r) { setTimeout(r, ms); }); }
+
+function setActiveTab(name) {
+  var tabNames = ['single', 'redlock', 'consensus', 'dblock', 'fencing', 'matrix'];
+  var btns = document.querySelectorAll('nav.tabs button');
+  btns.forEach(function(b, i) { b.classList.toggle('active', tabNames[i] === name); });
+  document.querySelectorAll('section[data-tab]').forEach(function(s) {
+    s.hidden = s.getAttribute('data-tab') !== name;
+  });
+}
+
+function svgEl(tag, attrs) {
+  var el = document.createElementNS('http://www.w3.org/2000/svg', tag);
+  if (attrs) { for (var k in attrs) { el.setAttribute(k, attrs[k]); } }
+  return el;
+}
+
+function svgText(x, y, text, opts) {
+  var t = svgEl('text', Object.assign({
+    x: x, y: y, 'text-anchor': 'middle', fill: '#888', 'font-size': '11'
+  }, opts || {}));
+  t.textContent = text;
+  return t;
+}
+
+function svgRect(x, y, w, h, opts) {
+  return svgEl('rect', Object.assign({
+    x: x, y: y, width: w, height: h, rx: '6', fill: '#181820', stroke: '#333', 'stroke-width': '1.5'
+  }, opts || {}));
+}
+
+function speedOf(id) {
+  var el = document.getElementById(id);
+  return el ? parseFloat(el.value) / 100 : 1;
+}
+
+function initSpeedSlider(id, labelId) {
+  var el = document.getElementById(id);
+  if (el) {
+    el.addEventListener('input', function() {
+      document.getElementById(labelId).textContent = (this.value / 100).toFixed(1) + 'x';
+    });
+  }
+}
+
+/* ================================================================
+   TAB 1 -- SINGLE-INSTANCE REDIS LOCK
+   ================================================================ */
+var S1 = (function() {
+  var scene = null;
+  var running = false;
+  var aborted = false;
+
+  function spd() { return speedOf('s1-speed'); }
+  initSpeedSlider('s1-speed', 's1-speed-label');
+
+  function comm(msg) {
+    document.getElementById('s1-commentary').textContent = msg;
+  }
+
+  /* --- Static layout --- */
+  var clientAx = 50, clientAy = 80;
+  var clientBx = 50, clientBy = 240;
+  var redisX = 400, redisY = 120;
+  var replicaX = 400, replicaY = 280;
+  var resourceX = 700, resourceY = 160;
+
+  function drawStatic(opts) {
+    scene = document.getElementById('s1-scene');
+    scene.innerHTML = '';
+    var showReplica = opts && opts.replica;
+
+    /* Client A */
+    scene.appendChild(svgRect(clientAx, clientAy - 20, 120, 44, {stroke: '#ff6b6b'}));
+    scene.appendChild(svgText(clientAx + 60, clientAy + 5, 'Client A', {fill: '#ff6b6b', 'font-weight': '600', 'font-size': '13'}));
+
+    /* Client B */
+    scene.appendChild(svgRect(clientBx, clientBy - 20, 120, 44, {stroke: '#51cf66'}));
+    scene.appendChild(svgText(clientBx + 60, clientBy + 5, 'Client B', {fill: '#51cf66', 'font-weight': '600', 'font-size': '13'}));
+
+    /* Redis Master */
+    scene.appendChild(svgRect(redisX - 55, redisY - 25, 120, 50, {stroke: 'var(--accent-blue)', fill: '#12121a'}));
+    scene.appendChild(svgText(redisX + 5, redisY, 'Redis Master', {fill: 'var(--accent-blue)', 'font-weight': '600', 'font-size': '13'}));
+
+    /* Lock state display */
+    scene.appendChild(svgRect(redisX - 55, redisY + 35, 120, 32, {stroke: '#333', fill: '#0f0f15'}));
+    var lockLabel = svgText(redisX + 5, redisY + 55, 'lock: (none)', {fill: '#666', 'font-size': '11', id: 's1-lock-state'});
+    scene.appendChild(lockLabel);
+
+    /* TTL bar background */
+    scene.appendChild(svgRect(redisX - 55, redisY + 75, 120, 14, {stroke: '#333', fill: '#0f0f15', rx: '3'}));
+    var ttlBar = svgEl('rect', {x: redisX - 55, y: redisY + 75, width: '0', height: '14', rx: '3', fill: 'var(--accent-yellow)', opacity: '0.6', id: 's1-ttl-bar'});
+    scene.appendChild(ttlBar);
+    scene.appendChild(svgText(redisX + 5, redisY + 100, 'TTL', {fill: '#555', 'font-size': '9'}));
+
+    /* Replica (optional) */
+    if (showReplica) {
+      scene.appendChild(svgRect(replicaX - 55, replicaY - 25, 120, 50, {stroke: '#666', fill: '#12121a'}));
+      scene.appendChild(svgText(replicaX + 5, replicaY, 'Replica', {fill: '#666', 'font-weight': '600', 'font-size': '13'}));
+      scene.appendChild(svgRect(replicaX - 55, replicaY + 35, 120, 32, {stroke: '#333', fill: '#0f0f15'}));
+      scene.appendChild(svgText(replicaX + 5, replicaY + 55, 'lock: (none)', {fill: '#555', 'font-size': '11', id: 's1-replica-state'}));
+      /* Replication arrow */
+      var replLine = svgEl('line', {x1: redisX + 5, y1: redisY + 25, x2: replicaX + 5, y2: replicaY - 25, stroke: '#444', 'stroke-width': '1', 'stroke-dasharray': '4,4', 'marker-end': 'url(#s1-arrow)'});
+      scene.appendChild(replLine);
+      scene.appendChild(svgText(replicaX + 70, replicaY - 10, 'async repl', {fill: '#555', 'font-size': '9'}));
+    }
+
+    /* Shared Resource */
+    scene.appendChild(svgRect(resourceX - 60, resourceY - 25, 130, 50, {stroke: 'var(--accent-purple)', fill: '#12121a'}));
+    scene.appendChild(svgText(resourceX + 5, resourceY, 'Shared Resource', {fill: 'var(--accent-purple)', 'font-weight': '600', 'font-size': '12'}));
+    scene.appendChild(svgRect(resourceX - 60, resourceY + 35, 130, 32, {stroke: '#333', fill: '#0f0f15'}));
+    scene.appendChild(svgText(resourceX + 5, resourceY + 55, 'last write: --', {fill: '#666', 'font-size': '11', id: 's1-resource-state'}));
+
+    /* Connection lines */
+    scene.appendChild(svgEl('line', {x1: 170, y1: clientAy, x2: redisX - 55, y2: redisY, stroke: '#333', 'stroke-width': '1', 'stroke-dasharray': '4,4'}));
+    scene.appendChild(svgEl('line', {x1: 170, y1: clientBy, x2: redisX - 55, y2: redisY, stroke: '#333', 'stroke-width': '1', 'stroke-dasharray': '4,4'}));
+    scene.appendChild(svgEl('line', {x1: redisX + 65, y1: redisY, x2: resourceX - 60, y2: resourceY, stroke: '#333', 'stroke-width': '1', 'stroke-dasharray': '4,4'}));
+
+    /* Animated elements group */
+    scene.appendChild(svgEl('g', {id: 's1-anim'}));
+  }
+
+  function setLock(text, color) {
+    var el = document.getElementById('s1-lock-state');
+    if (el) { el.textContent = text; el.setAttribute('fill', color || '#666'); }
+  }
+
+  function setReplica(text, color) {
+    var el = document.getElementById('s1-replica-state');
+    if (el) { el.textContent = text; el.setAttribute('fill', color || '#555'); }
+  }
+
+  function setResource(text, color) {
+    var el = document.getElementById('s1-resource-state');
+    if (el) { el.textContent = text; el.setAttribute('fill', color || '#666'); }
+  }
+
+  function setTTL(fraction) {
+    var el = document.getElementById('s1-ttl-bar');
+    if (el) { el.setAttribute('width', Math.max(0, Math.min(1, fraction)) * 120); }
+  }
+
+  function animPacket(fromX, fromY, toX, toY, color, label, durMs) {
+    var g = svgEl('g', {});
+    var c = svgEl('circle', {cx: fromX, cy: fromY, r: '10', fill: color, opacity: '0.85'});
+    g.appendChild(c);
+    var t = svgText(fromX, fromY + 4, label, {fill: '#fff', 'font-size': '8', 'font-weight': '700'});
+    g.appendChild(t);
+    var animG = document.getElementById('s1-anim');
+    animG.appendChild(g);
+    var d = durMs / spd();
+    requestAnimationFrame(function() {
+      c.style.transition = 'all ' + d + 'ms ease';
+      t.style.transition = 'all ' + d + 'ms ease';
+      c.setAttribute('cx', toX); c.setAttribute('cy', toY);
+      t.setAttribute('x', toX); t.setAttribute('y', toY + 4);
+    });
+    return delay(d + 30).then(function() {
+      if (g.parentNode) g.parentNode.removeChild(g);
+    });
+  }
+
+  function animTTLDrain(totalMs) {
+    return new Promise(function(resolve) {
+      var start = performance.now();
+      var dur = totalMs / spd();
+      function tick() {
+        if (aborted) { resolve(); return; }
+        var elapsed = performance.now() - start;
+        var frac = 1 - elapsed / dur;
+        setTTL(frac);
+        if (frac > 0) { requestAnimationFrame(tick); }
+        else { setTTL(0); resolve(); }
+      }
+      tick();
+    });
+  }
+
+  /* --- Flash border of an element --- */
+  function flashBorder(selector, color, times) {
+    var el = document.querySelector(selector);
+    if (!el) return Promise.resolve();
+    var orig = el.getAttribute('stroke');
+    var count = 0;
+    return new Promise(function(resolve) {
+      var iv = setInterval(function() {
+        count++;
+        el.setAttribute('stroke', count % 2 === 1 ? color : orig);
+        if (count >= times * 2) {
+          clearInterval(iv);
+          el.setAttribute('stroke', color);
+          resolve();
+        }
+      }, 200 / spd());
+    });
+  }
+
+  /* --- Happy Path --- */
+  async function happyPath() {
+    if (running) return;
+    running = true; aborted = false;
+    drawStatic({});
+    comm('Client A sends SET lock:job A NX PX 10000 to Redis...');
+    await delay(500 / spd());
+    if (aborted) { running = false; return; }
+
+    /* A acquires */
+    await animPacket(170, clientAy, redisX - 30, redisY, '#ff6b6b', 'SETNX', 400);
+    setLock('lock: A', '#ff6b6b');
+    setTTL(1);
+    comm('OK -- Client A holds the lock. TTL = 10s. Client A writes to the shared resource.');
+    await delay(400 / spd());
+
+    /* A writes to resource */
+    await animPacket(redisX + 65, redisY, resourceX - 30, resourceY, '#ff6b6b', 'WRITE', 400);
+    setResource('last write: A', '#ff6b6b');
+
+    /* B tries */
+    comm('Client B tries to acquire the same lock...');
+    await delay(400 / spd());
+    await animPacket(170, clientBy, redisX - 30, redisY, '#51cf66', 'SETNX', 400);
+    comm('NIL -- Client B is rejected. Lock already held by A. B will retry.');
+    await delay(600 / spd());
+
+    /* A releases */
+    comm('Client A finishes work, releases the lock with DEL lock:job.');
+    await animPacket(170, clientAy, redisX - 30, redisY, '#ff6b6b', 'DEL', 400);
+    setLock('lock: (none)', '#666');
+    setTTL(0);
+    await delay(300 / spd());
+
+    /* B retries and succeeds */
+    comm('Client B retries SET lock:job B NX PX 10000...');
+    await animPacket(170, clientBy, redisX - 30, redisY, '#51cf66', 'SETNX', 400);
+    setLock('lock: B', '#51cf66');
+    setTTL(1);
+    comm('OK -- Client B now holds the lock. Writes to resource.');
+    await delay(300 / spd());
+    await animPacket(redisX + 65, redisY, resourceX - 30, resourceY, '#51cf66', 'WRITE', 400);
+    setResource('last write: B', '#51cf66');
+
+    comm('Happy path complete. Both clients executed safely, one at a time. Now click the failure buttons to see how this breaks.');
+    running = false;
+  }
+
+  /* --- Failure 1: Process Pause --- */
+  async function failProcessPause() {
+    if (running) return;
+    running = true; aborted = false;
+    drawStatic({});
+    comm('Client A acquires the lock with 10s TTL...');
+    await delay(400 / spd());
+
+    await animPacket(170, clientAy, redisX - 30, redisY, '#ff6b6b', 'SETNX', 400);
+    setLock('lock: A', '#ff6b6b');
+    setTTL(1);
+    comm('OK -- Client A holds the lock. Now Client A enters a long GC pause...');
+    await delay(600 / spd());
+
+    /* GC pause label on Client A */
+    var pauseLabel = svgText(clientAx + 60, clientAy + 40, 'GC PAUSE', {fill: '#ff6b6b', 'font-size': '11', 'font-weight': '700', id: 's1-pause-label'});
+    scene.appendChild(pauseLabel);
+
+    /* TTL drains */
+    comm('Client A is frozen. TTL is draining in Redis. At 0, the lock auto-expires...');
+    await animTTLDrain(4000);
+    if (aborted) { running = false; return; }
+
+    setLock('lock: EXPIRED', '#ff6b6b');
+    await delay(300 / spd());
+    setLock('lock: (none)', '#666');
+    comm('TTL expired. Redis deleted the lock key. Client B can now acquire...');
+    await delay(500 / spd());
+
+    /* B acquires */
+    await animPacket(170, clientBy, redisX - 30, redisY, '#51cf66', 'SETNX', 400);
+    setLock('lock: B', '#51cf66');
+    setTTL(1);
+    comm('Client B acquired the lock. Client B writes to the shared resource.');
+    await delay(300 / spd());
+    await animPacket(redisX + 65, redisY, resourceX - 30, resourceY, '#51cf66', 'WRITE', 400);
+    setResource('last write: B', '#51cf66');
+
+    /* A wakes up */
+    comm('Client A wakes up from GC pause. It still thinks it holds the lock!');
+    await delay(500 / spd());
+    var pl = document.getElementById('s1-pause-label');
+    if (pl && pl.parentNode) pl.parentNode.removeChild(pl);
+
+    var wakeLabel = svgText(clientAx + 60, clientAy + 40, 'WAKES UP', {fill: '#ffd43b', 'font-size': '11', 'font-weight': '700'});
+    scene.appendChild(wakeLabel);
+    await delay(400 / spd());
+
+    /* A writes -- CORRUPTION */
+    comm('Client A writes to the shared resource -- it does not know its lock expired. TWO HOLDERS wrote to the same resource!');
+    await animPacket(170, clientAy, resourceX - 30, resourceY, '#ff6b6b', 'WRITE!', 500);
+    setResource('CORRUPTED', '#ff6b6b');
+
+    /* Flash resource red */
+    var dangerLabel = svgText(resourceX + 5, resourceY + 80, 'TWO HOLDERS -- DATA CORRUPTION', {fill: '#ff6b6b', 'font-size': '13', 'font-weight': '700'});
+    scene.appendChild(dangerLabel);
+
+    comm('FAILURE: Process pause outlasted the TTL. Client A wrote after its lock expired. Both A and B wrote to the resource -- data corruption. This is the most common failure mode of naive Redis locks.');
+    running = false;
+  }
+
+  /* --- Failure 2: Master Failover --- */
+  async function failMasterFailover() {
+    if (running) return;
+    running = true; aborted = false;
+    drawStatic({replica: true});
+    comm('Redis Master with async replica. Client A acquires the lock on Master...');
+    await delay(400 / spd());
+
+    await animPacket(170, clientAy, redisX - 30, redisY, '#ff6b6b', 'SETNX', 400);
+    setLock('lock: A', '#ff6b6b');
+    setTTL(1);
+    comm('OK -- lock:A written to Master. Async replication to Replica has NOT happened yet...');
+    await delay(600 / spd());
+
+    /* Master crash */
+    comm('Master crashes BEFORE replicating the lock to the Replica!');
+    await delay(400 / spd());
+
+    /* X over master */
+    var xLine1 = svgEl('line', {x1: redisX - 55, y1: redisY - 25, x2: redisX + 65, y2: redisY + 25, stroke: '#ff6b6b', 'stroke-width': '3'});
+    var xLine2 = svgEl('line', {x1: redisX + 65, y1: redisY - 25, x2: redisX - 55, y2: redisY + 25, stroke: '#ff6b6b', 'stroke-width': '3'});
+    scene.appendChild(xLine1);
+    scene.appendChild(xLine2);
+    var crashLabel = svgText(redisX + 5, redisY - 35, 'CRASHED', {fill: '#ff6b6b', 'font-size': '12', 'font-weight': '700'});
+    scene.appendChild(crashLabel);
+    await delay(800 / spd());
+
+    /* Replica promoted */
+    comm('Replica promoted to Master. But the replica never received the lock write -- lock: (none).');
+    var promoted = svgText(replicaX + 5, replicaY - 35, 'PROMOTED to Master', {fill: 'var(--accent-yellow)', 'font-size': '11', 'font-weight': '700'});
+    scene.appendChild(promoted);
+    await delay(600 / spd());
+
+    /* B acquires on new master (replica) */
+    comm('Client B connects to the new Master (former Replica). Tries to acquire...');
+    await delay(300 / spd());
+    await animPacket(170, clientBy, replicaX - 30, replicaY, '#51cf66', 'SETNX', 500);
+    setReplica('lock: B', '#51cf66');
+    comm('OK -- Client B acquired on the promoted replica. But Client A also still thinks it holds the lock!');
+    await delay(400 / spd());
+
+    /* Both write */
+    await animPacket(170, clientAy, resourceX - 30, resourceY, '#ff6b6b', 'WRITE!', 500);
+    setResource('CORRUPTED', '#ff6b6b');
+    await animPacket(170, clientBy, resourceX - 30, resourceY + 30, '#51cf66', 'WRITE!', 500);
+
+    var dangerLabel = svgText(resourceX + 5, resourceY + 80, 'TWO HOLDERS -- DATA CORRUPTION', {fill: '#ff6b6b', 'font-size': '13', 'font-weight': '700'});
+    scene.appendChild(dangerLabel);
+
+    comm('FAILURE: Master crashed before async replication. The lock was lost. Promoted replica has no knowledge of it. Two clients now hold the "lock" simultaneously.');
+    running = false;
+  }
+
+  function reset() {
+    aborted = true;
+    running = false;
+    drawStatic({});
+    comm('Single-instance Redis lock: Client A calls SET lock:job A NX PX 10000. If OK, it holds the lock for up to 10 seconds. On release, DEL lock:job. Client B retries until the key is gone. Click "Happy Path" to see it work, then click the failure buttons.');
+  }
+
+  /* --- Init --- */
+  drawStatic({});
+
+  return { happyPath: happyPath, failProcessPause: failProcessPause, failMasterFailover: failMasterFailover, reset: reset };
+})();
+
+/* ================================================================
+   TAB 2 -- REDLOCK
+   ================================================================ */
+var RL = (function() {
+  var scene = null;
+  var running = false;
+  var aborted = false;
+
+  function spd() { return speedOf('rl-speed'); }
+  initSpeedSlider('rl-speed', 'rl-speed-label');
+
+  function comm(msg) {
+    document.getElementById('rl-commentary').textContent = msg;
+  }
+
+  /* Layout */
+  var clientAx = 50, clientAy = 100;
+  var clientBx = 50, clientBy = 300;
+  var nodeX = [280, 420, 560, 700, 840];
+  var nodeY = 80;
+  var resourceX = 560, resourceY = 370;
+
+  function drawStatic() {
+    scene = document.getElementById('rl-scene');
+    scene.innerHTML = '';
+
+    /* Client A */
+    scene.appendChild(svgRect(clientAx - 10, clientAy - 20, 120, 44, {stroke: '#ff6b6b'}));
+    scene.appendChild(svgText(clientAx + 50, clientAy + 5, 'Client A', {fill: '#ff6b6b', 'font-weight': '600', 'font-size': '13'}));
+
+    /* Client B */
+    scene.appendChild(svgRect(clientBx - 10, clientBy - 20, 120, 44, {stroke: '#51cf66'}));
+    scene.appendChild(svgText(clientBx + 50, clientBy + 5, 'Client B', {fill: '#51cf66', 'font-weight': '600', 'font-size': '13'}));
+
+    /* 5 Redis nodes */
+    for (var i = 0; i < 5; i++) {
+      scene.appendChild(svgRect(nodeX[i] - 40, nodeY - 20, 80, 44, {stroke: 'var(--accent-blue)', fill: '#12121a'}));
+      scene.appendChild(svgText(nodeX[i], nodeY + 5, 'Redis ' + (i + 1), {fill: 'var(--accent-blue)', 'font-weight': '600', 'font-size': '12'}));
+      /* Lock state per node */
+      scene.appendChild(svgRect(nodeX[i] - 40, nodeY + 32, 80, 26, {stroke: '#333', fill: '#0f0f15', rx: '3'}));
+      scene.appendChild(svgText(nodeX[i], nodeY + 49, '--', {fill: '#555', 'font-size': '10', id: 'rl-node-' + i}));
+      /* Connection lines from both clients */
+      scene.appendChild(svgEl('line', {x1: 160, y1: clientAy, x2: nodeX[i] - 40, y2: nodeY, stroke: '#222', 'stroke-width': '1', 'stroke-dasharray': '3,4'}));
+      scene.appendChild(svgEl('line', {x1: 160, y1: clientBy, x2: nodeX[i] - 40, y2: nodeY + 44, stroke: '#222', 'stroke-width': '1', 'stroke-dasharray': '3,4'}));
+    }
+
+    /* Status display */
+    scene.appendChild(svgRect(280, nodeY + 80, 280, 44, {stroke: '#333', fill: '#0f0f15'}));
+    scene.appendChild(svgText(420, nodeY + 106, 'Status: idle', {fill: '#888', 'font-size': '12', id: 'rl-status'}));
+
+    /* Shared Resource */
+    scene.appendChild(svgRect(resourceX - 60, resourceY - 20, 130, 44, {stroke: 'var(--accent-purple)', fill: '#12121a'}));
+    scene.appendChild(svgText(resourceX + 5, resourceY + 5, 'Shared Resource', {fill: 'var(--accent-purple)', 'font-weight': '600', 'font-size': '12'}));
+
+    /* Anim group */
+    scene.appendChild(svgEl('g', {id: 'rl-anim'}));
+  }
+
+  function setNode(i, text, color) {
+    var el = document.getElementById('rl-node-' + i);
+    if (el) { el.textContent = text; el.setAttribute('fill', color || '#555'); }
+  }
+
+  function setStatus(text, color) {
+    var el = document.getElementById('rl-status');
+    if (el) { el.textContent = text; el.setAttribute('fill', color || '#888'); }
+  }
+
+  function animPacket(fromX, fromY, toX, toY, color, label, durMs) {
+    var g = svgEl('g', {});
+    var c = svgEl('circle', {cx: fromX, cy: fromY, r: '8', fill: color, opacity: '0.85'});
+    g.appendChild(c);
+    var t = svgText(fromX, fromY + 3, label, {fill: '#fff', 'font-size': '7', 'font-weight': '700'});
+    g.appendChild(t);
+    var animG = document.getElementById('rl-anim');
+    animG.appendChild(g);
+    var d = durMs / spd();
+    requestAnimationFrame(function() {
+      c.style.transition = 'all ' + d + 'ms ease';
+      t.style.transition = 'all ' + d + 'ms ease';
+      c.setAttribute('cx', toX); c.setAttribute('cy', toY);
+      t.setAttribute('x', toX); t.setAttribute('y', toY + 3);
+    });
+    return delay(d + 20).then(function() {
+      if (g.parentNode) g.parentNode.removeChild(g);
+    });
+  }
+
+  /* --- Happy path --- */
+  async function happyPath() {
+    if (running) return;
+    running = true; aborted = false;
+    drawStatic();
+    comm('Redlock: Client A sends SETNX to all 5 Redis nodes in parallel...');
+    await delay(400 / spd());
+
+    /* Send to all 5 in parallel */
+    var promises = [];
+    for (var i = 0; i < 5; i++) {
+      promises.push(animPacket(160, clientAy, nodeX[i], nodeY + 20, '#ff6b6b', 'NX', 350 + i * 50));
+    }
+    await Promise.all(promises);
+    if (aborted) { running = false; return; }
+
+    /* All 5 ack */
+    for (var i = 0; i < 5; i++) {
+      setNode(i, 'A', '#ff6b6b');
+    }
+    setStatus('A: 5/5 nodes = ACQUIRED', '#51cf66');
+    comm('Client A acquired on 5/5 nodes (needed 3). Lock is held. The validity time is T minus the time spent acquiring minus clock drift safety margin.');
+    await delay(1000 / spd());
+
+    /* Client A does work */
+    comm('Client A uses the lock, does its work, then releases on all nodes.');
+    await delay(600 / spd());
+
+    for (var i = 0; i < 5; i++) { setNode(i, '--', '#555'); }
+    setStatus('Status: released', '#888');
+    comm('Lock released. Redlock happy path complete. Click "Kleppmann Critique" to see the attack.');
+    running = false;
+  }
+
+  /* --- Kleppmann attack --- */
+  async function kleppmannAttack() {
+    if (running) return;
+    running = true; aborted = false;
+    drawStatic();
+    comm('Kleppmann critique: Client A acquires majority (3/5). Then experiences a long process pause...');
+    await delay(500 / spd());
+
+    /* A acquires on nodes 0,1,2 */
+    var p = [];
+    for (var i = 0; i < 3; i++) {
+      p.push(animPacket(160, clientAy, nodeX[i], nodeY + 20, '#ff6b6b', 'NX', 350));
+    }
+    await Promise.all(p);
+    if (aborted) { running = false; return; }
+    for (var i = 0; i < 3; i++) { setNode(i, 'A', '#ff6b6b'); }
+    /* Nodes 3,4 -- slow response / timeout for A */
+    setNode(3, 'timeout', '#666');
+    setNode(4, 'timeout', '#666');
+    setStatus('A: 3/5 nodes = ACQUIRED', '#51cf66');
+    comm('Client A acquired 3/5 -- majority. Lock is "held." Now A enters a long GC pause...');
+    await delay(800 / spd());
+
+    /* GC pause label */
+    var pauseLabel = svgText(clientAx + 50, clientAy + 40, 'GC PAUSE', {fill: '#ff6b6b', 'font-size': '11', 'font-weight': '700'});
+    scene.appendChild(pauseLabel);
+
+    /* TTL expires on all 3 */
+    comm('Client A is frozen. TTL expires on nodes 1, 2, 3. Lock keys auto-deleted.');
+    await delay(1500 / spd());
+    for (var i = 0; i < 5; i++) { setNode(i, '--', '#555'); }
+    setStatus('All locks expired (TTL)', '#ff6b6b');
+    await delay(500 / spd());
+
+    /* B acquires on 3,4,0 */
+    comm('Client B now tries to acquire. Sends SETNX to all 5 nodes...');
+    await delay(400 / spd());
+    var p2 = [];
+    for (var i = 0; i < 5; i++) {
+      p2.push(animPacket(160, clientBy, nodeX[i], nodeY + 44, '#51cf66', 'NX', 350));
+    }
+    await Promise.all(p2);
+    if (aborted) { running = false; return; }
+    for (var i = 0; i < 5; i++) { setNode(i, 'B', '#51cf66'); }
+    setStatus('B: 5/5 nodes = ACQUIRED', '#51cf66');
+    comm('Client B acquired 5/5. Client B proceeds to write to the shared resource.');
+    await delay(500 / spd());
+
+    /* B writes */
+    await animPacket(160, clientBy, resourceX, resourceY, '#51cf66', 'WRITE', 400);
+    await delay(400 / spd());
+
+    /* A wakes up */
+    comm('Client A wakes up from GC pause. It still thinks it acquired 3/5 and holds the lock!');
+    if (pauseLabel.parentNode) pauseLabel.parentNode.removeChild(pauseLabel);
+    var wakeLabel = svgText(clientAx + 50, clientAy + 40, 'WAKES UP', {fill: '#ffd43b', 'font-size': '11', 'font-weight': '700'});
+    scene.appendChild(wakeLabel);
+    await delay(600 / spd());
+
+    /* A writes -- corruption */
+    await animPacket(160, clientAy, resourceX, resourceY, '#ff6b6b', 'WRITE!', 400);
+
+    var dangerLabel = svgText(resourceX + 5, resourceY + 40, 'TWO HOLDERS -- CORRUPTION', {fill: '#ff6b6b', 'font-size': '13', 'font-weight': '700'});
+    scene.appendChild(dangerLabel);
+    setStatus('UNSAFE: both A and B wrote', '#ff6b6b');
+    comm('FAILURE (Kleppmann): Even with majority acquisition, a process pause that outlasts the TTL means the client is operating on a stale lock. Redlock has no fencing token to protect the resource. The majority vote gives you availability, not safety under pauses.');
+    running = false;
+  }
+
+  function reset() {
+    aborted = true;
+    running = false;
+    drawStatic();
+    comm('Redlock: client sends SETNX to 5 independent Redis nodes in parallel. If it acquires on 3/5 (majority) within timeout T minus safety drift, the lock is considered held. Click "Acquire" to see the happy path.');
+  }
+
+  drawStatic();
+  return { happyPath: happyPath, kleppmannAttack: kleppmannAttack, reset: reset };
+})();
+
+/* ================================================================
+   TAB 3 -- CONSENSUS-BACKED LEASES (etcd / ZooKeeper)
+   ================================================================ */
+var CS = (function() {
+  var scene = null;
+  var running = false;
+  var aborted = false;
+  var heartbeatInterval = null;
+
+  function spd() { return speedOf('cs-speed'); }
+  initSpeedSlider('cs-speed', 'cs-speed-label');
+
+  function comm(msg) {
+    document.getElementById('cs-commentary').textContent = msg;
+  }
+
+  /* Layout */
+  var clientAx = 50, clientAy = 90;
+  var clientBx = 50, clientBy = 310;
+  var etcdX = [330, 490, 650];
+  var etcdY = 100;
+  var resourceX = 650, resourceY = 330;
+
+  function drawStatic() {
+    scene = document.getElementById('cs-scene');
+    scene.innerHTML = '';
+
+    /* Client A */
+    scene.appendChild(svgRect(clientAx - 10, clientAy - 20, 120, 44, {stroke: '#ff6b6b'}));
+    scene.appendChild(svgText(clientAx + 50, clientAy + 5, 'Client A', {fill: '#ff6b6b', 'font-weight': '600', 'font-size': '13'}));
+
+    /* Client B */
+    scene.appendChild(svgRect(clientBx - 10, clientBy - 20, 120, 44, {stroke: '#51cf66'}));
+    scene.appendChild(svgText(clientBx + 50, clientBy + 5, 'Client B', {fill: '#51cf66', 'font-weight': '600', 'font-size': '13'}));
+    scene.appendChild(svgText(clientBx + 50, clientBy + 30, 'watching key...', {fill: '#555', 'font-size': '10', id: 'cs-b-status'}));
+
+    /* etcd cluster */
+    var clusterW = 400, clusterH = 160;
+    scene.appendChild(svgRect(etcdX[0] - 55, etcdY - 45, clusterW, clusterH, {stroke: 'var(--accent-blue)', fill: 'none', rx: '10'}));
+    scene.appendChild(svgText(etcdX[1], etcdY - 30, 'etcd Cluster (Raft)', {fill: 'var(--accent-blue)', 'font-weight': '700', 'font-size': '13'}));
+
+    for (var i = 0; i < 3; i++) {
+      var isLeader = i === 0;
+      scene.appendChild(svgRect(etcdX[i] - 40, etcdY - 10, 80, 40, {stroke: isLeader ? 'var(--accent-yellow)' : '#555', fill: '#12121a'}));
+      scene.appendChild(svgText(etcdX[i], etcdY + 14, isLeader ? 'Leader' : 'Follower ' + i, {fill: isLeader ? 'var(--accent-yellow)' : '#888', 'font-size': '11', 'font-weight': isLeader ? '700' : '400'}));
+    }
+
+    /* Lease state */
+    scene.appendChild(svgRect(etcdX[0] - 40, etcdY + 42, 200, 40, {stroke: '#333', fill: '#0f0f15'}));
+    scene.appendChild(svgText(etcdX[0] + 60, etcdY + 55, 'lease: (none)', {fill: '#666', 'font-size': '11', id: 'cs-lease-state', 'text-anchor': 'start', x: etcdX[0] - 30}));
+    scene.appendChild(svgText(etcdX[0] + 60, etcdY + 72, 'key: (none)', {fill: '#666', 'font-size': '11', id: 'cs-key-state', 'text-anchor': 'start', x: etcdX[0] - 30}));
+
+    /* Heartbeat indicator */
+    scene.appendChild(svgRect(etcdX[0] + 170, etcdY + 42, 90, 40, {stroke: '#333', fill: '#0f0f15'}));
+    scene.appendChild(svgText(etcdX[0] + 215, etcdY + 56, 'Heartbeat', {fill: '#555', 'font-size': '9'}));
+    scene.appendChild(svgEl('circle', {cx: etcdX[0] + 215, cy: etcdY + 72, r: '6', fill: '#333', id: 'cs-hb-light'}));
+
+    /* Shared Resource */
+    scene.appendChild(svgRect(resourceX - 60, resourceY - 20, 130, 44, {stroke: 'var(--accent-purple)', fill: '#12121a'}));
+    scene.appendChild(svgText(resourceX + 5, resourceY + 5, 'Shared Resource', {fill: 'var(--accent-purple)', 'font-weight': '600', 'font-size': '12'}));
+
+    /* Connection lines */
+    scene.appendChild(svgEl('line', {x1: 160, y1: clientAy, x2: etcdX[0] - 55, y2: etcdY + 20, stroke: '#333', 'stroke-width': '1', 'stroke-dasharray': '4,4'}));
+    scene.appendChild(svgEl('line', {x1: 160, y1: clientBy, x2: etcdX[0] - 55, y2: etcdY + 50, stroke: '#333', 'stroke-width': '1', 'stroke-dasharray': '4,4'}));
+
+    /* Anim group */
+    scene.appendChild(svgEl('g', {id: 'cs-anim'}));
+  }
+
+  function setLease(text, color) {
+    var el = document.getElementById('cs-lease-state');
+    if (el) { el.textContent = text; el.setAttribute('fill', color || '#666'); }
+  }
+  function setKey(text, color) {
+    var el = document.getElementById('cs-key-state');
+    if (el) { el.textContent = text; el.setAttribute('fill', color || '#666'); }
+  }
+  function setBStatus(text, color) {
+    var el = document.getElementById('cs-b-status');
+    if (el) { el.textContent = text; el.setAttribute('fill', color || '#555'); }
+  }
+  function setHBLight(color) {
+    var el = document.getElementById('cs-hb-light');
+    if (el) el.setAttribute('fill', color);
+  }
+
+  function animPacket(fromX, fromY, toX, toY, color, label, durMs) {
+    var g = svgEl('g', {});
+    var c = svgEl('circle', {cx: fromX, cy: fromY, r: '8', fill: color, opacity: '0.85'});
+    g.appendChild(c);
+    var t = svgText(fromX, fromY + 3, label, {fill: '#fff', 'font-size': '7', 'font-weight': '700'});
+    g.appendChild(t);
+    var animG = document.getElementById('cs-anim');
+    animG.appendChild(g);
+    var d = durMs / spd();
+    requestAnimationFrame(function() {
+      c.style.transition = 'all ' + d + 'ms ease';
+      t.style.transition = 'all ' + d + 'ms ease';
+      c.setAttribute('cx', toX); c.setAttribute('cy', toY);
+      t.setAttribute('x', toX); t.setAttribute('y', toY + 3);
+    });
+    return delay(d + 20).then(function() {
+      if (g.parentNode) g.parentNode.removeChild(g);
+    });
+  }
+
+  function startHeartbeat() {
+    var on = false;
+    heartbeatInterval = setInterval(function() {
+      on = !on;
+      setHBLight(on ? '#51cf66' : '#1a3a1a');
+    }, 600 / spd());
+  }
+
+  function stopHeartbeat() {
+    if (heartbeatInterval) {
+      clearInterval(heartbeatInterval);
+      heartbeatInterval = null;
+    }
+    setHBLight('#333');
+  }
+
+  /* --- Acquire + Heartbeat --- */
+  async function acquireAndHeartbeat() {
+    if (running) return;
+    running = true; aborted = false;
+    drawStatic();
+    comm('Client A creates a lease (10s TTL) and attempts CAS: Put(lock, A, lease) with Compare(version=0)...');
+    await delay(400 / spd());
+
+    /* Create lease */
+    await animPacket(160, clientAy, etcdX[0], etcdY + 20, '#ff6b6b', 'LEASE', 400);
+    if (aborted) { running = false; return; }
+    setLease('lease: L1 (TTL=10s, holder=A)', '#ff6b6b');
+    comm('Lease L1 created. Now CAS: write key only if version=0 (key does not exist)...');
+    await delay(300 / spd());
+
+    /* CAS write */
+    await animPacket(160, clientAy, etcdX[0], etcdY + 50, '#ff6b6b', 'CAS', 400);
+    setKey('key: lock/job = A (rev=1)', '#ff6b6b');
+    comm('CAS succeeded -- key version was 0, now 1. Client A holds the lock. KeepAlive heartbeats start every 3 seconds.');
+    startHeartbeat();
+    await delay(500 / spd());
+
+    /* Client B tries */
+    comm('Client B tries the same CAS: Put(lock, B, lease) with Compare(version=0)...');
+    await delay(300 / spd());
+    await animPacket(160, clientBy, etcdX[0], etcdY + 50, '#51cf66', 'CAS', 400);
+    comm('CAS FAILED -- key version is 1, not 0. Client B sets a Watch on the key and waits for deletion.');
+    setBStatus('WATCHING key...', '#51cf66');
+    await delay(600 / spd());
+
+    /* Show heartbeats happening */
+    comm('Client A continues sending KeepAlive heartbeats. The lease renews, the lock persists. Client B waits.');
+    for (var i = 0; i < 3 && !aborted; i++) {
+      await animPacket(160, clientAy, etcdX[0], etcdY + 50, '#ff6b6b', 'KA', 300);
+      await delay(600 / spd());
+    }
+
+    comm('Client A finishes work and deletes the key (or lets the lease expire). The Watch fires for Client B.');
+    stopHeartbeat();
+    setLease('lease: L1 EXPIRED', '#666');
+    setKey('key: (deleted)', '#666');
+    await delay(400 / spd());
+
+    /* Watch fires */
+    setBStatus('WATCH FIRED!', '#51cf66');
+    comm('Client B receives the Watch notification -- key deleted. B now creates its own lease and CAS...');
+    await delay(400 / spd());
+    await animPacket(160, clientBy, etcdX[0], etcdY + 50, '#51cf66', 'CAS', 400);
+    setLease('lease: L2 (TTL=10s, holder=B)', '#51cf66');
+    setKey('key: lock/job = B (rev=2)', '#51cf66');
+    setBStatus('LOCK ACQUIRED', '#51cf66');
+    startHeartbeat();
+    comm('Client B acquired the lock. Note the revision incremented to 2 -- this IS the fencing token. etcd provides it for free.');
+
+    await delay(2000 / spd());
+    stopHeartbeat();
+    comm('Consensus-backed lease complete. Click "Crash Lock Holder" to see the failure recovery path.');
+    running = false;
+  }
+
+  /* --- Crash lock holder --- */
+  async function crashHolder() {
+    if (running) return;
+    running = true; aborted = false;
+    drawStatic();
+    comm('Client A acquires the lock...');
+    await delay(300 / spd());
+
+    await animPacket(160, clientAy, etcdX[0], etcdY + 50, '#ff6b6b', 'CAS', 400);
+    if (aborted) { running = false; return; }
+    setLease('lease: L1 (TTL=10s, holder=A)', '#ff6b6b');
+    setKey('key: lock/job = A (rev=1)', '#ff6b6b');
+    startHeartbeat();
+    setBStatus('WATCHING key...', '#51cf66');
+    comm('Client A holds the lock. Heartbeats are flowing. Client B is watching. Now A crashes...');
+    await delay(1200 / spd());
+
+    /* Crash A */
+    stopHeartbeat();
+    var crashLabel = svgText(clientAx + 50, clientAy + 40, 'CRASHED', {fill: '#ff6b6b', 'font-size': '12', 'font-weight': '700'});
+    scene.appendChild(crashLabel);
+    var xLine1 = svgEl('line', {x1: clientAx - 10, y1: clientAy - 20, x2: clientAx + 110, y2: clientAy + 24, stroke: '#ff6b6b', 'stroke-width': '3'});
+    var xLine2 = svgEl('line', {x1: clientAx + 110, y1: clientAy - 20, x2: clientAx - 10, y2: clientAy + 24, stroke: '#ff6b6b', 'stroke-width': '3'});
+    scene.appendChild(xLine1);
+    scene.appendChild(xLine2);
+    comm('Client A crashed. No more KeepAlive heartbeats. etcd will wait for the lease TTL to expire...');
+    await delay(800 / spd());
+
+    /* TTL countdown */
+    for (var sec = 10; sec > 0 && !aborted; sec -= 2) {
+      setLease('lease: L1 (TTL=' + sec + 's, NO heartbeat)', '#ffd43b');
+      await delay(400 / spd());
+    }
+    if (aborted) { running = false; return; }
+
+    /* Lease expires */
+    setLease('lease: L1 EXPIRED', '#ff6b6b');
+    setKey('key: DELETED (lease expired)', '#ff6b6b');
+    comm('Lease expired. etcd deleted the key. Watch fires for Client B!');
+    await delay(500 / spd());
+
+    /* B gets watch, acquires */
+    setBStatus('WATCH FIRED!', '#51cf66');
+    await delay(400 / spd());
+    await animPacket(160, clientBy, etcdX[0], etcdY + 50, '#51cf66', 'CAS', 400);
+    setLease('lease: L2 (TTL=10s, holder=B)', '#51cf66');
+    setKey('key: lock/job = B (rev=2)', '#51cf66');
+    setBStatus('LOCK ACQUIRED', '#51cf66');
+    startHeartbeat();
+    comm('Client B acquired the lock after A crashed. The system self-healed. No manual intervention, no split-brain -- Raft consensus guarantees exactly one holder. Revision=2 is the fencing token.');
+
+    await delay(2000 / spd());
+    stopHeartbeat();
+    running = false;
+  }
+
+  function reset() {
+    aborted = true;
+    running = false;
+    stopHeartbeat();
+    drawStatic();
+    comm('etcd uses Raft consensus -- writes are committed when a majority of nodes agree. A lease is a TTL-bound session: the key exists as long as the lease is alive. KeepAlive heartbeats renew the lease. If heartbeats stop, the lease expires and the key is deleted.');
+  }
+
+  drawStatic();
+  return { acquireAndHeartbeat: acquireAndHeartbeat, crashHolder: crashHolder, reset: reset };
+})();
+
+/* ================================================================
+   TAB 4 -- DATABASE LOCKS
+   ================================================================ */
+var DB = (function() {
+  var scene = null;
+  var running = false;
+  var aborted = false;
+
+  function spd() { return speedOf('db-speed'); }
+  initSpeedSlider('db-speed', 'db-speed-label');
+
+  function comm(msg) {
+    document.getElementById('db-commentary').textContent = msg;
+  }
+
+  /* Layout */
+  var workerX = [70, 70, 70];
+  var workerY = [60, 170, 280];
+  var workerColors = ['#ff6b6b', '#51cf66', '#ffd43b'];
+  var workerNames = ['Worker 1', 'Worker 2', 'Worker 3'];
+  var pgX = 420, pgY = 170;
+  var jobsX = 680, jobsY = 60;
+
+  function drawStatic() {
+    scene = document.getElementById('db-scene');
+    scene.innerHTML = '';
+
+    /* Workers */
+    for (var i = 0; i < 3; i++) {
+      scene.appendChild(svgRect(workerX[i] - 10, workerY[i] - 18, 110, 40, {stroke: workerColors[i]}));
+      scene.appendChild(svgText(workerX[i] + 45, workerY[i] + 7, workerNames[i], {fill: workerColors[i], 'font-weight': '600', 'font-size': '12'}));
+      scene.appendChild(svgText(workerX[i] + 45, workerY[i] + 28, 'idle', {fill: '#555', 'font-size': '10', id: 'db-w-' + i}));
+      scene.appendChild(svgEl('line', {x1: 170, y1: workerY[i], x2: pgX - 60, y2: pgY, stroke: '#222', 'stroke-width': '1', 'stroke-dasharray': '3,4'}));
+    }
+
+    /* Postgres */
+    scene.appendChild(svgRect(pgX - 60, pgY - 40, 140, 80, {stroke: 'var(--accent-blue)', fill: '#12121a'}));
+    scene.appendChild(svgText(pgX + 10, pgY - 18, 'PostgreSQL', {fill: 'var(--accent-blue)', 'font-weight': '700', 'font-size': '14'}));
+    scene.appendChild(svgText(pgX + 10, pgY + 2, 'Lock Manager', {fill: '#888', 'font-size': '11'}));
+    scene.appendChild(svgRect(pgX - 50, pgY + 20, 120, 26, {stroke: '#333', fill: '#0f0f15', rx: '3'}));
+    scene.appendChild(svgText(pgX + 10, pgY + 37, 'advisory: free', {fill: '#555', 'font-size': '10', id: 'db-adv-state'}));
+
+    /* Jobs table */
+    scene.appendChild(svgRect(jobsX - 70, jobsY - 20, 190, 280, {stroke: 'var(--accent-purple)', fill: '#12121a'}));
+    scene.appendChild(svgText(jobsX + 25, jobsY, 'jobs table', {fill: 'var(--accent-purple)', 'font-weight': '600', 'font-size': '12'}));
+
+    for (var j = 0; j < 5; j++) {
+      var rowY = jobsY + 20 + j * 44;
+      scene.appendChild(svgRect(jobsX - 60, rowY, 170, 36, {stroke: '#333', fill: '#0f0f15', rx: '3'}));
+      scene.appendChild(svgText(jobsX - 40, rowY + 14, 'job_' + (j + 1), {fill: '#888', 'font-size': '10', 'text-anchor': 'start'}));
+      scene.appendChild(svgText(jobsX + 90, rowY + 14, 'pending', {fill: '#888', 'font-size': '10', id: 'db-job-' + j}));
+      scene.appendChild(svgEl('circle', {cx: jobsX + 60, cy: rowY + 22, r: '5', fill: '#333', id: 'db-job-lock-' + j}));
+      scene.appendChild(svgText(jobsX + 60, rowY + 34, '', {fill: '#555', 'font-size': '8', id: 'db-job-holder-' + j}));
+    }
+
+    /* Connection lines */
+    scene.appendChild(svgEl('line', {x1: pgX + 80, y1: pgY, x2: jobsX - 70, y2: jobsY + 120, stroke: '#333', 'stroke-width': '1', 'stroke-dasharray': '4,4'}));
+
+    /* Anim group */
+    scene.appendChild(svgEl('g', {id: 'db-anim'}));
+  }
+
+  function setWorker(i, text, color) {
+    var el = document.getElementById('db-w-' + i);
+    if (el) { el.textContent = text; el.setAttribute('fill', color || '#555'); }
+  }
+  function setAdv(text, color) {
+    var el = document.getElementById('db-adv-state');
+    if (el) { el.textContent = text; el.setAttribute('fill', color || '#555'); }
+  }
+  function setJob(j, text, color) {
+    var el = document.getElementById('db-job-' + j);
+    if (el) { el.textContent = text; el.setAttribute('fill', color || '#888'); }
+  }
+  function setJobLock(j, color) {
+    var el = document.getElementById('db-job-lock-' + j);
+    if (el) { el.setAttribute('fill', color || '#333'); }
+  }
+  function setJobHolder(j, text, color) {
+    var el = document.getElementById('db-job-holder-' + j);
+    if (el) { el.textContent = text; el.setAttribute('fill', color || '#555'); }
+  }
+
+  function animPacket(fromX, fromY, toX, toY, color, label, durMs) {
+    var g = svgEl('g', {});
+    var c = svgEl('circle', {cx: fromX, cy: fromY, r: '8', fill: color, opacity: '0.85'});
+    g.appendChild(c);
+    var t = svgText(fromX, fromY + 3, label, {fill: '#fff', 'font-size': '7', 'font-weight': '700'});
+    g.appendChild(t);
+    var animG = document.getElementById('db-anim');
+    animG.appendChild(g);
+    var d = durMs / spd();
+    requestAnimationFrame(function() {
+      c.style.transition = 'all ' + d + 'ms ease';
+      t.style.transition = 'all ' + d + 'ms ease';
+      c.setAttribute('cx', toX); c.setAttribute('cy', toY);
+      t.setAttribute('x', toX); t.setAttribute('y', toY + 3);
+    });
+    return delay(d + 20).then(function() {
+      if (g.parentNode) g.parentNode.removeChild(g);
+    });
+  }
+
+  /* --- Advisory lock demo --- */
+  async function advisoryLock() {
+    if (running) return;
+    running = true; aborted = false;
+    drawStatic();
+    comm('Advisory lock: Worker 1 calls pg_advisory_lock(42). This is a session-level lock -- no data is locked, purely coordination.');
+    await delay(400 / spd());
+
+    /* W1 acquires */
+    await animPacket(170, workerY[0], pgX - 10, pgY, '#ff6b6b', 'LOCK', 400);
+    if (aborted) { running = false; return; }
+    setAdv('advisory 42: W1', '#ff6b6b');
+    setWorker(0, 'HOLDS LOCK', '#ff6b6b');
+    comm('Worker 1 acquired advisory lock 42. Worker 2 tries the same lock...');
+    await delay(500 / spd());
+
+    /* W2 tries, blocks */
+    setWorker(1, 'REQUESTING...', '#ffd43b');
+    await animPacket(170, workerY[1], pgX - 10, pgY, '#51cf66', 'LOCK', 400);
+    setWorker(1, 'BLOCKED', '#ff6b6b');
+    comm('Worker 2 is BLOCKED on pg_advisory_lock(42) -- it will wait until Worker 1 releases. Meanwhile, Worker 3 uses pg_try_advisory_lock(42)...');
+    await delay(600 / spd());
+
+    /* W3 tries non-blocking */
+    await animPacket(170, workerY[2], pgX - 10, pgY, '#ffd43b', 'TRY', 400);
+    setWorker(2, 'FALSE (skip)', '#ffd43b');
+    comm('Worker 3 got FALSE from pg_try_advisory_lock(42) -- it can proceed with alternative logic instead of blocking. This is the non-blocking variant.');
+    await delay(800 / spd());
+
+    /* W1 releases */
+    comm('Worker 1 finishes and releases the advisory lock.');
+    await delay(400 / spd());
+    setAdv('advisory 42: free', '#555');
+    setWorker(0, 'RELEASED', '#888');
+
+    /* W2 unblocks */
+    setAdv('advisory 42: W2', '#51cf66');
+    setWorker(1, 'HOLDS LOCK', '#51cf66');
+    comm('Worker 2 unblocked -- it now holds advisory lock 42. This is standard Postgres coordination -- strongly consistent, no extra infrastructure.');
+    await delay(1000 / spd());
+
+    setAdv('advisory 42: free', '#555');
+    setWorker(1, 'RELEASED', '#888');
+    comm('Advisory lock demo complete. Click "FOR UPDATE SKIP LOCKED" to see the queue pattern.');
+    running = false;
+  }
+
+  /* --- SKIP LOCKED demo --- */
+  async function skipLocked() {
+    if (running) return;
+    running = true; aborted = false;
+    drawStatic();
+
+    /* Set all jobs to pending */
+    for (var j = 0; j < 5; j++) {
+      setJob(j, 'pending', '#888');
+      setJobLock(j, '#333');
+      setJobHolder(j, '', '#555');
+    }
+
+    comm('FOR UPDATE SKIP LOCKED: 3 workers each run "SELECT * FROM jobs WHERE status=pending FOR UPDATE SKIP LOCKED LIMIT 1". Each grabs a different row -- no blocking, no contention.');
+    await delay(800 / spd());
+
+    /* All 3 workers query simultaneously */
+    var p = [];
+    for (var i = 0; i < 3; i++) {
+      p.push(animPacket(170, workerY[i], jobsX - 40, jobsY + 20 + i * 44 + 18, workerColors[i], 'SELECT', 400 + i * 100));
+    }
+    await Promise.all(p);
+    if (aborted) { running = false; return; }
+
+    /* Each grabs a different row */
+    for (var i = 0; i < 3; i++) {
+      setJob(i, 'LOCKED', workerColors[i]);
+      setJobLock(i, workerColors[i]);
+      setJobHolder(i, 'W' + (i + 1), workerColors[i]);
+      setWorker(i, 'processing job_' + (i + 1), workerColors[i]);
+    }
+    comm('Each worker locked a different row. Jobs 4 and 5 remain available. SKIP LOCKED means workers never block each other -- they simply skip rows that are already locked by other transactions.');
+    await delay(1200 / spd());
+
+    /* Worker 1 finishes, commits, grabs job 4 */
+    setJob(0, 'done', '#888');
+    setJobLock(0, '#333');
+    setJobHolder(0, '', '#555');
+    setWorker(0, 'committed', '#888');
+    comm('Worker 1 committed job_1. It immediately grabs job_4 with another SELECT FOR UPDATE SKIP LOCKED.');
+    await delay(500 / spd());
+    await animPacket(170, workerY[0], jobsX - 40, jobsY + 20 + 3 * 44 + 18, workerColors[0], 'SELECT', 350);
+    setJob(3, 'LOCKED', workerColors[0]);
+    setJobLock(3, workerColors[0]);
+    setJobHolder(3, 'W1', workerColors[0]);
+    setWorker(0, 'processing job_4', workerColors[0]);
+    await delay(800 / spd());
+
+    /* Worker 2 finishes, grabs job 5 */
+    setJob(1, 'done', '#888');
+    setJobLock(1, '#333');
+    setJobHolder(1, '', '#555');
+    setWorker(1, 'committed', '#888');
+    comm('Worker 2 committed job_2, grabs job_5.');
+    await delay(400 / spd());
+    await animPacket(170, workerY[1], jobsX - 40, jobsY + 20 + 4 * 44 + 18, workerColors[1], 'SELECT', 350);
+    setJob(4, 'LOCKED', workerColors[1]);
+    setJobLock(4, workerColors[1]);
+    setJobHolder(4, 'W2', workerColors[1]);
+    setWorker(1, 'processing job_5', workerColors[1]);
+    await delay(800 / spd());
+
+    /* All finish */
+    for (var j = 0; j < 5; j++) {
+      setJob(j, 'done', '#888');
+      setJobLock(j, '#333');
+      setJobHolder(j, '', '#555');
+    }
+    for (var i = 0; i < 3; i++) { setWorker(i, 'idle', '#555'); }
+    comm('All 5 jobs processed. 3 workers, zero contention, zero blocking. This is the canonical Postgres-as-queue pattern. No Redis, no SQS, no Kafka -- just your existing database.');
+    running = false;
+  }
+
+  function reset() {
+    aborted = true;
+    running = false;
+    drawStatic();
+    comm('Postgres advisory locks: pg_advisory_lock(key) acquires an application-level lock. Per-session (released on disconnect) or per-transaction (released on commit). No data is locked -- it is purely a coordination primitive. Row locks with FOR UPDATE SKIP LOCKED let workers dequeue jobs without blocking each other.');
+  }
+
+  drawStatic();
+  return { advisoryLock: advisoryLock, skipLocked: skipLocked, reset: reset };
+})();
+
+/* ================================================================
+   TAB 5 -- FENCING TOKENS
+   ================================================================ */
+var FN = (function() {
+  var running = false;
+  var aborted = false;
+
+  function spd() { return speedOf('fn-speed'); }
+  initSpeedSlider('fn-speed', 'fn-speed-label');
+
+  function comm(msg) {
+    document.getElementById('fn-commentary').textContent = msg;
+  }
+
+  /* Layout (shared for both SVGs) */
+  var lockSvcX = 180, lockSvcY = 60;
+  var clientAx = 180, clientAy = 160;
+  var clientBx = 180, clientBy = 250;
+  var resourceX = 680, resourceY = 160;
+
+  function drawScene(svgId, sceneId, arrowId, showToken) {
+    var scene = document.getElementById(sceneId);
+    scene.innerHTML = '';
+
+    /* Lock Service */
+    scene.appendChild(svgRect(lockSvcX - 50, lockSvcY - 18, 110, 40, {stroke: 'var(--accent-blue)', fill: '#12121a'}));
+    scene.appendChild(svgText(lockSvcX + 5, lockSvcY + 7, 'Lock Service', {fill: 'var(--accent-blue)', 'font-weight': '600', 'font-size': '12'}));
+
+    /* Client A */
+    scene.appendChild(svgRect(clientAx - 50, clientAy - 18, 110, 40, {stroke: '#ff6b6b'}));
+    scene.appendChild(svgText(clientAx + 5, clientAy + 7, 'Client A', {fill: '#ff6b6b', 'font-weight': '600', 'font-size': '12'}));
+    scene.appendChild(svgText(clientAx + 5, clientAy + 30, '', {fill: '#888', 'font-size': '10', id: sceneId + '-a-status'}));
+
+    /* Client B */
+    scene.appendChild(svgRect(clientBx - 50, clientBy - 18, 110, 40, {stroke: '#51cf66'}));
+    scene.appendChild(svgText(clientBx + 5, clientBy + 7, 'Client B', {fill: '#51cf66', 'font-weight': '600', 'font-size': '12'}));
+    scene.appendChild(svgText(clientBx + 5, clientBy + 30, '', {fill: '#888', 'font-size': '10', id: sceneId + '-b-status'}));
+
+    /* Resource */
+    scene.appendChild(svgRect(resourceX - 70, resourceY - 30, 170, 70, {stroke: 'var(--accent-purple)', fill: '#12121a'}));
+    scene.appendChild(svgText(resourceX + 15, resourceY - 8, 'Storage Service', {fill: 'var(--accent-purple)', 'font-weight': '600', 'font-size': '12'}));
+    if (showToken) {
+      scene.appendChild(svgText(resourceX + 15, resourceY + 12, 'last_token: 0', {fill: '#888', 'font-size': '11', id: sceneId + '-res-token'}));
+    }
+    scene.appendChild(svgText(resourceX + 15, resourceY + 30, 'data: --', {fill: '#666', 'font-size': '11', id: sceneId + '-res-data'}));
+
+    /* Timeline arrow */
+    scene.appendChild(svgEl('line', {x1: 350, y1: 30, x2: 350, y2: 290, stroke: '#333', 'stroke-width': '1', 'marker-end': 'url(#' + arrowId + ')'}));
+    scene.appendChild(svgText(360, 25, 'time', {fill: '#444', 'font-size': '10', 'text-anchor': 'start'}));
+
+    /* Anim group */
+    scene.appendChild(svgEl('g', {id: sceneId + '-anim'}));
+  }
+
+  function setEl(id, text, color) {
+    var el = document.getElementById(id);
+    if (el) { el.textContent = text; el.setAttribute('fill', color || '#888'); }
+  }
+
+  function animPacketIn(sceneId, fromX, fromY, toX, toY, color, label, durMs) {
+    var g = svgEl('g', {});
+    var c = svgEl('circle', {cx: fromX, cy: fromY, r: '9', fill: color, opacity: '0.85'});
+    g.appendChild(c);
+    var t = svgText(fromX, fromY + 3, label, {fill: '#fff', 'font-size': '7', 'font-weight': '700'});
+    g.appendChild(t);
+    var animG = document.getElementById(sceneId + '-anim');
+    animG.appendChild(g);
+    var d = durMs / spd();
+    requestAnimationFrame(function() {
+      c.style.transition = 'all ' + d + 'ms ease';
+      t.style.transition = 'all ' + d + 'ms ease';
+      c.setAttribute('cx', toX); c.setAttribute('cy', toY);
+      t.setAttribute('x', toX); t.setAttribute('y', toY + 3);
+    });
+    return delay(d + 20).then(function() {
+      if (g.parentNode) g.parentNode.removeChild(g);
+    });
+  }
+
+  function addTimelineEvent(sceneId, y, text, color) {
+    var scene = document.getElementById(sceneId);
+    var marker = svgEl('circle', {cx: 350, cy: y, r: '4', fill: color || '#888'});
+    scene.appendChild(marker);
+    var label = svgText(365, y + 4, text, {fill: color || '#888', 'font-size': '9', 'text-anchor': 'start'});
+    scene.appendChild(label);
+  }
+
+  /* --- Without fencing --- */
+  async function runWithout() {
+    drawScene('fn-svg1', 'fn-scene1', 'fn-arrow1', false);
+
+    /* A acquires */
+    addTimelineEvent('fn-scene1', 60, 'A acquires lock', '#ff6b6b');
+    await animPacketIn('fn-scene1', clientAx + 60, lockSvcY, clientAx + 60, clientAy, '#ff6b6b', 'LOCK', 300);
+    if (aborted) return;
+    setEl('fn-scene1-a-status', 'holds lock', '#ff6b6b');
+    await delay(400 / spd());
+
+    /* A pauses */
+    addTimelineEvent('fn-scene1', 100, 'A enters GC pause', '#ffd43b');
+    setEl('fn-scene1-a-status', 'GC PAUSE', '#ffd43b');
+    await delay(600 / spd());
+
+    /* Lock expires, B acquires */
+    addTimelineEvent('fn-scene1', 140, 'lock expires (TTL)', '#888');
+    addTimelineEvent('fn-scene1', 170, 'B acquires lock', '#51cf66');
+    await animPacketIn('fn-scene1', clientBx + 60, lockSvcY, clientBx + 60, clientBy, '#51cf66', 'LOCK', 300);
+    setEl('fn-scene1-b-status', 'holds lock', '#51cf66');
+    await delay(400 / spd());
+
+    /* B writes */
+    addTimelineEvent('fn-scene1', 200, 'B writes to storage', '#51cf66');
+    await animPacketIn('fn-scene1', clientBx + 60, clientBy, resourceX - 30, resourceY + 10, '#51cf66', 'WRITE', 400);
+    setEl('fn-scene1-res-data', 'data: B_value', '#51cf66');
+    await delay(400 / spd());
+
+    /* A wakes, writes -- CORRUPTION */
+    addTimelineEvent('fn-scene1', 240, 'A wakes up, writes STALE', '#ff6b6b');
+    setEl('fn-scene1-a-status', 'WAKES UP', '#ffd43b');
+    await delay(300 / spd());
+    await animPacketIn('fn-scene1', clientAx + 60, clientAy, resourceX - 30, resourceY + 10, '#ff6b6b', 'WRITE!', 400);
+    setEl('fn-scene1-res-data', 'CORRUPTED (A overwrote B)', '#ff6b6b');
+
+    addTimelineEvent('fn-scene1', 275, 'CORRUPTION -- A overwrites B', '#ff6b6b');
+  }
+
+  /* --- With fencing --- */
+  async function runWith() {
+    drawScene('fn-svg2', 'fn-scene2', 'fn-arrow2', true);
+
+    /* A acquires with token 33 */
+    addTimelineEvent('fn-scene2', 60, 'A acquires lock, token=33', '#ff6b6b');
+    await animPacketIn('fn-scene2', clientAx + 60, lockSvcY, clientAx + 60, clientAy, '#ff6b6b', 'T=33', 300);
+    if (aborted) return;
+    setEl('fn-scene2-a-status', 'token=33', '#ff6b6b');
+    await delay(400 / spd());
+
+    /* A pauses */
+    addTimelineEvent('fn-scene2', 100, 'A enters GC pause', '#ffd43b');
+    setEl('fn-scene2-a-status', 'GC PAUSE (t=33)', '#ffd43b');
+    await delay(600 / spd());
+
+    /* Lock expires, B acquires with token 34 */
+    addTimelineEvent('fn-scene2', 140, 'lock expires (TTL)', '#888');
+    addTimelineEvent('fn-scene2', 170, 'B acquires lock, token=34', '#51cf66');
+    await animPacketIn('fn-scene2', clientBx + 60, lockSvcY, clientBx + 60, clientBy, '#51cf66', 'T=34', 300);
+    setEl('fn-scene2-b-status', 'token=34', '#51cf66');
+    await delay(400 / spd());
+
+    /* B writes with token 34 -- accepted */
+    addTimelineEvent('fn-scene2', 200, 'B writes (token=34), accepted', '#51cf66');
+    await animPacketIn('fn-scene2', clientBx + 60, clientBy, resourceX - 30, resourceY + 10, '#51cf66', 'T=34', 400);
+    setEl('fn-scene2-res-token', 'last_token: 34', '#51cf66');
+    setEl('fn-scene2-res-data', 'data: B_value', '#51cf66');
+    await delay(400 / spd());
+
+    /* A wakes, writes with token 33 -- REJECTED */
+    addTimelineEvent('fn-scene2', 240, 'A wakes, writes (token=33)', '#ffd43b');
+    setEl('fn-scene2-a-status', 'WAKES UP (t=33)', '#ffd43b');
+    await delay(300 / spd());
+    await animPacketIn('fn-scene2', clientAx + 60, clientAy, resourceX - 30, resourceY + 10, '#ff6b6b', 'T=33', 400);
+
+    /* Rejection flash */
+    addTimelineEvent('fn-scene2', 275, 'REJECTED: 33 < 34', '#ff6b6b');
+    setEl('fn-scene2-res-data', 'data: B_value (SAFE)', '#51cf66');
+
+    /* Add rejection label */
+    var scene2 = document.getElementById('fn-scene2');
+    var rejectLabel = svgText(resourceX + 15, resourceY + 55, 'token 33 < 34: REJECTED', {fill: '#ff6b6b', 'font-size': '11', 'font-weight': '700'});
+    scene2.appendChild(rejectLabel);
+    var safeLabel = svgText(resourceX + 15, resourceY - 48, 'DATA INTEGRITY PRESERVED', {fill: '#51cf66', 'font-size': '12', 'font-weight': '700'});
+    scene2.appendChild(safeLabel);
+  }
+
+  /* --- Run both side by side --- */
+  async function runBoth() {
+    if (running) return;
+    running = true; aborted = false;
+    comm('Running both scenarios in parallel. Top: without fencing token (corruption). Bottom: with fencing token (safe).');
+    await Promise.all([runWithout(), runWith()]);
+    if (!aborted) {
+      comm('Compare the two: without fencing, Client A overwrites B\'s data. With fencing, the storage service checks the token and rejects A\'s stale write (33 < 34). The fencing token makes the resource self-protecting -- the lock is just an optimization for reducing contention, not a safety guarantee.');
+    }
+    running = false;
+  }
+
+  function reset() {
+    aborted = true;
+    running = false;
+    drawScene('fn-svg1', 'fn-scene1', 'fn-arrow1', false);
+    drawScene('fn-svg2', 'fn-scene2', 'fn-arrow2', true);
+    comm('Fencing tokens: the lock service issues a monotonically increasing token with each acquisition. The resource server tracks the highest token it has seen and rejects any write with a lower token. This makes the resource self-protecting -- even if two clients think they hold the lock, only the one with the higher token can write.');
+  }
+
+  drawScene('fn-svg1', 'fn-scene1', 'fn-arrow1', false);
+  drawScene('fn-svg2', 'fn-scene2', 'fn-arrow2', true);
+  return { runBoth: runBoth, reset: reset };
+})();
+</script>
+</body>
+</html>

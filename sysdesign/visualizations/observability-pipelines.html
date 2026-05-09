@@ -1,0 +1,2009 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Observability Pipelines -- Logs / Metrics / Traces</title>
+<style>
+:root {
+  --bg: #0f0f15;
+  --surface: #181820;
+  --surface-2: #20202a;
+  --border: #2a2a35;
+  --text: #e6e6ea;
+  --text-2: #cfcfd6;
+  --text-3: #888;
+  --accent-red: #ff6b6b;
+  --accent-green: #51cf66;
+  --accent-blue: #339af0;
+  --accent-yellow: #ffd43b;
+  --accent-purple: #cc5de8;
+  --accent-cyan: #8be9fd;
+  --accent-orange: #ffa94d;
+}
+*, *::before, *::after { box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  padding: 32px 24px;
+  max-width: 1100px;
+  margin: 0 auto;
+  line-height: 1.55;
+}
+h1 { color: #fff; margin-bottom: 4px; }
+h1 + p.sub { color: var(--text-3); font-style: italic; margin-top: 0; margin-bottom: 24px; }
+h2 { color: #fff; margin-top: 32px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+h3 { color: var(--text-2); margin-top: 20px; }
+code {
+  background: var(--surface-2);
+  padding: 2px 6px;
+  border-radius: 3px;
+  color: var(--accent-cyan);
+  font-size: 13px;
+}
+svg {
+  background: var(--surface);
+  border-radius: 8px;
+  display: block;
+  margin: 14px auto;
+  width: 100%;
+  height: auto;
+}
+.tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+.tabs button {
+  padding: 10px 20px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-2);
+  border-radius: 6px;
+  cursor: pointer;
+  min-height: 44px;
+  font-size: 14px;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.tabs button:hover { background: var(--surface); }
+.tabs button.active {
+  border-color: var(--accent-blue);
+  border-bottom: 2px solid var(--accent-blue);
+  color: #fff;
+}
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0;
+  align-items: center;
+}
+.controls button, .btn {
+  padding: 10px 16px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  border-radius: 6px;
+  cursor: pointer;
+  min-height: 44px;
+  font-size: 14px;
+  transition: background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+.controls button:hover, .btn:hover { background: var(--surface); }
+.controls button:disabled, .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.controls button.active-btn { border-color: var(--accent-blue); color: var(--accent-blue); }
+.controls button.danger { border-color: var(--accent-red); color: var(--accent-red); }
+.controls button.danger:hover { background: #2a1520; }
+.slider-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-3);
+  min-width: 180px;
+}
+.slider-group input[type="range"] {
+  flex: 1;
+  min-width: 80px;
+  accent-color: var(--accent-blue);
+}
+.commentary {
+  background: var(--surface-2);
+  padding: 14px;
+  border-radius: 6px;
+  font-size: 14px;
+  color: var(--text-2);
+  margin: 12px 0;
+  min-height: 44px;
+  line-height: 1.5;
+}
+.takeaway {
+  background: #1a1a22;
+  border-left: 3px solid var(--accent-green);
+  padding: 12px 16px;
+  margin: 14px 0;
+  font-size: 14px;
+}
+.takeaway strong { color: var(--accent-green); }
+.takeaway ul { margin: 6px 0 0 0; padding-left: 18px; }
+.takeaway li { margin-bottom: 6px; }
+section[hidden] { display: none !important; }
+
+/* decision table */
+.dtable {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 14px 0;
+  font-size: 13px;
+}
+.dtable th, .dtable td {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  text-align: left;
+}
+.dtable th {
+  background: var(--surface-2);
+  color: #fff;
+  font-weight: 600;
+}
+.dtable td { background: var(--surface); color: var(--text-2); }
+.dtable tr:hover td { background: var(--surface-2); }
+.dtable .pillar-log { border-left: 3px solid var(--accent-orange); }
+.dtable .pillar-met { border-left: 3px solid var(--accent-blue); }
+.dtable .pillar-tr  { border-left: 3px solid var(--accent-purple); }
+
+/* cardinality explosion bars */
+.card-bar-wrap {
+  margin: 14px 0;
+  padding: 10px 14px;
+  background: var(--surface);
+  border-radius: 6px;
+  border: 1px solid var(--border);
+}
+.card-bar-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--text-3);
+  margin-bottom: 4px;
+}
+.card-bar {
+  height: 24px;
+  border-radius: 4px;
+  background: var(--surface-2);
+  overflow: hidden;
+  position: relative;
+}
+.card-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 1.2s ease, background 0.5s;
+}
+.card-bar-fill span {
+  position: absolute;
+  right: 8px;
+  top: 3px;
+  font-size: 11px;
+  color: #fff;
+  font-weight: 600;
+}
+
+/* sampling demo */
+.sampling-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin: 14px 0;
+}
+.sampling-col {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 12px;
+}
+.sampling-col h4 {
+  margin: 0 0 8px 0;
+  font-size: 13px;
+  color: #fff;
+}
+.sampling-stats {
+  font-size: 12px;
+  color: var(--text-3);
+  margin-top: 8px;
+  line-height: 1.6;
+}
+.sampling-stats .val { color: var(--accent-cyan); font-weight: 600; }
+.sampling-dots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+}
+.sampling-dots .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  transition: opacity 0.3s;
+}
+
+@media (max-width: 720px) {
+  body { padding: 20px 14px; }
+  .sampling-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 600px) {
+  .tabs { gap: 4px; }
+  .tabs button { padding: 10px 12px; font-size: 13px; flex: 1; min-width: 80px; text-align: center; }
+  .dtable { font-size: 11px; }
+  .dtable th, .dtable td { padding: 6px 8px; }
+}
+@media (max-width: 480px) {
+  .controls { flex-direction: column; }
+  .controls button { width: 100%; }
+  .slider-group { width: 100%; min-width: auto; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Observability pipelines -- logs / metrics / traces</h1>
+  <p class="sub">The three pillars, the three pipelines, the cardinality cost shape, the correlation layer. Watch a request flow through OTel; watch a Prometheus scrape; watch the cost explode when cardinality goes wrong.</p>
+</header>
+
+<nav class="tabs">
+  <button class="active" onclick="setActiveTab('pillars')">Three Pillars</button>
+  <button onclick="setActiveTab('logs')">Logs Pipeline</button>
+  <button onclick="setActiveTab('metrics')">Metrics Pipeline</button>
+  <button onclick="setActiveTab('traces')">Traces Pipeline</button>
+  <button onclick="setActiveTab('correlation')">Correlation</button>
+</nav>
+
+<!-- ============================================================ -->
+<!-- TAB 1: THREE PILLARS                                          -->
+<!-- ============================================================ -->
+<section data-tab="pillars">
+  <h2>The Three Pillars -- When to Use Which</h2>
+  <p>Every production system emits three fundamentally different signal types. Each has its own pipeline, cost shape, and question it answers. The senior move is picking the right pillar for the question, not dumping everything into one.</p>
+
+  <svg id="pi-svg" viewBox="0 0 900 420" preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <marker id="pi-arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="#444"/>
+      </marker>
+    </defs>
+
+    <!-- Service box -->
+    <rect x="340" y="20" width="220" height="60" rx="8" fill="var(--surface-2)" stroke="var(--accent-blue)" stroke-width="2"/>
+    <text x="450" y="55" text-anchor="middle" fill="var(--accent-blue)" font-size="15" font-weight="700">Your Service</text>
+
+    <!-- Three pipeline arrows from service -->
+    <line x1="380" y1="80" x2="150" y2="160" stroke="var(--accent-orange)" stroke-width="2" marker-end="url(#pi-arrow)"/>
+    <line x1="450" y1="80" x2="450" y2="160" stroke="var(--accent-blue)" stroke-width="2" marker-end="url(#pi-arrow)"/>
+    <line x1="520" y1="80" x2="750" y2="160" stroke="var(--accent-purple)" stroke-width="2" marker-end="url(#pi-arrow)"/>
+
+    <!-- LOGS pillar -->
+    <rect x="40" y="160" width="220" height="230" rx="8" fill="var(--surface)" stroke="var(--accent-orange)" stroke-width="1.5"/>
+    <rect x="40" y="160" width="220" height="36" rx="8" fill="var(--accent-orange)" fill-opacity="0.15"/>
+    <text x="150" y="183" text-anchor="middle" fill="var(--accent-orange)" font-size="14" font-weight="700">LOGS</text>
+    <text x="60" y="215" fill="var(--text-2)" font-size="11">High-cardinality events</text>
+    <text x="60" y="232" fill="var(--text-2)" font-size="11">Full context per event</text>
+    <text x="60" y="252" fill="var(--text-3)" font-size="10" font-style="italic">Best for:</text>
+    <text x="60" y="268" fill="var(--text-2)" font-size="11">  Post-incident investigation</text>
+    <text x="60" y="285" fill="var(--text-2)" font-size="11">  Debugging specific failures</text>
+    <text x="60" y="305" fill="var(--text-3)" font-size="10" font-style="italic">Cost shape:</text>
+    <text x="60" y="321" fill="var(--text-2)" font-size="11">  $/GB ingested + storage</text>
+    <text x="60" y="338" fill="var(--text-2)" font-size="11">  Volume is the cost killer</text>
+    <text x="60" y="355" fill="var(--accent-orange)" font-size="10">  Cardinality OK (it's text)</text>
+    <text x="60" y="378" fill="var(--text-3)" font-size="10">"Why did request X fail?"</text>
+
+    <!-- METRICS pillar -->
+    <rect x="340" y="160" width="220" height="230" rx="8" fill="var(--surface)" stroke="var(--accent-blue)" stroke-width="1.5"/>
+    <rect x="340" y="160" width="220" height="36" rx="8" fill="var(--accent-blue)" fill-opacity="0.15"/>
+    <text x="450" y="183" text-anchor="middle" fill="var(--accent-blue)" font-size="14" font-weight="700">METRICS</text>
+    <text x="360" y="215" fill="var(--text-2)" font-size="11">Low-cardinality aggregates</text>
+    <text x="360" y="232" fill="var(--text-2)" font-size="11">Time-series numeric values</text>
+    <text x="360" y="252" fill="var(--text-3)" font-size="10" font-style="italic">Best for:</text>
+    <text x="360" y="268" fill="var(--text-2)" font-size="11">  Dashboards and alerting</text>
+    <text x="360" y="285" fill="var(--text-2)" font-size="11">  Capacity planning</text>
+    <text x="360" y="305" fill="var(--text-3)" font-size="10" font-style="italic">Cost shape:</text>
+    <text x="360" y="321" fill="var(--text-2)" font-size="11">  $/series (active time-series)</text>
+    <text x="360" y="338" fill="var(--text-2)" font-size="11">  Cardinality kills cost</text>
+    <text x="360" y="355" fill="var(--accent-red)" font-size="10">  1M unique label values = 1M series</text>
+    <text x="360" y="378" fill="var(--text-3)" font-size="10">"Is the system healthy right now?"</text>
+
+    <!-- TRACES pillar -->
+    <rect x="640" y="160" width="220" height="230" rx="8" fill="var(--surface)" stroke="var(--accent-purple)" stroke-width="1.5"/>
+    <rect x="640" y="160" width="220" height="36" rx="8" fill="var(--accent-purple)" fill-opacity="0.15"/>
+    <text x="750" y="183" text-anchor="middle" fill="var(--accent-purple)" font-size="14" font-weight="700">TRACES</text>
+    <text x="660" y="215" fill="var(--text-2)" font-size="11">Per-request distributed paths</text>
+    <text x="660" y="232" fill="var(--text-2)" font-size="11">Spans with timing + context</text>
+    <text x="660" y="252" fill="var(--text-3)" font-size="10" font-style="italic">Best for:</text>
+    <text x="660" y="268" fill="var(--text-2)" font-size="11">  Distributed flow analysis</text>
+    <text x="660" y="285" fill="var(--text-2)" font-size="11">  Latency breakdown per hop</text>
+    <text x="660" y="305" fill="var(--text-3)" font-size="10" font-style="italic">Cost shape:</text>
+    <text x="660" y="321" fill="var(--text-2)" font-size="11">  $/span ingested</text>
+    <text x="660" y="338" fill="var(--text-2)" font-size="11">  Sampling reduces cost</text>
+    <text x="660" y="355" fill="var(--accent-green)" font-size="10">  1% sample = 99% cost savings</text>
+    <text x="660" y="378" fill="var(--text-3)" font-size="10">"What happened in this request?"</text>
+  </svg>
+
+  <h3>Decision Table</h3>
+  <table class="dtable">
+    <thead>
+      <tr>
+        <th>Dimension</th>
+        <th>Logs</th>
+        <th>Metrics</th>
+        <th>Traces</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Signal type</td>
+        <td class="pillar-log">Discrete events (text/JSON)</td>
+        <td class="pillar-met">Numeric time-series</td>
+        <td class="pillar-tr">Causally linked spans</td>
+      </tr>
+      <tr>
+        <td>Cardinality concern</td>
+        <td class="pillar-log">Low -- text is just bytes</td>
+        <td class="pillar-met">Critical -- each unique label combo = new series</td>
+        <td class="pillar-tr">Moderate -- span count grows with fan-out</td>
+      </tr>
+      <tr>
+        <td>Retention cost</td>
+        <td class="pillar-log">High (GB/day, must store raw)</td>
+        <td class="pillar-met">Low (compressed numeric, downsample older data)</td>
+        <td class="pillar-tr">Medium (sampling controls volume)</td>
+      </tr>
+      <tr>
+        <td>Query pattern</td>
+        <td class="pillar-log">Grep/filter by fields</td>
+        <td class="pillar-met">PromQL / aggregate across dimensions</td>
+        <td class="pillar-tr">Trace ID lookup, service graph</td>
+      </tr>
+      <tr>
+        <td>Latency of insight</td>
+        <td class="pillar-log">Seconds (ingest + index)</td>
+        <td class="pillar-met">Near real-time (scrape interval)</td>
+        <td class="pillar-tr">Seconds (span forwarding)</td>
+      </tr>
+      <tr>
+        <td>Primary question</td>
+        <td class="pillar-log">"Why did X fail?"</td>
+        <td class="pillar-met">"Is Y healthy?"</td>
+        <td class="pillar-tr">"How did request Z flow?"</td>
+      </tr>
+      <tr>
+        <td>Example tools</td>
+        <td class="pillar-log">ELK, Loki, Splunk, Sumo</td>
+        <td class="pillar-met">Prometheus, Datadog, CloudWatch</td>
+        <td class="pillar-tr">Jaeger, Tempo, Honeycomb, Zipkin</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="commentary">Pick the pillar by the question you need answered. Investigation starts from metrics (detect), pivots to traces (locate), and lands on logs (diagnose). The cost shape differs fundamentally: logs charge per GB, metrics charge per series count, traces charge per span. Misusing one pillar for another's job (e.g., high-cardinality labels on metrics to get "log-like" context) is the single most expensive mistake in observability.</div>
+
+  <div class="takeaway">
+    <strong>Takeaway</strong>
+    <ul>
+      <li>Pick the pillar by question type. "What happened in this request?" = trace. "Is the system healthy right now?" = metrics. "Why did request X fail?" = logs.</li>
+      <li>Logs: volume is the killer. Metrics: cardinality is the killer. Traces: fan-out width is the killer.</li>
+      <li>All three become useful only when correlated by trace_id -- otherwise they are three separate silos.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- TAB 2: LOGS PIPELINE                                          -->
+<!-- ============================================================ -->
+<section data-tab="logs" hidden>
+  <h2>Logs Pipeline</h2>
+  <p>Structured log events flow from application through agent, optional buffer, processor, into a store, and finally to a query UI. The architecture choice is where to index and what to index.</p>
+
+  <svg id="lg-svg" viewBox="0 0 900 380" preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <marker id="lg-arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="#555"/>
+      </marker>
+    </defs>
+    <g id="lg-scene"></g>
+  </svg>
+
+  <div class="controls">
+    <button onclick="LG.emitLog()">Emit Log Line</button>
+    <button onclick="LG.emitBurst()">Burst: 5 Lines</button>
+    <button onclick="LG.toggleKafka()" id="lg-btn-kafka">Enable Kafka Buffer</button>
+    <button onclick="LG.switchStore('es')" id="lg-btn-es" class="active-btn">Elasticsearch</button>
+    <button onclick="LG.switchStore('loki')" id="lg-btn-loki">Loki</button>
+    <button onclick="LG.reset()">Reset</button>
+  </div>
+
+  <div class="commentary" id="lg-commentary">App writes structured JSON to stdout. A log agent (Fluent Bit, Vector, Filebeat) tails the output and forwards it downstream. Without a Kafka buffer, agent connects directly to the processor -- simpler, but backpressure from the store propagates all the way to the agent.</div>
+
+  <h3>Elasticsearch vs Loki: Indexing Trade-off</h3>
+  <table class="dtable">
+    <thead>
+      <tr>
+        <th>Dimension</th>
+        <th>Elasticsearch (ELK)</th>
+        <th>Loki (Grafana)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>What is indexed</td>
+        <td class="pillar-log">Full inverted index over all fields + content</td>
+        <td class="pillar-met">Labels only (key-value pairs like <code>app=api</code>)</td>
+      </tr>
+      <tr>
+        <td>Query power</td>
+        <td class="pillar-log">Full-text search, complex aggregations, KQL</td>
+        <td class="pillar-met">Label filter + brute-force grep on chunks</td>
+      </tr>
+      <tr>
+        <td>Cost at scale</td>
+        <td class="pillar-log">High -- indexing is CPU + storage intensive</td>
+        <td class="pillar-met">Low -- compressed chunks in object storage (S3)</td>
+      </tr>
+      <tr>
+        <td>Best fit</td>
+        <td class="pillar-log">Complex search patterns, analytics over logs</td>
+        <td class="pillar-met">Known-service queries, cost-sensitive environments</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Common Pitfalls</h3>
+  <div class="commentary">
+    <strong>Pitfall 1:</strong> High-cardinality labels on metrics pretending to be logs. If you add <code>user_id</code> as a metric label, you create millions of time series. Use logs for per-user context, not metrics.<br><br>
+    <strong>Pitfall 2:</strong> Logs as source of truth for billing/audit. Logs can be dropped under backpressure, reordered, or duplicated. For billing and audit trails, use a durable write-ahead log (Kafka with replication) or a dedicated audit store.
+  </div>
+
+  <div class="takeaway">
+    <strong>Takeaway</strong>
+    <ul>
+      <li>Don't index everything. Loki indexes labels (cheap); ES indexes content (expensive); pick by query pattern.</li>
+      <li>Kafka between agent and processor decouples ingestion from processing -- absorbs spikes without backpressure to the app.</li>
+      <li>Structured logs (JSON) with a consistent schema are the prerequisite for everything downstream. If your logs are unstructured text, you pay at parse time forever.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- TAB 3: METRICS PIPELINE                                       -->
+<!-- ============================================================ -->
+<section data-tab="metrics" hidden>
+  <h2>Metrics Pipeline (Prometheus Pull Model)</h2>
+  <p>Prometheus discovers targets via service discovery, scrapes <code>/metrics</code> endpoints on a fixed interval, stores time-series locally, evaluates alert rules, and sends alerts to Alertmanager. The pull model means Prometheus owns the schedule -- it knows when a target is down (failed scrape) vs. simply quiet.</p>
+
+  <svg id="mt-svg" viewBox="0 0 900 460" preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <marker id="mt-arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="#555"/>
+      </marker>
+      <marker id="mt-arrow-blue" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="var(--accent-blue)"/>
+      </marker>
+    </defs>
+    <g id="mt-scene"></g>
+  </svg>
+
+  <div class="controls">
+    <button onclick="MT.scrape()">Trigger Scrape</button>
+    <button onclick="MT.toggleAutoScrape()" id="mt-btn-auto">Auto-Scrape (15s)</button>
+    <button onclick="MT.fireAlert()">Fire Alert Rule</button>
+    <button onclick="MT.togglePush()" id="mt-btn-push">Show Push Model</button>
+    <button onclick="MT.reset()">Reset</button>
+  </div>
+
+  <div class="commentary" id="mt-commentary">Prometheus uses a pull model: it actively scrapes <code>/metrics</code> endpoints on a configured interval (default 15s). Service discovery (Kubernetes SD, Consul, file-based) tells Prometheus where to find targets. This is fundamentally different from push (StatsD/Graphite): Prometheus knows a target is down if the scrape fails, while push systems can't distinguish "no data" from "target crashed."</div>
+
+  <h3>Cardinality Explosion</h3>
+  <p>A counter <code>http_requests_total</code> with labels <code>{method, status, user_id}</code>. With 100K active users, each unique combination becomes a distinct time series.</p>
+
+  <div class="card-bar-wrap" id="mt-card-wrap">
+    <div class="card-bar-label">
+      <span>Labels: <code>{method, status}</code></span>
+      <span id="mt-card-count">~20 series</span>
+    </div>
+    <div class="card-bar">
+      <div class="card-bar-fill" id="mt-card-fill" style="width:2%;background:var(--accent-green);">
+        <span id="mt-card-fill-label">20</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button onclick="MT.addUserLabel()" id="mt-btn-card" class="danger">Add user_id label (100K users)</button>
+    <button onclick="MT.resetCardinality()">Reset Cardinality</button>
+    <div class="slider-group">
+      <span>Users</span>
+      <input type="range" min="100" max="500000" value="100000" step="1000" id="mt-user-slider" oninput="MT.updateUserCount()">
+      <span id="mt-user-count">100K</span>
+    </div>
+  </div>
+
+  <div class="commentary" id="mt-card-commentary">With just <code>{method, status}</code>, you have roughly 5 methods x 4 statuses = 20 series. Manageable. Prometheus stores ~3 bytes/sample at one sample per 15s.</div>
+
+  <h3>Pull vs Push Comparison</h3>
+  <table class="dtable">
+    <thead>
+      <tr>
+        <th>Dimension</th>
+        <th>Pull (Prometheus)</th>
+        <th>Push (StatsD / Graphite)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Schedule ownership</td>
+        <td class="pillar-met">Prometheus controls when to scrape</td>
+        <td class="pillar-log">App decides when to emit</td>
+      </tr>
+      <tr>
+        <td>Failure detection</td>
+        <td class="pillar-met">Failed scrape = target down (explicit signal)</td>
+        <td class="pillar-log">No data = ambiguous (down? or just quiet?)</td>
+      </tr>
+      <tr>
+        <td>Short-lived processes</td>
+        <td class="pillar-met">Problematic -- may exit between scrapes (use Pushgateway)</td>
+        <td class="pillar-log">Works well -- fire-and-forget UDP</td>
+      </tr>
+      <tr>
+        <td>Service discovery</td>
+        <td class="pillar-met">Built-in (k8s, Consul, DNS, file)</td>
+        <td class="pillar-log">Not needed (apps push to known collector)</td>
+      </tr>
+      <tr>
+        <td>Bottleneck risk</td>
+        <td class="pillar-met">Prometheus can become scrape bottleneck at extreme scale</td>
+        <td class="pillar-log">Collector/aggregator is the single bottleneck</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Long-Term Storage: Thanos / Cortex / Mimir</h3>
+  <div class="commentary">Prometheus stores locally with limited retention (default 15 days). For long-term storage and global view across clusters: <strong>Thanos</strong> (sidecar uploads blocks to S3, Thanos Query federates), <strong>Cortex/Mimir</strong> (horizontally-scalable Prometheus-compatible store, write path shards by tenant). All three support PromQL, so dashboards and alerts don't change.</div>
+
+  <div class="takeaway">
+    <strong>Takeaway</strong>
+    <ul>
+      <li>Prometheus pull = service discovery + reliability (Prometheus owns the schedule). Cardinality is the cost lever.</li>
+      <li>Histograms over summaries -- histograms are aggregatable across replicas, summaries are not. Use <code>_bucket</code> counters with <code>le</code> bounds for percentile estimation.</li>
+      <li>Cardinality rule of thumb: if a label can have more than ~100 unique values, it probably doesn't belong on a metric. Use logs or traces for high-cardinality context.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- TAB 4: TRACES PIPELINE                                        -->
+<!-- ============================================================ -->
+<section data-tab="traces" hidden>
+  <h2>Traces Pipeline (OpenTelemetry)</h2>
+  <p>A trace is a tree of spans that records a single request's path across services. Each span captures timing, metadata, and a parent-child relationship. OpenTelemetry (OTel) is the vendor-neutral standard for instrumentation, collection, and export.</p>
+
+  <svg id="tr-svg" viewBox="0 0 900 420" preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <marker id="tr-arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="#555"/>
+      </marker>
+    </defs>
+    <g id="tr-scene"></g>
+  </svg>
+
+  <div class="controls">
+    <button onclick="TR.sendRequest()">Send Request</button>
+    <button onclick="TR.sendSlowRequest()" class="danger">Send Slow Request</button>
+    <button onclick="TR.sendErrorRequest()" class="danger">Send Error Request</button>
+    <button onclick="TR.reset()">Reset</button>
+  </div>
+
+  <div class="commentary" id="tr-commentary">Client sends a request to Service A. The OTel SDK creates a root span, injects <code>traceparent</code> header into outgoing calls. Each downstream service reads the header, creates a child span. All spans share the same trace_id. The OTel Collector receives spans and forwards to the backend (Jaeger, Tempo, Honeycomb).</div>
+
+  <h3>Context Propagation</h3>
+  <div class="commentary">The <code>traceparent</code> HTTP header carries: <code>version-traceId-parentSpanId-traceFlags</code>. Example: <code>00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01</code>. The receiving service reads this, creates a child span whose parent_span_id matches, and forwards the updated header to its own downstream calls. Without this propagation, spans are orphaned -- they exist but cannot be assembled into a trace tree.</div>
+
+  <h3>Sampling Strategies</h3>
+  <p>Sampling is the primary cost control for traces. Two approaches with fundamentally different trade-offs.</p>
+
+  <div class="sampling-grid">
+    <div class="sampling-col" id="tr-head-col">
+      <h4>Head-Based Sampling</h4>
+      <p style="font-size:12px;color:var(--text-3);margin:0 0 8px 0;">Decision at request entry: sample 1% of all requests uniformly.</p>
+      <div class="sampling-dots" id="tr-head-dots"></div>
+      <div class="sampling-stats" id="tr-head-stats">
+        Total: <span class="val">0</span> | Kept: <span class="val">0</span> | Slow/Error kept: <span class="val">0</span>
+      </div>
+    </div>
+    <div class="sampling-col" id="tr-tail-col">
+      <h4>Tail-Based Sampling</h4>
+      <p style="font-size:12px;color:var(--text-3);margin:0 0 8px 0;">Collect all spans; decide after seeing complete trace. Keep all errors + slow + 10% of normal.</p>
+      <div class="sampling-dots" id="tr-tail-dots"></div>
+      <div class="sampling-stats" id="tr-tail-stats">
+        Total: <span class="val">0</span> | Kept: <span class="val">0</span> | Slow/Error kept: <span class="val">0</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button onclick="TR.runSamplingDemo()">Run Sampling Demo (100 requests)</button>
+    <button onclick="TR.clearSampling()">Clear</button>
+    <div class="slider-group">
+      <span>Head rate</span>
+      <input type="range" min="1" max="20" value="1" id="tr-head-rate" oninput="document.getElementById('tr-head-rate-val').textContent=this.value+'%'">
+      <span id="tr-head-rate-val">1%</span>
+    </div>
+    <div class="slider-group">
+      <span>Slow/Error %</span>
+      <input type="range" min="1" max="20" value="5" id="tr-error-rate" oninput="document.getElementById('tr-error-rate-val').textContent=this.value+'%'">
+      <span id="tr-error-rate-val">5%</span>
+    </div>
+  </div>
+
+  <div class="commentary" id="tr-sampling-commentary">Head-based: simple, low overhead, but uniformly drops -- including interesting (slow/error) requests. Tail-based: collects everything temporarily, then decides based on trace properties -- keeps all errors and slow traces, samples normal ones. Trade-off: tail-based requires a collection buffer (the OTel Collector must hold spans in memory until the trace completes), which adds cost and complexity.</div>
+
+  <div class="takeaway">
+    <strong>Takeaway</strong>
+    <ul>
+      <li>OTel is the vendor-neutral standard. Use the Collector as the fan-out point to multiple backends -- avoids vendor lock-in.</li>
+      <li>Tail-based sampling is the senior choice if cost and infra complexity allow. It preserves 100% of errors and slow traces while sampling normal traffic.</li>
+      <li>Context propagation (<code>traceparent</code> header) is the mechanism that makes distributed tracing work. Without it, you have orphaned spans, not traces.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- TAB 5: CORRELATION                                            -->
+<!-- ============================================================ -->
+<section data-tab="correlation" hidden>
+  <h2>Correlation Across Pillars</h2>
+  <p>The three pillars become powerful only when connected. The integration layer is a single field: <code>trace_id</code>. Embed it in every log line, attach it as a metric exemplar, and every span carries it by definition. This lets you jump between pillars during investigation.</p>
+
+  <svg id="co-svg" viewBox="0 0 900 480" preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <marker id="co-arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="#555"/>
+      </marker>
+      <marker id="co-arrow-green" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="var(--accent-green)"/>
+      </marker>
+    </defs>
+    <g id="co-scene"></g>
+  </svg>
+
+  <div class="controls">
+    <button onclick="CO.startInvestigation()">Start Investigation</button>
+    <button onclick="CO.reset()">Reset</button>
+  </div>
+
+  <div class="commentary" id="co-commentary">An investigation typically starts from a metrics alert (e.g., error rate spike), pivots to traces filtered by time window and affected service, then drills into logs for the specific trace_id that shows the failure. The reverse path works too: logs show a pattern, you check if it correlates with a metric anomaly, then trace individual requests to find the root cause.</div>
+
+  <h3>The LGTM Stack (Grafana)</h3>
+  <table class="dtable">
+    <thead>
+      <tr>
+        <th>Component</th>
+        <th>Pillar</th>
+        <th>Role</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Loki</strong></td>
+        <td class="pillar-log">Logs</td>
+        <td>Label-indexed log aggregation, S3 backend, LogQL</td>
+      </tr>
+      <tr>
+        <td><strong>Grafana</strong></td>
+        <td>All</td>
+        <td>Unified query + visualization UI, cross-pillar linking</td>
+      </tr>
+      <tr>
+        <td><strong>Tempo</strong></td>
+        <td class="pillar-tr">Traces</td>
+        <td>Trace storage, no indexing (trace_id lookup only), S3 backend</td>
+      </tr>
+      <tr>
+        <td><strong>Mimir</strong></td>
+        <td class="pillar-met">Metrics</td>
+        <td>Horizontally-scalable Prometheus-compatible TSDB</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Integration Patterns</h3>
+  <div class="commentary">
+    <strong>Pattern 1: trace_id in every log line.</strong> Add <code>trace_id</code> and <code>span_id</code> fields to your structured logs. In Grafana, clicking a log line opens the trace in Tempo. Cost: near-zero (one extra field per log line).<br><br>
+    <strong>Pattern 2: exemplars on metrics.</strong> Prometheus 2.27+ supports exemplars -- a trace_id attached to a specific metric sample. When viewing a metric spike in Grafana, clicking the exemplar dot opens the corresponding trace. Cost: near-zero (exemplars are stored alongside samples).<br><br>
+    <strong>Pattern 3: derived metrics from traces.</strong> OTel Collector can compute RED metrics (Rate, Error, Duration) from span data, emitting them as Prometheus metrics. This means you don't need separate instrumentation for basic service health -- traces generate the metrics.
+  </div>
+
+  <div class="takeaway">
+    <strong>Takeaway</strong>
+    <ul>
+      <li>Trace ID in every log line + every metric exemplar = the integration layer. Without it, the pillars are three separate silos that happen to coexist.</li>
+      <li>The investigation flow: metrics (detect the anomaly) -> traces (locate the slow/failing path) -> logs (diagnose the root cause). Name this flow in interviews.</li>
+      <li>LGTM stack (Loki + Grafana + Tempo + Mimir) is the open-source answer. Datadog / Honeycomb / New Relic are the SaaS answers. The architecture is the same -- the integration point is always trace_id.</li>
+    </ul>
+  </div>
+</section>
+
+<script>
+/* ================================================================
+   SHARED UTILITIES
+   ================================================================ */
+function delay(ms) { return new Promise(function(r) { setTimeout(r, ms); }); }
+
+function setActiveTab(name) {
+  var tabNames = ['pillars', 'logs', 'metrics', 'traces', 'correlation'];
+  var btns = document.querySelectorAll('nav.tabs button');
+  btns.forEach(function(b, i) { b.classList.toggle('active', tabNames[i] === name); });
+  document.querySelectorAll('section[data-tab]').forEach(function(s) {
+    s.hidden = s.getAttribute('data-tab') !== name;
+  });
+}
+
+function svgEl(tag, attrs) {
+  var el = document.createElementNS('http://www.w3.org/2000/svg', tag);
+  if (attrs) { for (var k in attrs) { el.setAttribute(k, attrs[k]); } }
+  return el;
+}
+
+function svgText(x, y, text, opts) {
+  var t = svgEl('text', Object.assign({
+    x: x, y: y, 'text-anchor': 'middle', fill: '#888', 'font-size': '11'
+  }, opts || {}));
+  t.textContent = text;
+  return t;
+}
+
+function svgRect(x, y, w, h, opts) {
+  return svgEl('rect', Object.assign({
+    x: x, y: y, width: w, height: h, rx: 6,
+    fill: 'var(--surface-2)', stroke: 'var(--border)', 'stroke-width': 1
+  }, opts || {}));
+}
+
+function svgLine(x1, y1, x2, y2, opts) {
+  return svgEl('line', Object.assign({
+    x1: x1, y1: y1, x2: x2, y2: y2,
+    stroke: '#444', 'stroke-width': 1, 'marker-end': 'url(#lg-arrow)'
+  }, opts || {}));
+}
+
+/* ================================================================
+   TAB 2 -- LOGS PIPELINE
+   ================================================================ */
+var LG = (function() {
+  var state = {
+    kafkaEnabled: false,
+    store: 'es',
+    logCount: 0,
+    animating: false
+  };
+
+  var nodes = {
+    app:       { x: 55,  y: 180, w: 90,  h: 50, label: 'App',              color: 'var(--accent-blue)' },
+    stdout:    { x: 175, y: 180, w: 80,  h: 50, label: 'stdout',           color: 'var(--text-3)' },
+    agent:     { x: 290, y: 180, w: 90,  h: 50, label: 'Fluent Bit',       color: 'var(--accent-cyan)' },
+    kafka:     { x: 420, y: 180, w: 80,  h: 50, label: 'Kafka',            color: 'var(--accent-orange)' },
+    processor: { x: 550, y: 180, w: 90,  h: 50, label: 'Logstash',         color: 'var(--accent-yellow)' },
+    store:     { x: 680, y: 180, w: 100, h: 50, label: 'Elasticsearch',    color: 'var(--accent-green)' },
+    ui:        { x: 810, y: 180, w: 70,  h: 50, label: 'Kibana',           color: 'var(--accent-purple)' }
+  };
+
+  function getActiveNodes() {
+    var order = ['app', 'stdout', 'agent'];
+    if (state.kafkaEnabled) order.push('kafka');
+    order.push('processor', 'store', 'ui');
+    return order;
+  }
+
+  function getPositions() {
+    var active = getActiveNodes();
+    var margin = 20;
+    var totalW = 860;
+    var nodeW = 90;
+    var spacing = (totalW - margin * 2) / (active.length - 1);
+    var positions = {};
+    active.forEach(function(name, i) {
+      positions[name] = {
+        x: margin + i * spacing - nodeW / 2 + 20,
+        y: 160,
+        w: Math.min(nodeW, spacing - 10),
+        h: 50
+      };
+    });
+    return positions;
+  }
+
+  function draw() {
+    var scene = document.getElementById('lg-scene');
+    scene.innerHTML = '';
+    var pos = getPositions();
+    var active = getActiveNodes();
+
+    /* Title */
+    scene.appendChild(svgText(450, 30, 'Logs Pipeline' + (state.kafkaEnabled ? ' (with Kafka buffer)' : ' (direct)'), {
+      fill: '#fff', 'font-size': '14', 'font-weight': '700'
+    }));
+
+    /* Step labels */
+    var stepLabels = { app: '1. Emit', stdout: '2. Write', agent: '3. Tail', kafka: '4. Buffer', processor: state.kafkaEnabled ? '5. Process' : '4. Process', store: state.kafkaEnabled ? '6. Store' : '5. Store', ui: state.kafkaEnabled ? '7. Query' : '6. Query' };
+    var stepNum = 1;
+    active.forEach(function(name) {
+      var p = pos[name];
+      scene.appendChild(svgText(p.x + p.w / 2, p.y - 12, stepNum + '. ' + (name === 'stdout' ? 'Write' : name === 'agent' ? 'Tail' : name === 'kafka' ? 'Buffer' : name === 'processor' ? 'Process' : name === 'store' ? 'Store' : name === 'ui' ? 'Query' : 'Emit'), {
+        fill: 'var(--text-3)', 'font-size': '9'
+      }));
+      stepNum++;
+    });
+
+    /* Nodes */
+    active.forEach(function(name) {
+      var n = nodes[name];
+      var p = pos[name];
+      var strokeColor = name === 'kafka' && !state.kafkaEnabled ? 'var(--border)' : n.color;
+      scene.appendChild(svgEl('rect', {
+        x: p.x, y: p.y, width: p.w, height: p.h, rx: 6,
+        fill: 'var(--surface-2)', stroke: strokeColor, 'stroke-width': 1.5
+      }));
+      var lbl = name === 'store' ? (state.store === 'es' ? 'Elastic-' : 'Loki') : n.label;
+      scene.appendChild(svgText(p.x + p.w / 2, p.y + 22, lbl, {
+        fill: strokeColor, 'font-size': '11', 'font-weight': '600'
+      }));
+      if (name === 'store' && state.store === 'es') {
+        scene.appendChild(svgText(p.x + p.w / 2, p.y + 36, 'search', {
+          fill: strokeColor, 'font-size': '11', 'font-weight': '600'
+        }));
+      }
+      var subLabel = name === 'agent' ? 'Vector / Filebeat' : name === 'processor' ? 'Vector / Fluentd' : name === 'store' ? (state.store === 'es' ? 'Full-text index' : 'Label index only') : name === 'ui' ? (state.store === 'es' ? 'Kibana' : 'Grafana') : '';
+      if (subLabel) {
+        scene.appendChild(svgText(p.x + p.w / 2, p.y + p.h + 14, subLabel, {
+          fill: 'var(--text-3)', 'font-size': '8'
+        }));
+      }
+    });
+
+    /* Arrows between nodes */
+    for (var i = 0; i < active.length - 1; i++) {
+      var from = pos[active[i]];
+      var to = pos[active[i + 1]];
+      scene.appendChild(svgEl('line', {
+        x1: from.x + from.w, y1: from.y + from.h / 2,
+        x2: to.x, y2: to.y + to.h / 2,
+        stroke: '#444', 'stroke-width': 1, 'marker-end': 'url(#lg-arrow)'
+      }));
+    }
+
+    /* Sample log line display below pipeline */
+    scene.appendChild(svgEl('rect', {
+      x: 40, y: 260, width: 820, height: 90, rx: 6,
+      fill: '#0f0f15', stroke: 'var(--border)', 'stroke-width': 1
+    }));
+    scene.appendChild(svgText(450, 278, 'Sample structured log line (JSON)', {
+      fill: 'var(--text-3)', 'font-size': '10'
+    }));
+    var logLine = '{"timestamp":"2024-03-15T10:23:45.123Z","level":"ERROR","service":"api-gateway",';
+    var logLine2 = ' "trace_id":"4bf92f35...","span_id":"00f067aa...","message":"upstream timeout",';
+    var logLine3 = ' "http.method":"POST","http.status":504,"latency_ms":30012}';
+    scene.appendChild(svgText(450, 298, logLine, { fill: 'var(--accent-cyan)', 'font-size': '9', 'font-family': "'SF Mono','Fira Code',monospace" }));
+    scene.appendChild(svgText(450, 314, logLine2, { fill: 'var(--accent-cyan)', 'font-size': '9', 'font-family': "'SF Mono','Fira Code',monospace" }));
+    scene.appendChild(svgText(450, 330, logLine3, { fill: 'var(--accent-cyan)', 'font-size': '9', 'font-family': "'SF Mono','Fira Code',monospace" }));
+
+    /* Counter */
+    scene.appendChild(svgText(450, 368, 'Lines processed: ' + state.logCount, {
+      fill: state.logCount > 0 ? 'var(--accent-green)' : 'var(--text-3)', 'font-size': '12', 'font-weight': '600'
+    }));
+  }
+
+  function animatePacket(startNode, endNode, color, durationMs) {
+    var scene = document.getElementById('lg-scene');
+    var pos = getPositions();
+    var active = getActiveNodes();
+    var startIdx = active.indexOf(startNode);
+    var endIdx = active.indexOf(endNode);
+    if (startIdx < 0 || endIdx < 0) return Promise.resolve();
+
+    var pkt = svgEl('circle', {
+      cx: pos[active[startIdx]].x + pos[active[startIdx]].w / 2,
+      cy: pos[active[startIdx]].y + pos[active[startIdx]].h / 2,
+      r: 6, fill: color, opacity: '0.9'
+    });
+    scene.appendChild(pkt);
+
+    return new Promise(function(resolve) {
+      var steps = [];
+      for (var i = startIdx; i <= endIdx; i++) {
+        steps.push({
+          x: pos[active[i]].x + pos[active[i]].w / 2,
+          y: pos[active[i]].y + pos[active[i]].h / 2
+        });
+      }
+      var stepDur = durationMs / Math.max(steps.length - 1, 1);
+      var stepIdx = 0;
+
+      function nextStep() {
+        stepIdx++;
+        if (stepIdx >= steps.length) {
+          if (pkt.parentNode) pkt.parentNode.removeChild(pkt);
+          resolve();
+          return;
+        }
+        pkt.style.transition = 'all ' + stepDur + 'ms ease';
+        pkt.setAttribute('cx', steps[stepIdx].x);
+        pkt.setAttribute('cy', steps[stepIdx].y);
+        setTimeout(nextStep, stepDur);
+      }
+      setTimeout(nextStep, 50);
+    });
+  }
+
+  async function emitLog() {
+    if (state.animating) return;
+    state.animating = true;
+    var active = getActiveNodes();
+    await animatePacket(active[0], active[active.length - 1], 'var(--accent-orange)', 1800);
+    state.logCount++;
+    draw();
+    updateCommentary('Log line emitted -> tailed by agent -> ' + (state.kafkaEnabled ? 'buffered in Kafka -> ' : '') + 'processed by ' + nodes.processor.label + ' -> stored in ' + (state.store === 'es' ? 'Elasticsearch (full-text indexed)' : 'Loki (label-indexed only, chunks in S3)') + ' -> queryable in ' + (state.store === 'es' ? 'Kibana' : 'Grafana') + '.');
+    state.animating = false;
+  }
+
+  async function emitBurst() {
+    for (var i = 0; i < 5; i++) {
+      await emitLog();
+      await delay(200);
+    }
+  }
+
+  function toggleKafka() {
+    state.kafkaEnabled = !state.kafkaEnabled;
+    var btn = document.getElementById('lg-btn-kafka');
+    btn.textContent = state.kafkaEnabled ? 'Disable Kafka Buffer' : 'Enable Kafka Buffer';
+    btn.classList.toggle('active-btn', state.kafkaEnabled);
+    draw();
+    updateCommentary(state.kafkaEnabled
+      ? 'Kafka buffer enabled. Agent writes to topic "logs-prod". This decouples ingestion rate from processing rate -- Kafka absorbs spikes. Trade-off: added infra complexity + slight latency increase.'
+      : 'Direct mode: agent connects straight to processor. Simpler, but backpressure from the store propagates to the agent, which can cause log loss under load.');
+  }
+
+  function switchStore(store) {
+    state.store = store;
+    document.getElementById('lg-btn-es').classList.toggle('active-btn', store === 'es');
+    document.getElementById('lg-btn-loki').classList.toggle('active-btn', store === 'loki');
+    draw();
+    updateCommentary(store === 'es'
+      ? 'Elasticsearch: builds a full inverted index over all log content. Powerful queries (KQL, aggregations), but expensive at scale -- indexing costs CPU, storage, and memory. Best when you need complex search patterns across log content.'
+      : 'Loki: indexes only labels (app, env, level), stores raw log chunks in S3. Queries filter by labels first, then grep within matching chunks. 10-100x cheaper than ES for large volumes, but query power is limited to label filters + regex.');
+  }
+
+  function updateCommentary(text) {
+    document.getElementById('lg-commentary').textContent = text;
+  }
+
+  function reset() {
+    state.logCount = 0;
+    state.animating = false;
+    draw();
+    updateCommentary('App writes structured JSON to stdout. A log agent (Fluent Bit, Vector, Filebeat) tails the output and forwards it downstream. Without a Kafka buffer, agent connects directly to the processor -- simpler, but backpressure from the store propagates all the way to the agent.');
+  }
+
+  draw();
+  return { emitLog: emitLog, emitBurst: emitBurst, toggleKafka: toggleKafka, switchStore: switchStore, reset: reset };
+})();
+
+
+/* ================================================================
+   TAB 3 -- METRICS PIPELINE
+   ================================================================ */
+var MT = (function() {
+  var state = {
+    scrapeCount: 0,
+    autoScraping: false,
+    autoTimer: null,
+    alertFired: false,
+    showPush: false,
+    cardExploded: false,
+    userCount: 100000
+  };
+
+  var serviceColors = ['var(--accent-blue)', 'var(--accent-cyan)', 'var(--accent-green)', 'var(--accent-purple)', 'var(--accent-orange)'];
+
+  function draw() {
+    var scene = document.getElementById('mt-scene');
+    scene.innerHTML = '';
+
+    if (state.showPush) {
+      drawPushModel(scene);
+      return;
+    }
+
+    /* Title */
+    scene.appendChild(svgText(450, 28, 'Prometheus Pull Model', {
+      fill: '#fff', 'font-size': '14', 'font-weight': '700'
+    }));
+
+    /* Service Discovery box */
+    scene.appendChild(svgEl('rect', {
+      x: 30, y: 50, width: 140, height: 40, rx: 6,
+      fill: 'var(--surface-2)', stroke: 'var(--accent-yellow)', 'stroke-width': 1.5
+    }));
+    scene.appendChild(svgText(100, 75, 'Service Discovery', {
+      fill: 'var(--accent-yellow)', 'font-size': '10', 'font-weight': '600'
+    }));
+    scene.appendChild(svgText(100, 102, 'k8s SD / Consul / file', {
+      fill: 'var(--text-3)', 'font-size': '8'
+    }));
+
+    /* SD -> Prometheus arrow */
+    scene.appendChild(svgEl('line', {
+      x1: 170, y1: 70, x2: 310, y2: 180,
+      stroke: 'var(--accent-yellow)', 'stroke-width': 1, 'stroke-dasharray': '4,3',
+      'marker-end': 'url(#mt-arrow)'
+    }));
+    scene.appendChild(svgText(220, 115, 'targets', {
+      fill: 'var(--accent-yellow)', 'font-size': '8'
+    }));
+
+    /* 5 services on the left */
+    for (var i = 0; i < 5; i++) {
+      var sy = 120 + i * 60;
+      scene.appendChild(svgEl('rect', {
+        x: 30, y: sy, width: 120, height: 40, rx: 6,
+        fill: 'var(--surface-2)', stroke: serviceColors[i], 'stroke-width': 1.5
+      }));
+      scene.appendChild(svgText(90, sy + 18, 'Service ' + (i + 1), {
+        fill: serviceColors[i], 'font-size': '11', 'font-weight': '600'
+      }));
+      scene.appendChild(svgText(90, sy + 32, '/metrics', {
+        fill: 'var(--text-3)', 'font-size': '9'
+      }));
+
+      /* Scrape arrow */
+      scene.appendChild(svgEl('line', {
+        x1: 150, y1: sy + 20, x2: 310, y2: 200,
+        stroke: '#333', 'stroke-width': 1, 'stroke-dasharray': '3,3',
+        'marker-end': 'url(#mt-arrow)'
+      }));
+    }
+
+    /* Prometheus server */
+    scene.appendChild(svgEl('rect', {
+      x: 310, y: 160, width: 160, height: 80, rx: 8,
+      fill: 'var(--surface-2)', stroke: 'var(--accent-blue)', 'stroke-width': 2
+    }));
+    scene.appendChild(svgText(390, 190, 'Prometheus', {
+      fill: 'var(--accent-blue)', 'font-size': '13', 'font-weight': '700'
+    }));
+    scene.appendChild(svgText(390, 208, 'TSDB + Alert Rules', {
+      fill: 'var(--text-3)', 'font-size': '9'
+    }));
+    scene.appendChild(svgText(390, 228, 'Scrapes: ' + state.scrapeCount, {
+      fill: state.scrapeCount > 0 ? 'var(--accent-green)' : 'var(--text-3)',
+      'font-size': '10', 'font-weight': '600'
+    }));
+
+    /* "SCRAPE" label on arrow area */
+    scene.appendChild(svgText(230, 205, 'pull /metrics', {
+      fill: 'var(--text-3)', 'font-size': '9', 'font-style': 'italic'
+    }));
+    scene.appendChild(svgText(230, 218, 'every 15s', {
+      fill: 'var(--text-3)', 'font-size': '8'
+    }));
+
+    /* Alertmanager */
+    scene.appendChild(svgEl('rect', {
+      x: 560, y: 100, width: 130, height: 50, rx: 6,
+      fill: 'var(--surface-2)', stroke: 'var(--accent-red)', 'stroke-width': 1.5
+    }));
+    scene.appendChild(svgText(625, 122, 'Alertmanager', {
+      fill: 'var(--accent-red)', 'font-size': '11', 'font-weight': '600'
+    }));
+    scene.appendChild(svgText(625, 138, state.alertFired ? 'FIRING' : 'idle', {
+      fill: state.alertFired ? 'var(--accent-red)' : 'var(--text-3)',
+      'font-size': '10', 'font-weight': state.alertFired ? '700' : '400'
+    }));
+
+    /* Prometheus -> Alertmanager */
+    scene.appendChild(svgEl('line', {
+      x1: 470, y1: 185, x2: 560, y2: 130,
+      stroke: state.alertFired ? 'var(--accent-red)' : '#333', 'stroke-width': 1,
+      'marker-end': 'url(#mt-arrow)'
+    }));
+    scene.appendChild(svgText(520, 148, 'alert rules', {
+      fill: 'var(--text-3)', 'font-size': '8'
+    }));
+
+    /* Notification targets */
+    var notifTargets = ['PagerDuty', 'Slack', 'Email'];
+    notifTargets.forEach(function(t, i) {
+      var nx = 760;
+      var ny = 70 + i * 40;
+      scene.appendChild(svgEl('rect', {
+        x: nx, y: ny, width: 100, height: 30, rx: 4,
+        fill: 'var(--surface)', stroke: state.alertFired ? 'var(--accent-red)' : 'var(--border)', 'stroke-width': 1
+      }));
+      scene.appendChild(svgText(nx + 50, ny + 19, t, {
+        fill: state.alertFired ? 'var(--accent-red)' : 'var(--text-3)', 'font-size': '10'
+      }));
+      scene.appendChild(svgEl('line', {
+        x1: 690, y1: 125, x2: nx, y2: ny + 15,
+        stroke: state.alertFired ? 'var(--accent-red)' : '#222', 'stroke-width': 1,
+        'stroke-dasharray': '3,3', 'marker-end': 'url(#mt-arrow)'
+      }));
+    });
+
+    /* Grafana */
+    scene.appendChild(svgEl('rect', {
+      x: 560, y: 190, width: 130, height: 50, rx: 6,
+      fill: 'var(--surface-2)', stroke: 'var(--accent-purple)', 'stroke-width': 1.5
+    }));
+    scene.appendChild(svgText(625, 212, 'Grafana', {
+      fill: 'var(--accent-purple)', 'font-size': '11', 'font-weight': '600'
+    }));
+    scene.appendChild(svgText(625, 228, 'Dashboards', {
+      fill: 'var(--text-3)', 'font-size': '9'
+    }));
+
+    /* Prometheus -> Grafana */
+    scene.appendChild(svgEl('line', {
+      x1: 470, y1: 210, x2: 560, y2: 210,
+      stroke: '#333', 'stroke-width': 1, 'marker-end': 'url(#mt-arrow)'
+    }));
+    scene.appendChild(svgText(515, 205, 'PromQL', {
+      fill: 'var(--text-3)', 'font-size': '8'
+    }));
+
+    /* Long-term storage */
+    scene.appendChild(svgEl('rect', {
+      x: 560, y: 280, width: 130, height: 50, rx: 6,
+      fill: 'var(--surface-2)', stroke: 'var(--accent-cyan)', 'stroke-width': 1.5
+    }));
+    scene.appendChild(svgText(625, 302, 'Thanos / Mimir', {
+      fill: 'var(--accent-cyan)', 'font-size': '11', 'font-weight': '600'
+    }));
+    scene.appendChild(svgText(625, 318, 'Long-term + global', {
+      fill: 'var(--text-3)', 'font-size': '9'
+    }));
+
+    /* Prometheus -> Thanos */
+    scene.appendChild(svgEl('line', {
+      x1: 430, y1: 240, x2: 560, y2: 300,
+      stroke: '#333', 'stroke-width': 1, 'stroke-dasharray': '3,3', 'marker-end': 'url(#mt-arrow)'
+    }));
+    scene.appendChild(svgText(480, 278, 'remote write', {
+      fill: 'var(--text-3)', 'font-size': '8'
+    }));
+
+    /* S3 */
+    scene.appendChild(svgEl('rect', {
+      x: 760, y: 285, width: 80, height: 40, rx: 4,
+      fill: 'var(--surface)', stroke: 'var(--border)', 'stroke-width': 1
+    }));
+    scene.appendChild(svgText(800, 310, 'S3', {
+      fill: 'var(--text-3)', 'font-size': '10'
+    }));
+    scene.appendChild(svgEl('line', {
+      x1: 690, y1: 305, x2: 760, y2: 305,
+      stroke: '#333', 'stroke-width': 1, 'stroke-dasharray': '3,3', 'marker-end': 'url(#mt-arrow)'
+    }));
+
+    /* Histogram example at bottom */
+    scene.appendChild(svgEl('rect', {
+      x: 30, y: 365, width: 840, height: 80, rx: 6,
+      fill: '#0f0f15', stroke: 'var(--border)', 'stroke-width': 1
+    }));
+    scene.appendChild(svgText(450, 383, 'Histogram example: http_request_duration_seconds', {
+      fill: 'var(--text-3)', 'font-size': '10'
+    }));
+
+    /* Histogram buckets */
+    var buckets = [
+      { le: '0.01', pct: 15 }, { le: '0.05', pct: 40 }, { le: '0.1', pct: 65 },
+      { le: '0.25', pct: 80 }, { le: '0.5', pct: 90 }, { le: '1.0', pct: 96 },
+      { le: '5.0', pct: 99 }, { le: '+Inf', pct: 100 }
+    ];
+    var bucketStartX = 60;
+    var bucketW = 95;
+    buckets.forEach(function(b, i) {
+      var bx = bucketStartX + i * bucketW;
+      var barH = b.pct * 0.4;
+      scene.appendChild(svgEl('rect', {
+        x: bx, y: 440 - barH, width: bucketW - 8, height: barH, rx: 2,
+        fill: 'var(--accent-blue)', opacity: String(0.3 + b.pct / 200)
+      }));
+      scene.appendChild(svgText(bx + (bucketW - 8) / 2, 440 - barH - 4, b.pct + '%', {
+        fill: 'var(--accent-blue)', 'font-size': '8'
+      }));
+      scene.appendChild(svgText(bx + (bucketW - 8) / 2, 452, 'le=' + b.le, {
+        fill: 'var(--text-3)', 'font-size': '7'
+      }));
+    });
+  }
+
+  function drawPushModel(scene) {
+    scene.appendChild(svgText(450, 28, 'Push Model (StatsD / Graphite)', {
+      fill: '#fff', 'font-size': '14', 'font-weight': '700'
+    }));
+
+    /* Apps pushing */
+    for (var i = 0; i < 5; i++) {
+      var sy = 80 + i * 60;
+      scene.appendChild(svgEl('rect', {
+        x: 30, y: sy, width: 120, height: 40, rx: 6,
+        fill: 'var(--surface-2)', stroke: serviceColors[i], 'stroke-width': 1.5
+      }));
+      scene.appendChild(svgText(90, sy + 18, 'Service ' + (i + 1), {
+        fill: serviceColors[i], 'font-size': '11', 'font-weight': '600'
+      }));
+      scene.appendChild(svgText(90, sy + 32, 'emit UDP', {
+        fill: 'var(--text-3)', 'font-size': '9'
+      }));
+
+      scene.appendChild(svgEl('line', {
+        x1: 150, y1: sy + 20, x2: 300, y2: 220,
+        stroke: '#333', 'stroke-width': 1, 'stroke-dasharray': '3,3',
+        'marker-end': 'url(#mt-arrow)'
+      }));
+    }
+
+    /* Push label */
+    scene.appendChild(svgText(230, 200, 'push (UDP)', {
+      fill: 'var(--text-3)', 'font-size': '9', 'font-style': 'italic'
+    }));
+
+    /* StatsD collector */
+    scene.appendChild(svgEl('rect', {
+      x: 300, y: 190, width: 140, height: 60, rx: 8,
+      fill: 'var(--surface-2)', stroke: 'var(--accent-orange)', 'stroke-width': 2
+    }));
+    scene.appendChild(svgText(370, 215, 'StatsD Collector', {
+      fill: 'var(--accent-orange)', 'font-size': '12', 'font-weight': '700'
+    }));
+    scene.appendChild(svgText(370, 232, 'Aggregation', {
+      fill: 'var(--text-3)', 'font-size': '9'
+    }));
+
+    /* Collector -> Graphite */
+    scene.appendChild(svgEl('line', {
+      x1: 440, y1: 220, x2: 540, y2: 220,
+      stroke: '#333', 'stroke-width': 1, 'marker-end': 'url(#mt-arrow)'
+    }));
+
+    /* Graphite / Carbon */
+    scene.appendChild(svgEl('rect', {
+      x: 540, y: 190, width: 130, height: 60, rx: 6,
+      fill: 'var(--surface-2)', stroke: 'var(--accent-green)', 'stroke-width': 1.5
+    }));
+    scene.appendChild(svgText(605, 215, 'Graphite', {
+      fill: 'var(--accent-green)', 'font-size': '11', 'font-weight': '600'
+    }));
+    scene.appendChild(svgText(605, 232, 'Whisper TSDB', {
+      fill: 'var(--text-3)', 'font-size': '9'
+    }));
+
+    /* Graphite -> Dashboard */
+    scene.appendChild(svgEl('line', {
+      x1: 670, y1: 220, x2: 740, y2: 220,
+      stroke: '#333', 'stroke-width': 1, 'marker-end': 'url(#mt-arrow)'
+    }));
+
+    /* Dashboard */
+    scene.appendChild(svgEl('rect', {
+      x: 740, y: 195, width: 110, height: 50, rx: 6,
+      fill: 'var(--surface-2)', stroke: 'var(--accent-purple)', 'stroke-width': 1.5
+    }));
+    scene.appendChild(svgText(795, 218, 'Grafana', {
+      fill: 'var(--accent-purple)', 'font-size': '11', 'font-weight': '600'
+    }));
+    scene.appendChild(svgText(795, 234, 'Dashboards', {
+      fill: 'var(--text-3)', 'font-size': '9'
+    }));
+
+    /* Trade-off callouts */
+    var pros = ['Works for short-lived jobs', 'Fire-and-forget (UDP)', 'No service discovery needed'];
+    var cons = ['No failure detection', 'Collector = bottleneck', 'No scrape-based health'];
+    scene.appendChild(svgText(250, 320, 'Pros', { fill: 'var(--accent-green)', 'font-size': '11', 'font-weight': '600' }));
+    pros.forEach(function(p, i) {
+      scene.appendChild(svgText(250, 338 + i * 18, '+ ' + p, { fill: 'var(--text-2)', 'font-size': '10' }));
+    });
+    scene.appendChild(svgText(600, 320, 'Cons', { fill: 'var(--accent-red)', 'font-size': '11', 'font-weight': '600' }));
+    cons.forEach(function(c, i) {
+      scene.appendChild(svgText(600, 338 + i * 18, '- ' + c, { fill: 'var(--text-2)', 'font-size': '10' }));
+    });
+  }
+
+  async function scrape() {
+    if (state.showPush) return;
+    state.scrapeCount++;
+    draw();
+
+    /* Animate scrape lines briefly */
+    var scene = document.getElementById('mt-scene');
+    for (var i = 0; i < 5; i++) {
+      var sy = 120 + i * 60;
+      var dot = svgEl('circle', {
+        cx: 150, cy: sy + 20, r: 4, fill: serviceColors[i], opacity: '0.9'
+      });
+      scene.appendChild(dot);
+      (function(d, idx) {
+        d.style.transition = 'all 600ms ease';
+        setTimeout(function() {
+          d.setAttribute('cx', 350);
+          d.setAttribute('cy', 200);
+        }, 50 + idx * 80);
+        setTimeout(function() {
+          if (d.parentNode) d.parentNode.removeChild(d);
+        }, 800);
+      })(dot, i);
+    }
+
+    document.getElementById('mt-commentary').textContent = 'Scrape #' + state.scrapeCount + ' complete. Prometheus pulled /metrics from all 5 services. Each service exposes counters, gauges, and histograms in Prometheus exposition format. Scrape interval is typically 15s (configurable per target).';
+  }
+
+  function toggleAutoScrape() {
+    state.autoScraping = !state.autoScraping;
+    var btn = document.getElementById('mt-btn-auto');
+    if (state.autoScraping) {
+      btn.classList.add('active-btn');
+      btn.textContent = 'Stop Auto-Scrape';
+      state.autoTimer = setInterval(function() { scrape(); }, 3000);
+    } else {
+      btn.classList.remove('active-btn');
+      btn.textContent = 'Auto-Scrape (15s)';
+      clearInterval(state.autoTimer);
+      state.autoTimer = null;
+    }
+  }
+
+  function fireAlert() {
+    state.alertFired = true;
+    draw();
+    document.getElementById('mt-commentary').textContent = 'Alert rule fired: rate(http_requests_total{status=~"5.."}[5m]) > 0.05. Prometheus evaluates rules against stored TSDB data. When a rule matches, it sends the alert to Alertmanager, which deduplicates, groups, routes (by label), and dispatches to PagerDuty/Slack/Email.';
+    setTimeout(function() {
+      state.alertFired = false;
+      draw();
+    }, 5000);
+  }
+
+  function togglePush() {
+    state.showPush = !state.showPush;
+    var btn = document.getElementById('mt-btn-push');
+    btn.classList.toggle('active-btn', state.showPush);
+    btn.textContent = state.showPush ? 'Show Pull Model' : 'Show Push Model';
+    draw();
+    document.getElementById('mt-commentary').textContent = state.showPush
+      ? 'Push model (StatsD/Graphite): apps emit metrics via UDP to a collector, which aggregates and writes to a TSDB. Works well for short-lived processes (batch jobs, lambdas) that may exit before a scrape. Downside: no service discovery, collector is a bottleneck, and "no data" is ambiguous.'
+      : 'Prometheus pull model: Prometheus actively scrapes /metrics from discovered targets every 15s. Failed scrape = explicit "target down" signal. Service discovery (k8s, Consul) keeps the target list current.';
+  }
+
+  function addUserLabel() {
+    state.cardExploded = true;
+    var users = state.userCount;
+    var series = 5 * 4 * users; /* methods x statuses x users */
+    var fillPct = Math.min(100, series / 20000);
+    var fill = document.getElementById('mt-card-fill');
+    var count = document.getElementById('mt-card-count');
+    var fillLabel = document.getElementById('mt-card-fill-label');
+
+    fill.style.width = fillPct + '%';
+    fill.style.background = series > 50000 ? 'var(--accent-red)' : 'var(--accent-orange)';
+    count.textContent = formatNum(series) + ' series';
+    fillLabel.textContent = formatNum(series);
+
+    document.getElementById('mt-card-commentary').textContent = 'Adding user_id with ' + formatNum(users) + ' unique users: 5 methods x 4 statuses x ' + formatNum(users) + ' users = ' + formatNum(series) + ' distinct time series. At 3 bytes/sample, 1 sample/15s, that is ~' + Math.round(series * 3 * 4 * 24 / 1024 / 1024) + ' MB/day just for this one metric. Prometheus will OOM or become unusably slow. Fix: drop user_id from metric labels; use logs or traces for per-user context.';
+  }
+
+  function resetCardinality() {
+    state.cardExploded = false;
+    document.getElementById('mt-card-fill').style.width = '2%';
+    document.getElementById('mt-card-fill').style.background = 'var(--accent-green)';
+    document.getElementById('mt-card-count').textContent = '~20 series';
+    document.getElementById('mt-card-fill-label').textContent = '20';
+    document.getElementById('mt-card-commentary').textContent = 'With just {method, status}, you have roughly 5 methods x 4 statuses = 20 series. Manageable. Prometheus stores ~3 bytes/sample at one sample per 15s.';
+  }
+
+  function updateUserCount() {
+    var slider = document.getElementById('mt-user-slider');
+    state.userCount = parseInt(slider.value, 10);
+    document.getElementById('mt-user-count').textContent = formatNum(state.userCount);
+    if (state.cardExploded) addUserLabel();
+  }
+
+  function formatNum(n) {
+    if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+    if (n >= 1000) return (n / 1000).toFixed(0) + 'K';
+    return String(n);
+  }
+
+  function reset() {
+    state.scrapeCount = 0;
+    state.alertFired = false;
+    state.showPush = false;
+    if (state.autoTimer) { clearInterval(state.autoTimer); state.autoTimer = null; }
+    state.autoScraping = false;
+    document.getElementById('mt-btn-auto').classList.remove('active-btn');
+    document.getElementById('mt-btn-auto').textContent = 'Auto-Scrape (15s)';
+    document.getElementById('mt-btn-push').classList.remove('active-btn');
+    document.getElementById('mt-btn-push').textContent = 'Show Push Model';
+    resetCardinality();
+    draw();
+    document.getElementById('mt-commentary').textContent = 'Prometheus uses a pull model: it actively scrapes /metrics endpoints on a configured interval (default 15s). Service discovery (Kubernetes SD, Consul, file-based) tells Prometheus where to find targets.';
+  }
+
+  draw();
+  return { scrape: scrape, toggleAutoScrape: toggleAutoScrape, fireAlert: fireAlert, togglePush: togglePush, addUserLabel: addUserLabel, resetCardinality: resetCardinality, updateUserCount: updateUserCount, reset: reset };
+})();
+
+
+/* ================================================================
+   TAB 4 -- TRACES PIPELINE
+   ================================================================ */
+var TR = (function() {
+  var state = {
+    traceCount: 0,
+    animating: false
+  };
+
+  /* Layout positions */
+  var layout = {
+    client:    { x: 50,  y: 50,  w: 100, h: 45 },
+    svcA:      { x: 50,  y: 160, w: 100, h: 45 },
+    svcB:      { x: 250, y: 160, w: 100, h: 45 },
+    db:        { x: 450, y: 160, w: 100, h: 45 },
+    colA:      { x: 50,  y: 280, w: 100, h: 40 },
+    colB:      { x: 250, y: 280, w: 100, h: 40 },
+    colDB:     { x: 450, y: 280, w: 100, h: 40 },
+    collector: { x: 220, y: 350, w: 160, h: 45 },
+    backend:   { x: 550, y: 350, w: 130, h: 45 }
+  };
+
+  function draw() {
+    var scene = document.getElementById('tr-scene');
+    scene.innerHTML = '';
+
+    scene.appendChild(svgText(450, 25, 'OpenTelemetry Traces Pipeline', {
+      fill: '#fff', 'font-size': '14', 'font-weight': '700'
+    }));
+
+    /* Client */
+    scene.appendChild(svgEl('rect', Object.assign({}, rectAttrs(layout.client), {
+      stroke: 'var(--accent-green)', 'stroke-width': '1.5'
+    })));
+    scene.appendChild(svgText(100, 77, 'Client', { fill: 'var(--accent-green)', 'font-size': '11', 'font-weight': '600' }));
+
+    /* Services */
+    var services = [
+      { key: 'svcA', label: 'Service A', sub: 'OTel SDK', color: 'var(--accent-blue)' },
+      { key: 'svcB', label: 'Service B', sub: 'OTel SDK', color: 'var(--accent-purple)' },
+      { key: 'db',   label: 'Database',  sub: 'instrumented', color: 'var(--accent-orange)' }
+    ];
+    services.forEach(function(s) {
+      var l = layout[s.key];
+      scene.appendChild(svgEl('rect', Object.assign({}, rectAttrs(l), {
+        stroke: s.color, 'stroke-width': '1.5'
+      })));
+      scene.appendChild(svgText(l.x + l.w / 2, l.y + 20, s.label, {
+        fill: s.color, 'font-size': '11', 'font-weight': '600'
+      }));
+      scene.appendChild(svgText(l.x + l.w / 2, l.y + 35, s.sub, {
+        fill: 'var(--text-3)', 'font-size': '9'
+      }));
+    });
+
+    /* Arrows: client -> svcA -> svcB -> db */
+    scene.appendChild(makeArrow(100, 95, 100, 160, 'tr-arrow'));
+    scene.appendChild(svgText(115, 130, 'HTTP', { fill: 'var(--text-3)', 'font-size': '8' }));
+
+    scene.appendChild(makeArrow(150, 182, 250, 182, 'tr-arrow'));
+    scene.appendChild(svgText(200, 175, 'traceparent', { fill: 'var(--accent-cyan)', 'font-size': '8' }));
+
+    scene.appendChild(makeArrow(350, 182, 450, 182, 'tr-arrow'));
+    scene.appendChild(svgText(400, 175, 'traceparent', { fill: 'var(--accent-cyan)', 'font-size': '8' }));
+
+    /* OTel SDK local exporters (down arrows to mini-collectors) */
+    var sdkNodes = [
+      { from: 'svcA', to: 'colA' },
+      { from: 'svcB', to: 'colB' },
+      { from: 'db',   to: 'colDB' }
+    ];
+    sdkNodes.forEach(function(e) {
+      var f = layout[e.from];
+      var t = layout[e.to];
+      scene.appendChild(makeArrow(f.x + f.w / 2, f.y + f.h, t.x + t.w / 2, t.y, 'tr-arrow'));
+
+      scene.appendChild(svgEl('rect', Object.assign({}, rectAttrs(t), {
+        stroke: 'var(--text-3)', 'stroke-width': '1', fill: 'var(--surface)'
+      })));
+      scene.appendChild(svgText(t.x + t.w / 2, t.y + 24, 'spans', {
+        fill: 'var(--text-3)', 'font-size': '9'
+      }));
+    });
+
+    /* Arrows to central collector */
+    ['colA', 'colB', 'colDB'].forEach(function(k) {
+      var f = layout[k];
+      var t = layout.collector;
+      scene.appendChild(makeArrow(f.x + f.w / 2, f.y + f.h, t.x + t.w / 2, t.y, 'tr-arrow'));
+    });
+
+    /* OTel Collector */
+    var cl = layout.collector;
+    scene.appendChild(svgEl('rect', Object.assign({}, rectAttrs(cl), {
+      stroke: 'var(--accent-cyan)', 'stroke-width': '2'
+    })));
+    scene.appendChild(svgText(cl.x + cl.w / 2, cl.y + 18, 'OTel Collector', {
+      fill: 'var(--accent-cyan)', 'font-size': '12', 'font-weight': '700'
+    }));
+    scene.appendChild(svgText(cl.x + cl.w / 2, cl.y + 34, 'batch + export', {
+      fill: 'var(--text-3)', 'font-size': '9'
+    }));
+
+    /* Collector -> Backend */
+    scene.appendChild(makeArrow(cl.x + cl.w, cl.y + cl.h / 2, layout.backend.x, layout.backend.y + layout.backend.h / 2, 'tr-arrow'));
+
+    /* Backend */
+    var be = layout.backend;
+    scene.appendChild(svgEl('rect', Object.assign({}, rectAttrs(be), {
+      stroke: 'var(--accent-yellow)', 'stroke-width': '1.5'
+    })));
+    scene.appendChild(svgText(be.x + be.w / 2, be.y + 18, 'Jaeger / Tempo', {
+      fill: 'var(--accent-yellow)', 'font-size': '11', 'font-weight': '600'
+    }));
+    scene.appendChild(svgText(be.x + be.w / 2, be.y + 34, 'Honeycomb', {
+      fill: 'var(--text-3)', 'font-size': '9'
+    }));
+
+    /* Trace waterfall on the right */
+    drawWaterfall(scene);
+
+    /* Trace count */
+    scene.appendChild(svgText(750, 25, 'Traces: ' + state.traceCount, {
+      fill: state.traceCount > 0 ? 'var(--accent-green)' : 'var(--text-3)',
+      'font-size': '11', 'font-weight': '600'
+    }));
+  }
+
+  function drawWaterfall(scene) {
+    var wx = 620;
+    var wy = 60;
+    var ww = 260;
+    var wh = 230;
+
+    scene.appendChild(svgEl('rect', {
+      x: wx, y: wy, width: ww, height: wh, rx: 6,
+      fill: '#0f0f15', stroke: 'var(--border)', 'stroke-width': 1
+    }));
+    scene.appendChild(svgText(wx + ww / 2, wy + 18, 'Trace Waterfall (last request)', {
+      fill: 'var(--text-3)', 'font-size': '10'
+    }));
+
+    if (state.traceCount === 0) {
+      scene.appendChild(svgText(wx + ww / 2, wy + wh / 2, 'Send a request to see the waterfall', {
+        fill: 'var(--text-3)', 'font-size': '10', 'font-style': 'italic'
+      }));
+      return;
+    }
+
+    var lastTrace = state.lastTrace || {};
+    var spans = lastTrace.spans || [
+      { name: 'handle_request', svc: 'A', start: 0, dur: 100, depth: 0, color: 'var(--accent-blue)' }
+    ];
+
+    var timeScale = ww - 40;
+    var maxDur = spans[0].dur || 100;
+
+    spans.forEach(function(span, i) {
+      var sy = wy + 35 + i * 42;
+      var sx = wx + 20 + (span.start / maxDur) * timeScale * 0.6;
+      var sw = Math.max(8, (span.dur / maxDur) * timeScale * 0.6);
+      var indent = span.depth * 12;
+
+      /* Span label */
+      scene.appendChild(svgText(wx + 15 + indent, sy + 4, span.name, {
+        fill: span.color || 'var(--text-2)', 'font-size': '9',
+        'text-anchor': 'start', 'font-weight': '600'
+      }));
+
+      /* Span bar */
+      scene.appendChild(svgEl('rect', {
+        x: wx + 15 + indent, y: sy + 8, width: sw, height: 10, rx: 2,
+        fill: span.color || 'var(--accent-blue)', opacity: span.isError ? '1' : '0.7'
+      }));
+
+      /* Duration label */
+      scene.appendChild(svgText(wx + 20 + indent + sw + 4, sy + 17, span.dur + 'ms', {
+        fill: span.dur > 500 ? 'var(--accent-red)' : 'var(--text-3)',
+        'font-size': '8', 'text-anchor': 'start'
+      }));
+
+      /* Service tag */
+      scene.appendChild(svgText(wx + ww - 10, sy + 4, 'svc-' + span.svc, {
+        fill: 'var(--text-3)', 'font-size': '7', 'text-anchor': 'end'
+      }));
+    });
+  }
+
+  function rectAttrs(l) {
+    return { x: l.x, y: l.y, width: l.w, height: l.h, rx: 6, fill: 'var(--surface-2)' };
+  }
+
+  function makeArrow(x1, y1, x2, y2, markerId) {
+    return svgEl('line', {
+      x1: x1, y1: y1, x2: x2, y2: y2,
+      stroke: '#444', 'stroke-width': 1, 'marker-end': 'url(#' + markerId + ')'
+    });
+  }
+
+  async function animateTrace(spans, isError) {
+    if (state.animating) return;
+    state.animating = true;
+    state.lastTrace = { spans: spans };
+    state.traceCount++;
+
+    var scene = document.getElementById('tr-scene');
+
+    /* Animate packet: client -> svcA */
+    var pkt = svgEl('circle', { cx: 100, cy: 95, r: 5, fill: 'var(--accent-green)', opacity: '0.9' });
+    scene.appendChild(pkt);
+    pkt.style.transition = 'all 400ms ease';
+    await delay(50);
+    pkt.setAttribute('cy', 160);
+    await delay(450);
+
+    /* svcA -> svcB */
+    pkt.style.transition = 'all 500ms ease';
+    pkt.setAttribute('cx', 300);
+    pkt.setAttribute('fill', 'var(--accent-blue)');
+    await delay(550);
+
+    /* svcB -> db */
+    pkt.style.transition = 'all 400ms ease';
+    pkt.setAttribute('cx', 500);
+    pkt.setAttribute('fill', 'var(--accent-purple)');
+    await delay(450);
+
+    /* db -> collector */
+    pkt.setAttribute('fill', isError ? 'var(--accent-red)' : 'var(--accent-cyan)');
+    pkt.style.transition = 'all 600ms ease';
+    pkt.setAttribute('cx', 300);
+    pkt.setAttribute('cy', 372);
+    await delay(650);
+
+    /* collector -> backend */
+    pkt.style.transition = 'all 400ms ease';
+    pkt.setAttribute('cx', 615);
+    await delay(450);
+
+    if (pkt.parentNode) pkt.parentNode.removeChild(pkt);
+    draw();
+    state.animating = false;
+  }
+
+  function sendRequest() {
+    var spans = [
+      { name: 'handle_request',  svc: 'A', start: 0,  dur: 120, depth: 0, color: 'var(--accent-blue)' },
+      { name: 'rpc_call',        svc: 'A', start: 5,  dur: 95,  depth: 1, color: 'var(--accent-blue)' },
+      { name: 'process_request', svc: 'B', start: 15, dur: 70,  depth: 1, color: 'var(--accent-purple)' },
+      { name: 'db_query',        svc: 'B', start: 25, dur: 35,  depth: 2, color: 'var(--accent-orange)' }
+    ];
+    animateTrace(spans, false);
+    document.getElementById('tr-commentary').textContent = 'Normal request: Client -> Service A (root span "handle_request", 120ms) -> Service B (child span "rpc_call" / "process_request", 70ms) -> Database (grandchild span "db_query", 35ms). All spans share the same trace_id, linked by parent_span_id. The traceparent header propagated through each HTTP call.';
+  }
+
+  function sendSlowRequest() {
+    var spans = [
+      { name: 'handle_request',  svc: 'A', start: 0,    dur: 3200, depth: 0, color: 'var(--accent-blue)' },
+      { name: 'rpc_call',        svc: 'A', start: 5,    dur: 3100, depth: 1, color: 'var(--accent-blue)' },
+      { name: 'process_request', svc: 'B', start: 15,   dur: 3050, depth: 1, color: 'var(--accent-purple)' },
+      { name: 'db_query (SLOW)', svc: 'B', start: 25,   dur: 2980, depth: 2, color: 'var(--accent-red)' }
+    ];
+    animateTrace(spans, false);
+    document.getElementById('tr-commentary').textContent = 'Slow request: total 3200ms. The waterfall reveals that db_query consumed 2980ms (93% of total). Without traces, you would see "API is slow" in metrics but not know which downstream call caused it. This is the core value of distributed tracing -- latency attribution across service boundaries.';
+  }
+
+  function sendErrorRequest() {
+    var spans = [
+      { name: 'handle_request',     svc: 'A', start: 0,  dur: 45, depth: 0, color: 'var(--accent-blue)', isError: false },
+      { name: 'rpc_call',           svc: 'A', start: 5,  dur: 30, depth: 1, color: 'var(--accent-blue)', isError: false },
+      { name: 'process_request',    svc: 'B', start: 10, dur: 15, depth: 1, color: 'var(--accent-red)',  isError: true },
+      { name: 'db_query (ERROR)',   svc: 'B', start: 12, dur: 8,  depth: 2, color: 'var(--accent-red)',  isError: true }
+    ];
+    animateTrace(spans, true);
+    document.getElementById('tr-commentary').textContent = 'Error request: Service B returned an error (db_query failed with connection timeout, 8ms). The error propagated back through the span tree. With tail-based sampling, this trace would be kept at 100% regardless of sample rate -- errors are always interesting.';
+  }
+
+  /* --- Sampling demo --- */
+  function runSamplingDemo() {
+    var headRate = parseInt(document.getElementById('tr-head-rate').value, 10) / 100;
+    var errorRate = parseInt(document.getElementById('tr-error-rate').value, 10) / 100;
+    var total = 100;
+    var headDots = document.getElementById('tr-head-dots');
+    var tailDots = document.getElementById('tr-tail-dots');
+    headDots.innerHTML = '';
+    tailDots.innerHTML = '';
+
+    var headKept = 0, headSlowKept = 0;
+    var tailKept = 0, tailSlowKept = 0;
+    var totalSlow = 0;
+
+    for (var i = 0; i < total; i++) {
+      var isSlow = Math.random() < errorRate;
+      if (isSlow) totalSlow++;
+
+      /* Head-based: uniform random at entry */
+      var headSampled = Math.random() < headRate;
+      if (headSampled) headKept++;
+      if (headSampled && isSlow) headSlowKept++;
+
+      var hDot = document.createElement('div');
+      hDot.className = 'dot';
+      hDot.style.background = isSlow
+        ? (headSampled ? 'var(--accent-red)' : '#331515')
+        : (headSampled ? 'var(--accent-green)' : '#1a1a22');
+      hDot.style.opacity = headSampled ? '1' : '0.3';
+      hDot.title = (isSlow ? 'slow/error' : 'normal') + ' -- ' + (headSampled ? 'KEPT' : 'dropped');
+      headDots.appendChild(hDot);
+
+      /* Tail-based: keep all errors + 10% normal */
+      var tailSampled = isSlow ? true : (Math.random() < 0.1);
+      if (tailSampled) tailKept++;
+      if (tailSampled && isSlow) tailSlowKept++;
+
+      var tDot = document.createElement('div');
+      tDot.className = 'dot';
+      tDot.style.background = isSlow
+        ? (tailSampled ? 'var(--accent-red)' : '#331515')
+        : (tailSampled ? 'var(--accent-green)' : '#1a1a22');
+      tDot.style.opacity = tailSampled ? '1' : '0.3';
+      tDot.title = (isSlow ? 'slow/error' : 'normal') + ' -- ' + (tailSampled ? 'KEPT' : 'dropped');
+      tailDots.appendChild(tDot);
+    }
+
+    /* Stats */
+    updateSamplingStats('tr-head-stats', total, headKept, headSlowKept, totalSlow);
+    updateSamplingStats('tr-tail-stats', total, tailKept, tailSlowKept, totalSlow);
+
+    document.getElementById('tr-sampling-commentary').textContent =
+      'Head-based (' + (headRate * 100).toFixed(0) + '%): kept ' + headKept + '/' + total + ' traces, but only ' + headSlowKept + '/' + totalSlow + ' slow/error traces (' + (totalSlow > 0 ? Math.round(headSlowKept / totalSlow * 100) : 0) + '% of interesting). ' +
+      'Tail-based: kept ' + tailKept + '/' + total + ' traces, including ' + tailSlowKept + '/' + totalSlow + ' slow/error traces (' + (totalSlow > 0 ? Math.round(tailSlowKept / totalSlow * 100) : 0) + '% of interesting). ' +
+      'Tail-based preserves the traces that matter for debugging while controlling overall volume.';
+  }
+
+  function updateSamplingStats(id, total, kept, slowKept, totalSlow) {
+    var el = document.getElementById(id);
+    el.innerHTML = 'Total: <span class="val">' + total + '</span> | Kept: <span class="val">' + kept + '</span> (' + Math.round(kept / total * 100) + '%) | Slow/Error kept: <span class="val">' + slowKept + '/' + totalSlow + '</span>';
+  }
+
+  function clearSampling() {
+    document.getElementById('tr-head-dots').innerHTML = '';
+    document.getElementById('tr-tail-dots').innerHTML = '';
+    document.getElementById('tr-head-stats').innerHTML = 'Total: <span class="val">0</span> | Kept: <span class="val">0</span> | Slow/Error kept: <span class="val">0</span>';
+    document.getElementById('tr-tail-stats').innerHTML = 'Total: <span class="val">0</span> | Kept: <span class="val">0</span> | Slow/Error kept: <span class="val">0</span>';
+    document.getElementById('tr-sampling-commentary').textContent = 'Head-based: simple, low overhead, but uniformly drops -- including interesting (slow/error) requests. Tail-based: collects everything temporarily, then decides based on trace properties -- keeps all errors and slow traces, samples normal ones. Trade-off: tail-based requires a collection buffer (the OTel Collector must hold spans in memory until the trace completes), which adds cost and complexity.';
+  }
+
+  function reset() {
+    state.traceCount = 0;
+    state.animating = false;
+    state.lastTrace = null;
+    clearSampling();
+    draw();
+    document.getElementById('tr-commentary').textContent = 'Client sends a request to Service A. The OTel SDK creates a root span, injects traceparent header into outgoing calls. Each downstream service reads the header, creates a child span. All spans share the same trace_id. The OTel Collector receives spans and forwards to the backend (Jaeger, Tempo, Honeycomb).';
+  }
+
+  draw();
+  return { sendRequest: sendRequest, sendSlowRequest: sendSlowRequest, sendErrorRequest: sendErrorRequest, runSamplingDemo: runSamplingDemo, clearSampling: clearSampling, reset: reset };
+})();
+
+
+/* ================================================================
+   TAB 5 -- CORRELATION
+   ================================================================ */
+var CO = (function() {
+  var state = {
+    step: 0,
+    animating: false
+  };
+
+  var steps = [
+    { label: 'idle',                   description: 'Click "Start Investigation" to walk through a cross-pillar debugging flow.' },
+    { label: '1. Alert fires (Metrics)', description: 'Alertmanager fires: rate(http_errors_total{service="checkout"}[5m]) > 0.05. Error rate spiked above 5% for the checkout service. You see the spike on the Grafana dashboard. First question: which requests are failing?' },
+    { label: '2. Find traces (Traces)', description: 'Click the metric exemplar dot on the error rate graph. It contains a trace_id. Grafana opens Tempo, showing the trace waterfall. You see that the checkout service calls the payment service, which calls the fraud-check service -- and that span is erroring with HTTP 503.' },
+    { label: '3. Drill into logs (Logs)',  description: 'Copy the trace_id from the failing span. Open Loki, filter by trace_id="abc123...". You see 3 log lines: the fraud-check service logged "upstream dependency timeout: fraud-scoring-ml, connect timeout after 5000ms". Root cause: the ML scoring service is down.' },
+    { label: '4. Confirm in metrics',    description: 'Return to Grafana metrics view. Check the fraud-scoring-ml service dashboard. Confirm: 0 successful scrapes for the last 10 minutes, pod restarts = 3. The ML service OOMed. Root cause confirmed. Time from alert to root cause: ~3 minutes.' },
+    { label: '5. Resolution',            description: 'Investigation complete. The integration layer that made this possible: trace_id in every log line + trace_id in metric exemplars. Without it, you would be grepping logs by timestamp range (slow, noisy) and guessing which service was the root cause.' }
+  ];
+
+  function draw() {
+    var scene = document.getElementById('co-scene');
+    scene.innerHTML = '';
+
+    /* Title */
+    scene.appendChild(svgText(450, 25, 'Cross-Pillar Investigation Flow', {
+      fill: '#fff', 'font-size': '14', 'font-weight': '700'
+    }));
+
+    /* Three pillar boxes across the top */
+    var pillars = [
+      { x: 50,  label: 'METRICS', color: 'var(--accent-blue)',   sub: 'Prometheus + Grafana' },
+      { x: 340, label: 'TRACES',  color: 'var(--accent-purple)', sub: 'Tempo + Jaeger' },
+      { x: 630, label: 'LOGS',    color: 'var(--accent-orange)', sub: 'Loki + Elasticsearch' }
+    ];
+
+    pillars.forEach(function(p) {
+      var active = false;
+      if (state.step === 1 || state.step === 4) active = (p.label === 'METRICS');
+      if (state.step === 2) active = (p.label === 'TRACES');
+      if (state.step === 3) active = (p.label === 'LOGS');
+
+      scene.appendChild(svgEl('rect', {
+        x: p.x, y: 50, width: 220, height: 70, rx: 8,
+        fill: active ? p.color : 'var(--surface-2)',
+        'fill-opacity': active ? '0.15' : '1',
+        stroke: p.color, 'stroke-width': active ? '2.5' : '1.5'
+      }));
+      scene.appendChild(svgText(p.x + 110, 80, p.label, {
+        fill: active ? '#fff' : p.color, 'font-size': '14', 'font-weight': '700'
+      }));
+      scene.appendChild(svgText(p.x + 110, 100, p.sub, {
+        fill: active ? p.color : 'var(--text-3)', 'font-size': '9'
+      }));
+
+      if (active) {
+        scene.appendChild(svgText(p.x + 110, 112, 'ACTIVE', {
+          fill: 'var(--accent-green)', 'font-size': '8', 'font-weight': '700'
+        }));
+      }
+    });
+
+    /* Bidirectional arrows between pillars */
+    scene.appendChild(svgEl('line', {
+      x1: 270, y1: 85, x2: 340, y2: 85,
+      stroke: state.step === 2 ? 'var(--accent-green)' : '#333', 'stroke-width': state.step === 2 ? 2 : 1,
+      'marker-end': 'url(#co-arrow)'
+    }));
+    scene.appendChild(svgText(305, 78, 'exemplar', {
+      fill: state.step === 2 ? 'var(--accent-green)' : 'var(--text-3)', 'font-size': '7'
+    }));
+
+    scene.appendChild(svgEl('line', {
+      x1: 560, y1: 85, x2: 630, y2: 85,
+      stroke: state.step === 3 ? 'var(--accent-green)' : '#333', 'stroke-width': state.step === 3 ? 2 : 1,
+      'marker-end': 'url(#co-arrow)'
+    }));
+    scene.appendChild(svgText(595, 78, 'trace_id', {
+      fill: state.step === 3 ? 'var(--accent-green)' : 'var(--text-3)', 'font-size': '7'
+    }));
+
+    /* Return arrow logs -> metrics */
+    scene.appendChild(svgEl('path', {
+      d: 'M 740 120 Q 740 160 450 160 Q 160 160 160 120',
+      fill: 'none',
+      stroke: state.step === 4 ? 'var(--accent-green)' : '#222', 'stroke-width': state.step === 4 ? 2 : 1,
+      'stroke-dasharray': '4,3',
+      'marker-end': 'url(#co-arrow)'
+    }));
+    if (state.step === 4) {
+      scene.appendChild(svgText(450, 170, 'confirm root cause in metrics', {
+        fill: 'var(--accent-green)', 'font-size': '8'
+      }));
+    }
+
+    /* Integration layer box at center */
+    scene.appendChild(svgEl('rect', {
+      x: 250, y: 190, width: 400, height: 50, rx: 6,
+      fill: '#0f0f15', stroke: 'var(--accent-cyan)', 'stroke-width': 1.5,
+      'stroke-dasharray': '6,3'
+    }));
+    scene.appendChild(svgText(450, 212, 'Integration Layer: trace_id in logs + metric exemplars + spans', {
+      fill: 'var(--accent-cyan)', 'font-size': '10', 'font-weight': '600'
+    }));
+    scene.appendChild(svgText(450, 228, 'This single field connects the three pillars', {
+      fill: 'var(--text-3)', 'font-size': '8'
+    }));
+
+    /* Step indicator */
+    var stepY = 270;
+    scene.appendChild(svgEl('rect', {
+      x: 50, y: stepY, width: 800, height: 36, rx: 6,
+      fill: state.step > 0 ? 'var(--surface-2)' : 'var(--surface)',
+      stroke: state.step > 0 ? 'var(--accent-green)' : 'var(--border)', 'stroke-width': 1
+    }));
+    scene.appendChild(svgText(450, stepY + 22, steps[state.step].label, {
+      fill: state.step > 0 ? 'var(--accent-green)' : 'var(--text-3)',
+      'font-size': '12', 'font-weight': '600'
+    }));
+
+    /* Progress dots */
+    for (var i = 0; i < steps.length; i++) {
+      scene.appendChild(svgEl('circle', {
+        cx: 300 + i * 30, cy: stepY + 50, r: 6,
+        fill: i <= state.step ? 'var(--accent-green)' : 'var(--surface-2)',
+        stroke: i <= state.step ? 'var(--accent-green)' : 'var(--border)', 'stroke-width': 1
+      }));
+      if (i < steps.length - 1) {
+        scene.appendChild(svgEl('line', {
+          x1: 306 + i * 30, y1: stepY + 50,
+          x2: 294 + (i + 1) * 30, y2: stepY + 50,
+          stroke: i < state.step ? 'var(--accent-green)' : 'var(--border)', 'stroke-width': 1
+        }));
+      }
+    }
+
+    /* Investigation timeline below */
+    if (state.step >= 1) {
+      drawTimeline(scene, stepY + 80);
+    }
+  }
+
+  function drawTimeline(scene, startY) {
+    scene.appendChild(svgText(450, startY, 'Investigation Timeline', {
+      fill: 'var(--text-3)', 'font-size': '10', 'font-weight': '600'
+    }));
+
+    var events = [
+      { time: '0:00', label: 'Alert fires', color: 'var(--accent-red)', active: state.step >= 1 },
+      { time: '0:30', label: 'Open dashboard', color: 'var(--accent-blue)', active: state.step >= 1 },
+      { time: '1:00', label: 'Click exemplar', color: 'var(--accent-purple)', active: state.step >= 2 },
+      { time: '1:30', label: 'Read trace waterfall', color: 'var(--accent-purple)', active: state.step >= 2 },
+      { time: '2:00', label: 'Filter logs by trace_id', color: 'var(--accent-orange)', active: state.step >= 3 },
+      { time: '2:30', label: 'Find root cause log', color: 'var(--accent-orange)', active: state.step >= 3 },
+      { time: '3:00', label: 'Confirm in metrics', color: 'var(--accent-blue)', active: state.step >= 4 }
+    ];
+
+    var lineY = startY + 25;
+    scene.appendChild(svgEl('line', {
+      x1: 80, y1: lineY, x2: 820, y2: lineY,
+      stroke: 'var(--border)', 'stroke-width': 1
+    }));
+
+    events.forEach(function(e, i) {
+      var ex = 100 + i * 105;
+      scene.appendChild(svgEl('circle', {
+        cx: ex, cy: lineY, r: 5,
+        fill: e.active ? e.color : 'var(--surface-2)',
+        stroke: e.active ? e.color : 'var(--border)', 'stroke-width': 1.5
+      }));
+      scene.appendChild(svgText(ex, lineY - 12, e.time, {
+        fill: e.active ? '#fff' : 'var(--text-3)', 'font-size': '8'
+      }));
+      scene.appendChild(svgText(ex, lineY + 16, e.label, {
+        fill: e.active ? e.color : 'var(--text-3)', 'font-size': '7'
+      }));
+    });
+  }
+
+  async function startInvestigation() {
+    if (state.animating) return;
+    state.animating = true;
+
+    for (var i = 1; i < steps.length; i++) {
+      state.step = i;
+      draw();
+      document.getElementById('co-commentary').textContent = steps[i].description;
+      await delay(3000);
+    }
+
+    state.animating = false;
+  }
+
+  function reset() {
+    state.step = 0;
+    state.animating = false;
+    draw();
+    document.getElementById('co-commentary').textContent = steps[0].description;
+  }
+
+  draw();
+  return { startInvestigation: startInvestigation, reset: reset };
+})();
+</script>
+</body>
+</html>

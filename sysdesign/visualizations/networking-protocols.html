@@ -1,0 +1,2055 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Network Protocols -- TCP, TLS, HTTP/1-2-3</title>
+<style>
+:root {
+  --bg: #0f0f15;
+  --surface: #181820;
+  --surface-2: #20202a;
+  --border: #2a2a35;
+  --text: #e6e6ea;
+  --text-2: #cfcfd6;
+  --text-3: #888;
+  --accent-red: #ff6b6b;
+  --accent-green: #51cf66;
+  --accent-blue: #339af0;
+  --accent-yellow: #ffd43b;
+  --accent-purple: #cc5de8;
+  --accent-cyan: #8be9fd;
+  --accent-orange: #ffa94d;
+}
+*, *::before, *::after { box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  padding: 32px 24px;
+  max-width: 1100px;
+  margin: 0 auto;
+  line-height: 1.55;
+}
+h1 { color: #fff; margin-bottom: 4px; }
+h1 + p.sub { color: var(--text-3); font-style: italic; margin-top: 0; margin-bottom: 24px; }
+h2 { color: #fff; margin-top: 32px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+h3 { color: var(--text-2); margin-top: 20px; }
+code {
+  background: var(--surface-2);
+  padding: 2px 6px;
+  border-radius: 3px;
+  color: var(--accent-cyan);
+  font-size: 13px;
+}
+svg {
+  background: var(--surface);
+  border-radius: 8px;
+  display: block;
+  margin: 14px auto;
+  width: 100%;
+  height: auto;
+}
+.tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+.tabs button {
+  padding: 10px 20px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-2);
+  border-radius: 6px;
+  cursor: pointer;
+  min-height: 44px;
+  font-size: 14px;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.tabs button:hover { background: var(--surface); }
+.tabs button.active {
+  border-color: var(--accent-blue);
+  border-bottom: 2px solid var(--accent-blue);
+  color: #fff;
+}
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0;
+  align-items: center;
+}
+.controls button, .btn {
+  padding: 10px 16px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  border-radius: 6px;
+  cursor: pointer;
+  min-height: 44px;
+  font-size: 14px;
+  transition: background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+.controls button:hover, .btn:hover { background: var(--surface); }
+.controls button:disabled, .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.controls button.active-btn { border-color: var(--accent-blue); color: var(--accent-blue); }
+.controls button.danger { border-color: var(--accent-red); color: var(--accent-red); }
+.controls button.danger:hover { background: #2a1520; }
+.commentary {
+  background: var(--surface-2);
+  padding: 14px;
+  border-radius: 6px;
+  font-size: 14px;
+  color: var(--text-2);
+  margin: 12px 0;
+  min-height: 44px;
+  line-height: 1.5;
+}
+.takeaway {
+  background: #1a1a22;
+  border-left: 3px solid var(--accent-green);
+  padding: 12px 16px;
+  margin: 14px 0;
+  font-size: 14px;
+}
+.takeaway strong { color: var(--accent-green); }
+.takeaway ul { margin: 6px 0 0 0; padding-left: 18px; }
+.takeaway li { margin-bottom: 6px; }
+section[hidden] { display: none !important; }
+.side-by-side {
+  display: flex;
+  gap: 16px;
+  margin: 14px 0;
+}
+.side-by-side > div { flex: 1; min-width: 0; }
+.side-by-side svg { margin: 0; }
+.rtt-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  margin: 4px 4px 4px 0;
+}
+.step-counter {
+  font-size: 13px;
+  color: var(--text-3);
+  margin-left: auto;
+  white-space: nowrap;
+}
+@media (max-width: 720px) {
+  body { padding: 20px 14px; }
+  .side-by-side { flex-direction: column; }
+}
+@media (max-width: 600px) {
+  .tabs { gap: 4px; }
+  .tabs button { padding: 10px 12px; font-size: 13px; flex: 1; min-width: 80px; text-align: center; }
+}
+@media (max-width: 480px) {
+  .controls { flex-direction: column; }
+  .controls button { width: 100%; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Network protocols -- TCP, TLS, HTTP/1&#183;2&#183;3</h1>
+  <p class="sub">Animated handshakes. HTTP-level HOL vs TCP-level HOL. QUIC's connection migration. The depth probes a real loop dishes out.</p>
+</header>
+
+<nav class="tabs">
+  <button class="active" onclick="setActiveTab('tcp')">TCP</button>
+  <button onclick="setActiveTab('tls')">TLS 1.2 vs 1.3</button>
+  <button onclick="setActiveTab('http1')">HTTP/1.1</button>
+  <button onclick="setActiveTab('http2')">HTTP/2</button>
+  <button onclick="setActiveTab('http3')">HTTP/3 + QUIC</button>
+  <button onclick="setActiveTab('grpc')">gRPC</button>
+</nav>
+
+<!-- ============================================================ -->
+<!-- GLOBAL TAB SWITCHING                                          -->
+<!-- ============================================================ -->
+<script>
+function setActiveTab(id) {
+  document.querySelectorAll('.tabs button').forEach(function(b) { b.classList.remove('active'); });
+  document.querySelectorAll('section[data-tab]').forEach(function(s) { s.hidden = true; });
+  document.querySelector('section[data-tab="' + id + '"]').hidden = false;
+  var btns = document.querySelectorAll('.tabs button');
+  for (var i = 0; i < btns.length; i++) {
+    if (btns[i].textContent.toLowerCase().replace(/[\s\/\.]+/g, '').indexOf(id) !== -1 ||
+        (id === 'tcp' && btns[i].textContent === 'TCP') ||
+        (id === 'tls' && btns[i].textContent.indexOf('TLS') !== -1) ||
+        (id === 'http1' && btns[i].textContent.indexOf('1.1') !== -1) ||
+        (id === 'http2' && btns[i].textContent === 'HTTP/2') ||
+        (id === 'http3' && btns[i].textContent.indexOf('3') !== -1) ||
+        (id === 'grpc' && btns[i].textContent === 'gRPC')) {
+      btns[i].classList.add('active');
+    }
+  }
+}
+</script>
+
+<!-- ============================================================ -->
+<!-- TAB 1: TCP 3-WAY HANDSHAKE + TEARDOWN                        -->
+<!-- ============================================================ -->
+<section data-tab="tcp">
+  <h2>TCP 3-Way Handshake + Teardown</h2>
+  <p>Every TCP connection begins with a 3-way handshake (1 RTT) and ends with a 4-way teardown. The client who initiates close enters <code>TIME_WAIT</code> for 2 x MSL (typically 60s) to handle straggler segments.</p>
+
+  <svg id="tcp-svg" viewBox="0 0 800 600" preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <marker id="tcp-arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="var(--accent-blue)"/>
+      </marker>
+      <marker id="tcp-arrow-red" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="var(--accent-red)"/>
+      </marker>
+      <marker id="tcp-arrow-green" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="var(--accent-green)"/>
+      </marker>
+      <marker id="tcp-arrow-orange" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="var(--accent-orange)"/>
+      </marker>
+      <marker id="tcp-arrow-purple" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="var(--accent-purple)"/>
+      </marker>
+    </defs>
+    <!-- Lifelines -->
+    <text x="160" y="30" text-anchor="middle" fill="#fff" font-size="15" font-weight="700">Client</text>
+    <line x1="160" y1="40" x2="160" y2="590" stroke="var(--border)" stroke-width="2"/>
+    <text x="640" y="30" text-anchor="middle" fill="#fff" font-size="15" font-weight="700">Server</text>
+    <line x1="640" y1="40" x2="640" y2="590" stroke="var(--border)" stroke-width="2"/>
+    <!-- Dynamic messages -->
+    <g id="tcp-messages"></g>
+    <!-- State labels -->
+    <g id="tcp-states"></g>
+  </svg>
+
+  <div class="controls">
+    <button onclick="TCP.prev()" id="tcp-prev" disabled>Previous</button>
+    <button onclick="TCP.next()" id="tcp-next">Next Step</button>
+    <button onclick="TCP.autoPlay()" id="tcp-auto">Auto-Play</button>
+    <button onclick="TCP.reset()">Reset</button>
+    <button onclick="TCP.showDemo('synflood')" class="danger">SYN Flood Demo</button>
+    <button onclick="TCP.showDemo('timewait')" class="danger">TIME_WAIT Pileup</button>
+    <button onclick="TCP.showDemo('congestion')">Congestion Window</button>
+    <span class="step-counter" id="tcp-step-counter">Step 0 / 10</span>
+  </div>
+
+  <div class="commentary" id="tcp-commentary">Click "Next Step" to walk through the TCP 3-way handshake, data transfer, and 4-way teardown. Each arrow is one segment; the handshake costs 1 RTT before data can flow.</div>
+
+  <div class="takeaway">
+    <strong>Takeaways</strong>
+    <ul>
+      <li>3-way handshake = 1 RTT. Client can send data on the third segment (ACK), but server's first response needs another RTT to arrive.</li>
+      <li>TIME_WAIT (2 x MSL ~60s) = correctness: prevents stale segments from a previous connection arriving on a reused port. On connection-heavy clients, this exhausts ephemeral ports. Fix: <code>SO_REUSEADDR</code>, <code>tcp_tw_reuse</code>.</li>
+      <li>SYN flood: attacker sends SYNs without completing handshake, exhausting server's half-open connection table. SYN cookies: server encodes state in the ISN instead of allocating it -- stateless until ACK arrives.</li>
+      <li>Congestion control: slow start (exponential cwnd growth) then congestion avoidance (linear). On loss: multiplicative decrease (halve cwnd). CUBIC (Linux default) uses a cubic function for recovery; BBR models bandwidth and RTT directly.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- TAB 2: TLS 1.2 vs 1.3                                        -->
+<!-- ============================================================ -->
+<section data-tab="tls" hidden>
+  <h2>TLS Handshake: 1.2 vs 1.3</h2>
+  <p>TLS 1.2 needs 2 RTTs before encrypted data flows. TLS 1.3 collapses that to 1 RTT by sending key share in ClientHello, and enables 0-RTT resumption for returning clients (with replay caveats).</p>
+
+  <div class="side-by-side">
+    <div>
+      <h3>TLS 1.2 <span class="rtt-badge" style="background:var(--accent-red);color:#000;">2 RTT</span></h3>
+      <svg id="tls12-svg" viewBox="0 0 420 520" preserveAspectRatio="xMidYMid meet">
+        <defs>
+          <marker id="tls12-arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+            <path d="M0,0 L10,5 L0,10 Z" fill="var(--accent-orange)"/>
+          </marker>
+        </defs>
+        <text x="100" y="28" text-anchor="middle" fill="#fff" font-size="14" font-weight="700">Client</text>
+        <line x1="100" y1="38" x2="100" y2="510" stroke="var(--border)" stroke-width="2"/>
+        <text x="320" y="28" text-anchor="middle" fill="#fff" font-size="14" font-weight="700">Server</text>
+        <line x1="320" y1="38" x2="320" y2="510" stroke="var(--border)" stroke-width="2"/>
+        <g id="tls12-messages"></g>
+        <g id="tls12-states"></g>
+      </svg>
+    </div>
+    <div>
+      <h3>TLS 1.3 <span class="rtt-badge" style="background:var(--accent-green);color:#000;">1 RTT</span></h3>
+      <svg id="tls13-svg" viewBox="0 0 420 520" preserveAspectRatio="xMidYMid meet">
+        <defs>
+          <marker id="tls13-arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+            <path d="M0,0 L10,5 L0,10 Z" fill="var(--accent-green)"/>
+          </marker>
+        </defs>
+        <text x="100" y="28" text-anchor="middle" fill="#fff" font-size="14" font-weight="700">Client</text>
+        <line x1="100" y1="38" x2="100" y2="510" stroke="var(--border)" stroke-width="2"/>
+        <text x="320" y="28" text-anchor="middle" fill="#fff" font-size="14" font-weight="700">Server</text>
+        <line x1="320" y1="38" x2="320" y2="510" stroke="var(--border)" stroke-width="2"/>
+        <g id="tls13-messages"></g>
+        <g id="tls13-states"></g>
+      </svg>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button onclick="TLS.prev()" id="tls-prev" disabled>Previous</button>
+    <button onclick="TLS.next()" id="tls-next">Next Step</button>
+    <button onclick="TLS.autoPlay()" id="tls-auto">Auto-Play</button>
+    <button onclick="TLS.reset()">Reset</button>
+    <button onclick="TLS.showZeroRTT()">0-RTT Resumption</button>
+    <button onclick="TLS.showSessionResumption()">Session Resumption (1.2)</button>
+    <span class="step-counter" id="tls-step-counter">Step 0 / 7</span>
+  </div>
+
+  <div class="commentary" id="tls-commentary">Click "Next Step" to compare TLS 1.2 and 1.3 handshakes side-by-side. Watch the RTT count: 1.3 saves a full round trip by sending the key share upfront.</div>
+
+  <div class="takeaway">
+    <strong>Takeaways</strong>
+    <ul>
+      <li>TLS 1.3 = 1-RTT handshake (vs 2-RTT for 1.2). Client sends key share in ClientHello, guessing the server's preferred curve.</li>
+      <li>0-RTT resumption (TLS 1.3): subsequent connections use a PSK from the previous session; client sends application data with the first packet. Caveat: 0-RTT data is replayable -- only safe for idempotent requests (GET, not POST with side effects).</li>
+      <li>Forward secrecy is mandatory in TLS 1.3 (no RSA key exchange). Every session gets ephemeral keys; compromising the server's long-term key does not decrypt past traffic.</li>
+      <li>The senior answer to "how to speed up TLS" is "use 1.3" -- then mention 0-RTT for returning clients, session tickets for distributed servers, and OCSP stapling to avoid certificate revocation round trips.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- TAB 3: HTTP/1.1                                               -->
+<!-- ============================================================ -->
+<section data-tab="http1" hidden>
+  <h2>HTTP/1.1: Keep-Alive and Head-of-Line Blocking</h2>
+  <p>HTTP/1.1 defaults to keep-alive (reuse the TCP connection), but responses must return in request order. Pipelining sends multiple requests without waiting, yet a slow response blocks everything behind it.</p>
+
+  <svg id="h1-svg" viewBox="0 0 800 500" preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <marker id="h1-arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="var(--accent-blue)"/>
+      </marker>
+      <marker id="h1-arrow-red" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="var(--accent-red)"/>
+      </marker>
+    </defs>
+    <g id="h1-scene"></g>
+  </svg>
+
+  <div class="controls">
+    <button onclick="H1.showMode('sequential')">Sequential (No Keep-Alive)</button>
+    <button onclick="H1.showMode('keepalive')" class="active-btn" id="h1-ka-btn">Keep-Alive</button>
+    <button onclick="H1.showMode('pipeline')">Pipelining + HOL</button>
+    <button onclick="H1.showMode('domain')">Domain Sharding</button>
+    <button onclick="H1.reset()">Reset</button>
+    <button onclick="H1.next()" id="h1-next">Next Step</button>
+    <span class="step-counter" id="h1-step-counter"></span>
+  </div>
+
+  <div class="commentary" id="h1-commentary">HTTP/1.0 opened a new TCP connection per request -- expensive (handshake per request). HTTP/1.1 defaults to keep-alive: reuse the same TCP connection for multiple requests. Select a mode above to see the differences.</div>
+
+  <div class="takeaway">
+    <strong>Takeaways</strong>
+    <ul>
+      <li>Keep-alive = the HTTP/1.1 default. Eliminates repeated TCP+TLS handshakes on the same connection.</li>
+      <li>Pipelining sends requests without waiting for responses, but responses MUST return in order. A slow response (e.g., server-side DB query on resource B) blocks faster responses behind it -- this is HTTP-level head-of-line blocking.</li>
+      <li>Browsers work around the single-connection bottleneck by opening up to 6 TCP connections per origin. Domain sharding (serving assets from cdn1.example.com, cdn2.example.com) multiplies this, at the cost of extra DNS lookups and TLS handshakes.</li>
+      <li>HTTP/2 solves HTTP-level HOL with multiplexed streams on a single connection.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- TAB 4: HTTP/2                                                 -->
+<!-- ============================================================ -->
+<section data-tab="http2" hidden>
+  <h2>HTTP/2: Multiplexed Streams on One Connection</h2>
+  <p>HTTP/2 uses a single TCP connection with multiplexed binary frames. Each request/response pair is a stream with its own stream ID. Frames from different streams interleave freely -- no HTTP-level HOL. But TCP-level HOL remains: a lost packet stalls all streams.</p>
+
+  <svg id="h2-svg" viewBox="0 0 800 520" preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <marker id="h2-arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="var(--accent-blue)"/>
+      </marker>
+    </defs>
+    <g id="h2-scene"></g>
+  </svg>
+
+  <div class="controls">
+    <button onclick="H2.showMultiplex()">Multiplexed Streams</button>
+    <button onclick="H2.showHPACK()">HPACK Compression</button>
+    <button onclick="H2.showTCPHOL()" class="danger">TCP-Level HOL</button>
+    <button onclick="H2.reset()">Reset</button>
+    <button onclick="H2.next()" id="h2-next">Next Step</button>
+    <span class="step-counter" id="h2-step-counter"></span>
+  </div>
+
+  <div class="commentary" id="h2-commentary">HTTP/2 frames (HEADERS, DATA, SETTINGS, PING) are binary and carry a stream ID. Multiple streams share one TCP connection, with frames interleaved. No HTTP-level HOL -- but TCP's ordered byte stream means a lost packet blocks ALL streams until retransmitted.</div>
+
+  <div class="takeaway">
+    <strong>Takeaways</strong>
+    <ul>
+      <li>H/2 = binary framing + multiplexing + HPACK header compression. One TCP connection carries many concurrent streams.</li>
+      <li>HPACK uses a static table (61 common headers) + dynamic table (connection-specific). Repeat headers compress to 1-2 bytes.</li>
+      <li>Server push (PUSH_PROMISE) was rarely used and is deprecated in most browsers. Do not mention it as a benefit in interviews.</li>
+      <li>TCP-level HOL: TCP sees one ordered byte stream. If a packet carrying stream A's data is lost, TCP withholds ALL subsequent data (including stream B's and C's) until retransmission completes. This is HTTP/2's residual problem -- QUIC fixes it.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- TAB 5: HTTP/3 + QUIC                                          -->
+<!-- ============================================================ -->
+<section data-tab="http3" hidden>
+  <h2>HTTP/3 over QUIC</h2>
+  <p>QUIC runs over UDP, bakes in TLS 1.3, and provides per-stream reliability. A lost packet on stream A does not block stream B. Connection migration survives IP changes (mobile network handoff).</p>
+
+  <svg id="h3-svg" viewBox="0 0 800 560" preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <marker id="h3-arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="var(--accent-purple)"/>
+      </marker>
+      <marker id="h3-arrow-green" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="var(--accent-green)"/>
+      </marker>
+    </defs>
+    <g id="h3-scene"></g>
+  </svg>
+
+  <div class="controls">
+    <button onclick="H3.showHandshake()">1-RTT Handshake</button>
+    <button onclick="H3.showZeroRTT()">0-RTT Resumption</button>
+    <button onclick="H3.showStreamHOL()">Per-Stream HOL</button>
+    <button onclick="H3.showMigration()">Connection Migration</button>
+    <button onclick="H3.showComparison()">H/1.1 vs H/2 vs H/3 Latency</button>
+    <button onclick="H3.reset()">Reset</button>
+    <button onclick="H3.next()" id="h3-next">Next Step</button>
+    <span class="step-counter" id="h3-step-counter"></span>
+  </div>
+
+  <div class="commentary" id="h3-commentary">QUIC combines transport handshake + TLS 1.3 handshake into a single 1-RTT exchange. Connection IDs (not socket 4-tuples) identify connections, enabling migration across network changes.</div>
+
+  <div class="takeaway">
+    <strong>Takeaways</strong>
+    <ul>
+      <li>QUIC's three killer features: (1) per-stream HOL avoidance, (2) connection migration via connection IDs, (3) 1-RTT handshake (0-RTT on resumption).</li>
+      <li>Per-stream HOL: QUIC implements reliability per-stream, not per-connection. Losing a packet on stream A only blocks stream A; streams B and C continue unimpeded. This is the fundamental improvement over HTTP/2-over-TCP.</li>
+      <li>Connection migration: QUIC identifies connections by a connection ID, not by (src IP, src port, dst IP, dst port). When a mobile device switches from Wi-Fi to cellular, the IP changes but the connection ID stays -- no re-handshake needed.</li>
+      <li>0-RTT: returning clients send application data in the first packet using a PSK. Same replay caveat as TLS 1.3 0-RTT: only safe for idempotent operations.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- TAB 6: gRPC                                                   -->
+<!-- ============================================================ -->
+<section data-tab="grpc" hidden>
+  <h2>gRPC: HTTP/2 + Protobuf + Streaming</h2>
+  <p>gRPC builds on HTTP/2 for transport and Protocol Buffers for serialization. Four method types cover every service-to-service communication pattern. Browsers cannot speak native gRPC (no HTTP/2 trailer support); use gRPC-Web or REST for browser clients.</p>
+
+  <svg id="grpc-svg" viewBox="0 0 800 480" preserveAspectRatio="xMidYMid meet">
+    <g id="grpc-scene"></g>
+  </svg>
+
+  <div class="controls">
+    <button onclick="GRPC.showMethods()">4 Method Types</button>
+    <button onclick="GRPC.showComparison()">gRPC vs REST</button>
+    <button onclick="GRPC.reset()">Reset</button>
+  </div>
+
+  <div class="commentary" id="grpc-commentary">gRPC uses HTTP/2 streams for multiplexing and Protobuf for compact binary serialization. Each RPC method maps to an HTTP/2 stream. Metadata travels in HTTP/2 headers; responses end with trailers carrying status codes.</div>
+
+  <div class="takeaway">
+    <strong>Takeaways</strong>
+    <ul>
+      <li>gRPC = HTTP/2 + Protobuf for service-to-service. Schema-first (proto files), code-gen for clients/servers, strong typing.</li>
+      <li>Four method types: unary (request/response), server-streaming (one request, stream of responses), client-streaming (stream of requests, one response), bidirectional streaming (both sides stream).</li>
+      <li>Browsers cannot speak native gRPC -- they lack HTTP/2 trailer support. gRPC-Web is a compatibility layer (proxy translates). For browser-facing APIs, use REST or GraphQL; gRPC for backend-to-backend.</li>
+      <li>gRPC uses HTTP/2 under the hood, so it inherits TCP-level HOL blocking. For latency-critical paths, gRPC-over-QUIC is emerging but not yet mainstream.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- JAVASCRIPT: ALL TABS                                          -->
+<!-- ============================================================ -->
+<script>
+/* ================================================================
+   TAB 1: TCP
+   ================================================================ */
+var TCP = (function() {
+  var step = 0;
+  var maxStep = 10;
+  var autoTimer = null;
+  var demoMode = null;
+
+  var steps = [
+    { y: 60, dir: 'right', label: 'SYN  seq=100', color: 'var(--accent-blue)', marker: 'tcp-arrow',
+      clientState: 'SYN_SENT', serverState: 'LISTEN',
+      commentary: 'Client sends SYN with initial sequence number (ISN=100). Client enters SYN_SENT state. The ISN is random in practice to prevent sequence prediction attacks.' },
+    { y: 110, dir: 'left', label: 'SYN-ACK  seq=300, ack=101', color: 'var(--accent-green)', marker: 'tcp-arrow-green',
+      clientState: 'SYN_SENT', serverState: 'SYN_RCVD',
+      commentary: 'Server responds with SYN-ACK: its own ISN (300) and acknowledges client\'s ISN+1 (101). Server enters SYN_RCVD. This is the half-open state -- server allocates resources here (the SYN flood vulnerability).' },
+    { y: 160, dir: 'right', label: 'ACK  ack=301', color: 'var(--accent-blue)', marker: 'tcp-arrow',
+      clientState: 'ESTABLISHED', serverState: 'ESTABLISHED',
+      commentary: 'Client sends ACK (ack=301). Connection ESTABLISHED on both sides. 1 RTT elapsed. Client can piggyback data on this ACK segment.' },
+    { y: 220, dir: 'right', label: 'DATA  "GET /index.html"', color: 'var(--accent-cyan)', marker: 'tcp-arrow',
+      clientState: 'ESTABLISHED', serverState: 'ESTABLISHED',
+      commentary: 'Data flows. Each segment carries a sequence number for ordering and an ACK for the other side\'s data. TCP guarantees in-order, reliable delivery.' },
+    { y: 260, dir: 'left', label: 'DATA  "200 OK + body"', color: 'var(--accent-cyan)', marker: 'tcp-arrow-green',
+      clientState: 'ESTABLISHED', serverState: 'ESTABLISHED',
+      commentary: 'Server responds with data. ACKs are cumulative: ack=N means "I have received all bytes up to N-1, send me byte N next."' },
+    { y: 320, dir: 'right', label: 'ACK', color: 'var(--accent-blue)', marker: 'tcp-arrow',
+      clientState: 'ESTABLISHED', serverState: 'ESTABLISHED',
+      commentary: 'Client ACKs the response. Data transfer complete. Now the client initiates connection teardown.' },
+    { y: 380, dir: 'right', label: 'FIN', color: 'var(--accent-orange)', marker: 'tcp-arrow-orange',
+      clientState: 'FIN_WAIT_1', serverState: 'ESTABLISHED',
+      commentary: 'Teardown begins. Client sends FIN, enters FIN_WAIT_1. "I have no more data to send." The 4-way close begins.' },
+    { y: 420, dir: 'left', label: 'ACK', color: 'var(--accent-orange)', marker: 'tcp-arrow-orange',
+      clientState: 'FIN_WAIT_2', serverState: 'CLOSE_WAIT',
+      commentary: 'Server ACKs the FIN. Client enters FIN_WAIT_2. Server enters CLOSE_WAIT -- it can still send data if needed (half-close).' },
+    { y: 460, dir: 'left', label: 'FIN', color: 'var(--accent-orange)', marker: 'tcp-arrow-orange',
+      clientState: 'FIN_WAIT_2', serverState: 'LAST_ACK',
+      commentary: 'Server sends its own FIN. "I also have no more data." Server enters LAST_ACK, waiting for the final ACK.' },
+    { y: 500, dir: 'right', label: 'ACK', color: 'var(--accent-orange)', marker: 'tcp-arrow-orange',
+      clientState: 'TIME_WAIT', serverState: 'CLOSED',
+      commentary: 'Client sends final ACK and enters TIME_WAIT (2 x MSL, typically 60s). Server enters CLOSED immediately. TIME_WAIT ensures straggler segments from this connection don\'t corrupt a future connection on the same port.' },
+    { y: 555, dir: 'none', label: '', color: '',
+      clientState: 'CLOSED', serverState: '',
+      commentary: 'After 2 x MSL (60s), client transitions from TIME_WAIT to CLOSED. The connection is fully terminated. On high-traffic servers, thousands of sockets in TIME_WAIT can exhaust ephemeral ports.' }
+  ];
+
+  function render() {
+    var msgG = document.getElementById('tcp-messages');
+    var stG = document.getElementById('tcp-states');
+    msgG.innerHTML = '';
+    stG.innerHTML = '';
+    var clientX = 160, serverX = 640;
+
+    // RTT brackets
+    if (step >= 2) {
+      // Handshake bracket
+      var bx = 30;
+      msgG.innerHTML += '<line x1="'+bx+'" y1="60" x2="'+bx+'" y2="160" stroke="var(--accent-blue)" stroke-width="1.5" stroke-dasharray="4,3"/>';
+      msgG.innerHTML += '<line x1="'+(bx-6)+'" y1="60" x2="'+(bx+6)+'" y2="60" stroke="var(--accent-blue)" stroke-width="1.5"/>';
+      msgG.innerHTML += '<line x1="'+(bx-6)+'" y1="160" x2="'+(bx+6)+'" y2="160" stroke="var(--accent-blue)" stroke-width="1.5"/>';
+      msgG.innerHTML += '<text x="'+(bx+2)+'" y="115" fill="var(--accent-blue)" font-size="11" transform="rotate(-90,'+(bx+2)+',115)" text-anchor="middle">1 RTT</text>';
+    }
+
+    for (var i = 0; i < step && i < steps.length; i++) {
+      var s = steps[i];
+      if (s.dir === 'none') continue;
+      var x1 = s.dir === 'right' ? clientX : serverX;
+      var x2 = s.dir === 'right' ? serverX : clientX;
+      var opacity = (i === step - 1) ? 1 : 0.5;
+
+      msgG.innerHTML += '<line x1="'+x1+'" y1="'+s.y+'" x2="'+x2+'" y2="'+(s.y+20)+'" stroke="'+s.color+'" stroke-width="2" marker-end="url(#'+s.marker+')" opacity="'+opacity+'"/>';
+      var labelX = (x1 + x2) / 2;
+      var labelY = s.y + 5;
+      msgG.innerHTML += '<text x="'+labelX+'" y="'+labelY+'" text-anchor="middle" fill="'+s.color+'" font-size="11" font-weight="600" opacity="'+opacity+'">'+s.label+'</text>';
+    }
+
+    // State labels for current step
+    if (step > 0 && step <= steps.length) {
+      var cur = steps[step - 1];
+      if (cur.clientState) {
+        stG.innerHTML += '<rect x="'+(clientX - 60)+'" y="'+(cur.y + 22)+'" width="120" height="20" rx="3" fill="var(--surface-2)" stroke="var(--border)" stroke-width="1"/>';
+        stG.innerHTML += '<text x="'+clientX+'" y="'+(cur.y + 36)+'" text-anchor="middle" fill="var(--accent-cyan)" font-size="10" font-weight="600">'+cur.clientState+'</text>';
+      }
+      if (cur.serverState) {
+        stG.innerHTML += '<rect x="'+(serverX - 60)+'" y="'+(cur.y + 22)+'" width="120" height="20" rx="3" fill="var(--surface-2)" stroke="var(--border)" stroke-width="1"/>';
+        stG.innerHTML += '<text x="'+serverX+'" y="'+(cur.y + 36)+'" text-anchor="middle" fill="var(--accent-cyan)" font-size="10" font-weight="600">'+cur.serverState+'</text>';
+      }
+    }
+
+    // Divider labels
+    if (step >= 3) {
+      msgG.innerHTML += '<text x="400" y="205" text-anchor="middle" fill="var(--text-3)" font-size="10" font-style="italic">--- data transfer ---</text>';
+    }
+    if (step >= 7) {
+      msgG.innerHTML += '<text x="400" y="365" text-anchor="middle" fill="var(--text-3)" font-size="10" font-style="italic">--- 4-way teardown ---</text>';
+    }
+
+    document.getElementById('tcp-step-counter').textContent = 'Step ' + step + ' / ' + maxStep;
+    document.getElementById('tcp-prev').disabled = step === 0;
+    document.getElementById('tcp-next').disabled = step >= maxStep;
+
+    if (step > 0 && step <= steps.length) {
+      document.getElementById('tcp-commentary').textContent = steps[step - 1].commentary;
+    }
+  }
+
+  function next() {
+    if (demoMode) { demoMode = null; }
+    if (step < maxStep) { step++; render(); }
+  }
+  function prev() {
+    if (demoMode) { demoMode = null; }
+    if (step > 0) { step--; render(); }
+  }
+  function autoPlay() {
+    if (autoTimer) { clearInterval(autoTimer); autoTimer = null; return; }
+    if (step >= maxStep) step = 0;
+    autoTimer = setInterval(function() {
+      if (step >= maxStep) { clearInterval(autoTimer); autoTimer = null; return; }
+      step++; render();
+    }, 1200);
+  }
+  function reset() {
+    if (autoTimer) { clearInterval(autoTimer); autoTimer = null; }
+    demoMode = null;
+    step = 0;
+    render();
+    document.getElementById('tcp-commentary').textContent = 'Click "Next Step" to walk through the TCP 3-way handshake, data transfer, and 4-way teardown. Each arrow is one segment; the handshake costs 1 RTT before data can flow.';
+  }
+
+  function showDemo(mode) {
+    if (autoTimer) { clearInterval(autoTimer); autoTimer = null; }
+    demoMode = mode;
+    var msgG = document.getElementById('tcp-messages');
+    var stG = document.getElementById('tcp-states');
+    msgG.innerHTML = '';
+    stG.innerHTML = '';
+
+    if (mode === 'synflood') {
+      renderSynFlood(msgG);
+    } else if (mode === 'timewait') {
+      renderTimeWait(msgG);
+    } else if (mode === 'congestion') {
+      renderCongestion(msgG);
+    }
+  }
+
+  function renderSynFlood(g) {
+    var svg = document.getElementById('tcp-svg');
+    svg.setAttribute('viewBox', '0 0 800 550');
+    var serverX = 580, attackerX = 100;
+    // Attacker
+    g.innerHTML += '<rect x="40" y="20" width="120" height="40" rx="6" fill="var(--surface)" stroke="var(--accent-red)" stroke-width="2"/>';
+    g.innerHTML += '<text x="100" y="45" text-anchor="middle" fill="var(--accent-red)" font-size="13" font-weight="600">Attacker</text>';
+    // Server
+    g.innerHTML += '<rect x="520" y="20" width="120" height="40" rx="6" fill="var(--surface)" stroke="var(--accent-blue)" stroke-width="2"/>';
+    g.innerHTML += '<text x="580" y="45" text-anchor="middle" fill="var(--accent-blue)" font-size="13" font-weight="600">Server</text>';
+    g.innerHTML += '<line x1="'+attackerX+'" y1="65" x2="'+attackerX+'" y2="400" stroke="var(--border)" stroke-width="2"/>';
+    g.innerHTML += '<line x1="'+serverX+'" y1="65" x2="'+serverX+'" y2="400" stroke="var(--border)" stroke-width="2"/>';
+
+    // SYN flood: many SYNs, spoofed source
+    var colors = ['#ff6b6b','#ff8787','#ffa8a8','#ffb3b3','#ffc9c9'];
+    for (var i = 0; i < 5; i++) {
+      var y = 90 + i * 40;
+      g.innerHTML += '<line x1="'+attackerX+'" y1="'+y+'" x2="'+serverX+'" y2="'+(y+15)+'" stroke="'+colors[i]+'" stroke-width="2" marker-end="url(#tcp-arrow-red)"/>';
+      g.innerHTML += '<text x="340" y="'+(y+3)+'" text-anchor="middle" fill="'+colors[i]+'" font-size="10" font-weight="600">SYN (spoofed src '+(i+1)+')</text>';
+    }
+
+    // Server state table
+    var tableY = 310;
+    g.innerHTML += '<rect x="440" y="'+tableY+'" width="280" height="80" rx="6" fill="var(--surface-2)" stroke="var(--accent-red)" stroke-width="1.5" stroke-dasharray="4,3"/>';
+    g.innerHTML += '<text x="580" y="'+(tableY+20)+'" text-anchor="middle" fill="var(--accent-red)" font-size="12" font-weight="700">Half-Open Connection Table</text>';
+    g.innerHTML += '<text x="580" y="'+(tableY+40)+'" text-anchor="middle" fill="var(--text-3)" font-size="11">SYN_RCVD x 5 (waiting for ACKs...)</text>';
+    g.innerHTML += '<text x="580" y="'+(tableY+58)+'" text-anchor="middle" fill="var(--accent-red)" font-size="11" font-weight="600">Memory exhausted -- legit clients rejected</text>';
+
+    // SYN cookies solution
+    g.innerHTML += '<rect x="60" y="420" width="680" height="100" rx="8" fill="#1a1a22" stroke="var(--accent-green)" stroke-width="1.5"/>';
+    g.innerHTML += '<text x="400" y="445" text-anchor="middle" fill="var(--accent-green)" font-size="13" font-weight="700">Mitigation: SYN Cookies</text>';
+    g.innerHTML += '<text x="400" y="468" text-anchor="middle" fill="var(--text-2)" font-size="11">Server encodes connection state (ISN, MSS, timestamp) into the SYN-ACK\'s sequence number.</text>';
+    g.innerHTML += '<text x="400" y="488" text-anchor="middle" fill="var(--text-2)" font-size="11">No memory allocated on SYN. State reconstructed from the ACK\'s ack field when it arrives.</text>';
+    g.innerHTML += '<text x="400" y="508" text-anchor="middle" fill="var(--text-3)" font-size="10">Trade-off: lose TCP options negotiation (window scale, SACK) until connection is established.</text>';
+
+    document.getElementById('tcp-commentary').textContent = 'SYN flood: attacker sends thousands of SYN packets with spoofed source IPs. Server allocates a Transmission Control Block (TCB) for each, entering SYN_RCVD. ACKs never arrive (spoofed sources). The half-open table fills up, rejecting legitimate connections. SYN cookies encode the TCB state in the ISN of the SYN-ACK, so no memory is allocated until a valid ACK returns.';
+    document.getElementById('tcp-step-counter').textContent = 'Demo: SYN Flood';
+  }
+
+  function renderTimeWait(g) {
+    var svg = document.getElementById('tcp-svg');
+    svg.setAttribute('viewBox', '0 0 800 500');
+    // Show multiple connections in TIME_WAIT
+    g.innerHTML += '<text x="400" y="30" text-anchor="middle" fill="#fff" font-size="14" font-weight="700">High-Traffic Client: Ephemeral Port Exhaustion</text>';
+
+    var ports = ['49152', '49153', '49154', '49155', '49156', '49157', '49158', '49159'];
+    var states = ['TIME_WAIT', 'TIME_WAIT', 'TIME_WAIT', 'TIME_WAIT', 'TIME_WAIT', 'TIME_WAIT', 'ESTABLISHED', 'CLOSED'];
+    var stColors = { 'TIME_WAIT': 'var(--accent-orange)', 'ESTABLISHED': 'var(--accent-green)', 'CLOSED': 'var(--text-3)' };
+
+    for (var i = 0; i < ports.length; i++) {
+      var y = 60 + i * 42;
+      var st = states[i];
+      var c = stColors[st];
+      g.innerHTML += '<rect x="60" y="'+y+'" width="120" height="32" rx="4" fill="var(--surface-2)" stroke="'+c+'" stroke-width="1.5"/>';
+      g.innerHTML += '<text x="120" y="'+(y+21)+'" text-anchor="middle" fill="'+c+'" font-size="12" font-weight="600">:'+ports[i]+'</text>';
+      g.innerHTML += '<rect x="250" y="'+y+'" width="130" height="32" rx="4" fill="var(--surface-2)" stroke="var(--border)" stroke-width="1"/>';
+      g.innerHTML += '<text x="315" y="'+(y+21)+'" text-anchor="middle" fill="'+c+'" font-size="11" font-weight="600">'+st+'</text>';
+      if (st === 'TIME_WAIT') {
+        g.innerHTML += '<text x="420" y="'+(y+21)+'" fill="var(--text-3)" font-size="10">60s remaining...</text>';
+        g.innerHTML += '<rect x="540" y="'+y+'" width="200" height="32" rx="4" fill="none" stroke="var(--accent-red)" stroke-width="1" stroke-dasharray="3,3"/>';
+        g.innerHTML += '<text x="640" y="'+(y+21)+'" text-anchor="middle" fill="var(--accent-red)" font-size="10">port LOCKED</text>';
+      }
+    }
+
+    var bottomY = 400;
+    g.innerHTML += '<rect x="60" y="'+bottomY+'" width="680" height="80" rx="8" fill="#1a1a22" stroke="var(--accent-green)" stroke-width="1.5"/>';
+    g.innerHTML += '<text x="400" y="'+(bottomY+22)+'" text-anchor="middle" fill="var(--accent-green)" font-size="13" font-weight="700">Mitigations</text>';
+    g.innerHTML += '<text x="400" y="'+(bottomY+42)+'" text-anchor="middle" fill="var(--text-2)" font-size="11">SO_REUSEADDR: allow binding to a port in TIME_WAIT (safe for servers, standard practice).</text>';
+    g.innerHTML += '<text x="400" y="'+(bottomY+60)+'" text-anchor="middle" fill="var(--text-2)" font-size="11">tcp_tw_reuse (Linux): reuse TIME_WAIT sockets for new outgoing connections if timestamps allow.</text>';
+
+    document.getElementById('tcp-commentary').textContent = 'On connection-heavy clients (load balancers, crawlers, microservices making many short-lived connections), the initiator of close enters TIME_WAIT for 60s. With ~65k ephemeral ports and 60s hold, max throughput is ~1000 new connections/sec before port exhaustion. SO_REUSEADDR (for servers) and tcp_tw_reuse (for clients) are standard mitigations.';
+    document.getElementById('tcp-step-counter').textContent = 'Demo: TIME_WAIT';
+  }
+
+  function renderCongestion(g) {
+    var svg = document.getElementById('tcp-svg');
+    svg.setAttribute('viewBox', '0 0 800 480');
+    g.innerHTML += '<text x="400" y="30" text-anchor="middle" fill="#fff" font-size="14" font-weight="700">Congestion Window (cwnd) Over Time</text>';
+
+    // Draw axes
+    var ox = 80, oy = 380, w = 650, h = 320;
+    g.innerHTML += '<line x1="'+ox+'" y1="'+oy+'" x2="'+(ox+w)+'" y2="'+oy+'" stroke="var(--text-3)" stroke-width="1.5"/>';
+    g.innerHTML += '<line x1="'+ox+'" y1="'+oy+'" x2="'+ox+'" y2="'+(oy-h)+'" stroke="var(--text-3)" stroke-width="1.5"/>';
+    g.innerHTML += '<text x="'+(ox+w/2)+'" y="'+(oy+35)+'" text-anchor="middle" fill="var(--text-3)" font-size="12">Time (RTTs)</text>';
+    g.innerHTML += '<text x="'+(ox-10)+'" y="'+(oy-h/2)+'" text-anchor="middle" fill="var(--text-3)" font-size="12" transform="rotate(-90,'+(ox-10)+','+(oy-h/2)+')">cwnd (segments)</text>';
+
+    // Slow start threshold
+    var ssthreshY = oy - 160;
+    g.innerHTML += '<line x1="'+ox+'" y1="'+ssthreshY+'" x2="'+(ox+w)+'" y2="'+ssthreshY+'" stroke="var(--accent-yellow)" stroke-width="1" stroke-dasharray="6,4"/>';
+    g.innerHTML += '<text x="'+(ox+w+5)+'" y="'+(ssthreshY+4)+'" fill="var(--accent-yellow)" font-size="10">ssthresh</text>';
+
+    // Slow start (exponential: 1,2,4,8,16,32 segments)
+    var pts = [
+      {x:0,y:1},{x:1,y:2},{x:2,y:4},{x:3,y:8},{x:4,y:16},{x:5,y:32},
+      // Congestion avoidance (linear: 33,34,35,36,37,38)
+      {x:6,y:33},{x:7,y:34},{x:8,y:35},{x:9,y:36},{x:10,y:37},{x:11,y:38},
+      // Loss event: multiplicative decrease
+      {x:11.01,y:19},
+      // Recovery (linear again)
+      {x:12,y:20},{x:13,y:21},{x:14,y:22},{x:15,y:23},{x:16,y:24},{x:17,y:25},{x:18,y:26}
+    ];
+
+    var scaleX = w / 20;
+    var scaleY = h / 45;
+
+    // Draw the path
+    var pathD = '';
+    for (var i = 0; i < pts.length; i++) {
+      var px = ox + pts[i].x * scaleX;
+      var py = oy - pts[i].y * scaleY;
+      pathD += (i === 0 ? 'M' : 'L') + px + ',' + py + ' ';
+    }
+    g.innerHTML += '<path d="'+pathD+'" fill="none" stroke="var(--accent-blue)" stroke-width="2.5"/>';
+
+    // Labels
+    // Slow start region
+    g.innerHTML += '<rect x="'+(ox+10)+'" y="'+(oy-100)+'" width="140" height="28" rx="4" fill="var(--surface-2)" stroke="var(--accent-green)" stroke-width="1"/>';
+    g.innerHTML += '<text x="'+(ox+80)+'" y="'+(oy-82)+'" text-anchor="middle" fill="var(--accent-green)" font-size="11" font-weight="600">Slow Start (2x/RTT)</text>';
+
+    // Congestion avoidance
+    g.innerHTML += '<rect x="'+(ox+scaleX*6)+'" y="'+(oy-260)+'" width="170" height="28" rx="4" fill="var(--surface-2)" stroke="var(--accent-cyan)" stroke-width="1"/>';
+    g.innerHTML += '<text x="'+(ox+scaleX*6+85)+'" y="'+(oy-242)+'" text-anchor="middle" fill="var(--accent-cyan)" font-size="11" font-weight="600">Congestion Avoidance (+1/RTT)</text>';
+
+    // Loss event
+    var lossX = ox + 11 * scaleX;
+    var lossY1 = oy - 38 * scaleY;
+    var lossY2 = oy - 19 * scaleY;
+    g.innerHTML += '<line x1="'+lossX+'" y1="'+lossY1+'" x2="'+lossX+'" y2="'+lossY2+'" stroke="var(--accent-red)" stroke-width="2" stroke-dasharray="4,3"/>';
+    g.innerHTML += '<text x="'+(lossX+8)+'" y="'+((lossY1+lossY2)/2)+'" fill="var(--accent-red)" font-size="11" font-weight="600">LOSS</text>';
+    g.innerHTML += '<text x="'+(lossX+8)+'" y="'+((lossY1+lossY2)/2+14)+'" fill="var(--accent-red)" font-size="10">cwnd /= 2</text>';
+
+    // Recovery
+    g.innerHTML += '<rect x="'+(ox+scaleX*14)+'" y="'+(oy-200)+'" width="120" height="28" rx="4" fill="var(--surface-2)" stroke="var(--accent-orange)" stroke-width="1"/>';
+    g.innerHTML += '<text x="'+(ox+scaleX*14+60)+'" y="'+(oy-182)+'" text-anchor="middle" fill="var(--accent-orange)" font-size="11" font-weight="600">Recovery (+1/RTT)</text>';
+
+    // BBR / CUBIC note
+    g.innerHTML += '<rect x="60" y="420" width="680" height="50" rx="6" fill="#1a1a22" stroke="var(--accent-purple)" stroke-width="1"/>';
+    g.innerHTML += '<text x="400" y="440" text-anchor="middle" fill="var(--accent-purple)" font-size="12" font-weight="600">CUBIC (Linux default): cubic function for faster recovery. BBR (Google): models bandwidth + RTT directly, not loss-based.</text>';
+    g.innerHTML += '<text x="400" y="458" text-anchor="middle" fill="var(--text-3)" font-size="11">Interview relevance: "TCP is slow" usually means congestion control on high-latency/lossy links. BBR helps.</text>';
+
+    document.getElementById('tcp-commentary').textContent = 'Congestion control: slow start doubles cwnd each RTT (exponential growth) until ssthresh. Then congestion avoidance adds 1 segment per RTT (linear). On packet loss, cwnd is halved (multiplicative decrease) and ssthresh is reset. This AIMD (Additive Increase, Multiplicative Decrease) is the classic Reno/NewReno behavior. CUBIC uses a cubic function for faster recovery after loss. BBR models available bandwidth and RTT directly instead of reacting to loss.';
+    document.getElementById('tcp-step-counter').textContent = 'Demo: Congestion Window';
+  }
+
+  render();
+  return { next: next, prev: prev, autoPlay: autoPlay, reset: reset, showDemo: showDemo };
+})();
+
+/* ================================================================
+   TAB 2: TLS
+   ================================================================ */
+var TLS = (function() {
+  var step = 0;
+  var maxStep = 7;
+  var autoTimer = null;
+  var demoMode = null;
+
+  var steps12 = [
+    { y: 60, dir: 'right', label: 'ClientHello', sub: 'cipher suites, random, TLS version', color: 'var(--accent-orange)' },
+    { y: 130, dir: 'left', label: 'ServerHello + Certificate', sub: 'chosen cipher, server random, cert chain', color: 'var(--accent-orange)' },
+    { y: 190, dir: 'left', label: 'ServerKeyExchange + Done', sub: 'DH params (if DHE), "your turn"', color: 'var(--accent-orange)' },
+    { y: 260, dir: 'right', label: 'ClientKeyExchange', sub: 'client DH public value / premaster secret', color: 'var(--accent-orange)' },
+    { y: 310, dir: 'right', label: 'ChangeCipherSpec + Finished', sub: 'switch to encrypted, verify handshake', color: 'var(--accent-orange)' },
+    { y: 370, dir: 'left', label: 'ChangeCipherSpec + Finished', sub: 'server also switches, verify', color: 'var(--accent-orange)' },
+    { y: 440, dir: 'both', label: 'Encrypted Application Data', sub: '2 RTTs elapsed before first byte', color: 'var(--accent-green)' }
+  ];
+
+  var steps13 = [
+    { y: 60, dir: 'right', label: 'ClientHello', sub: 'cipher suites + key_share (guessed curve)', color: 'var(--accent-green)' },
+    { y: 130, dir: 'none', label: '', sub: '' },
+    { y: 190, dir: 'none', label: '', sub: '' },
+    { y: 190, dir: 'left', label: 'ServerHello + key_share', sub: 'chosen cipher, server key share', color: 'var(--accent-green)' },
+    { y: 260, dir: 'left', label: 'EncryptedExt + Cert + Finished', sub: 'all encrypted from here; server can send data', color: 'var(--accent-green)' },
+    { y: 340, dir: 'right', label: 'Client Finished + App Data', sub: '1 RTT total; client piggybacks data', color: 'var(--accent-green)' },
+    { y: 410, dir: 'both', label: 'Encrypted Application Data', sub: '1 RTT elapsed -- faster than TLS 1.2', color: 'var(--accent-green)' }
+  ];
+
+  var commentaries = [
+    'ClientHello: client proposes cipher suites and sends a random nonce. TLS 1.3 also includes a key_share extension (guessing the server\'s preferred curve), enabling 1-RTT completion.',
+    'TLS 1.2: Server responds with ServerHello (chosen cipher, random) + Certificate (server\'s public key chain for authentication). | TLS 1.3: nothing yet -- server is processing.',
+    'TLS 1.2: ServerKeyExchange sends DH parameters (for DHE/ECDHE), then ServerHelloDone signals the client to proceed. | TLS 1.3: server sends ServerHello + key_share in one flight.',
+    'TLS 1.2: Client sends its DH public value. Both sides now compute the premaster secret. | TLS 1.3: Server sends EncryptedExtensions + Certificate + CertificateVerify + Finished, all in one flight. Data can begin flowing from server.',
+    'TLS 1.2: ChangeCipherSpec switches to encryption. Finished message verifies the handshake integrity. | TLS 1.3: Server already sent encrypted data in step 4.',
+    'TLS 1.2: Server echoes ChangeCipherSpec + Finished. Now both sides are encrypted. 2 RTTs consumed. | TLS 1.3: Client sends Finished + first application data. 1 RTT total.',
+    'Application data flows. TLS 1.2 took 2 RTTs; TLS 1.3 took 1 RTT. On a 50ms RTT link, that\'s 50ms saved per new connection -- significant at scale.'
+  ];
+
+  function renderSVG(svgId, steps, prefix) {
+    var g = document.getElementById(prefix + '-messages');
+    var sg = document.getElementById(prefix + '-states');
+    g.innerHTML = '';
+    sg.innerHTML = '';
+    var cX = 100, sX = 320;
+
+    // RTT brackets
+    if (prefix === 'tls12' && step >= 6) {
+      g.innerHTML += '<line x1="30" y1="60" x2="30" y2="260" stroke="var(--accent-orange)" stroke-width="1.5" stroke-dasharray="4,3"/>';
+      g.innerHTML += '<text x="25" y="165" fill="var(--accent-orange)" font-size="10" transform="rotate(-90,25,165)" text-anchor="middle">RTT 1</text>';
+      g.innerHTML += '<line x1="30" y1="270" x2="30" y2="440" stroke="var(--accent-orange)" stroke-width="1.5" stroke-dasharray="4,3"/>';
+      g.innerHTML += '<text x="25" y="360" fill="var(--accent-orange)" font-size="10" transform="rotate(-90,25,360)" text-anchor="middle">RTT 2</text>';
+    }
+    if (prefix === 'tls13' && step >= 6) {
+      g.innerHTML += '<line x1="30" y1="60" x2="30" y2="340" stroke="var(--accent-green)" stroke-width="1.5" stroke-dasharray="4,3"/>';
+      g.innerHTML += '<text x="25" y="200" fill="var(--accent-green)" font-size="10" transform="rotate(-90,25,200)" text-anchor="middle">1 RTT</text>';
+    }
+
+    for (var i = 0; i < step && i < steps.length; i++) {
+      var s = steps[i];
+      if (s.dir === 'none') continue;
+      var opacity = (i === step - 1) ? 1 : 0.45;
+
+      if (s.dir === 'both') {
+        g.innerHTML += '<rect x="'+(cX-5)+'" y="'+(s.y-5)+'" width="'+(sX-cX+10)+'" height="30" rx="4" fill="rgba(81,207,102,0.1)" stroke="var(--accent-green)" stroke-width="1" stroke-dasharray="4,3" opacity="'+opacity+'"/>';
+        g.innerHTML += '<text x="'+((cX+sX)/2)+'" y="'+(s.y+10)+'" text-anchor="middle" fill="var(--accent-green)" font-size="11" font-weight="600" opacity="'+opacity+'">'+s.label+'</text>';
+        g.innerHTML += '<text x="'+((cX+sX)/2)+'" y="'+(s.y+25)+'" text-anchor="middle" fill="var(--text-3)" font-size="9" opacity="'+opacity+'">'+s.sub+'</text>';
+        continue;
+      }
+
+      var x1 = s.dir === 'right' ? cX : sX;
+      var x2 = s.dir === 'right' ? sX : cX;
+      var mid = (x1 + x2) / 2;
+      g.innerHTML += '<line x1="'+x1+'" y1="'+s.y+'" x2="'+x2+'" y2="'+(s.y+20)+'" stroke="'+s.color+'" stroke-width="2" marker-end="url(#'+prefix+'-arrow)" opacity="'+opacity+'"/>';
+      g.innerHTML += '<text x="'+mid+'" y="'+(s.y-2)+'" text-anchor="middle" fill="'+s.color+'" font-size="10" font-weight="600" opacity="'+opacity+'">'+s.label+'</text>';
+      g.innerHTML += '<text x="'+mid+'" y="'+(s.y+38)+'" text-anchor="middle" fill="var(--text-3)" font-size="9" opacity="'+opacity+'">'+s.sub+'</text>';
+    }
+  }
+
+  function render() {
+    renderSVG('tls12-svg', steps12, 'tls12');
+    renderSVG('tls13-svg', steps13, 'tls13');
+    document.getElementById('tls-step-counter').textContent = 'Step ' + step + ' / ' + maxStep;
+    document.getElementById('tls-prev').disabled = step === 0;
+    document.getElementById('tls-next').disabled = step >= maxStep;
+    if (step > 0) {
+      document.getElementById('tls-commentary').textContent = commentaries[step - 1];
+    }
+  }
+
+  function next() {
+    demoMode = null;
+    if (step < maxStep) { step++; render(); }
+  }
+  function prev() {
+    demoMode = null;
+    if (step > 0) { step--; render(); }
+  }
+  function autoPlay() {
+    if (autoTimer) { clearInterval(autoTimer); autoTimer = null; return; }
+    if (step >= maxStep) step = 0;
+    autoTimer = setInterval(function() {
+      if (step >= maxStep) { clearInterval(autoTimer); autoTimer = null; return; }
+      step++; render();
+    }, 1500);
+  }
+  function reset() {
+    if (autoTimer) { clearInterval(autoTimer); autoTimer = null; }
+    demoMode = null;
+    step = 0;
+    render();
+    document.getElementById('tls-commentary').textContent = 'Click "Next Step" to compare TLS 1.2 and 1.3 handshakes side-by-side. Watch the RTT count: 1.3 saves a full round trip by sending the key share upfront.';
+  }
+
+  function showZeroRTT() {
+    if (autoTimer) { clearInterval(autoTimer); autoTimer = null; }
+    demoMode = 'zrtt';
+    step = 0;
+    var g12 = document.getElementById('tls12-messages');
+    var g13 = document.getElementById('tls13-messages');
+    var s12 = document.getElementById('tls12-states');
+    var s13 = document.getElementById('tls13-states');
+    g12.innerHTML = ''; s12.innerHTML = '';
+    g13.innerHTML = ''; s13.innerHTML = '';
+
+    // TLS 1.2 side: session ticket resumption
+    g12.innerHTML += '<text x="210" y="60" text-anchor="middle" fill="var(--accent-orange)" font-size="13" font-weight="700">Session Ticket (1.2)</text>';
+    g12.innerHTML += '<line x1="100" y1="90" x2="320" y2="110" stroke="var(--accent-orange)" stroke-width="2" marker-end="url(#tls12-arrow)"/>';
+    g12.innerHTML += '<text x="210" y="85" text-anchor="middle" fill="var(--accent-orange)" font-size="10" font-weight="600">ClientHello + session ticket</text>';
+    g12.innerHTML += '<line x1="320" y1="140" x2="100" y2="160" stroke="var(--accent-orange)" stroke-width="2" marker-end="url(#tls12-arrow)"/>';
+    g12.innerHTML += '<text x="210" y="135" text-anchor="middle" fill="var(--accent-orange)" font-size="10" font-weight="600">ServerHello + ChangeCipherSpec</text>';
+    g12.innerHTML += '<line x1="100" y1="190" x2="320" y2="210" stroke="var(--accent-orange)" stroke-width="2" marker-end="url(#tls12-arrow)"/>';
+    g12.innerHTML += '<text x="210" y="185" text-anchor="middle" fill="var(--accent-orange)" font-size="10" font-weight="600">ChangeCipherSpec + Finished</text>';
+    g12.innerHTML += '<rect x="55" y="250" width="310" height="26" rx="4" fill="rgba(255,169,77,0.1)" stroke="var(--accent-orange)" stroke-width="1"/>';
+    g12.innerHTML += '<text x="210" y="268" text-anchor="middle" fill="var(--accent-orange)" font-size="11" font-weight="600">1 RTT -- saved 1 RTT vs full handshake</text>';
+    g12.innerHTML += '<text x="210" y="310" text-anchor="middle" fill="var(--text-3)" font-size="10">Still 1 RTT. Cannot send data before</text>';
+    g12.innerHTML += '<text x="210" y="325" text-anchor="middle" fill="var(--text-3)" font-size="10">handshake completes.</text>';
+
+    // TLS 1.3 side: 0-RTT
+    g13.innerHTML += '<text x="210" y="60" text-anchor="middle" fill="var(--accent-green)" font-size="13" font-weight="700">0-RTT Resumption (1.3)</text>';
+    g13.innerHTML += '<line x1="100" y1="90" x2="320" y2="110" stroke="var(--accent-green)" stroke-width="2" marker-end="url(#tls13-arrow)"/>';
+    g13.innerHTML += '<text x="210" y="85" text-anchor="middle" fill="var(--accent-green)" font-size="10" font-weight="600">ClientHello + PSK + early data</text>';
+    g13.innerHTML += '<rect x="130" y="105" width="140" height="20" rx="3" fill="rgba(81,207,102,0.15)" stroke="var(--accent-green)" stroke-width="1"/>';
+    g13.innerHTML += '<text x="200" y="119" text-anchor="middle" fill="var(--accent-green)" font-size="9" font-weight="600">GET /api/data (encrypted!)</text>';
+    g13.innerHTML += '<line x1="320" y1="160" x2="100" y2="180" stroke="var(--accent-green)" stroke-width="2" marker-end="url(#tls13-arrow)"/>';
+    g13.innerHTML += '<text x="210" y="155" text-anchor="middle" fill="var(--accent-green)" font-size="10" font-weight="600">ServerHello + Finished + response</text>';
+    g13.innerHTML += '<rect x="55" y="220" width="310" height="26" rx="4" fill="rgba(81,207,102,0.1)" stroke="var(--accent-green)" stroke-width="1"/>';
+    g13.innerHTML += '<text x="210" y="238" text-anchor="middle" fill="var(--accent-green)" font-size="11" font-weight="600">0 RTT -- data sent with first packet!</text>';
+
+    // Replay warning
+    g13.innerHTML += '<rect x="55" y="280" width="310" height="70" rx="6" fill="#2a1520" stroke="var(--accent-red)" stroke-width="1.5"/>';
+    g13.innerHTML += '<text x="210" y="300" text-anchor="middle" fill="var(--accent-red)" font-size="11" font-weight="700">Replay Vulnerability</text>';
+    g13.innerHTML += '<text x="210" y="318" text-anchor="middle" fill="var(--text-2)" font-size="10">0-RTT data can be captured and replayed.</text>';
+    g13.innerHTML += '<text x="210" y="334" text-anchor="middle" fill="var(--text-2)" font-size="10">Only safe for idempotent ops (GET, not POST).</text>';
+
+    document.getElementById('tls-commentary').textContent = '0-RTT resumption (TLS 1.3): client uses a Pre-Shared Key (PSK) from a previous session to encrypt application data in the very first packet. Server can respond immediately. But 0-RTT data lacks replay protection -- an attacker who captures the ClientHello can replay it. Only safe for idempotent operations. TLS 1.2 session tickets save 1 RTT but still cannot send data before handshake completion.';
+    document.getElementById('tls-step-counter').textContent = 'Demo: 0-RTT';
+  }
+
+  function showSessionResumption() {
+    if (autoTimer) { clearInterval(autoTimer); autoTimer = null; }
+    demoMode = 'session';
+    step = 0;
+    var g12 = document.getElementById('tls12-messages');
+    var g13 = document.getElementById('tls13-messages');
+    var s12 = document.getElementById('tls12-states');
+    var s13 = document.getElementById('tls13-states');
+    g12.innerHTML = ''; s12.innerHTML = '';
+    g13.innerHTML = ''; s13.innerHTML = '';
+
+    g12.innerHTML += '<text x="210" y="50" text-anchor="middle" fill="#fff" font-size="13" font-weight="700">Session ID Resumption</text>';
+    g12.innerHTML += '<text x="210" y="80" text-anchor="middle" fill="var(--text-3)" font-size="10">Server stores session state keyed by ID.</text>';
+    g12.innerHTML += '<text x="210" y="95" text-anchor="middle" fill="var(--text-3)" font-size="10">Works but costs server memory per session.</text>';
+    g12.innerHTML += '<rect x="80" y="110" width="260" height="60" rx="6" fill="var(--surface-2)" stroke="var(--border)" stroke-width="1"/>';
+    g12.innerHTML += '<text x="210" y="133" text-anchor="middle" fill="var(--accent-orange)" font-size="11" font-weight="600">Session ID Cache (server-side)</text>';
+    g12.innerHTML += '<text x="210" y="152" text-anchor="middle" fill="var(--text-3)" font-size="10">Problem: doesn\'t scale across servers</text>';
+
+    g12.innerHTML += '<text x="210" y="210" text-anchor="middle" fill="#fff" font-size="13" font-weight="700">Session Ticket (better)</text>';
+    g12.innerHTML += '<text x="210" y="240" text-anchor="middle" fill="var(--text-3)" font-size="10">Server encrypts session state into a ticket,</text>';
+    g12.innerHTML += '<text x="210" y="255" text-anchor="middle" fill="var(--text-3)" font-size="10">sends it to client. Client presents it next time.</text>';
+    g12.innerHTML += '<rect x="80" y="270" width="260" height="60" rx="6" fill="var(--surface-2)" stroke="var(--accent-green)" stroke-width="1"/>';
+    g12.innerHTML += '<text x="210" y="293" text-anchor="middle" fill="var(--accent-green)" font-size="11" font-weight="600">Stateless -- scales across servers</text>';
+    g12.innerHTML += '<text x="210" y="312" text-anchor="middle" fill="var(--text-3)" font-size="10">All servers share the ticket encryption key</text>';
+
+    g13.innerHTML += '<text x="210" y="50" text-anchor="middle" fill="#fff" font-size="13" font-weight="700">TLS 1.3: PSK (unified)</text>';
+    g13.innerHTML += '<text x="210" y="80" text-anchor="middle" fill="var(--text-3)" font-size="10">TLS 1.3 replaces both session ID and</text>';
+    g13.innerHTML += '<text x="210" y="95" text-anchor="middle" fill="var(--text-3)" font-size="10">session ticket with a single PSK mechanism.</text>';
+    g13.innerHTML += '<rect x="60" y="120" width="300" height="100" rx="6" fill="var(--surface-2)" stroke="var(--accent-green)" stroke-width="1.5"/>';
+    g13.innerHTML += '<text x="210" y="145" text-anchor="middle" fill="var(--accent-green)" font-size="12" font-weight="700">Pre-Shared Key (PSK)</text>';
+    g13.innerHTML += '<text x="210" y="168" text-anchor="middle" fill="var(--text-2)" font-size="10">Derived from previous handshake.</text>';
+    g13.innerHTML += '<text x="210" y="185" text-anchor="middle" fill="var(--text-2)" font-size="10">Enables 0-RTT early data.</text>';
+    g13.innerHTML += '<text x="210" y="202" text-anchor="middle" fill="var(--text-2)" font-size="10">Forward secrecy via PSK + ephemeral DH.</text>';
+
+    g13.innerHTML += '<rect x="60" y="250" width="300" height="80" rx="6" fill="#1a1a22" stroke="var(--accent-cyan)" stroke-width="1"/>';
+    g13.innerHTML += '<text x="210" y="275" text-anchor="middle" fill="var(--accent-cyan)" font-size="11" font-weight="600">Key difference from 1.2 tickets:</text>';
+    g13.innerHTML += '<text x="210" y="298" text-anchor="middle" fill="var(--text-2)" font-size="10">1.3 PSK + ephemeral DH = forward secrecy.</text>';
+    g13.innerHTML += '<text x="210" y="315" text-anchor="middle" fill="var(--text-2)" font-size="10">1.2 tickets reuse master secret -- no FS.</text>';
+
+    document.getElementById('tls-commentary').textContent = 'Session resumption avoids a full handshake on reconnection. TLS 1.2 had two mechanisms: session IDs (server caches state, does not scale) and session tickets (server encrypts state into a ticket, client stores it -- stateless). TLS 1.3 unifies both into PSK, and adds 0-RTT early data. Critically, TLS 1.3 combines PSK with ephemeral DH for forward secrecy; TLS 1.2 session tickets reuse the master secret and lack forward secrecy.';
+    document.getElementById('tls-step-counter').textContent = 'Demo: Session Resumption';
+  }
+
+  render();
+  return { next: next, prev: prev, autoPlay: autoPlay, reset: reset, showZeroRTT: showZeroRTT, showSessionResumption: showSessionResumption };
+})();
+
+/* ================================================================
+   TAB 3: HTTP/1.1
+   ================================================================ */
+var H1 = (function() {
+  var mode = 'keepalive';
+  var step = 0;
+  var maxStep = 0;
+
+  var modes = {
+    sequential: {
+      steps: [
+        { commentary: 'HTTP/1.0 without keep-alive: each request opens a new TCP connection (handshake cost each time).' },
+        { commentary: 'Request A: TCP handshake (1 RTT) + request + response. Then connection closes.' },
+        { commentary: 'Request B: another TCP handshake (1 RTT) + request + response. Another connection close.' },
+        { commentary: 'Request C: yet another handshake. 3 requests = 3 TCP handshakes = 3 extra RTTs wasted.' },
+        { commentary: 'Total cost: 3 handshakes (3 RTT overhead) + 3 request/response cycles. Each connection is used once and discarded. This is why keep-alive became the HTTP/1.1 default.' }
+      ]
+    },
+    keepalive: {
+      steps: [
+        { commentary: 'HTTP/1.1 keep-alive: one TCP connection, reused for all requests to the same origin.' },
+        { commentary: 'TCP handshake (1 RTT) -- paid once.' },
+        { commentary: 'Request A sent, response A received. Connection stays open.' },
+        { commentary: 'Request B sent on the same connection, response B received. No new handshake.' },
+        { commentary: 'Request C sent, response C received. Same connection. 1 handshake for 3 requests. But requests are sequential: B waits for A to finish, C waits for B.' }
+      ]
+    },
+    pipeline: {
+      steps: [
+        { commentary: 'HTTP/1.1 pipelining: send multiple requests without waiting for responses. But responses must return IN ORDER.' },
+        { commentary: 'Client pipelines GET A, GET B, GET C on one connection. All three sent immediately.' },
+        { commentary: 'Server processes A quickly (50ms). Response A sent.' },
+        { commentary: 'Server processes B SLOWLY (2000ms -- e.g., complex DB query). Response A has arrived at client, but B is still processing.' },
+        { commentary: 'B finally finishes. Response B sent. C was ready 1900ms ago but was blocked behind B.' },
+        { commentary: 'Response C sent immediately after B. HEAD-OF-LINE BLOCKING: C waited 2000ms because B was slow, even though C was a fast response. This is HTTP-level HOL. Most browsers disabled pipelining because of this.' }
+      ]
+    },
+    domain: {
+      steps: [
+        { commentary: 'Browsers limit connections to ~6 per origin. Domain sharding splits assets across subdomains to increase parallelism.' },
+        { commentary: 'Without sharding: 20 assets from example.com = 6 parallel connections max. 14 assets queued, waiting for a connection to free up.' },
+        { commentary: 'With sharding: assets split across cdn1.example.com, cdn2.example.com, cdn3.example.com = 18 parallel connections (6 per origin).' },
+        { commentary: 'Trade-off: each new origin requires a DNS lookup + TCP handshake + TLS handshake. Diminishing returns beyond 2-4 shards. HTTP/2 makes sharding unnecessary (and harmful -- it defeats multiplexing).' }
+      ]
+    }
+  };
+
+  function renderScene() {
+    var g = document.getElementById('h1-scene');
+    g.innerHTML = '';
+    var svg = document.getElementById('h1-svg');
+    var cX = 140, sX = 660;
+
+    if (mode === 'sequential') {
+      svg.setAttribute('viewBox', '0 0 800 460');
+      g.innerHTML += '<text x="'+cX+'" y="28" text-anchor="middle" fill="#fff" font-size="14" font-weight="700">Client</text>';
+      g.innerHTML += '<text x="'+sX+'" y="28" text-anchor="middle" fill="#fff" font-size="14" font-weight="700">Server</text>';
+      g.innerHTML += '<line x1="'+cX+'" y1="38" x2="'+cX+'" y2="440" stroke="var(--border)" stroke-width="2"/>';
+      g.innerHTML += '<line x1="'+sX+'" y1="38" x2="'+sX+'" y2="440" stroke="var(--border)" stroke-width="2"/>';
+
+      var colors = ['var(--accent-blue)', 'var(--accent-green)', 'var(--accent-purple)'];
+      var labels = ['A', 'B', 'C'];
+      for (var i = 0; i < 3 && step > i; i++) {
+        var base = 60 + i * 130;
+        var c = colors[i];
+        var shown = step > i;
+        if (!shown) continue;
+        // Handshake
+        g.innerHTML += '<line x1="'+cX+'" y1="'+base+'" x2="'+sX+'" y2="'+(base+15)+'" stroke="var(--text-3)" stroke-width="1.5" stroke-dasharray="4,3"/>';
+        g.innerHTML += '<text x="400" y="'+(base-3)+'" text-anchor="middle" fill="var(--text-3)" font-size="10">TCP handshake</text>';
+        g.innerHTML += '<line x1="'+sX+'" y1="'+(base+20)+'" x2="'+cX+'" y2="'+(base+35)+'" stroke="var(--text-3)" stroke-width="1.5" stroke-dasharray="4,3"/>';
+        // Request
+        g.innerHTML += '<line x1="'+cX+'" y1="'+(base+50)+'" x2="'+sX+'" y2="'+(base+65)+'" stroke="'+c+'" stroke-width="2" marker-end="url(#h1-arrow)"/>';
+        g.innerHTML += '<text x="400" y="'+(base+47)+'" text-anchor="middle" fill="'+c+'" font-size="11" font-weight="600">GET /'+labels[i]+'</text>';
+        // Response
+        g.innerHTML += '<line x1="'+sX+'" y1="'+(base+75)+'" x2="'+cX+'" y2="'+(base+90)+'" stroke="'+c+'" stroke-width="2" marker-end="url(#h1-arrow)"/>';
+        g.innerHTML += '<text x="400" y="'+(base+88)+'" text-anchor="middle" fill="'+c+'" font-size="11" font-weight="600">200 OK ('+labels[i]+')</text>';
+        // Close
+        g.innerHTML += '<text x="400" y="'+(base+110)+'" text-anchor="middle" fill="var(--accent-red)" font-size="9">connection closed</text>';
+      }
+      if (step >= 4) {
+        g.innerHTML += '<rect x="200" y="420" width="400" height="28" rx="4" fill="rgba(255,107,107,0.1)" stroke="var(--accent-red)" stroke-width="1"/>';
+        g.innerHTML += '<text x="400" y="439" text-anchor="middle" fill="var(--accent-red)" font-size="11" font-weight="600">3 handshakes wasted = 3 extra RTTs</text>';
+      }
+    } else if (mode === 'keepalive') {
+      svg.setAttribute('viewBox', '0 0 800 400');
+      g.innerHTML += '<text x="'+cX+'" y="28" text-anchor="middle" fill="#fff" font-size="14" font-weight="700">Client</text>';
+      g.innerHTML += '<text x="'+sX+'" y="28" text-anchor="middle" fill="#fff" font-size="14" font-weight="700">Server</text>';
+      g.innerHTML += '<line x1="'+cX+'" y1="38" x2="'+cX+'" y2="380" stroke="var(--border)" stroke-width="2"/>';
+      g.innerHTML += '<line x1="'+sX+'" y1="38" x2="'+sX+'" y2="380" stroke="var(--border)" stroke-width="2"/>';
+
+      // Single connection bracket
+      g.innerHTML += '<rect x="'+(cX-10)+'" y="50" width="'+(sX-cX+20)+'" height="320" rx="6" fill="none" stroke="var(--accent-green)" stroke-width="1" stroke-dasharray="6,4" opacity="0.3"/>';
+      g.innerHTML += '<text x="400" y="45" text-anchor="middle" fill="var(--accent-green)" font-size="10">single TCP connection (keep-alive)</text>';
+
+      if (step >= 2) {
+        g.innerHTML += '<line x1="'+cX+'" y1="60" x2="'+sX+'" y2="75" stroke="var(--text-3)" stroke-width="1.5" stroke-dasharray="4,3"/>';
+        g.innerHTML += '<text x="400" y="57" text-anchor="middle" fill="var(--text-3)" font-size="10">TCP handshake (once)</text>';
+        g.innerHTML += '<line x1="'+sX+'" y1="80" x2="'+cX+'" y2="95" stroke="var(--text-3)" stroke-width="1.5" stroke-dasharray="4,3"/>';
+      }
+      var reqColors = ['var(--accent-blue)', 'var(--accent-green)', 'var(--accent-purple)'];
+      var reqLabels = ['A', 'B', 'C'];
+      for (var j = 0; j < 3; j++) {
+        if (step < j + 3) break;
+        var by = 110 + j * 85;
+        g.innerHTML += '<line x1="'+cX+'" y1="'+by+'" x2="'+sX+'" y2="'+(by+15)+'" stroke="'+reqColors[j]+'" stroke-width="2" marker-end="url(#h1-arrow)"/>';
+        g.innerHTML += '<text x="400" y="'+(by-3)+'" text-anchor="middle" fill="'+reqColors[j]+'" font-size="11" font-weight="600">GET /'+reqLabels[j]+'</text>';
+        g.innerHTML += '<line x1="'+sX+'" y1="'+(by+30)+'" x2="'+cX+'" y2="'+(by+45)+'" stroke="'+reqColors[j]+'" stroke-width="2" marker-end="url(#h1-arrow)"/>';
+        g.innerHTML += '<text x="400" y="'+(by+43)+'" text-anchor="middle" fill="'+reqColors[j]+'" font-size="11" font-weight="600">200 OK ('+reqLabels[j]+')</text>';
+      }
+    } else if (mode === 'pipeline') {
+      svg.setAttribute('viewBox', '0 0 800 500');
+      g.innerHTML += '<text x="'+cX+'" y="28" text-anchor="middle" fill="#fff" font-size="14" font-weight="700">Client</text>';
+      g.innerHTML += '<text x="'+sX+'" y="28" text-anchor="middle" fill="#fff" font-size="14" font-weight="700">Server</text>';
+      g.innerHTML += '<line x1="'+cX+'" y1="38" x2="'+cX+'" y2="480" stroke="var(--border)" stroke-width="2"/>';
+      g.innerHTML += '<line x1="'+sX+'" y1="38" x2="'+sX+'" y2="480" stroke="var(--border)" stroke-width="2"/>';
+
+      if (step >= 2) {
+        // Pipeline 3 requests
+        g.innerHTML += '<line x1="'+cX+'" y1="60" x2="'+sX+'" y2="80" stroke="var(--accent-blue)" stroke-width="2" marker-end="url(#h1-arrow)"/>';
+        g.innerHTML += '<text x="400" y="55" text-anchor="middle" fill="var(--accent-blue)" font-size="11" font-weight="600">GET /A</text>';
+        g.innerHTML += '<line x1="'+cX+'" y1="85" x2="'+sX+'" y2="105" stroke="var(--accent-green)" stroke-width="2" marker-end="url(#h1-arrow)"/>';
+        g.innerHTML += '<text x="400" y="80" text-anchor="middle" fill="var(--accent-green)" font-size="11" font-weight="600">GET /B</text>';
+        g.innerHTML += '<line x1="'+cX+'" y1="110" x2="'+sX+'" y2="130" stroke="var(--accent-purple)" stroke-width="2" marker-end="url(#h1-arrow)"/>';
+        g.innerHTML += '<text x="400" y="105" text-anchor="middle" fill="var(--accent-purple)" font-size="11" font-weight="600">GET /C</text>';
+        g.innerHTML += '<text x="'+(cX-40)+'" y="90" text-anchor="middle" fill="var(--text-3)" font-size="9" transform="rotate(-90,'+(cX-40)+',90)">pipelined</text>';
+      }
+      if (step >= 3) {
+        // A responds fast
+        g.innerHTML += '<line x1="'+sX+'" y1="150" x2="'+cX+'" y2="170" stroke="var(--accent-blue)" stroke-width="2" marker-end="url(#h1-arrow)"/>';
+        g.innerHTML += '<text x="400" y="148" text-anchor="middle" fill="var(--accent-blue)" font-size="11" font-weight="600">200 OK (A) -- 50ms</text>';
+      }
+      if (step >= 4) {
+        // B is slow -- show waiting period
+        g.innerHTML += '<rect x="'+(sX-80)+'" y="170" width="160" height="120" rx="4" fill="rgba(255,107,107,0.08)" stroke="var(--accent-red)" stroke-width="1" stroke-dasharray="4,3"/>';
+        g.innerHTML += '<text x="'+sX+'" y="230" text-anchor="middle" fill="var(--accent-red)" font-size="11" font-weight="600">B processing...</text>';
+        g.innerHTML += '<text x="'+sX+'" y="248" text-anchor="middle" fill="var(--accent-red)" font-size="10">2000ms (slow DB query)</text>';
+        // C ready indicator
+        g.innerHTML += '<text x="'+(sX+5)+'" y="280" text-anchor="end" fill="var(--accent-purple)" font-size="10">C ready but BLOCKED</text>';
+      }
+      if (step >= 5) {
+        // B finally responds
+        g.innerHTML += '<line x1="'+sX+'" y1="300" x2="'+cX+'" y2="320" stroke="var(--accent-green)" stroke-width="2" marker-end="url(#h1-arrow)"/>';
+        g.innerHTML += '<text x="400" y="298" text-anchor="middle" fill="var(--accent-green)" font-size="11" font-weight="600">200 OK (B) -- finally, 2000ms later</text>';
+      }
+      if (step >= 6) {
+        // C responds
+        g.innerHTML += '<line x1="'+sX+'" y1="340" x2="'+cX+'" y2="360" stroke="var(--accent-purple)" stroke-width="2" marker-end="url(#h1-arrow)"/>';
+        g.innerHTML += '<text x="400" y="338" text-anchor="middle" fill="var(--accent-purple)" font-size="11" font-weight="600">200 OK (C) -- was ready 1900ms ago!</text>';
+        // HOL highlight
+        g.innerHTML += '<rect x="150" y="390" width="500" height="60" rx="6" fill="rgba(255,107,107,0.1)" stroke="var(--accent-red)" stroke-width="2"/>';
+        g.innerHTML += '<text x="400" y="413" text-anchor="middle" fill="var(--accent-red)" font-size="13" font-weight="700">HEAD-OF-LINE BLOCKING</text>';
+        g.innerHTML += '<text x="400" y="433" text-anchor="middle" fill="var(--text-2)" font-size="11">Response C waited 2000ms behind slow response B</text>';
+      }
+    } else if (mode === 'domain') {
+      svg.setAttribute('viewBox', '0 0 800 440');
+      g.innerHTML += '<text x="400" y="30" text-anchor="middle" fill="#fff" font-size="14" font-weight="700">Domain Sharding: Increase Parallelism</text>';
+
+      // Without sharding
+      g.innerHTML += '<text x="110" y="70" text-anchor="middle" fill="var(--accent-orange)" font-size="12" font-weight="600">example.com</text>';
+      if (step >= 2) {
+        for (var k = 0; k < 6; k++) {
+          var ky = 85 + k * 30;
+          g.innerHTML += '<rect x="30" y="'+ky+'" width="160" height="22" rx="3" fill="var(--surface-2)" stroke="var(--accent-orange)" stroke-width="1"/>';
+          g.innerHTML += '<text x="110" y="'+(ky+16)+'" text-anchor="middle" fill="var(--accent-orange)" font-size="10">conn '+(k+1)+' (active)</text>';
+        }
+        g.innerHTML += '<text x="110" y="280" text-anchor="middle" fill="var(--accent-red)" font-size="11" font-weight="600">14 assets QUEUED</text>';
+        g.innerHTML += '<text x="110" y="298" text-anchor="middle" fill="var(--text-3)" font-size="10">(browser limit: 6/origin)</text>';
+      }
+
+      // With sharding
+      if (step >= 3) {
+        var shards = ['cdn1.example.com', 'cdn2.example.com', 'cdn3.example.com'];
+        var shardColors = ['var(--accent-blue)', 'var(--accent-green)', 'var(--accent-purple)'];
+        for (var si = 0; si < 3; si++) {
+          var sx = 320 + si * 170;
+          g.innerHTML += '<text x="'+(sx+65)+'" y="70" text-anchor="middle" fill="'+shardColors[si]+'" font-size="11" font-weight="600">'+shards[si]+'</text>';
+          for (var sj = 0; sj < 6; sj++) {
+            var sy = 85 + sj * 30;
+            g.innerHTML += '<rect x="'+sx+'" y="'+sy+'" width="130" height="22" rx="3" fill="var(--surface-2)" stroke="'+shardColors[si]+'" stroke-width="1"/>';
+            g.innerHTML += '<text x="'+(sx+65)+'" y="'+(sy+16)+'" text-anchor="middle" fill="'+shardColors[si]+'" font-size="9">conn '+(sj+1)+'</text>';
+          }
+        }
+        g.innerHTML += '<text x="570" y="280" text-anchor="middle" fill="var(--accent-green)" font-size="11" font-weight="600">18 parallel connections!</text>';
+      }
+
+      if (step >= 4) {
+        g.innerHTML += '<rect x="100" y="340" width="600" height="80" rx="6" fill="#1a1a22" stroke="var(--accent-yellow)" stroke-width="1.5"/>';
+        g.innerHTML += '<text x="400" y="365" text-anchor="middle" fill="var(--accent-yellow)" font-size="12" font-weight="700">Trade-offs</text>';
+        g.innerHTML += '<text x="400" y="385" text-anchor="middle" fill="var(--text-2)" font-size="11">Each origin = DNS lookup + TCP + TLS handshake overhead. Diminishing returns past 2-4 shards.</text>';
+        g.innerHTML += '<text x="400" y="403" text-anchor="middle" fill="var(--text-2)" font-size="11">HTTP/2 makes sharding unnecessary (and harmful -- defeats multiplexing).</text>';
+      }
+    }
+
+    maxStep = modes[mode].steps.length;
+    document.getElementById('h1-step-counter').textContent = step > 0 ? 'Step ' + step + ' / ' + maxStep : '';
+    document.getElementById('h1-next').disabled = step >= maxStep;
+    if (step > 0 && step <= maxStep) {
+      document.getElementById('h1-commentary').textContent = modes[mode].steps[step - 1].commentary;
+    }
+  }
+
+  function showMode(m) {
+    mode = m;
+    step = 0;
+    // Update button styles
+    document.querySelectorAll('#h1-ka-btn').forEach(function(b) { b.classList.remove('active-btn'); });
+    renderScene();
+    document.getElementById('h1-commentary').textContent = modes[mode].steps[0].commentary;
+    step = 1;
+    renderScene();
+  }
+
+  function next() {
+    if (step < maxStep) { step++; renderScene(); }
+  }
+
+  function reset() {
+    step = 0;
+    renderScene();
+    document.getElementById('h1-commentary').textContent = 'HTTP/1.0 opened a new TCP connection per request -- expensive. HTTP/1.1 defaults to keep-alive: reuse the same TCP connection for multiple requests. Select a mode above to see the differences.';
+  }
+
+  renderScene();
+  return { showMode: showMode, next: next, reset: reset };
+})();
+
+/* ================================================================
+   TAB 4: HTTP/2
+   ================================================================ */
+var H2 = (function() {
+  var mode = null;
+  var step = 0;
+  var maxStep = 0;
+
+  function render() {
+    var g = document.getElementById('h2-scene');
+    g.innerHTML = '';
+    var svg = document.getElementById('h2-svg');
+
+    if (mode === 'multiplex') {
+      renderMultiplex(g, svg);
+    } else if (mode === 'hpack') {
+      renderHPACK(g, svg);
+    } else if (mode === 'tcphol') {
+      renderTCPHOL(g, svg);
+    } else {
+      renderDefault(g, svg);
+    }
+
+    document.getElementById('h2-step-counter').textContent = maxStep > 0 ? 'Step ' + step + ' / ' + maxStep : '';
+    document.getElementById('h2-next').disabled = step >= maxStep;
+  }
+
+  function renderDefault(g, svg) {
+    svg.setAttribute('viewBox', '0 0 800 520');
+    g.innerHTML += '<text x="400" y="40" text-anchor="middle" fill="#fff" font-size="15" font-weight="700">HTTP/2: Binary Framing Layer</text>';
+
+    // Single connection
+    g.innerHTML += '<rect x="100" y="70" width="600" height="400" rx="8" fill="none" stroke="var(--accent-blue)" stroke-width="2" stroke-dasharray="6,4"/>';
+    g.innerHTML += '<text x="400" y="95" text-anchor="middle" fill="var(--accent-blue)" font-size="12" font-weight="600">Single TCP Connection</text>';
+
+    // Stream boxes
+    var streams = [
+      { id: 1, color: 'var(--accent-blue)', label: 'Stream 1 (GET /index.html)', y: 120 },
+      { id: 3, color: 'var(--accent-green)', label: 'Stream 3 (GET /style.css)', y: 210 },
+      { id: 5, color: 'var(--accent-purple)', label: 'Stream 5 (GET /app.js)', y: 300 }
+    ];
+
+    for (var i = 0; i < streams.length; i++) {
+      var s = streams[i];
+      g.innerHTML += '<rect x="140" y="'+s.y+'" width="520" height="70" rx="6" fill="var(--surface-2)" stroke="'+s.color+'" stroke-width="1.5"/>';
+      g.innerHTML += '<text x="160" y="'+(s.y+20)+'" fill="'+s.color+'" font-size="11" font-weight="600">'+s.label+'</text>';
+      // Frames
+      var frames = ['HEADERS', 'DATA', 'DATA', 'DATA'];
+      for (var j = 0; j < frames.length; j++) {
+        var fx = 160 + j * 120;
+        g.innerHTML += '<rect x="'+fx+'" y="'+(s.y+30)+'" width="100" height="28" rx="3" fill="var(--surface)" stroke="'+s.color+'" stroke-width="1"/>';
+        g.innerHTML += '<text x="'+(fx+50)+'" y="'+(s.y+48)+'" text-anchor="middle" fill="'+s.color+'" font-size="10">'+frames[j]+'</text>';
+      }
+    }
+
+    // Wire representation
+    g.innerHTML += '<text x="400" y="410" text-anchor="middle" fill="var(--text-3)" font-size="11">On the wire: frames from all streams are interleaved</text>';
+    var wireFrames = [
+      { stream: 1, type: 'H', color: 'var(--accent-blue)' },
+      { stream: 3, type: 'H', color: 'var(--accent-green)' },
+      { stream: 1, type: 'D', color: 'var(--accent-blue)' },
+      { stream: 5, type: 'H', color: 'var(--accent-purple)' },
+      { stream: 3, type: 'D', color: 'var(--accent-green)' },
+      { stream: 1, type: 'D', color: 'var(--accent-blue)' },
+      { stream: 5, type: 'D', color: 'var(--accent-purple)' },
+      { stream: 3, type: 'D', color: 'var(--accent-green)' }
+    ];
+    for (var k = 0; k < wireFrames.length; k++) {
+      var wf = wireFrames[k];
+      var wx = 140 + k * 65;
+      g.innerHTML += '<rect x="'+wx+'" y="425" width="55" height="30" rx="3" fill="var(--surface)" stroke="'+wf.color+'" stroke-width="1.5"/>';
+      g.innerHTML += '<text x="'+(wx+28)+'" y="444" text-anchor="middle" fill="'+wf.color+'" font-size="10" font-weight="600">S'+wf.stream+':'+wf.type+'</text>';
+    }
+
+    document.getElementById('h2-commentary').textContent = 'HTTP/2 uses binary framing: each request/response is a stream identified by a stream ID. HEADERS and DATA frames carry the payload. Frames from different streams interleave on the wire, enabling true multiplexing on a single TCP connection.';
+  }
+
+  function renderMultiplex(g, svg) {
+    svg.setAttribute('viewBox', '0 0 800 500');
+    var cX = 120, sX = 680;
+    g.innerHTML += '<text x="'+cX+'" y="25" text-anchor="middle" fill="#fff" font-size="14" font-weight="700">Client</text>';
+    g.innerHTML += '<text x="'+sX+'" y="25" text-anchor="middle" fill="#fff" font-size="14" font-weight="700">Server</text>';
+    g.innerHTML += '<line x1="'+cX+'" y1="35" x2="'+cX+'" y2="480" stroke="var(--border)" stroke-width="2"/>';
+    g.innerHTML += '<line x1="'+sX+'" y1="35" x2="'+sX+'" y2="480" stroke="var(--border)" stroke-width="2"/>';
+
+    // Connection bracket
+    g.innerHTML += '<rect x="'+(cX-5)+'" y="40" width="'+(sX-cX+10)+'" height="430" rx="6" fill="none" stroke="var(--accent-blue)" stroke-width="1" stroke-dasharray="6,4" opacity="0.3"/>';
+
+    var colors = ['var(--accent-blue)', 'var(--accent-green)', 'var(--accent-purple)'];
+    var labels = ['Stream 1', 'Stream 3', 'Stream 5'];
+
+    if (step >= 1) {
+      // All three HEADERS frames sent nearly simultaneously
+      for (var i = 0; i < 3; i++) {
+        var hy = 60 + i * 25;
+        g.innerHTML += '<line x1="'+cX+'" y1="'+hy+'" x2="'+sX+'" y2="'+(hy+15)+'" stroke="'+colors[i]+'" stroke-width="2" marker-end="url(#h2-arrow)" opacity="'+(step===1?1:0.4)+'"/>';
+        g.innerHTML += '<text x="400" y="'+(hy-3)+'" text-anchor="middle" fill="'+colors[i]+'" font-size="10" font-weight="600">HEADERS ('+labels[i]+')</text>';
+      }
+    }
+    if (step >= 2) {
+      // Interleaved DATA frames coming back
+      var responses = [
+        { stream: 0, y: 160, label: 'DATA S1 (chunk 1)' },
+        { stream: 1, y: 190, label: 'DATA S3 (chunk 1)' },
+        { stream: 2, y: 220, label: 'DATA S5 (chunk 1)' },
+        { stream: 0, y: 250, label: 'DATA S1 (chunk 2)' },
+        { stream: 1, y: 280, label: 'DATA S3 (chunk 2)' }
+      ];
+      for (var j = 0; j < responses.length; j++) {
+        var r = responses[j];
+        g.innerHTML += '<line x1="'+sX+'" y1="'+r.y+'" x2="'+cX+'" y2="'+(r.y+15)+'" stroke="'+colors[r.stream]+'" stroke-width="2" marker-end="url(#h2-arrow)" opacity="'+(step===2?1:0.4)+'"/>';
+        g.innerHTML += '<text x="400" y="'+(r.y-3)+'" text-anchor="middle" fill="'+colors[r.stream]+'" font-size="10" font-weight="600">'+r.label+'</text>';
+      }
+    }
+    if (step >= 3) {
+      // More interleaved responses + completion
+      var more = [
+        { stream: 2, y: 320, label: 'DATA S5 (final)' },
+        { stream: 0, y: 350, label: 'DATA S1 (final)' },
+        { stream: 1, y: 380, label: 'DATA S3 (final)' }
+      ];
+      for (var k = 0; k < more.length; k++) {
+        var m = more[k];
+        g.innerHTML += '<line x1="'+sX+'" y1="'+m.y+'" x2="'+cX+'" y2="'+(m.y+15)+'" stroke="'+colors[m.stream]+'" stroke-width="2" marker-end="url(#h2-arrow)"/>';
+        g.innerHTML += '<text x="400" y="'+(m.y-3)+'" text-anchor="middle" fill="'+colors[m.stream]+'" font-size="10" font-weight="600">'+m.label+'</text>';
+      }
+      g.innerHTML += '<rect x="200" y="420" width="400" height="40" rx="6" fill="rgba(81,207,102,0.1)" stroke="var(--accent-green)" stroke-width="1.5"/>';
+      g.innerHTML += '<text x="400" y="445" text-anchor="middle" fill="var(--accent-green)" font-size="12" font-weight="600">All 3 requests completed concurrently -- no HTTP-level HOL</text>';
+    }
+
+    maxStep = 3;
+    var commentaries = [
+      'Three HEADERS frames sent on the same connection. Each has a unique stream ID (odd = client-initiated). No need to wait for one response before sending the next request.',
+      'Server sends DATA frames interleaved across streams. Stream 1 chunk, then Stream 3 chunk, then Stream 5 chunk -- true multiplexing. The client reassembles each stream independently by stream ID.',
+      'All three responses complete concurrently on a single connection. No HTTP-level HOL blocking. The same connection also carries SETTINGS, WINDOW_UPDATE, and PING frames for flow control and keepalive.'
+    ];
+    if (step > 0 && step <= maxStep) {
+      document.getElementById('h2-commentary').textContent = commentaries[step - 1];
+    }
+  }
+
+  function renderHPACK(g, svg) {
+    svg.setAttribute('viewBox', '0 0 800 480');
+    maxStep = 0; step = 0;
+
+    g.innerHTML += '<text x="400" y="35" text-anchor="middle" fill="#fff" font-size="14" font-weight="700">HPACK Header Compression</text>';
+
+    // Request 1 headers
+    g.innerHTML += '<text x="200" y="70" text-anchor="middle" fill="var(--accent-blue)" font-size="12" font-weight="600">Request 1 Headers</text>';
+    var h1 = [':method: GET', ':path: /index.html', ':scheme: https', 'host: example.com', 'accept: text/html', 'user-agent: Chrome/120'];
+    for (var i = 0; i < h1.length; i++) {
+      g.innerHTML += '<rect x="40" y="'+(80+i*28)+'" width="320" height="22" rx="3" fill="var(--surface-2)" stroke="var(--accent-blue)" stroke-width="1"/>';
+      g.innerHTML += '<text x="55" y="'+(96+i*28)+'" fill="var(--accent-cyan)" font-size="11" font-family="monospace">'+h1[i]+'</text>';
+      // Size
+      g.innerHTML += '<text x="340" y="'+(96+i*28)+'" text-anchor="end" fill="var(--text-3)" font-size="9">'+(h1[i].length+2)+' B</text>';
+    }
+    g.innerHTML += '<text x="200" y="260" text-anchor="middle" fill="var(--text-3)" font-size="11">Total: ~120 bytes uncompressed</text>';
+
+    // Request 2 headers (mostly same)
+    g.innerHTML += '<text x="600" y="70" text-anchor="middle" fill="var(--accent-green)" font-size="12" font-weight="600">Request 2 Headers (same connection)</text>';
+    var h2 = [':method: GET', ':path: /style.css', ':scheme: https', 'host: example.com', 'accept: text/css', 'user-agent: Chrome/120'];
+    var indices = [2, null, 7, null, null, null]; // static table indices for known headers
+    var repeated = [true, false, true, true, false, true]; // same as request 1?
+    for (var j = 0; j < h2.length; j++) {
+      var borderColor = repeated[j] ? 'var(--accent-green)' : 'var(--accent-orange)';
+      var bgFill = repeated[j] ? 'rgba(81,207,102,0.08)' : 'var(--surface-2)';
+      g.innerHTML += '<rect x="440" y="'+(80+j*28)+'" width="320" height="22" rx="3" fill="'+bgFill+'" stroke="'+borderColor+'" stroke-width="1"/>';
+      if (repeated[j]) {
+        g.innerHTML += '<text x="455" y="'+(96+j*28)+'" fill="var(--accent-green)" font-size="11" font-family="monospace">'+h2[j]+'</text>';
+        g.innerHTML += '<text x="740" y="'+(96+j*28)+'" text-anchor="end" fill="var(--accent-green)" font-size="9" font-weight="600">1-2 B (index)</text>';
+      } else {
+        g.innerHTML += '<text x="455" y="'+(96+j*28)+'" fill="var(--accent-orange)" font-size="11" font-family="monospace">'+h2[j]+'</text>';
+        g.innerHTML += '<text x="740" y="'+(96+j*28)+'" text-anchor="end" fill="var(--accent-orange)" font-size="9">new value</text>';
+      }
+    }
+    g.innerHTML += '<text x="600" y="260" text-anchor="middle" fill="var(--accent-green)" font-size="11" font-weight="600">~20 bytes (4 headers as indices + 2 new)</text>';
+
+    // Compression ratio
+    g.innerHTML += '<rect x="150" y="280" width="500" height="50" rx="6" fill="var(--surface-2)" stroke="var(--accent-green)" stroke-width="1.5"/>';
+    g.innerHTML += '<text x="400" y="305" text-anchor="middle" fill="var(--accent-green)" font-size="14" font-weight="700">~85% compression on repeated headers</text>';
+    g.innerHTML += '<text x="400" y="322" text-anchor="middle" fill="var(--text-3)" font-size="11">Static table (61 entries) + dynamic table (connection-specific)</text>';
+
+    // Static table excerpt
+    g.innerHTML += '<text x="400" y="365" text-anchor="middle" fill="#fff" font-size="12" font-weight="600">HPACK Static Table (excerpt)</text>';
+    var staticEntries = [
+      { idx: 2, name: ':method', value: 'GET' },
+      { idx: 3, name: ':method', value: 'POST' },
+      { idx: 4, name: ':path', value: '/' },
+      { idx: 7, name: ':scheme', value: 'https' },
+      { idx: 8, name: ':status', value: '200' },
+      { idx: 31, name: 'content-type', value: '' }
+    ];
+    for (var k = 0; k < staticEntries.length; k++) {
+      var e = staticEntries[k];
+      var ex = 140 + (k % 3) * 200;
+      var ey = 380 + Math.floor(k / 3) * 28;
+      g.innerHTML += '<text x="'+ex+'" y="'+ey+'" fill="var(--accent-cyan)" font-size="10" font-family="monospace">['+e.idx+'] '+e.name+': '+e.value+'</text>';
+    }
+
+    document.getElementById('h2-commentary').textContent = 'HPACK compresses headers using two tables: a static table with 61 common header name/value pairs (":method: GET" = index 2) and a dynamic table built per connection. Repeated headers compress to 1-2 byte indices. On a typical web page with 50+ requests sharing the same Host, User-Agent, Accept, and Cookie headers, HPACK reduces header overhead by 85-90%.';
+  }
+
+  function renderTCPHOL(g, svg) {
+    svg.setAttribute('viewBox', '0 0 800 500');
+    var cX = 120, sX = 680;
+    g.innerHTML += '<text x="400" y="25" text-anchor="middle" fill="var(--accent-red)" font-size="14" font-weight="700">TCP-Level Head-of-Line Blocking in HTTP/2</text>';
+
+    g.innerHTML += '<text x="'+cX+'" y="50" text-anchor="middle" fill="#fff" font-size="13" font-weight="700">Client</text>';
+    g.innerHTML += '<text x="'+sX+'" y="50" text-anchor="middle" fill="#fff" font-size="13" font-weight="700">Server</text>';
+    g.innerHTML += '<line x1="'+cX+'" y1="60" x2="'+cX+'" y2="480" stroke="var(--border)" stroke-width="2"/>';
+    g.innerHTML += '<line x1="'+sX+'" y1="60" x2="'+sX+'" y2="480" stroke="var(--border)" stroke-width="2"/>';
+
+    // Normal interleaved frames
+    var frames = [
+      { stream: 1, color: 'var(--accent-blue)', y: 80, label: 'DATA S1' },
+      { stream: 3, color: 'var(--accent-green)', y: 110, label: 'DATA S3' },
+      { stream: 5, color: 'var(--accent-purple)', y: 140, label: 'DATA S5' }
+    ];
+
+    for (var i = 0; i < frames.length; i++) {
+      var f = frames[i];
+      if (step >= 1) {
+        g.innerHTML += '<line x1="'+sX+'" y1="'+f.y+'" x2="'+cX+'" y2="'+(f.y+15)+'" stroke="'+f.color+'" stroke-width="2" marker-end="url(#h2-arrow)" opacity="'+(step===1?1:0.4)+'"/>';
+        g.innerHTML += '<text x="400" y="'+(f.y-3)+'" text-anchor="middle" fill="'+f.color+'" font-size="10" font-weight="600">'+f.label+'</text>';
+      }
+    }
+
+    if (step >= 2) {
+      // Packet loss on S3's data
+      g.innerHTML += '<line x1="'+sX+'" y1="180" x2="'+cX+'" y2="195" stroke="var(--accent-green)" stroke-width="2" stroke-dasharray="4,3" opacity="0.4"/>';
+      g.innerHTML += '<text x="400" y="175" text-anchor="middle" fill="var(--accent-green)" font-size="10" font-weight="600">DATA S3 (packet 2)</text>';
+      // X mark for lost packet
+      g.innerHTML += '<text x="400" y="200" text-anchor="middle" fill="var(--accent-red)" font-size="20" font-weight="700">X</text>';
+      g.innerHTML += '<text x="400" y="218" text-anchor="middle" fill="var(--accent-red)" font-size="11" font-weight="600">PACKET LOST</text>';
+    }
+
+    if (step >= 3) {
+      // S1 and S5 data arrives but is held by TCP
+      g.innerHTML += '<line x1="'+sX+'" y1="240" x2="'+cX+'" y2="255" stroke="var(--accent-blue)" stroke-width="2" stroke-dasharray="6,3" opacity="0.3"/>';
+      g.innerHTML += '<text x="400" y="237" text-anchor="middle" fill="var(--accent-blue)" font-size="10" opacity="0.5">DATA S1 (arrived but HELD by TCP)</text>';
+      g.innerHTML += '<line x1="'+sX+'" y1="270" x2="'+cX+'" y2="285" stroke="var(--accent-purple)" stroke-width="2" stroke-dasharray="6,3" opacity="0.3"/>';
+      g.innerHTML += '<text x="400" y="267" text-anchor="middle" fill="var(--accent-purple)" font-size="10" opacity="0.5">DATA S5 (arrived but HELD by TCP)</text>';
+
+      // TCP retransmit
+      g.innerHTML += '<rect x="200" y="300" width="400" height="50" rx="6" fill="rgba(255,107,107,0.1)" stroke="var(--accent-red)" stroke-width="2"/>';
+      g.innerHTML += '<text x="400" y="322" text-anchor="middle" fill="var(--accent-red)" font-size="12" font-weight="700">TCP: waiting for retransmission of lost packet</text>';
+      g.innerHTML += '<text x="400" y="340" text-anchor="middle" fill="var(--text-2)" font-size="10">ALL streams blocked -- TCP sees one ordered byte stream</text>';
+    }
+
+    if (step >= 4) {
+      // Retransmit arrives
+      g.innerHTML += '<line x1="'+sX+'" y1="370" x2="'+cX+'" y2="385" stroke="var(--accent-red)" stroke-width="2" marker-end="url(#h1-arrow-red)"/>';
+      g.innerHTML += '<text x="400" y="367" text-anchor="middle" fill="var(--accent-red)" font-size="10" font-weight="600">RETRANSMIT: DATA S3 (packet 2)</text>';
+      g.innerHTML += '<text x="400" y="410" text-anchor="middle" fill="var(--accent-green)" font-size="11">Now TCP releases all buffered data to HTTP/2 layer</text>';
+
+      g.innerHTML += '<rect x="150" y="430" width="500" height="50" rx="6" fill="#1a1a22" stroke="var(--accent-purple)" stroke-width="1.5"/>';
+      g.innerHTML += '<text x="400" y="452" text-anchor="middle" fill="var(--accent-purple)" font-size="12" font-weight="600">QUIC fixes this: reliability is per-stream, not per-connection</text>';
+      g.innerHTML += '<text x="400" y="470" text-anchor="middle" fill="var(--text-3)" font-size="10">Losing S3\'s packet would only block S3; S1 and S5 continue unimpeded</text>';
+    }
+
+    maxStep = 4;
+    var commentaries = [
+      'Server sends interleaved DATA frames for streams 1, 3, and 5. At the HTTP/2 layer, these are independent streams.',
+      'A TCP segment carrying Stream 3\'s second DATA frame is lost in transit. TCP detects the gap via a missing sequence number.',
+      'Even though S1 and S5 data packets arrive successfully, TCP cannot deliver them to the application. TCP guarantees in-order byte delivery for the ENTIRE connection. All streams are blocked until the lost packet is retransmitted and received.',
+      'Retransmitted packet arrives. TCP releases ALL buffered data. The delay affected all three streams, even though only S3\'s data was lost. This is TCP-level HOL -- the fundamental limitation HTTP/2-over-TCP cannot escape. QUIC solves it by implementing reliability per-stream over UDP.'
+    ];
+    if (step > 0 && step <= maxStep) {
+      document.getElementById('h2-commentary').textContent = commentaries[step - 1];
+    }
+  }
+
+  function showMultiplex() { mode = 'multiplex'; step = 0; maxStep = 3; render(); }
+  function showHPACK() { mode = 'hpack'; step = 0; maxStep = 0; render(); }
+  function showTCPHOL() { mode = 'tcphol'; step = 0; maxStep = 4; render(); }
+  function next() { if (step < maxStep) { step++; render(); } }
+  function reset() { mode = null; step = 0; maxStep = 0; render(); document.getElementById('h2-commentary').textContent = 'HTTP/2 frames (HEADERS, DATA, SETTINGS, PING) are binary and carry a stream ID. Multiple streams share one TCP connection, with frames interleaved. No HTTP-level HOL -- but TCP\'s ordered byte stream means a lost packet blocks ALL streams until retransmitted.'; }
+
+  render();
+  return { showMultiplex: showMultiplex, showHPACK: showHPACK, showTCPHOL: showTCPHOL, next: next, reset: reset };
+})();
+
+/* ================================================================
+   TAB 5: HTTP/3 + QUIC
+   ================================================================ */
+var H3 = (function() {
+  var mode = null;
+  var step = 0;
+  var maxStep = 0;
+
+  function render() {
+    var g = document.getElementById('h3-scene');
+    g.innerHTML = '';
+    var svg = document.getElementById('h3-svg');
+
+    if (mode === 'handshake') renderHandshake(g, svg);
+    else if (mode === 'zerort') renderZeroRTT(g, svg);
+    else if (mode === 'streamhol') renderStreamHOL(g, svg);
+    else if (mode === 'migration') renderMigration(g, svg);
+    else if (mode === 'comparison') renderComparison(g, svg);
+    else renderDefault(g, svg);
+
+    document.getElementById('h3-step-counter').textContent = maxStep > 0 ? 'Step ' + step + ' / ' + maxStep : '';
+    document.getElementById('h3-next').disabled = step >= maxStep;
+  }
+
+  function renderDefault(g, svg) {
+    svg.setAttribute('viewBox', '0 0 800 500');
+    g.innerHTML += '<text x="400" y="35" text-anchor="middle" fill="#fff" font-size="15" font-weight="700">HTTP/3 over QUIC: UDP-Based Transport</text>';
+
+    // Stack comparison
+    var stacks = [
+      { x: 100, label: 'HTTP/2', layers: [
+        { name: 'HTTP/2', color: 'var(--accent-blue)', h: 50 },
+        { name: 'TLS 1.2/1.3', color: 'var(--accent-orange)', h: 40 },
+        { name: 'TCP', color: 'var(--accent-red)', h: 50 },
+        { name: 'IP', color: 'var(--text-3)', h: 35 }
+      ]},
+      { x: 480, label: 'HTTP/3', layers: [
+        { name: 'HTTP/3', color: 'var(--accent-purple)', h: 50 },
+        { name: 'QUIC (TLS 1.3 built-in)', color: 'var(--accent-green)', h: 70 },
+        { name: 'UDP', color: 'var(--accent-cyan)', h: 35 },
+        { name: 'IP', color: 'var(--text-3)', h: 35 }
+      ]}
+    ];
+
+    for (var si = 0; si < stacks.length; si++) {
+      var st = stacks[si];
+      g.innerHTML += '<text x="'+(st.x+110)+'" y="75" text-anchor="middle" fill="#fff" font-size="13" font-weight="700">'+st.label+'</text>';
+      var ly = 90;
+      for (var li = 0; li < st.layers.length; li++) {
+        var l = st.layers[li];
+        g.innerHTML += '<rect x="'+st.x+'" y="'+ly+'" width="220" height="'+l.h+'" rx="4" fill="var(--surface-2)" stroke="'+l.color+'" stroke-width="2"/>';
+        g.innerHTML += '<text x="'+(st.x+110)+'" y="'+(ly+l.h/2+5)+'" text-anchor="middle" fill="'+l.color+'" font-size="12" font-weight="600">'+l.name+'</text>';
+        ly += l.h + 4;
+      }
+    }
+
+    // Key differences
+    var diffs = [
+      { label: 'Handshake', h2: '2-3 RTT (TCP + TLS)', h3: '1 RTT (combined)', color: 'var(--accent-green)' },
+      { label: 'HOL Blocking', h2: 'TCP-level HOL', h3: 'Per-stream (none cross-stream)', color: 'var(--accent-green)' },
+      { label: 'Conn Migration', h2: 'New handshake on IP change', h3: 'Connection ID survives', color: 'var(--accent-green)' },
+      { label: 'Resumption', h2: 'TLS session ticket', h3: '0-RTT with PSK', color: 'var(--accent-green)' }
+    ];
+    g.innerHTML += '<text x="400" y="330" text-anchor="middle" fill="#fff" font-size="13" font-weight="700">Key Differences</text>';
+    for (var di = 0; di < diffs.length; di++) {
+      var d = diffs[di];
+      var dy = 345 + di * 35;
+      g.innerHTML += '<text x="200" y="'+dy+'" text-anchor="middle" fill="var(--text-2)" font-size="11" font-weight="600">'+d.label+'</text>';
+      g.innerHTML += '<text x="350" y="'+dy+'" text-anchor="start" fill="var(--accent-red)" font-size="11">H/2: '+d.h2+'</text>';
+      g.innerHTML += '<text x="590" y="'+dy+'" text-anchor="start" fill="'+d.color+'" font-size="11" font-weight="600">H/3: '+d.h3+'</text>';
+    }
+  }
+
+  function renderHandshake(g, svg) {
+    svg.setAttribute('viewBox', '0 0 800 480');
+    var cX = 160, sX = 640;
+    g.innerHTML += '<text x="400" y="25" text-anchor="middle" fill="var(--accent-purple)" font-size="14" font-weight="700">QUIC 1-RTT Handshake (Transport + TLS 1.3 Combined)</text>';
+    g.innerHTML += '<text x="'+cX+'" y="50" text-anchor="middle" fill="#fff" font-size="13" font-weight="700">Client</text>';
+    g.innerHTML += '<text x="'+sX+'" y="50" text-anchor="middle" fill="#fff" font-size="13" font-weight="700">Server</text>';
+    g.innerHTML += '<line x1="'+cX+'" y1="60" x2="'+cX+'" y2="460" stroke="var(--border)" stroke-width="2"/>';
+    g.innerHTML += '<line x1="'+sX+'" y1="60" x2="'+sX+'" y2="460" stroke="var(--border)" stroke-width="2"/>';
+
+    maxStep = 4;
+    var commentaries = [
+      'QUIC combines transport handshake and TLS 1.3 handshake into a single flight. Client sends QUIC Initial packet containing TLS ClientHello with key_share -- same concept as TLS 1.3 but at the transport layer.',
+      'Server responds with QUIC Initial (ServerHello) + Handshake packets (EncryptedExtensions, Certificate, Finished) in one flight. Everything from ServerHello onward is encrypted. Server can immediately send 1-RTT application data.',
+      'Client verifies server, sends Handshake Finished. Can now send application data. 1 RTT total -- compared to TCP (1 RTT) + TLS 1.3 (1 RTT) = 2 RTT for HTTP/2.',
+      'Application data flows with full encryption. The combined handshake saves 1 RTT vs HTTP/2-over-TCP. For cross-continental connections (150ms RTT), that is 150ms saved on every new connection.'
+    ];
+
+    if (step >= 1) {
+      g.innerHTML += '<line x1="'+cX+'" y1="90" x2="'+sX+'" y2="120" stroke="var(--accent-purple)" stroke-width="2" marker-end="url(#h3-arrow)"/>';
+      g.innerHTML += '<text x="400" y="85" text-anchor="middle" fill="var(--accent-purple)" font-size="11" font-weight="600">QUIC Initial: TLS ClientHello + key_share</text>';
+      g.innerHTML += '<text x="400" y="100" text-anchor="middle" fill="var(--text-3)" font-size="9">+ connection ID + QUIC transport params</text>';
+    }
+    if (step >= 2) {
+      g.innerHTML += '<line x1="'+sX+'" y1="150" x2="'+cX+'" y2="180" stroke="var(--accent-purple)" stroke-width="2" marker-end="url(#h3-arrow)"/>';
+      g.innerHTML += '<text x="400" y="145" text-anchor="middle" fill="var(--accent-purple)" font-size="11" font-weight="600">QUIC Initial: ServerHello + key_share</text>';
+      g.innerHTML += '<line x1="'+sX+'" y1="195" x2="'+cX+'" y2="225" stroke="var(--accent-green)" stroke-width="2" marker-end="url(#h3-arrow-green)"/>';
+      g.innerHTML += '<text x="400" y="193" text-anchor="middle" fill="var(--accent-green)" font-size="11" font-weight="600">QUIC Handshake: EncryptedExt + Cert + Finished</text>';
+      g.innerHTML += '<text x="400" y="238" text-anchor="middle" fill="var(--text-3)" font-size="9">(all encrypted from here)</text>';
+    }
+    if (step >= 3) {
+      g.innerHTML += '<line x1="'+cX+'" y1="260" x2="'+sX+'" y2="290" stroke="var(--accent-green)" stroke-width="2" marker-end="url(#h3-arrow-green)"/>';
+      g.innerHTML += '<text x="400" y="255" text-anchor="middle" fill="var(--accent-green)" font-size="11" font-weight="600">QUIC Handshake: Client Finished</text>';
+      // RTT bracket
+      g.innerHTML += '<line x1="60" y1="90" x2="60" y2="260" stroke="var(--accent-purple)" stroke-width="1.5" stroke-dasharray="4,3"/>';
+      g.innerHTML += '<text x="55" y="175" fill="var(--accent-purple)" font-size="11" transform="rotate(-90,55,175)" text-anchor="middle">1 RTT</text>';
+    }
+    if (step >= 4) {
+      g.innerHTML += '<rect x="'+(cX-5)+'" y="310" width="'+(sX-cX+10)+'" height="30" rx="4" fill="rgba(81,207,102,0.1)" stroke="var(--accent-green)" stroke-width="1.5"/>';
+      g.innerHTML += '<text x="400" y="330" text-anchor="middle" fill="var(--accent-green)" font-size="12" font-weight="600">Encrypted Application Data (HTTP/3 streams)</text>';
+
+      // Comparison
+      g.innerHTML += '<rect x="120" y="370" width="560" height="70" rx="6" fill="#1a1a22" stroke="var(--accent-cyan)" stroke-width="1"/>';
+      g.innerHTML += '<text x="400" y="395" text-anchor="middle" fill="var(--accent-cyan)" font-size="12" font-weight="600">Handshake comparison (new connection)</text>';
+      g.innerHTML += '<text x="280" y="418" text-anchor="middle" fill="var(--accent-red)" font-size="11">HTTP/2: TCP (1 RTT) + TLS 1.3 (1 RTT) = 2 RTT</text>';
+      g.innerHTML += '<text x="560" y="418" text-anchor="middle" fill="var(--accent-green)" font-size="11" font-weight="600">HTTP/3: QUIC = 1 RTT</text>';
+    }
+
+    if (step > 0) document.getElementById('h3-commentary').textContent = commentaries[step - 1];
+  }
+
+  function renderZeroRTT(g, svg) {
+    svg.setAttribute('viewBox', '0 0 800 420');
+    var cX = 160, sX = 640;
+    maxStep = 3;
+
+    g.innerHTML += '<text x="400" y="25" text-anchor="middle" fill="var(--accent-green)" font-size="14" font-weight="700">QUIC 0-RTT Resumption</text>';
+    g.innerHTML += '<text x="'+cX+'" y="50" text-anchor="middle" fill="#fff" font-size="13" font-weight="700">Returning Client</text>';
+    g.innerHTML += '<text x="'+sX+'" y="50" text-anchor="middle" fill="#fff" font-size="13" font-weight="700">Server</text>';
+    g.innerHTML += '<line x1="'+cX+'" y1="60" x2="'+cX+'" y2="400" stroke="var(--border)" stroke-width="2"/>';
+    g.innerHTML += '<line x1="'+sX+'" y1="60" x2="'+sX+'" y2="400" stroke="var(--border)" stroke-width="2"/>';
+
+    var commentaries = [
+      'Returning client has a PSK from a previous QUIC connection. It sends ClientHello + early data (0-RTT) encrypted with the PSK. Application data travels in the FIRST packet.',
+      'Server decrypts early data using PSK, processes the request, and sends its response + Handshake completion. The response can arrive before a traditional connection would even be established.',
+      '0-RTT data is replayable: an attacker who captures the Initial packet can resend it. The server may process the early data twice. Only safe for idempotent operations (GET, HEAD). Non-idempotent RPCs must wait for 1-RTT keys.'
+    ];
+
+    if (step >= 1) {
+      g.innerHTML += '<line x1="'+cX+'" y1="90" x2="'+sX+'" y2="120" stroke="var(--accent-green)" stroke-width="2" marker-end="url(#h3-arrow-green)"/>';
+      g.innerHTML += '<text x="400" y="85" text-anchor="middle" fill="var(--accent-green)" font-size="11" font-weight="600">ClientHello + PSK + 0-RTT early data</text>';
+      g.innerHTML += '<rect x="250" y="110" width="180" height="22" rx="3" fill="rgba(81,207,102,0.15)" stroke="var(--accent-green)" stroke-width="1"/>';
+      g.innerHTML += '<text x="340" y="125" text-anchor="middle" fill="var(--accent-green)" font-size="10" font-weight="600">GET /api/feed (encrypted!)</text>';
+      // 0 RTT bracket
+      g.innerHTML += '<text x="'+(cX-30)+'" y="105" fill="var(--accent-green)" font-size="11" font-weight="700">0 RTT</text>';
+    }
+    if (step >= 2) {
+      g.innerHTML += '<line x1="'+sX+'" y1="160" x2="'+cX+'" y2="190" stroke="var(--accent-green)" stroke-width="2" marker-end="url(#h3-arrow-green)"/>';
+      g.innerHTML += '<text x="400" y="155" text-anchor="middle" fill="var(--accent-green)" font-size="11" font-weight="600">ServerHello + Finished + response data</text>';
+      g.innerHTML += '<rect x="'+(cX-5)+'" y="210" width="'+(sX-cX+10)+'" height="28" rx="4" fill="rgba(81,207,102,0.1)" stroke="var(--accent-green)" stroke-width="1"/>';
+      g.innerHTML += '<text x="400" y="228" text-anchor="middle" fill="var(--accent-green)" font-size="12" font-weight="700">Response received at ~0.5 RTT -- faster than any alternative</text>';
+    }
+    if (step >= 3) {
+      g.innerHTML += '<rect x="130" y="260" width="540" height="80" rx="6" fill="#2a1520" stroke="var(--accent-red)" stroke-width="1.5"/>';
+      g.innerHTML += '<text x="400" y="285" text-anchor="middle" fill="var(--accent-red)" font-size="13" font-weight="700">Replay Vulnerability</text>';
+      g.innerHTML += '<text x="400" y="308" text-anchor="middle" fill="var(--text-2)" font-size="11">Attacker captures 0-RTT packet, replays it. Server processes the request again.</text>';
+      g.innerHTML += '<text x="400" y="328" text-anchor="middle" fill="var(--text-2)" font-size="11">Safe: GET /feed. Unsafe: POST /transfer?amount=1000 (double-spend).</text>';
+
+      g.innerHTML += '<rect x="200" y="360" width="400" height="30" rx="4" fill="#1a1a22" stroke="var(--accent-cyan)" stroke-width="1"/>';
+      g.innerHTML += '<text x="400" y="380" text-anchor="middle" fill="var(--accent-cyan)" font-size="11" font-weight="600">Defense: server-side replay cache or limit 0-RTT to idempotent APIs</text>';
+    }
+
+    if (step > 0) document.getElementById('h3-commentary').textContent = commentaries[step - 1];
+  }
+
+  function renderStreamHOL(g, svg) {
+    svg.setAttribute('viewBox', '0 0 800 480');
+    maxStep = 4;
+
+    g.innerHTML += '<text x="400" y="30" text-anchor="middle" fill="#fff" font-size="14" font-weight="700">Per-Stream HOL Avoidance (QUIC vs TCP)</text>';
+
+    // Side-by-side: HTTP/2 over TCP vs HTTP/3 over QUIC
+    var leftX = 50, rightX = 420;
+    var titles = ['HTTP/2 over TCP', 'HTTP/3 over QUIC'];
+    var titleColors = ['var(--accent-red)', 'var(--accent-green)'];
+
+    for (var side = 0; side < 2; side++) {
+      var bx = side === 0 ? leftX : rightX;
+      g.innerHTML += '<rect x="'+bx+'" y="45" width="330" height="420" rx="8" fill="var(--surface-2)" stroke="'+titleColors[side]+'" stroke-width="1.5"/>';
+      g.innerHTML += '<text x="'+(bx+165)+'" y="70" text-anchor="middle" fill="'+titleColors[side]+'" font-size="13" font-weight="700">'+titles[side]+'</text>';
+
+      // Three streams
+      var streamColors = ['var(--accent-blue)', 'var(--accent-green)', 'var(--accent-purple)'];
+      var streamLabels = ['Stream A', 'Stream B', 'Stream C'];
+      for (var s = 0; s < 3; s++) {
+        var sy = 90 + s * 40;
+        var sw = 90;
+        g.innerHTML += '<rect x="'+(bx+20)+'" y="'+sy+'" width="'+sw+'" height="26" rx="3" fill="var(--surface)" stroke="'+streamColors[s]+'" stroke-width="1"/>';
+        g.innerHTML += '<text x="'+(bx+65)+'" y="'+(sy+18)+'" text-anchor="middle" fill="'+streamColors[s]+'" font-size="10" font-weight="600">'+streamLabels[s]+'</text>';
+      }
+
+      if (step >= 2) {
+        // Packet loss on Stream B
+        g.innerHTML += '<text x="'+(bx+165)+'" y="205" text-anchor="middle" fill="var(--accent-red)" font-size="18" font-weight="700">X</text>';
+        g.innerHTML += '<text x="'+(bx+165)+'" y="225" text-anchor="middle" fill="var(--accent-red)" font-size="10" font-weight="600">Stream B packet lost</text>';
+      }
+
+      if (step >= 3) {
+        if (side === 0) {
+          // TCP: ALL streams blocked
+          for (var b = 0; b < 3; b++) {
+            var by = 245 + b * 35;
+            g.innerHTML += '<rect x="'+(bx+20)+'" y="'+by+'" width="290" height="26" rx="3" fill="rgba(255,107,107,0.1)" stroke="var(--accent-red)" stroke-width="1.5"/>';
+            g.innerHTML += '<text x="'+(bx+165)+'" y="'+(by+18)+'" text-anchor="middle" fill="var(--accent-red)" font-size="10" font-weight="600">'+streamLabels[b]+' BLOCKED (waiting for TCP retransmit)</text>';
+          }
+          g.innerHTML += '<text x="'+(bx+165)+'" y="370" text-anchor="middle" fill="var(--accent-red)" font-size="11" font-weight="700">All streams stalled</text>';
+        } else {
+          // QUIC: only Stream B blocked
+          var qLabels = ['continues normally', 'BLOCKED (retransmitting)', 'continues normally'];
+          var qColors = ['var(--accent-green)', 'var(--accent-red)', 'var(--accent-green)'];
+          for (var q = 0; q < 3; q++) {
+            var qy = 245 + q * 35;
+            g.innerHTML += '<rect x="'+(bx+20)+'" y="'+qy+'" width="290" height="26" rx="3" fill="'+(q===1?'rgba(255,107,107,0.1)':'rgba(81,207,102,0.1)')+'" stroke="'+qColors[q]+'" stroke-width="1.5"/>';
+            g.innerHTML += '<text x="'+(bx+165)+'" y="'+(qy+18)+'" text-anchor="middle" fill="'+qColors[q]+'" font-size="10" font-weight="600">'+streamLabels[q]+': '+qLabels[q]+'</text>';
+          }
+          g.innerHTML += '<text x="'+(bx+165)+'" y="370" text-anchor="middle" fill="var(--accent-green)" font-size="11" font-weight="700">Only Stream B stalled</text>';
+        }
+      }
+
+      if (step >= 4) {
+        if (side === 0) {
+          g.innerHTML += '<text x="'+(bx+165)+'" y="400" text-anchor="middle" fill="var(--text-3)" font-size="10">TCP retransmit arrives: all streams resume</text>';
+          g.innerHTML += '<text x="'+(bx+165)+'" y="420" text-anchor="middle" fill="var(--accent-red)" font-size="10" font-weight="600">Total delay: 1 RTT for ALL streams</text>';
+        } else {
+          g.innerHTML += '<text x="'+(bx+165)+'" y="400" text-anchor="middle" fill="var(--text-3)" font-size="10">QUIC retransmit arrives: Stream B resumes</text>';
+          g.innerHTML += '<text x="'+(bx+165)+'" y="420" text-anchor="middle" fill="var(--accent-green)" font-size="10" font-weight="600">Total delay: 1 RTT for Stream B only</text>';
+        }
+      }
+    }
+
+    var commentaries = [
+      'Three concurrent streams (A, B, C) are active on both HTTP/2 (TCP) and HTTP/3 (QUIC) connections. Data is flowing normally.',
+      'A packet carrying Stream B data is lost in transit. Both protocols detect the loss.',
+      'HTTP/2 over TCP: TCP guarantees in-order delivery for the entire byte stream. ALL streams are blocked until the lost packet is retransmitted. HTTP/3 over QUIC: reliability is per-stream. Only Stream B blocks; Streams A and C continue receiving data.',
+      'After retransmission, TCP releases all buffered data (all streams delayed). QUIC only delayed Stream B. On lossy networks (mobile, Wi-Fi), this difference is dramatic -- HTTP/3 delivers 2 of 3 streams on time while HTTP/2 delivers 0 of 3.'
+    ];
+    if (step > 0) document.getElementById('h3-commentary').textContent = commentaries[step - 1];
+  }
+
+  function renderMigration(g, svg) {
+    svg.setAttribute('viewBox', '0 0 800 480');
+    maxStep = 4;
+    var sX = 640;
+
+    g.innerHTML += '<text x="400" y="30" text-anchor="middle" fill="var(--accent-purple)" font-size="14" font-weight="700">QUIC Connection Migration</text>';
+
+    // Server
+    g.innerHTML += '<rect x="580" y="50" width="120" height="40" rx="6" fill="var(--surface-2)" stroke="var(--accent-blue)" stroke-width="2"/>';
+    g.innerHTML += '<text x="'+sX+'" y="75" text-anchor="middle" fill="var(--accent-blue)" font-size="12" font-weight="600">Server</text>';
+    g.innerHTML += '<line x1="'+sX+'" y1="95" x2="'+sX+'" y2="460" stroke="var(--border)" stroke-width="2"/>';
+
+    var commentaries = [
+      'Mobile device connected over Wi-Fi (IP 192.168.1.42). QUIC connection established with Connection ID = 0xABCD. Data is flowing.',
+      'User walks out of Wi-Fi range. Device switches to cellular network. IP address changes to 10.0.0.99. TCP connections would die here (socket = src IP + src port + dst IP + dst port).',
+      'QUIC identifies the connection by Connection ID (0xABCD), NOT by socket tuple. Client sends a packet from the new IP with the same Connection ID. Server recognizes the connection and validates with a PATH_CHALLENGE/PATH_RESPONSE.',
+      'Connection continues seamlessly. No re-handshake, no session re-establishment. The user experience is uninterrupted. This is why QUIC is called "the mobile-first protocol."'
+    ];
+
+    // Phone/client
+    if (step >= 1) {
+      // Wi-Fi phase
+      g.innerHTML += '<rect x="40" y="110" width="180" height="60" rx="6" fill="var(--surface-2)" stroke="var(--accent-cyan)" stroke-width="2"/>';
+      g.innerHTML += '<text x="130" y="135" text-anchor="middle" fill="var(--accent-cyan)" font-size="11" font-weight="600">Mobile Device (Wi-Fi)</text>';
+      g.innerHTML += '<text x="130" y="155" text-anchor="middle" fill="var(--text-3)" font-size="10">IP: 192.168.1.42</text>';
+      g.innerHTML += '<line x1="220" y1="140" x2="'+sX+'" y2="140" stroke="var(--accent-green)" stroke-width="2" marker-end="url(#h3-arrow-green)"/>';
+      g.innerHTML += '<text x="400" y="133" text-anchor="middle" fill="var(--accent-green)" font-size="10" font-weight="600">Connection ID: 0xABCD -- data flowing</text>';
+      // Connection ID badge
+      g.innerHTML += '<rect x="350" y="100" width="140" height="22" rx="3" fill="var(--surface)" stroke="var(--accent-purple)" stroke-width="1.5"/>';
+      g.innerHTML += '<text x="420" y="115" text-anchor="middle" fill="var(--accent-purple)" font-size="10" font-weight="700">CID: 0xABCD</text>';
+    }
+
+    if (step >= 2) {
+      // Network switch
+      g.innerHTML += '<rect x="40" y="200" width="180" height="60" rx="6" fill="var(--surface-2)" stroke="var(--accent-orange)" stroke-width="2" stroke-dasharray="4,3"/>';
+      g.innerHTML += '<text x="130" y="225" text-anchor="middle" fill="var(--accent-orange)" font-size="11" font-weight="600">Network Switch!</text>';
+      g.innerHTML += '<text x="130" y="245" text-anchor="middle" fill="var(--accent-orange)" font-size="10">Wi-Fi lost, cellular up</text>';
+      // Cross on old connection
+      g.innerHTML += '<line x1="200" y1="180" x2="280" y2="180" stroke="var(--accent-red)" stroke-width="2"/>';
+      g.innerHTML += '<text x="240" y="175" text-anchor="middle" fill="var(--accent-red)" font-size="14" font-weight="700">X</text>';
+
+      // TCP comparison
+      g.innerHTML += '<rect x="340" y="190" width="220" height="40" rx="4" fill="rgba(255,107,107,0.1)" stroke="var(--accent-red)" stroke-width="1"/>';
+      g.innerHTML += '<text x="450" y="207" text-anchor="middle" fill="var(--accent-red)" font-size="10" font-weight="600">TCP: connection DEAD</text>';
+      g.innerHTML += '<text x="450" y="222" text-anchor="middle" fill="var(--accent-red)" font-size="9">new handshake required (1-2 RTT)</text>';
+    }
+
+    if (step >= 3) {
+      // New IP, same CID
+      g.innerHTML += '<rect x="40" y="290" width="180" height="60" rx="6" fill="var(--surface-2)" stroke="var(--accent-green)" stroke-width="2"/>';
+      g.innerHTML += '<text x="130" y="315" text-anchor="middle" fill="var(--accent-green)" font-size="11" font-weight="600">Mobile Device (Cellular)</text>';
+      g.innerHTML += '<text x="130" y="335" text-anchor="middle" fill="var(--text-3)" font-size="10">IP: 10.0.0.99 (new!)</text>';
+      g.innerHTML += '<line x1="220" y1="320" x2="'+sX+'" y2="320" stroke="var(--accent-purple)" stroke-width="2" marker-end="url(#h3-arrow)"/>';
+      g.innerHTML += '<text x="400" y="313" text-anchor="middle" fill="var(--accent-purple)" font-size="10" font-weight="600">Same CID: 0xABCD -- new IP</text>';
+
+      // PATH_CHALLENGE
+      g.innerHTML += '<line x1="'+sX+'" y1="350" x2="220" y2="365" stroke="var(--accent-yellow)" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#h3-arrow)"/>';
+      g.innerHTML += '<text x="400" y="358" text-anchor="middle" fill="var(--accent-yellow)" font-size="9">PATH_CHALLENGE (anti-spoofing)</text>';
+      g.innerHTML += '<line x1="220" y1="375" x2="'+sX+'" y2="385" stroke="var(--accent-yellow)" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#h3-arrow)"/>';
+      g.innerHTML += '<text x="400" y="382" text-anchor="middle" fill="var(--accent-yellow)" font-size="9">PATH_RESPONSE</text>';
+    }
+
+    if (step >= 4) {
+      g.innerHTML += '<rect x="'+(cX=160)+'" y="400" width="'+(sX-160+10)+'" height="30" rx="4" fill="rgba(81,207,102,0.1)" stroke="var(--accent-green)" stroke-width="1.5"/>';
+      g.innerHTML += '<text x="400" y="420" text-anchor="middle" fill="var(--accent-green)" font-size="12" font-weight="600">Connection resumes seamlessly -- 0 RTT interruption</text>';
+
+      g.innerHTML += '<text x="400" y="455" text-anchor="middle" fill="var(--text-3)" font-size="10">QUIC connection = Connection ID, not (srcIP, srcPort, dstIP, dstPort)</text>';
+    }
+
+    if (step > 0) document.getElementById('h3-commentary').textContent = commentaries[step - 1];
+  }
+
+  function renderComparison(g, svg) {
+    svg.setAttribute('viewBox', '0 0 800 520');
+    maxStep = 0; step = 0;
+
+    g.innerHTML += '<text x="400" y="30" text-anchor="middle" fill="#fff" font-size="14" font-weight="700">Latency Comparison: 3 Sequential Requests</text>';
+    g.innerHTML += '<text x="400" y="50" text-anchor="middle" fill="var(--text-3)" font-size="11">Assume 50ms RTT, each request takes 20ms server-side</text>';
+
+    var protocols = [
+      { name: 'HTTP/1.1 Keep-Alive', color: 'var(--accent-orange)', x: 50 },
+      { name: 'HTTP/2', color: 'var(--accent-blue)', x: 300 },
+      { name: 'HTTP/3 (QUIC)', color: 'var(--accent-green)', x: 550 }
+    ];
+
+    for (var p = 0; p < protocols.length; p++) {
+      var pr = protocols[p];
+      g.innerHTML += '<text x="'+(pr.x+100)+'" y="80" text-anchor="middle" fill="'+pr.color+'" font-size="12" font-weight="700">'+pr.name+'</text>';
+    }
+
+    // Timelines
+    var timeScale = 0.7; // pixels per ms
+    var baseY = 100;
+
+    // H/1.1: TCP(50) + TLS(100) + req1(50+20+50) + req2(50+20+50) + req3(50+20+50)
+    // Total: 150 + 120*3 = 510ms
+    var h1Events = [
+      { start: 0, end: 50, label: 'TCP', color: 'var(--text-3)' },
+      { start: 50, end: 150, label: 'TLS', color: 'var(--accent-orange)' },
+      { start: 150, end: 270, label: 'Req A', color: 'var(--accent-blue)' },
+      { start: 270, end: 390, label: 'Req B', color: 'var(--accent-green)' },
+      { start: 390, end: 510, label: 'Req C', color: 'var(--accent-purple)' }
+    ];
+    drawTimeline(g, 50, baseY, h1Events, timeScale, 510, 'var(--accent-orange)');
+
+    // H/2: TCP(50) + TLS(100) + all 3 concurrent(50+20+50=120)
+    // Total: 150 + 120 = 270ms
+    var h2Events = [
+      { start: 0, end: 50, label: 'TCP', color: 'var(--text-3)' },
+      { start: 50, end: 150, label: 'TLS', color: 'var(--accent-blue)' },
+      { start: 150, end: 270, label: 'Req A+B+C', color: 'var(--accent-blue)' }
+    ];
+    drawTimeline(g, 300, baseY, h2Events, timeScale, 270, 'var(--accent-blue)');
+
+    // H/3: QUIC(50) + all 3 concurrent(50+20+50=120)
+    // Total: 50 + 120 = 170ms
+    var h3Events = [
+      { start: 0, end: 50, label: 'QUIC+TLS', color: 'var(--accent-green)' },
+      { start: 50, end: 170, label: 'Req A+B+C', color: 'var(--accent-green)' }
+    ];
+    drawTimeline(g, 550, baseY, h3Events, timeScale, 170, 'var(--accent-green)');
+
+    // Total time labels
+    var totals = [
+      { x: 150, time: '510ms', color: 'var(--accent-orange)' },
+      { x: 400, time: '270ms', color: 'var(--accent-blue)' },
+      { x: 650, time: '170ms', color: 'var(--accent-green)' }
+    ];
+    for (var t = 0; t < totals.length; t++) {
+      var tot = totals[t];
+      var ty = baseY + 510 * timeScale + 30;
+      g.innerHTML += '<text x="'+tot.x+'" y="'+ty+'" text-anchor="middle" fill="'+tot.color+'" font-size="14" font-weight="700">'+tot.time+' total</text>';
+    }
+
+    // Savings
+    var savY = baseY + 510 * timeScale + 60;
+    g.innerHTML += '<rect x="100" y="'+savY+'" width="600" height="60" rx="6" fill="#1a1a22" stroke="var(--accent-green)" stroke-width="1.5"/>';
+    g.innerHTML += '<text x="400" y="'+(savY+22)+'" text-anchor="middle" fill="var(--accent-green)" font-size="12" font-weight="700">HTTP/3 is 3x faster than HTTP/1.1, 37% faster than HTTP/2</text>';
+    g.innerHTML += '<text x="400" y="'+(savY+42)+'" text-anchor="middle" fill="var(--text-2)" font-size="11">Savings grow with RTT. At 150ms RTT (cross-continental): H/1.1=1230ms, H/2=570ms, H/3=270ms</text>';
+
+    document.getElementById('h3-commentary').textContent = 'Latency breakdown for 3 sequential requests (50ms RTT, 20ms server processing). HTTP/1.1 serializes requests even with keep-alive. HTTP/2 multiplexes all 3 but pays TCP + TLS handshake costs. HTTP/3 combines QUIC + TLS into 1 RTT and multiplexes. The gap widens on high-latency links.';
+  }
+
+  function drawTimeline(g, x, baseY, events, scale, total, color) {
+    // Vertical timeline
+    g.innerHTML += '<line x1="'+x+'" y1="'+baseY+'" x2="'+x+'" y2="'+(baseY+total*scale)+'" stroke="'+color+'" stroke-width="2"/>';
+    for (var i = 0; i < events.length; i++) {
+      var e = events[i];
+      var ey1 = baseY + e.start * scale;
+      var ey2 = baseY + e.end * scale;
+      var eh = ey2 - ey1;
+      g.innerHTML += '<rect x="'+(x+5)+'" y="'+ey1+'" width="140" height="'+eh+'" rx="3" fill="var(--surface-2)" stroke="'+e.color+'" stroke-width="1"/>';
+      g.innerHTML += '<text x="'+(x+75)+'" y="'+(ey1+eh/2+4)+'" text-anchor="middle" fill="'+e.color+'" font-size="10" font-weight="600">'+e.label+'</text>';
+      // Time label
+      g.innerHTML += '<text x="'+(x-5)+'" y="'+(ey1+5)+'" text-anchor="end" fill="var(--text-3)" font-size="8">'+e.start+'ms</text>';
+    }
+    g.innerHTML += '<text x="'+(x-5)+'" y="'+(baseY+total*scale+5)+'" text-anchor="end" fill="var(--text-3)" font-size="8">'+total+'ms</text>';
+  }
+
+  function showHandshake() { mode = 'handshake'; step = 0; maxStep = 4; render(); }
+  function showZeroRTT() { mode = 'zerort'; step = 0; maxStep = 3; render(); }
+  function showStreamHOL() { mode = 'streamhol'; step = 0; maxStep = 4; render(); }
+  function showMigration() { mode = 'migration'; step = 0; maxStep = 4; render(); }
+  function showComparison() { mode = 'comparison'; step = 0; maxStep = 0; render(); }
+  function next() { if (step < maxStep) { step++; render(); } }
+  function reset() { mode = null; step = 0; maxStep = 0; render(); document.getElementById('h3-commentary').textContent = 'QUIC combines transport handshake + TLS 1.3 handshake into a single 1-RTT exchange. Connection IDs (not socket 4-tuples) identify connections, enabling migration across network changes.'; }
+
+  render();
+  return { showHandshake: showHandshake, showZeroRTT: showZeroRTT, showStreamHOL: showStreamHOL, showMigration: showMigration, showComparison: showComparison, next: next, reset: reset };
+})();
+
+/* ================================================================
+   TAB 6: gRPC
+   ================================================================ */
+var GRPC = (function() {
+  var mode = null;
+
+  function render() {
+    var g = document.getElementById('grpc-scene');
+    g.innerHTML = '';
+    var svg = document.getElementById('grpc-svg');
+
+    if (mode === 'methods') renderMethods(g, svg);
+    else if (mode === 'comparison') renderComparison(g, svg);
+    else renderDefault(g, svg);
+  }
+
+  function renderDefault(g, svg) {
+    svg.setAttribute('viewBox', '0 0 800 480');
+    g.innerHTML += '<text x="400" y="35" text-anchor="middle" fill="#fff" font-size="15" font-weight="700">gRPC = HTTP/2 + Protocol Buffers</text>';
+
+    // Stack
+    g.innerHTML += '<rect x="250" y="60" width="300" height="50" rx="6" fill="var(--surface-2)" stroke="var(--accent-purple)" stroke-width="2"/>';
+    g.innerHTML += '<text x="400" y="90" text-anchor="middle" fill="var(--accent-purple)" font-size="13" font-weight="700">gRPC Framework</text>';
+    g.innerHTML += '<rect x="250" y="115" width="145" height="40" rx="4" fill="var(--surface-2)" stroke="var(--accent-cyan)" stroke-width="1.5"/>';
+    g.innerHTML += '<text x="322" y="140" text-anchor="middle" fill="var(--accent-cyan)" font-size="11" font-weight="600">Protocol Buffers</text>';
+    g.innerHTML += '<rect x="405" y="115" width="145" height="40" rx="4" fill="var(--surface-2)" stroke="var(--accent-blue)" stroke-width="1.5"/>';
+    g.innerHTML += '<text x="477" y="140" text-anchor="middle" fill="var(--accent-blue)" font-size="11" font-weight="600">HTTP/2 Transport</text>';
+
+    // How it works
+    g.innerHTML += '<text x="400" y="190" text-anchor="middle" fill="#fff" font-size="13" font-weight="600">How gRPC Maps to HTTP/2</text>';
+    var mappings = [
+      { grpc: 'RPC method', http2: 'POST /service/method', y: 210 },
+      { grpc: 'Request metadata', http2: 'HTTP/2 headers', y: 235 },
+      { grpc: 'Request message', http2: 'HTTP/2 DATA frame (Protobuf)', y: 260 },
+      { grpc: 'Response metadata', http2: 'HTTP/2 headers', y: 285 },
+      { grpc: 'Response message', http2: 'HTTP/2 DATA frame (Protobuf)', y: 310 },
+      { grpc: 'Status + trailers', http2: 'HTTP/2 trailers', y: 335 }
+    ];
+    for (var i = 0; i < mappings.length; i++) {
+      var m = mappings[i];
+      g.innerHTML += '<text x="250" y="'+m.y+'" text-anchor="end" fill="var(--accent-purple)" font-size="11">'+m.grpc+'</text>';
+      g.innerHTML += '<text x="280" y="'+m.y+'" fill="var(--text-3)" font-size="11">--></text>';
+      g.innerHTML += '<text x="310" y="'+m.y+'" fill="var(--accent-blue)" font-size="11">'+m.http2+'</text>';
+    }
+
+    // Proto example
+    g.innerHTML += '<rect x="80" y="365" width="640" height="100" rx="6" fill="var(--surface)" stroke="var(--border)" stroke-width="1"/>';
+    g.innerHTML += '<text x="400" y="390" text-anchor="middle" fill="var(--accent-cyan)" font-size="12" font-weight="600" font-family="monospace">service UserService {</text>';
+    g.innerHTML += '<text x="400" y="410" text-anchor="middle" fill="var(--accent-cyan)" font-size="12" font-family="monospace">  rpc GetUser (GetUserRequest) returns (User);</text>';
+    g.innerHTML += '<text x="400" y="430" text-anchor="middle" fill="var(--accent-cyan)" font-size="12" font-family="monospace">  rpc ListUsers (ListRequest) returns (stream User);</text>';
+    g.innerHTML += '<text x="400" y="450" text-anchor="middle" fill="var(--accent-cyan)" font-size="12" font-family="monospace">}</text>';
+
+    document.getElementById('grpc-commentary').textContent = 'gRPC uses HTTP/2 for transport: each RPC call maps to an HTTP/2 stream. Method name becomes the path (POST /package.Service/Method). Request/response bodies are Protobuf-encoded DATA frames. Status codes and error details travel in HTTP/2 trailers -- this is why browsers cannot speak native gRPC (no trailer support in browser HTTP/2 implementations).';
+  }
+
+  function renderMethods(g, svg) {
+    svg.setAttribute('viewBox', '0 0 800 480');
+    g.innerHTML += '<text x="400" y="30" text-anchor="middle" fill="#fff" font-size="14" font-weight="700">gRPC: 4 Method Types</text>';
+
+    var methods = [
+      { name: 'Unary', desc: 'One request, one response.', example: 'GetUser(id) -> User', color: 'var(--accent-blue)',
+        arrows: [{dir:'right', y:0, label:'Request'}, {dir:'left', y:20, label:'Response'}] },
+      { name: 'Server Streaming', desc: 'One request, stream of responses.', example: 'ListUsers(filter) -> stream User', color: 'var(--accent-green)',
+        arrows: [{dir:'right', y:0, label:'Request'}, {dir:'left', y:15, label:'Response 1'}, {dir:'left', y:30, label:'Response 2'}, {dir:'left', y:45, label:'Response N...'}] },
+      { name: 'Client Streaming', desc: 'Stream of requests, one response.', example: 'UploadChunks(stream Chunk) -> Status', color: 'var(--accent-orange)',
+        arrows: [{dir:'right', y:0, label:'Request 1'}, {dir:'right', y:15, label:'Request 2'}, {dir:'right', y:30, label:'Request N...'}, {dir:'left', y:50, label:'Response'}] },
+      { name: 'Bidirectional Streaming', desc: 'Both sides stream independently.', example: 'Chat(stream Msg) -> stream Msg', color: 'var(--accent-purple)',
+        arrows: [{dir:'right', y:0, label:'Msg 1 ->'}, {dir:'left', y:10, label:'<- Msg A'}, {dir:'right', y:20, label:'Msg 2 ->'}, {dir:'left', y:30, label:'<- Msg B'}, {dir:'right', y:40, label:'Msg 3 ->'}, {dir:'left', y:50, label:'<- Msg C'}] }
+    ];
+
+    for (var i = 0; i < methods.length; i++) {
+      var m = methods[i];
+      var bx = 40, by = 55 + i * 110;
+      // Title + description
+      g.innerHTML += '<text x="'+(bx+5)+'" y="'+by+'" fill="'+m.color+'" font-size="13" font-weight="700">'+m.name+'</text>';
+      g.innerHTML += '<text x="'+(bx+5)+'" y="'+(by+16)+'" fill="var(--text-3)" font-size="10">'+m.desc+'</text>';
+      g.innerHTML += '<text x="'+(bx+5)+'" y="'+(by+30)+'" fill="var(--accent-cyan)" font-size="10" font-family="monospace">'+m.example+'</text>';
+
+      // Sequence diagram
+      var cX = 480, srvX = 720;
+      g.innerHTML += '<text x="'+cX+'" y="'+(by-12)+'" text-anchor="middle" fill="var(--text-3)" font-size="9">Client</text>';
+      g.innerHTML += '<text x="'+srvX+'" y="'+(by-12)+'" text-anchor="middle" fill="var(--text-3)" font-size="9">Server</text>';
+      g.innerHTML += '<line x1="'+cX+'" y1="'+(by-5)+'" x2="'+cX+'" y2="'+(by+70)+'" stroke="var(--border)" stroke-width="1"/>';
+      g.innerHTML += '<line x1="'+srvX+'" y1="'+(by-5)+'" x2="'+srvX+'" y2="'+(by+70)+'" stroke="var(--border)" stroke-width="1"/>';
+
+      for (var j = 0; j < m.arrows.length; j++) {
+        var a = m.arrows[j];
+        var ay = by + 5 + a.y;
+        var ax1 = a.dir === 'right' ? cX : srvX;
+        var ax2 = a.dir === 'right' ? srvX : cX;
+        g.innerHTML += '<line x1="'+ax1+'" y1="'+ay+'" x2="'+ax2+'" y2="'+ay+'" stroke="'+m.color+'" stroke-width="1.5" marker-end="url(#h2-arrow)"/>';
+        var labelX = (ax1 + ax2) / 2;
+        g.innerHTML += '<text x="'+labelX+'" y="'+(ay-3)+'" text-anchor="middle" fill="'+m.color+'" font-size="8">'+a.label+'</text>';
+      }
+    }
+
+    document.getElementById('grpc-commentary').textContent = 'Unary = the REST equivalent (request/response). Server streaming = server pushes a stream of results (think: real-time feed, large dataset pagination). Client streaming = client uploads a stream (think: file upload in chunks). Bidirectional = both sides stream independently (think: chat, game state sync). All four types use a single HTTP/2 stream per RPC call.';
+  }
+
+  function renderComparison(g, svg) {
+    svg.setAttribute('viewBox', '0 0 800 480');
+    g.innerHTML += '<text x="400" y="30" text-anchor="middle" fill="#fff" font-size="14" font-weight="700">gRPC vs REST: When to Use Which</text>';
+
+    var headers = ['', 'gRPC', 'REST'];
+    var headerColors = ['', 'var(--accent-purple)', 'var(--accent-blue)'];
+    var rows = [
+      ['Serialization', 'Protobuf (binary, compact)', 'JSON (text, human-readable)'],
+      ['Schema', 'Required (.proto files)', 'Optional (OpenAPI/Swagger)'],
+      ['Code gen', 'Built-in (proto compiler)', 'Third-party tools'],
+      ['Streaming', '4 types (native)', 'Workarounds (SSE, WebSocket)'],
+      ['Browser support', 'No (need gRPC-Web proxy)', 'Yes (native)'],
+      ['Debugging', 'Hard (binary on wire)', 'Easy (curl, browser)'],
+      ['Performance', '~10x smaller, ~7x faster', 'Baseline'],
+      ['Adoption', 'Service-to-service', 'Browser-facing APIs']
+    ];
+
+    var colX = [80, 280, 560];
+    var colW = [180, 250, 220];
+
+    // Headers
+    for (var h = 0; h < headers.length; h++) {
+      g.innerHTML += '<rect x="'+colX[h]+'" y="55" width="'+colW[h]+'" height="30" rx="4" fill="var(--surface-2)" stroke="var(--border)" stroke-width="1"/>';
+      g.innerHTML += '<text x="'+(colX[h]+colW[h]/2)+'" y="75" text-anchor="middle" fill="'+headerColors[h]+'" font-size="12" font-weight="700">'+headers[h]+'</text>';
+    }
+
+    // Rows
+    for (var r = 0; r < rows.length; r++) {
+      var ry = 95 + r * 38;
+      var bg = r % 2 === 0 ? 'var(--surface)' : 'var(--surface-2)';
+      for (var c = 0; c < 3; c++) {
+        g.innerHTML += '<rect x="'+colX[c]+'" y="'+ry+'" width="'+colW[c]+'" height="32" rx="2" fill="'+bg+'" stroke="var(--border)" stroke-width="0.5"/>';
+        var txtColor = c === 0 ? 'var(--text-2)' : (c === 1 ? 'var(--accent-purple)' : 'var(--accent-blue)');
+        var fontSize = c === 0 ? '11' : '10';
+        var fontWeight = c === 0 ? '600' : '400';
+        g.innerHTML += '<text x="'+(colX[c]+8)+'" y="'+(ry+21)+'" fill="'+txtColor+'" font-size="'+fontSize+'" font-weight="'+fontWeight+'">'+rows[r][c]+'</text>';
+      }
+    }
+
+    // Decision rule
+    var dY = 95 + rows.length * 38 + 15;
+    g.innerHTML += '<rect x="80" y="'+dY+'" width="640" height="70" rx="6" fill="#1a1a22" stroke="var(--accent-green)" stroke-width="1.5"/>';
+    g.innerHTML += '<text x="400" y="'+(dY+22)+'" text-anchor="middle" fill="var(--accent-green)" font-size="13" font-weight="700">Decision Rule</text>';
+    g.innerHTML += '<text x="400" y="'+(dY+42)+'" text-anchor="middle" fill="var(--text-2)" font-size="11">Browser-facing API? Use REST (or GraphQL). Service-to-service? Use gRPC.</text>';
+    g.innerHTML += '<text x="400" y="'+(dY+60)+'" text-anchor="middle" fill="var(--text-3)" font-size="10">Need both? gRPC internally, REST gateway (Envoy/gRPC-Gateway) for browsers.</text>';
+
+    document.getElementById('grpc-commentary').textContent = 'gRPC excels at service-to-service communication: schema-first design catches mismatches at compile time, Protobuf is 10x smaller than JSON, and native streaming covers patterns that REST needs WebSockets for. But browsers cannot speak native gRPC (HTTP/2 trailers are not exposed to browser JS). The standard pattern is gRPC between backend services, with a REST or gRPC-Web gateway for browser clients.';
+  }
+
+  function showMethods() { mode = 'methods'; render(); }
+  function showComparison() { mode = 'comparison'; render(); }
+  function reset() { mode = null; render(); document.getElementById('grpc-commentary').textContent = 'gRPC uses HTTP/2 streams for multiplexing and Protobuf for compact binary serialization. Each RPC method maps to an HTTP/2 stream. Metadata travels in HTTP/2 headers; responses end with trailers carrying status codes.'; }
+
+  render();
+  return { showMethods: showMethods, showComparison: showComparison, reset: reset };
+})();
+</script>
+</body>
+</html>

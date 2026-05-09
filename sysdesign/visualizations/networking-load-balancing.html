@@ -1,0 +1,1552 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Load Balancing + Service Mesh</title>
+<style>
+:root {
+  --bg: #0f0f15;
+  --surface: #181820;
+  --surface-2: #20202a;
+  --border: #2a2a35;
+  --text: #e6e6ea;
+  --text-2: #cfcfd6;
+  --text-3: #888;
+  --accent-red: #ff6b6b;
+  --accent-green: #51cf66;
+  --accent-blue: #339af0;
+  --accent-yellow: #ffd43b;
+  --accent-purple: #cc5de8;
+  --accent-cyan: #8be9fd;
+  --accent-orange: #ffa94d;
+}
+*, *::before, *::after { box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  padding: 32px 24px;
+  max-width: 1100px;
+  margin: 0 auto;
+  line-height: 1.55;
+}
+h1 { color: #fff; margin-bottom: 4px; }
+h1 + p.sub { color: var(--text-3); font-style: italic; margin-top: 0; margin-bottom: 24px; }
+h2 { color: #fff; margin-top: 48px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+h3 { color: var(--text-2); margin-top: 20px; }
+code {
+  background: var(--surface-2);
+  padding: 2px 6px;
+  border-radius: 3px;
+  color: var(--accent-cyan);
+  font-size: 13px;
+}
+svg {
+  background: var(--surface);
+  border-radius: 8px;
+  display: block;
+  margin: 14px auto;
+  width: 100%;
+  height: auto;
+}
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0;
+  align-items: center;
+}
+.controls button, .btn {
+  padding: 10px 16px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  border-radius: 6px;
+  cursor: pointer;
+  min-height: 44px;
+  font-size: 14px;
+  transition: background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+.controls button:hover, .btn:hover { background: var(--surface); }
+.controls button:disabled, .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.controls button.active-btn { border-color: var(--accent-blue); color: var(--accent-blue); }
+.controls button.danger { border-color: var(--accent-red); color: var(--accent-red); }
+.controls button.danger:hover { background: #2a1520; }
+.commentary {
+  background: var(--surface-2);
+  padding: 14px;
+  border-radius: 6px;
+  font-size: 14px;
+  color: var(--text-2);
+  margin: 12px 0;
+  min-height: 44px;
+  line-height: 1.5;
+}
+.takeaway {
+  background: #1a1a22;
+  border-left: 3px solid var(--accent-green);
+  padding: 12px 16px;
+  margin: 14px 0;
+  font-size: 14px;
+}
+.takeaway strong { color: var(--accent-green); }
+.takeaway ul { margin: 6px 0 0 0; padding-left: 18px; }
+.takeaway li { margin-bottom: 6px; }
+.tradeoff-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 14px 0;
+  font-size: 13px;
+}
+.tradeoff-table th, .tradeoff-table td {
+  border: 1px solid var(--border);
+  padding: 8px 12px;
+  text-align: left;
+}
+.tradeoff-table th {
+  background: var(--surface-2);
+  color: var(--accent-blue);
+  font-weight: 600;
+}
+.tradeoff-table td { color: var(--text-2); }
+.tradeoff-table tr:nth-child(even) td { background: var(--surface); }
+.side-by-side {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin: 14px 0;
+}
+.side-by-side .panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px;
+}
+.side-by-side .panel h3 { margin-top: 0; }
+.label-l4 { color: var(--accent-orange); font-weight: 600; }
+.label-l7 { color: var(--accent-purple); font-weight: 600; }
+.examples-list {
+  font-size: 12px;
+  color: var(--text-3);
+  margin: 6px 0 0 0;
+  padding-left: 16px;
+}
+.examples-list li { margin-bottom: 2px; }
+.slider-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-3);
+  min-width: 180px;
+}
+.slider-group input[type="range"] {
+  flex: 1;
+  min-width: 80px;
+  accent-color: var(--accent-blue);
+}
+@media (max-width: 720px) {
+  body { padding: 16px 12px; }
+  .side-by-side { grid-template-columns: 1fr; }
+  .tradeoff-table { font-size: 11px; }
+  .tradeoff-table th, .tradeoff-table td { padding: 6px 8px; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Load balancing + service mesh</h1>
+  <p class="sub">L4 vs L7, the algorithms, sticky sessions, sidecar service mesh, layered architecture. Pick the right LB layer for the failure you care about.</p>
+</header>
+
+<!-- ===== Section 1: L4 vs L7 ===== -->
+<h2>1. L4 vs L7 load balancing</h2>
+
+<p>The fundamental split: does the load balancer understand the <em>protocol</em> inside the connection, or just forward bytes?</p>
+
+<div class="side-by-side">
+  <div class="panel">
+    <h3 class="label-l4">L4 -- Transport layer (TCP/UDP)</h3>
+    <p style="font-size:13px;color:var(--text-2)">Sees only IP addresses and port numbers. Forwards raw bytes without inspecting content. Cannot parse HTTP, route by path, or rewrite headers.</p>
+    <ul class="examples-list">
+      <li>AWS NLB</li>
+      <li>HAProxy (TCP mode)</li>
+      <li>IPVS / LVS</li>
+      <li>Google Maglev</li>
+    </ul>
+  </div>
+  <div class="panel">
+    <h3 class="label-l7">L7 -- Application layer (HTTP/gRPC)</h3>
+    <p style="font-size:13px;color:var(--text-2)">Terminates TLS, parses HTTP, reads headers/path/body. Can route by content, retry failed requests, rewrite URLs, inject headers.</p>
+    <ul class="examples-list">
+      <li>AWS ALB</li>
+      <li>NGINX</li>
+      <li>HAProxy (HTTP mode)</li>
+      <li>Envoy</li>
+    </ul>
+  </div>
+</div>
+
+<div class="controls">
+  <button onclick="startL4L7Demo()" id="btn-l4l7">Run demo</button>
+  <button onclick="resetL4L7()" style="font-size:13px">Reset</button>
+  <span style="font-size:12px;color:var(--text-3);margin-left:8px" id="l4l7-status"></span>
+</div>
+
+<div class="side-by-side" id="l4l7-diagrams">
+  <div class="panel">
+    <svg id="svg-l4" viewBox="0 0 440 340" style="background:transparent">
+      <defs>
+        <marker id="arrow-l4" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+          <polygon points="0 0, 8 3, 0 6" fill="var(--accent-orange)"/>
+        </marker>
+      </defs>
+      <text x="220" y="18" fill="var(--accent-orange)" font-size="13" font-weight="600" text-anchor="middle">L4 (TCP/UDP)</text>
+      <!-- Client -->
+      <rect x="170" y="30" width="100" height="36" rx="6" fill="var(--surface-2)" stroke="var(--border)"/>
+      <text x="220" y="53" fill="var(--text)" font-size="12" text-anchor="middle">Client</text>
+      <!-- LB -->
+      <rect x="155" y="120" width="130" height="44" rx="6" fill="var(--surface-2)" stroke="var(--accent-orange)" stroke-width="1.5"/>
+      <text x="220" y="140" fill="var(--accent-orange)" font-size="12" text-anchor="middle" font-weight="600">L4 Load Balancer</text>
+      <text x="220" y="155" fill="var(--text-3)" font-size="10" text-anchor="middle">IP:port only</text>
+      <!-- Arrow client -> LB -->
+      <line x1="220" y1="66" x2="220" y2="118" stroke="var(--accent-orange)" stroke-width="1.5" marker-end="url(#arrow-l4)" stroke-dasharray="4 3" id="l4-arrow1"/>
+      <!-- Backends -->
+      <rect x="30" y="230" width="90" height="36" rx="6" fill="var(--surface-2)" stroke="var(--border)" id="l4-b1"/>
+      <text x="75" y="253" fill="var(--text-2)" font-size="11" text-anchor="middle">Backend 1</text>
+      <rect x="175" y="230" width="90" height="36" rx="6" fill="var(--surface-2)" stroke="var(--border)" id="l4-b2"/>
+      <text x="220" y="253" fill="var(--text-2)" font-size="11" text-anchor="middle">Backend 2</text>
+      <rect x="320" y="230" width="90" height="36" rx="6" fill="var(--surface-2)" stroke="var(--border)" id="l4-b3"/>
+      <text x="365" y="253" fill="var(--text-2)" font-size="11" text-anchor="middle">Backend 3</text>
+      <!-- Arrows LB -> backends -->
+      <line x1="200" y1="164" x2="75" y2="228" stroke="var(--border)" stroke-width="1" id="l4-line1"/>
+      <line x1="220" y1="164" x2="220" y2="228" stroke="var(--border)" stroke-width="1" id="l4-line2"/>
+      <line x1="240" y1="164" x2="365" y2="228" stroke="var(--border)" stroke-width="1" id="l4-line3"/>
+      <!-- Byte stream labels -->
+      <text x="220" y="290" fill="var(--text-3)" font-size="10" text-anchor="middle" id="l4-bytes" opacity="0">Raw TCP bytes forwarded -- no parsing</text>
+      <!-- Animated packet -->
+      <circle cx="220" cy="66" r="5" fill="var(--accent-orange)" id="l4-packet" opacity="0"/>
+      <!-- Packet content label -->
+      <rect x="260" y="86" width="140" height="24" rx="4" fill="var(--surface)" stroke="var(--accent-orange)" stroke-width="0.5" id="l4-pkt-label-bg" opacity="0"/>
+      <text x="330" y="102" fill="var(--accent-orange)" font-size="10" text-anchor="middle" id="l4-pkt-label" opacity="0">SRC:4821 DST:80</text>
+    </svg>
+  </div>
+  <div class="panel">
+    <svg id="svg-l7" viewBox="0 0 440 340" style="background:transparent">
+      <defs>
+        <marker id="arrow-l7" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+          <polygon points="0 0, 8 3, 0 6" fill="var(--accent-purple)"/>
+        </marker>
+      </defs>
+      <text x="220" y="18" fill="var(--accent-purple)" font-size="13" font-weight="600" text-anchor="middle">L7 (HTTP/gRPC)</text>
+      <!-- Client -->
+      <rect x="170" y="30" width="100" height="36" rx="6" fill="var(--surface-2)" stroke="var(--border)"/>
+      <text x="220" y="53" fill="var(--text)" font-size="12" text-anchor="middle">Client</text>
+      <!-- LB -->
+      <rect x="130" y="110" width="180" height="60" rx="6" fill="var(--surface-2)" stroke="var(--accent-purple)" stroke-width="1.5"/>
+      <text x="220" y="130" fill="var(--accent-purple)" font-size="12" text-anchor="middle" font-weight="600">L7 Load Balancer</text>
+      <text x="220" y="145" fill="var(--text-3)" font-size="10" text-anchor="middle">TLS terminate + HTTP parse</text>
+      <text x="220" y="160" fill="var(--text-3)" font-size="10" text-anchor="middle" id="l7-parse-line" opacity="0">GET /api/users HTTP/1.1</text>
+      <!-- Arrow client -> LB -->
+      <line x1="220" y1="66" x2="220" y2="108" stroke="var(--accent-purple)" stroke-width="1.5" marker-end="url(#arrow-l7)" stroke-dasharray="4 3"/>
+      <!-- Backends with paths -->
+      <rect x="20" y="236" width="120" height="44" rx="6" fill="var(--surface-2)" stroke="var(--border)" id="l7-b1"/>
+      <text x="80" y="255" fill="var(--text-2)" font-size="11" text-anchor="middle">/api/users</text>
+      <text x="80" y="270" fill="var(--text-3)" font-size="9" text-anchor="middle">Users service</text>
+      <rect x="160" y="236" width="120" height="44" rx="6" fill="var(--surface-2)" stroke="var(--border)" id="l7-b2"/>
+      <text x="220" y="255" fill="var(--text-2)" font-size="11" text-anchor="middle">/api/orders</text>
+      <text x="220" y="270" fill="var(--text-3)" font-size="9" text-anchor="middle">Orders service</text>
+      <rect x="300" y="236" width="120" height="44" rx="6" fill="var(--surface-2)" stroke="var(--border)" id="l7-b3"/>
+      <text x="360" y="255" fill="var(--text-2)" font-size="11" text-anchor="middle">/static/*</text>
+      <text x="360" y="270" fill="var(--text-3)" font-size="9" text-anchor="middle">Static assets</text>
+      <!-- Arrows LB -> backends -->
+      <line x1="190" y1="170" x2="80" y2="234" stroke="var(--border)" stroke-width="1" id="l7-line1"/>
+      <line x1="220" y1="170" x2="220" y2="234" stroke="var(--border)" stroke-width="1" id="l7-line2"/>
+      <line x1="250" y1="170" x2="360" y2="234" stroke="var(--border)" stroke-width="1" id="l7-line3"/>
+      <!-- Route highlight -->
+      <text x="220" y="305" fill="var(--text-3)" font-size="10" text-anchor="middle" id="l7-route-label" opacity="0">Routes by path -- /api/users -> Users service</text>
+      <!-- Animated packet -->
+      <circle cx="220" cy="66" r="5" fill="var(--accent-purple)" id="l7-packet" opacity="0"/>
+      <!-- Packet content label -->
+      <rect x="260" y="76" width="160" height="24" rx="4" fill="var(--surface)" stroke="var(--accent-purple)" stroke-width="0.5" id="l7-pkt-label-bg" opacity="0"/>
+      <text x="340" y="92" fill="var(--accent-purple)" font-size="10" text-anchor="middle" id="l7-pkt-label" opacity="0">GET /api/users HTTP/1.1</text>
+    </svg>
+  </div>
+</div>
+
+<div class="commentary" id="l4l7-commentary">Click "Run demo" to see L4 forwarding raw bytes vs L7 parsing and routing by path.</div>
+
+<table class="tradeoff-table">
+  <tr><th>Dimension</th><th class="label-l4">L4</th><th class="label-l7">L7</th></tr>
+  <tr><td>Sees</td><td>IP + port</td><td>HTTP method, path, headers, body</td></tr>
+  <tr><td>TLS</td><td>Pass-through (end-to-end)</td><td>Terminates at LB (SSL offload)</td></tr>
+  <tr><td>Routing</td><td>IP/port hash, round-robin</td><td>Path, host, header, cookie</td></tr>
+  <tr><td>Retry</td><td>Cannot (bytes already sent)</td><td>Per-request retry to different backend</td></tr>
+  <tr><td>Latency</td><td>Lower (no parsing)</td><td>Higher (parse + potential TLS re-encrypt)</td></tr>
+  <tr><td>CPU cost</td><td>Minimal</td><td>Higher (TLS + HTTP parsing)</td></tr>
+  <tr><td>Best for</td><td>WebSocket, TCP-native, RPC frameworks</td><td>REST APIs, mixed services, canary routing</td></tr>
+</table>
+
+<div class="takeaway">
+  <strong>Takeaway:</strong> L4 = fast and dumb (good for TCP-native workloads, WebSocket, RPC frameworks that handle their own retries). L7 = smart and routable (good for REST APIs, mixed apps, retry policies, canary deploys). Choose based on whether you need content-aware routing.
+</div>
+
+
+<!-- ===== Section 2: LB Algorithms ===== -->
+<h2>2. Load balancing algorithms</h2>
+
+<p>Four algorithms, each optimized for a different property. Watch how they distribute a stream of requests across 4 backends with varying response times.</p>
+
+<div class="controls">
+  <button class="active-btn" onclick="setAlgo('rr')" id="algo-rr">Round-robin</button>
+  <button onclick="setAlgo('lc')" id="algo-lc">Least connections</button>
+  <button onclick="setAlgo('wrr')" id="algo-wrr">Weighted RR</button>
+  <button onclick="setAlgo('hash')" id="algo-hash">Hash-based</button>
+  <button onclick="startAlgoDemo()" id="btn-algo" style="margin-left:16px">Send requests</button>
+  <button onclick="resetAlgo()" style="font-size:13px">Reset</button>
+</div>
+
+<svg id="svg-algo" viewBox="0 0 1060 360">
+  <!-- LB -->
+  <rect x="440" y="10" width="180" height="40" rx="6" fill="var(--surface-2)" stroke="var(--accent-blue)" stroke-width="1.5"/>
+  <text x="530" y="35" fill="var(--accent-blue)" font-size="13" text-anchor="middle" font-weight="600">Load Balancer</text>
+  <!-- Incoming requests queue -->
+  <text x="530" y="75" fill="var(--text-3)" font-size="11" text-anchor="middle" id="algo-queue-label">Incoming requests</text>
+  <!-- Request dots in queue -->
+  <g id="algo-queue"></g>
+  <!-- Backends -->
+  <g id="algo-backends">
+    <rect x="60" y="170" width="180" height="120" rx="8" fill="var(--surface-2)" stroke="var(--border)" id="algo-be-0-box"/>
+    <text x="150" y="195" fill="var(--text)" font-size="12" text-anchor="middle" font-weight="600">Backend 1</text>
+    <text x="150" y="212" fill="var(--text-3)" font-size="10" text-anchor="middle" id="algo-be-0-weight">weight: 1</text>
+    <text x="150" y="250" fill="var(--accent-green)" font-size="11" text-anchor="middle" id="algo-be-0-conns">active: 0</text>
+    <text x="150" y="268" fill="var(--text-3)" font-size="10" text-anchor="middle" id="algo-be-0-total">total: 0</text>
+    <rect x="70" y="226" width="160" height="8" rx="4" fill="var(--border)"/>
+    <rect x="70" y="226" width="0" height="8" rx="4" fill="var(--accent-green)" id="algo-be-0-bar"/>
+
+    <rect x="310" y="170" width="180" height="120" rx="8" fill="var(--surface-2)" stroke="var(--border)" id="algo-be-1-box"/>
+    <text x="400" y="195" fill="var(--text)" font-size="12" text-anchor="middle" font-weight="600">Backend 2</text>
+    <text x="400" y="212" fill="var(--text-3)" font-size="10" text-anchor="middle" id="algo-be-1-weight">weight: 1</text>
+    <text x="400" y="250" fill="var(--accent-green)" font-size="11" text-anchor="middle" id="algo-be-1-conns">active: 0</text>
+    <text x="400" y="268" fill="var(--text-3)" font-size="10" text-anchor="middle" id="algo-be-1-total">total: 0</text>
+    <rect x="320" y="226" width="160" height="8" rx="4" fill="var(--border)"/>
+    <rect x="320" y="226" width="0" height="8" rx="4" fill="var(--accent-green)" id="algo-be-1-bar"/>
+
+    <rect x="560" y="170" width="180" height="120" rx="8" fill="var(--surface-2)" stroke="var(--border)" id="algo-be-2-box"/>
+    <text x="650" y="195" fill="var(--text)" font-size="12" text-anchor="middle" font-weight="600">Backend 3</text>
+    <text x="650" y="212" fill="var(--text-3)" font-size="10" text-anchor="middle" id="algo-be-2-weight">weight: 1</text>
+    <text x="650" y="250" fill="var(--accent-green)" font-size="11" text-anchor="middle" id="algo-be-2-conns">active: 0</text>
+    <text x="650" y="268" fill="var(--text-3)" font-size="10" text-anchor="middle" id="algo-be-2-total">total: 0</text>
+    <rect x="570" y="226" width="160" height="8" rx="4" fill="var(--border)"/>
+    <rect x="570" y="226" width="0" height="8" rx="4" fill="var(--accent-green)" id="algo-be-2-bar"/>
+
+    <rect x="810" y="170" width="180" height="120" rx="8" fill="var(--surface-2)" stroke="var(--border)" id="algo-be-3-box"/>
+    <text x="900" y="195" fill="var(--text)" font-size="12" text-anchor="middle" font-weight="600">Backend 4</text>
+    <text x="900" y="212" fill="var(--text-3)" font-size="10" text-anchor="middle" id="algo-be-3-weight">weight: 1</text>
+    <text x="900" y="250" fill="var(--accent-green)" font-size="11" text-anchor="middle" id="algo-be-3-conns">active: 0</text>
+    <text x="900" y="268" fill="var(--text-3)" font-size="10" text-anchor="middle" id="algo-be-3-total">total: 0</text>
+    <rect x="820" y="226" width="160" height="8" rx="4" fill="var(--border)"/>
+    <rect x="820" y="226" width="0" height="8" rx="4" fill="var(--accent-green)" id="algo-be-3-bar"/>
+  </g>
+  <!-- Backend speed labels -->
+  <text x="150" y="310" fill="var(--text-3)" font-size="10" text-anchor="middle" id="algo-be-0-speed">~200ms</text>
+  <text x="400" y="310" fill="var(--text-3)" font-size="10" text-anchor="middle" id="algo-be-1-speed">~200ms</text>
+  <text x="650" y="310" fill="var(--accent-yellow)" font-size="10" text-anchor="middle" id="algo-be-2-speed">~800ms (slow)</text>
+  <text x="900" y="310" fill="var(--text-3)" font-size="10" text-anchor="middle" id="algo-be-3-speed">~200ms</text>
+  <!-- Animated request dots travel along paths -->
+  <g id="algo-flying"></g>
+  <!-- Connection lines -->
+  <line x1="480" y1="50" x2="150" y2="168" stroke="var(--border)" stroke-width="0.7" stroke-dasharray="3 3"/>
+  <line x1="510" y1="50" x2="400" y2="168" stroke="var(--border)" stroke-width="0.7" stroke-dasharray="3 3"/>
+  <line x1="550" y1="50" x2="650" y2="168" stroke="var(--border)" stroke-width="0.7" stroke-dasharray="3 3"/>
+  <line x1="580" y1="50" x2="900" y2="168" stroke="var(--border)" stroke-width="0.7" stroke-dasharray="3 3"/>
+  <!-- Request user labels for hash mode -->
+  <g id="algo-hash-labels" opacity="0">
+    <text x="530" y="348" fill="var(--text-3)" font-size="10" text-anchor="middle">Hash mode: requests colored by user ID -- same user always hits same backend</text>
+  </g>
+</svg>
+
+<div class="commentary" id="algo-commentary">Select an algorithm and click "Send requests" to watch distribution. Backend 3 is intentionally slow (~800ms) -- watch how each algorithm handles it.</div>
+
+<table class="tradeoff-table">
+  <tr><th>Algorithm</th><th>Strategy</th><th>Best when</th><th>Weakness</th></tr>
+  <tr><td style="color:var(--accent-blue)">Round-robin</td><td>Rotate 1, 2, 3, 4, 1, ...</td><td>All backends equal speed</td><td>Piles up on slow backends</td></tr>
+  <tr><td style="color:var(--accent-green)">Least connections</td><td>Pick backend with fewest active</td><td>Variable request durations</td><td>Slightly more LB state</td></tr>
+  <tr><td style="color:var(--accent-yellow)">Weighted RR</td><td>Backends have capacity weights</td><td>Heterogeneous hardware</td><td>Static -- doesn't adapt to runtime load</td></tr>
+  <tr><td style="color:var(--accent-purple)">Hash-based</td><td>Hash key -> pick backend</td><td>Cache locality, sticky by key</td><td>Uneven if keys are skewed</td></tr>
+</table>
+
+<div class="takeaway">
+  <strong>Takeaway:</strong> Round-robin = default, OK for uniform load. Least-connections = better for variable request durations. Weighted = heterogeneous fleet. Hash = cache locality. Pick by what you are optimizing for.
+</div>
+
+
+<!-- ===== Section 3: Sticky Sessions ===== -->
+<h2>3. Sticky sessions</h2>
+
+<p>Sticky sessions pin a client to a specific backend. Three mechanisms, each with different trade-offs.</p>
+
+<div class="controls">
+  <button class="active-btn" onclick="setStickyMode('cookie')" id="sticky-cookie">Cookie-based</button>
+  <button onclick="setStickyMode('iphash')" id="sticky-iphash">IP hash</button>
+  <button onclick="setStickyMode('chash')" id="sticky-chash">Consistent hash</button>
+  <button onclick="startStickyDemo()" id="btn-sticky" style="margin-left:16px">Run demo</button>
+  <button onclick="resetSticky()" style="font-size:13px">Reset</button>
+</div>
+
+<svg id="svg-sticky" viewBox="0 0 1060 380">
+  <!-- Clients -->
+  <g id="sticky-clients">
+    <rect x="30" y="10" width="120" height="40" rx="6" fill="var(--surface-2)" stroke="var(--accent-cyan)"/>
+    <text x="90" y="35" fill="var(--accent-cyan)" font-size="12" text-anchor="middle">User Alice</text>
+    <rect x="200" y="10" width="120" height="40" rx="6" fill="var(--surface-2)" stroke="var(--accent-orange)"/>
+    <text x="260" y="35" fill="var(--accent-orange)" font-size="12" text-anchor="middle">User Bob</text>
+    <rect x="370" y="10" width="120" height="40" rx="6" fill="var(--surface-2)" stroke="var(--accent-green)"/>
+    <text x="430" y="35" fill="var(--accent-green)" font-size="12" text-anchor="middle">User Carol</text>
+  </g>
+  <!-- LB -->
+  <rect x="380" y="100" width="300" height="50" rx="6" fill="var(--surface-2)" stroke="var(--accent-blue)" stroke-width="1.5"/>
+  <text x="530" y="122" fill="var(--accent-blue)" font-size="13" text-anchor="middle" font-weight="600">Load Balancer</text>
+  <text x="530" y="140" fill="var(--text-3)" font-size="10" text-anchor="middle" id="sticky-lb-detail">Cookie: route=backend-2</text>
+  <!-- Backends -->
+  <rect x="160" y="220" width="140" height="50" rx="6" fill="var(--surface-2)" stroke="var(--border)" id="sticky-b1"/>
+  <text x="230" y="250" fill="var(--text)" font-size="12" text-anchor="middle">Backend 1</text>
+  <rect x="380" y="220" width="140" height="50" rx="6" fill="var(--surface-2)" stroke="var(--border)" id="sticky-b2"/>
+  <text x="450" y="250" fill="var(--text)" font-size="12" text-anchor="middle">Backend 2</text>
+  <rect x="600" y="220" width="140" height="50" rx="6" fill="var(--surface-2)" stroke="var(--border)" id="sticky-b3"/>
+  <text x="670" y="250" fill="var(--text)" font-size="12" text-anchor="middle">Backend 3</text>
+  <rect x="820" y="220" width="140" height="50" rx="6" fill="var(--surface-2)" stroke="var(--border)" id="sticky-b4"/>
+  <text x="890" y="250" fill="var(--text)" font-size="12" text-anchor="middle">Backend 4</text>
+  <!-- Session state labels -->
+  <text x="230" y="290" fill="var(--text-3)" font-size="10" text-anchor="middle" id="sticky-b1-session"></text>
+  <text x="450" y="290" fill="var(--text-3)" font-size="10" text-anchor="middle" id="sticky-b2-session"></text>
+  <text x="670" y="290" fill="var(--text-3)" font-size="10" text-anchor="middle" id="sticky-b3-session"></text>
+  <text x="890" y="290" fill="var(--text-3)" font-size="10" text-anchor="middle" id="sticky-b4-session"></text>
+  <!-- Failure scenario -->
+  <text x="530" y="330" fill="var(--text-3)" font-size="11" text-anchor="middle" id="sticky-failure-label" opacity="0"></text>
+  <!-- Connection lines -->
+  <line x1="440" y1="150" x2="230" y2="218" stroke="var(--border)" stroke-width="0.7" stroke-dasharray="3 3"/>
+  <line x1="490" y1="150" x2="450" y2="218" stroke="var(--border)" stroke-width="0.7" stroke-dasharray="3 3"/>
+  <line x1="570" y1="150" x2="670" y2="218" stroke="var(--border)" stroke-width="0.7" stroke-dasharray="3 3"/>
+  <line x1="620" y1="150" x2="890" y2="218" stroke="var(--border)" stroke-width="0.7" stroke-dasharray="3 3"/>
+  <!-- Animated elements -->
+  <g id="sticky-flying"></g>
+  <!-- WebSocket demo -->
+  <g id="sticky-ws-group" opacity="0">
+    <text x="530" y="360" fill="var(--accent-yellow)" font-size="11" text-anchor="middle" id="sticky-ws-label"></text>
+  </g>
+</svg>
+
+<div class="commentary" id="sticky-commentary">Select a stickiness mechanism and click "Run demo" to see how users are pinned to backends.</div>
+
+<div class="side-by-side">
+  <div class="panel">
+    <h3 style="color:var(--accent-green)">When you NEED stickiness</h3>
+    <ul style="font-size:13px;color:var(--text-2);padding-left:18px">
+      <li>App stores per-user state in memory (anti-pattern, but real)</li>
+      <li>Long-lived connections (WebSocket must hit the same backend)</li>
+      <li>Cache locality optimization (not strict, but beneficial)</li>
+    </ul>
+  </div>
+  <div class="panel">
+    <h3 style="color:var(--accent-red)">When you do NOT</h3>
+    <ul style="font-size:13px;color:var(--text-2);padding-left:18px">
+      <li>Stateless services -- let the LB pick freely</li>
+      <li>Session state in external store (Redis, DB)</li>
+      <li>JWT/token-based auth (no server-side session)</li>
+    </ul>
+  </div>
+</div>
+
+<div class="takeaway">
+  <strong>Takeaway:</strong> Stickiness has a cost: uneven load distribution and brittleness to backend failure. When a pinned backend dies, all its sticky clients lose their sessions. Use only when state requires it -- and prefer externalizing state instead.
+</div>
+
+
+<!-- ===== Section 4: Health Checks ===== -->
+<h2>4. Health checks</h2>
+
+<p>Health checks determine which backends receive traffic. Two complementary approaches, plus two operational safeguards.</p>
+
+<div class="controls">
+  <button onclick="startHealthDemo()" id="btn-health">Run demo</button>
+  <button onclick="resetHealth()" style="font-size:13px">Reset</button>
+</div>
+
+<svg id="svg-health" viewBox="0 0 1060 400">
+  <!-- LB -->
+  <rect x="400" y="10" width="260" height="46" rx="6" fill="var(--surface-2)" stroke="var(--accent-blue)" stroke-width="1.5"/>
+  <text x="530" y="38" fill="var(--accent-blue)" font-size="13" text-anchor="middle" font-weight="600">Load Balancer</text>
+  <!-- Active health check arrows -->
+  <text x="200" y="30" fill="var(--accent-green)" font-size="11" text-anchor="middle" font-weight="600">Active Health Checks</text>
+  <text x="200" y="46" fill="var(--text-3)" font-size="10" text-anchor="middle">GET /health every 5s</text>
+  <text x="860" y="30" fill="var(--accent-yellow)" font-size="11" text-anchor="middle" font-weight="600">Passive (Traffic)</text>
+  <text x="860" y="46" fill="var(--text-3)" font-size="10" text-anchor="middle">Observe real responses</text>
+
+  <!-- Backends -->
+  <rect x="60" y="100" width="180" height="80" rx="8" fill="var(--surface-2)" stroke="var(--accent-green)" id="health-b1-box"/>
+  <text x="150" y="125" fill="var(--text)" font-size="12" text-anchor="middle" font-weight="600">Backend 1</text>
+  <text x="150" y="145" fill="var(--accent-green)" font-size="11" text-anchor="middle" id="health-b1-status">HEALTHY</text>
+  <text x="150" y="165" fill="var(--text-3)" font-size="10" text-anchor="middle" id="health-b1-detail">errors: 0 | traffic: 100%</text>
+
+  <rect x="310" y="100" width="180" height="80" rx="8" fill="var(--surface-2)" stroke="var(--accent-green)" id="health-b2-box"/>
+  <text x="400" y="125" fill="var(--text)" font-size="12" text-anchor="middle" font-weight="600">Backend 2</text>
+  <text x="400" y="145" fill="var(--accent-green)" font-size="11" text-anchor="middle" id="health-b2-status">HEALTHY</text>
+  <text x="400" y="165" fill="var(--text-3)" font-size="10" text-anchor="middle" id="health-b2-detail">errors: 0 | traffic: 100%</text>
+
+  <rect x="560" y="100" width="180" height="80" rx="8" fill="var(--surface-2)" stroke="var(--accent-green)" id="health-b3-box"/>
+  <text x="650" y="125" fill="var(--text)" font-size="12" text-anchor="middle" font-weight="600">Backend 3 (flapping)</text>
+  <text x="650" y="145" fill="var(--accent-green)" font-size="11" text-anchor="middle" id="health-b3-status">HEALTHY</text>
+  <text x="650" y="165" fill="var(--text-3)" font-size="10" text-anchor="middle" id="health-b3-detail">errors: 0 | traffic: 100%</text>
+
+  <rect x="810" y="100" width="180" height="80" rx="8" fill="var(--surface-2)" stroke="var(--accent-green)" id="health-b4-box"/>
+  <text x="900" y="125" fill="var(--text)" font-size="12" text-anchor="middle" font-weight="600">Backend 4</text>
+  <text x="900" y="145" fill="var(--accent-green)" font-size="11" text-anchor="middle" id="health-b4-status">HEALTHY</text>
+  <text x="900" y="165" fill="var(--text-3)" font-size="10" text-anchor="middle" id="health-b4-detail">errors: 0 | traffic: 100%</text>
+
+  <!-- Slow start bar -->
+  <text x="530" y="220" fill="var(--text-2)" font-size="12" text-anchor="middle" font-weight="600">Slow Start Ramp</text>
+  <text x="530" y="238" fill="var(--text-3)" font-size="10" text-anchor="middle">Traffic % ramped gradually after recovery</text>
+  <rect x="210" y="248" width="640" height="20" rx="4" fill="var(--border)"/>
+  <rect x="210" y="248" width="0" height="20" rx="4" fill="var(--accent-blue)" id="health-ramp-bar"/>
+  <text x="530" y="262" fill="#fff" font-size="10" text-anchor="middle" id="health-ramp-label">0%</text>
+
+  <!-- Outlier detection -->
+  <text x="530" y="300" fill="var(--text-2)" font-size="12" text-anchor="middle" font-weight="600">Outlier Detection</text>
+  <text x="530" y="318" fill="var(--text-3)" font-size="10" text-anchor="middle">Error rate significantly above peers = temporary ejection</text>
+
+  <!-- Error rate bars -->
+  <g id="health-error-bars">
+    <text x="150" y="345" fill="var(--text-3)" font-size="10" text-anchor="middle">B1: 0.1%</text>
+    <rect x="100" y="350" width="100" height="8" rx="4" fill="var(--border)"/>
+    <rect x="100" y="350" width="1" height="8" rx="4" fill="var(--accent-green)" id="health-err-1"/>
+    <text x="400" y="345" fill="var(--text-3)" font-size="10" text-anchor="middle">B2: 0.2%</text>
+    <rect x="350" y="350" width="100" height="8" rx="4" fill="var(--border)"/>
+    <rect x="350" y="350" width="2" height="8" rx="4" fill="var(--accent-green)" id="health-err-2"/>
+    <text x="650" y="345" fill="var(--text-3)" font-size="10" text-anchor="middle" id="health-err-3-label">B3: 0.1%</text>
+    <rect x="600" y="350" width="100" height="8" rx="4" fill="var(--border)"/>
+    <rect x="600" y="350" width="1" height="8" rx="4" fill="var(--accent-green)" id="health-err-3"/>
+    <text x="900" y="345" fill="var(--text-3)" font-size="10" text-anchor="middle">B4: 0.1%</text>
+    <rect x="850" y="350" width="100" height="8" rx="4" fill="var(--border)"/>
+    <rect x="850" y="350" width="1" height="8" rx="4" fill="var(--accent-green)" id="health-err-4"/>
+  </g>
+
+  <!-- Animated health probes -->
+  <g id="health-probes"></g>
+</svg>
+
+<div class="commentary" id="health-commentary">Click "Run demo" to watch Backend 3 flap: passive detection ejects it, active probe re-admits it, traffic ramps gradually via slow start.</div>
+
+<table class="tradeoff-table">
+  <tr><th>Mechanism</th><th>How</th><th>Pro</th><th>Con</th></tr>
+  <tr><td style="color:var(--accent-green)">Active</td><td>LB sends GET /health every N seconds</td><td>Catches backends that stopped serving</td><td>Health endpoint must be cheap; hitting DB causes cascades</td></tr>
+  <tr><td style="color:var(--accent-yellow)">Passive</td><td>LB watches real traffic error rates</td><td>Catches degraded backends active checks miss</td><td>Needs real traffic; new backends have no signal</td></tr>
+  <tr><td style="color:var(--accent-blue)">Slow start</td><td>Ramp traffic 10% -> 25% -> 50% -> 100%</td><td>Prevents cold-start cascade</td><td>Slower recovery</td></tr>
+  <tr><td style="color:var(--accent-red)">Outlier detection</td><td>Eject if error rate >> peers</td><td>Automatic, no manual threshold</td><td>Needs enough peers to detect outliers</td></tr>
+</table>
+
+<div class="takeaway">
+  <strong>Takeaway:</strong> Health checks must be cheap AND reflect real serving capacity. A /health endpoint that hits the database causes cascading outages when the DB is the thing that is failing. Use both active + passive together; slow-start on recovery; outlier detection as the safety net.
+</div>
+
+
+<!-- ===== Section 5: Service Mesh ===== -->
+<h2>5. Service mesh -- sidecar pattern</h2>
+
+<p>Move cross-cutting concerns (mTLS, retries, circuit breakers, observability) out of application code and into infrastructure.</p>
+
+<div class="controls">
+  <button onclick="startMeshDemo()" id="btn-mesh">Show traffic flow</button>
+  <button onclick="setMeshCanary()" id="btn-canary">Canary deploy</button>
+  <button onclick="promoteMeshCanary()" id="btn-promote" disabled>Promote v2</button>
+  <button onclick="resetMesh()" style="font-size:13px">Reset</button>
+</div>
+
+<svg id="svg-mesh" viewBox="0 0 1060 520">
+  <!-- Control plane -->
+  <rect x="350" y="10" width="360" height="44" rx="6" fill="var(--surface-2)" stroke="var(--accent-purple)" stroke-width="1.5"/>
+  <text x="530" y="28" fill="var(--accent-purple)" font-size="12" text-anchor="middle" font-weight="600">Control Plane (Istio Pilot / Linkerd Controller)</text>
+  <text x="530" y="44" fill="var(--text-3)" font-size="10" text-anchor="middle">Pushes config to all sidecars</text>
+
+  <!-- Config push arrows -->
+  <line x1="450" y1="54" x2="200" y2="115" stroke="var(--accent-purple)" stroke-width="0.8" stroke-dasharray="4 3"/>
+  <line x1="530" y1="54" x2="530" y2="115" stroke="var(--accent-purple)" stroke-width="0.8" stroke-dasharray="4 3"/>
+  <line x1="610" y1="54" x2="860" y2="115" stroke="var(--accent-purple)" stroke-width="0.8" stroke-dasharray="4 3"/>
+
+  <!-- Pod A: Service A -->
+  <rect x="50" y="115" width="300" height="130" rx="10" fill="none" stroke="var(--accent-blue)" stroke-width="1.5" stroke-dasharray="6 3"/>
+  <text x="200" y="108" fill="var(--accent-blue)" font-size="11" text-anchor="middle" font-weight="600">Pod A</text>
+  <!-- App container -->
+  <rect x="70" y="135" width="120" height="60" rx="6" fill="var(--surface-2)" stroke="var(--border)"/>
+  <text x="130" y="160" fill="var(--text)" font-size="11" text-anchor="middle" font-weight="600">Service A</text>
+  <text x="130" y="178" fill="var(--text-3)" font-size="9" text-anchor="middle">App container</text>
+  <!-- Sidecar -->
+  <rect x="210" y="135" width="120" height="60" rx="6" fill="var(--surface-2)" stroke="var(--accent-orange)" stroke-width="1.5"/>
+  <text x="270" y="158" fill="var(--accent-orange)" font-size="11" text-anchor="middle" font-weight="600">Envoy</text>
+  <text x="270" y="176" fill="var(--text-3)" font-size="9" text-anchor="middle">Sidecar proxy</text>
+  <!-- Internal arrow -->
+  <line x1="190" y1="165" x2="208" y2="165" stroke="var(--text-3)" stroke-width="1.2"/>
+  <text x="200" y="155" fill="var(--text-3)" font-size="8" text-anchor="middle">localhost</text>
+  <!-- Sidecar features -->
+  <text x="200" y="218" fill="var(--text-3)" font-size="9" text-anchor="middle">mTLS | Retries | Circuit breaker | Metrics</text>
+
+  <!-- Pod B: Service B (v1) -->
+  <rect x="380" y="115" width="300" height="130" rx="10" fill="none" stroke="var(--accent-green)" stroke-width="1.5" stroke-dasharray="6 3" id="mesh-pod-b1"/>
+  <text x="530" y="108" fill="var(--accent-green)" font-size="11" text-anchor="middle" font-weight="600" id="mesh-pod-b1-label">Pod B</text>
+  <rect x="400" y="135" width="120" height="60" rx="6" fill="var(--surface-2)" stroke="var(--border)"/>
+  <text x="460" y="160" fill="var(--text)" font-size="11" text-anchor="middle" font-weight="600" id="mesh-svc-b1">Service B v1</text>
+  <text x="460" y="178" fill="var(--text-3)" font-size="9" text-anchor="middle">App container</text>
+  <rect x="540" y="135" width="120" height="60" rx="6" fill="var(--surface-2)" stroke="var(--accent-orange)" stroke-width="1.5"/>
+  <text x="600" y="158" fill="var(--accent-orange)" font-size="11" text-anchor="middle" font-weight="600">Envoy</text>
+  <text x="600" y="176" fill="var(--text-3)" font-size="9" text-anchor="middle">Sidecar proxy</text>
+  <line x1="520" y1="165" x2="538" y2="165" stroke="var(--text-3)" stroke-width="1.2"/>
+  <text x="530" y="218" fill="var(--text-3)" font-size="9" text-anchor="middle">mTLS | Retries | Circuit breaker | Metrics</text>
+
+  <!-- Pod C: Service B v2 (canary, hidden initially) -->
+  <g id="mesh-pod-b2" opacity="0">
+    <rect x="710" y="115" width="300" height="130" rx="10" fill="none" stroke="var(--accent-yellow)" stroke-width="1.5" stroke-dasharray="6 3"/>
+    <text x="860" y="108" fill="var(--accent-yellow)" font-size="11" text-anchor="middle" font-weight="600">Pod C (canary)</text>
+    <rect x="730" y="135" width="120" height="60" rx="6" fill="var(--surface-2)" stroke="var(--border)"/>
+    <text x="790" y="160" fill="var(--text)" font-size="11" text-anchor="middle" font-weight="600">Service B v2</text>
+    <text x="790" y="178" fill="var(--text-3)" font-size="9" text-anchor="middle">App container</text>
+    <rect x="870" y="135" width="120" height="60" rx="6" fill="var(--surface-2)" stroke="var(--accent-orange)" stroke-width="1.5"/>
+    <text x="930" y="158" fill="var(--accent-orange)" font-size="11" text-anchor="middle" font-weight="600">Envoy</text>
+    <text x="930" y="176" fill="var(--text-3)" font-size="9" text-anchor="middle">Sidecar proxy</text>
+    <line x1="850" y1="165" x2="868" y2="165" stroke="var(--text-3)" stroke-width="1.2"/>
+    <text x="860" y="218" fill="var(--text-3)" font-size="9" text-anchor="middle">mTLS | Retries | Circuit breaker | Metrics</text>
+  </g>
+
+  <!-- mTLS connection arrow A -> B -->
+  <line x1="332" y1="165" x2="398" y2="165" stroke="var(--accent-orange)" stroke-width="2" id="mesh-conn-ab" opacity="0"/>
+  <text x="365" y="155" fill="var(--accent-orange)" font-size="9" text-anchor="middle" id="mesh-mtls-label" opacity="0">mTLS</text>
+  <!-- mTLS connection arrow A -> B2 -->
+  <line x1="332" y1="175" x2="728" y2="175" stroke="var(--accent-yellow)" stroke-width="2" id="mesh-conn-ab2" opacity="0"/>
+
+  <!-- Traffic split bar -->
+  <g id="mesh-traffic-split" opacity="0">
+    <text x="530" y="270" fill="var(--text-2)" font-size="12" text-anchor="middle" font-weight="600">Traffic split</text>
+    <rect x="180" y="280" width="700" height="24" rx="4" fill="var(--border)"/>
+    <rect x="180" y="280" width="665" height="24" rx="4" fill="var(--accent-green)" id="mesh-v1-bar"/>
+    <rect x="845" y="280" width="35" height="24" rx="4" fill="var(--accent-yellow)" id="mesh-v2-bar"/>
+    <text x="512" y="296" fill="#fff" font-size="11" text-anchor="middle" id="mesh-v1-pct">v1: 95%</text>
+    <text x="862" y="296" fill="#000" font-size="10" text-anchor="middle" id="mesh-v2-pct">5%</text>
+  </g>
+
+  <!-- Without mesh comparison -->
+  <text x="530" y="340" fill="var(--text-2)" font-size="13" text-anchor="middle" font-weight="600">Without service mesh vs With service mesh</text>
+
+  <rect x="30" y="355" width="470" height="140" rx="8" fill="var(--surface-2)" stroke="var(--accent-red)" stroke-width="1"/>
+  <text x="265" y="380" fill="var(--accent-red)" font-size="12" text-anchor="middle" font-weight="600">Without mesh</text>
+  <text x="265" y="400" fill="var(--text-3)" font-size="11" text-anchor="middle">Each service embeds: retry logic, circuit breaker,</text>
+  <text x="265" y="416" fill="var(--text-3)" font-size="11" text-anchor="middle">TLS cert management, tracing instrumentation,</text>
+  <text x="265" y="432" fill="var(--text-3)" font-size="11" text-anchor="middle">health check endpoints, timeout configs</text>
+  <text x="265" y="456" fill="var(--accent-red)" font-size="10" text-anchor="middle">N services x M languages = N*M implementations</text>
+  <text x="265" y="474" fill="var(--text-3)" font-size="10" text-anchor="middle">Libraries: Hystrix, Finagle, Resilience4j, ...</text>
+
+  <rect x="560" y="355" width="470" height="140" rx="8" fill="var(--surface-2)" stroke="var(--accent-green)" stroke-width="1"/>
+  <text x="795" y="380" fill="var(--accent-green)" font-size="12" text-anchor="middle" font-weight="600">With mesh</text>
+  <text x="795" y="400" fill="var(--text-3)" font-size="11" text-anchor="middle">Sidecar handles ALL cross-cutting concerns.</text>
+  <text x="795" y="416" fill="var(--text-3)" font-size="11" text-anchor="middle">App code only contains business logic.</text>
+  <text x="795" y="432" fill="var(--text-3)" font-size="11" text-anchor="middle">One proxy (Envoy), one config, all languages.</text>
+  <text x="795" y="456" fill="var(--accent-green)" font-size="10" text-anchor="middle">Uniform observability, mTLS, traffic policies</text>
+  <text x="795" y="474" fill="var(--accent-yellow)" font-size="10" text-anchor="middle">Trade-off: extra hop latency + sidecar overhead + ops complexity</text>
+
+  <!-- Animated traffic dots -->
+  <g id="mesh-flying"></g>
+</svg>
+
+<div class="commentary" id="mesh-commentary">Click "Show traffic flow" to see mTLS-encrypted east-west traffic. Then "Canary deploy" to split traffic between v1 and v2 via the mesh.</div>
+
+<div class="takeaway">
+  <strong>Takeaway:</strong> Service mesh = move cross-cutting concerns out of app code into infrastructure. Worth it when you have many services in many languages. Overkill for 3-service teams. The trade-off: extra hop per request (latency), sidecar resource overhead, operational complexity.
+</div>
+
+
+<!-- ===== Section 6: Layered Architecture ===== -->
+<h2>6. Ingress vs API gateway vs edge LB</h2>
+
+<p>These are not alternatives -- they are layers. Each handles a different scope of responsibility as a request travels from user to pod.</p>
+
+<div class="controls">
+  <button onclick="startLayersDemo()" id="btn-layers">Trace a request</button>
+  <button onclick="resetLayers()" style="font-size:13px">Reset</button>
+</div>
+
+<svg id="svg-layers" viewBox="0 0 1060 540">
+  <!-- Layer 1: Edge / CDN -->
+  <rect x="80" y="10" width="900" height="80" rx="10" fill="var(--surface-2)" stroke="var(--accent-red)" stroke-width="1.5" id="layer-edge-box"/>
+  <text x="530" y="35" fill="var(--accent-red)" font-size="14" text-anchor="middle" font-weight="700">Edge LB / CDN</text>
+  <text x="530" y="55" fill="var(--text-3)" font-size="11" text-anchor="middle">DDoS protection | TLS termination | Static caching | Geo-routing</text>
+  <text x="530" y="73" fill="var(--text-3)" font-size="10" text-anchor="middle">CloudFront, Cloudflare, Akamai, Fastly</text>
+
+  <!-- Arrow -->
+  <line x1="530" y1="90" x2="530" y2="120" stroke="var(--text-3)" stroke-width="1.5" stroke-dasharray="4 3"/>
+
+  <!-- Layer 2: API Gateway -->
+  <rect x="130" y="120" width="800" height="80" rx="10" fill="var(--surface-2)" stroke="var(--accent-yellow)" stroke-width="1.5" id="layer-gw-box"/>
+  <text x="530" y="145" fill="var(--accent-yellow)" font-size="14" text-anchor="middle" font-weight="700">API Gateway</text>
+  <text x="530" y="165" fill="var(--text-3)" font-size="11" text-anchor="middle">Authentication | Rate limiting | Request transformation | Plan-based throttling</text>
+  <text x="530" y="183" fill="var(--text-3)" font-size="10" text-anchor="middle">Kong, Apigee, AWS API Gateway</text>
+
+  <!-- Arrow -->
+  <line x1="530" y1="200" x2="530" y2="230" stroke="var(--text-3)" stroke-width="1.5" stroke-dasharray="4 3"/>
+
+  <!-- Layer 3: Ingress -->
+  <rect x="180" y="230" width="700" height="80" rx="10" fill="var(--surface-2)" stroke="var(--accent-blue)" stroke-width="1.5" id="layer-ingress-box"/>
+  <text x="530" y="255" fill="var(--accent-blue)" font-size="14" text-anchor="middle" font-weight="700">Kubernetes Ingress</text>
+  <text x="530" y="275" fill="var(--text-3)" font-size="11" text-anchor="middle">Cluster entry point | Route to k8s Services | Path-based routing</text>
+  <text x="530" y="293" fill="var(--text-3)" font-size="10" text-anchor="middle">NGINX Ingress Controller, ALB Ingress Controller, Traefik</text>
+
+  <!-- Arrow -->
+  <line x1="530" y1="310" x2="530" y2="340" stroke="var(--text-3)" stroke-width="1.5" stroke-dasharray="4 3"/>
+
+  <!-- Layer 4: Service Mesh -->
+  <rect x="230" y="340" width="600" height="80" rx="10" fill="var(--surface-2)" stroke="var(--accent-purple)" stroke-width="1.5" id="layer-mesh-box"/>
+  <text x="530" y="365" fill="var(--accent-purple)" font-size="14" text-anchor="middle" font-weight="700">Service Mesh (East-West)</text>
+  <text x="530" y="385" fill="var(--text-3)" font-size="11" text-anchor="middle">Pod-to-pod mTLS | Retries | Circuit breakers | Traffic shaping</text>
+  <text x="530" y="403" fill="var(--text-3)" font-size="10" text-anchor="middle">Istio, Linkerd, Consul Connect</text>
+
+  <!-- Arrow to pods -->
+  <line x1="430" y1="420" x2="300" y2="460" stroke="var(--text-3)" stroke-width="1" stroke-dasharray="3 3"/>
+  <line x1="530" y1="420" x2="530" y2="460" stroke="var(--text-3)" stroke-width="1" stroke-dasharray="3 3"/>
+  <line x1="630" y1="420" x2="760" y2="460" stroke="var(--text-3)" stroke-width="1" stroke-dasharray="3 3"/>
+
+  <!-- Pods -->
+  <rect x="220" y="460" width="160" height="40" rx="6" fill="var(--surface-2)" stroke="var(--border)"/>
+  <text x="300" y="484" fill="var(--text-2)" font-size="11" text-anchor="middle">Pod: Users svc</text>
+  <rect x="450" y="460" width="160" height="40" rx="6" fill="var(--surface-2)" stroke="var(--border)"/>
+  <text x="530" y="484" fill="var(--text-2)" font-size="11" text-anchor="middle">Pod: Orders svc</text>
+  <rect x="680" y="460" width="160" height="40" rx="6" fill="var(--surface-2)" stroke="var(--border)"/>
+  <text x="760" y="484" fill="var(--text-2)" font-size="11" text-anchor="middle">Pod: Auth svc</text>
+
+  <!-- Scope labels on right side -->
+  <text x="1020" y="55" fill="var(--accent-red)" font-size="10" text-anchor="middle" font-weight="600">Internet</text>
+  <text x="1020" y="165" fill="var(--accent-yellow)" font-size="10" text-anchor="middle" font-weight="600">DMZ</text>
+  <text x="1020" y="275" fill="var(--accent-blue)" font-size="10" text-anchor="middle" font-weight="600">Cluster</text>
+  <text x="1020" y="385" fill="var(--accent-purple)" font-size="10" text-anchor="middle" font-weight="600">Pod mesh</text>
+
+  <!-- Animated request ball -->
+  <circle cx="530" cy="-10" r="7" fill="var(--accent-cyan)" id="layers-ball" opacity="0"/>
+  <text x="530" y="-20" fill="var(--accent-cyan)" font-size="10" text-anchor="middle" id="layers-ball-label" opacity="0">GET /api/orders/123</text>
+
+  <!-- Client at top -->
+  <rect x="480" y="-40" width="100" height="30" rx="6" fill="var(--surface-2)" stroke="var(--accent-cyan)" id="layers-client" opacity="0"/>
+  <text x="530" y="-20" fill="var(--accent-cyan)" font-size="11" text-anchor="middle" id="layers-client-text" opacity="0">Client</text>
+
+  <!-- Layer processing labels (appear during animation) -->
+  <g id="layers-processing">
+    <text x="530" y="520" fill="var(--text-3)" font-size="11" text-anchor="middle" id="layers-step-label"></text>
+  </g>
+</svg>
+
+<div class="commentary" id="layers-commentary">Click "Trace a request" to follow a request through all 4 layers from internet to pod.</div>
+
+<table class="tradeoff-table">
+  <tr><th>Layer</th><th>Scope</th><th>Responsibility</th><th>Example</th></tr>
+  <tr><td style="color:var(--accent-red)">Edge LB / CDN</td><td>Internet perimeter</td><td>DDoS, TLS, caching, geo-routing</td><td>CloudFront, Cloudflare</td></tr>
+  <tr><td style="color:var(--accent-yellow)">API Gateway</td><td>DMZ / public API surface</td><td>Auth, rate limit, transform, throttle</td><td>Kong, AWS API GW</td></tr>
+  <tr><td style="color:var(--accent-blue)">Ingress</td><td>Cluster entry</td><td>Route external traffic to k8s Services</td><td>NGINX Ingress, ALB IC</td></tr>
+  <tr><td style="color:var(--accent-purple)">Service mesh</td><td>Pod-to-pod (east-west)</td><td>mTLS, retries, circuit break, observe</td><td>Istio, Linkerd</td></tr>
+</table>
+
+<div class="takeaway">
+  <strong>Takeaway:</strong> These are not alternatives -- they are layers. Edge LB at the perimeter for DDoS and caching; API Gateway for auth + business policy; Ingress for k8s cluster entry; mesh for east-west pod traffic. In an interview, name the layer that matches the concern being discussed.
+</div>
+
+
+<script>
+// ============================================================
+// Section 1: L4 vs L7 demo
+// ============================================================
+let l4l7Timer = null;
+function startL4L7Demo() {
+  resetL4L7();
+  const btn = document.getElementById('btn-l4l7');
+  btn.disabled = true;
+  const status = document.getElementById('l4l7-status');
+  const commentary = document.getElementById('l4l7-commentary');
+
+  const l4Packet = document.getElementById('l4-packet');
+  const l7Packet = document.getElementById('l7-packet');
+  const l4PktLabel = document.getElementById('l4-pkt-label');
+  const l4PktLabelBg = document.getElementById('l4-pkt-label-bg');
+  const l7PktLabel = document.getElementById('l7-pkt-label');
+  const l7PktLabelBg = document.getElementById('l7-pkt-label-bg');
+  const l7ParseLine = document.getElementById('l7-parse-line');
+  const l4Bytes = document.getElementById('l4-bytes');
+  const l7Route = document.getElementById('l7-route-label');
+
+  const steps = [
+    { t: 0, fn: () => {
+      status.textContent = 'Step 1: Client sends request...';
+      commentary.textContent = 'Both LBs receive a request from the client. Watch the difference in how they handle it.';
+      l4Packet.setAttribute('opacity', '1');
+      l7Packet.setAttribute('opacity', '1');
+      l4PktLabel.setAttribute('opacity', '1');
+      l4PktLabelBg.setAttribute('opacity', '1');
+      l7PktLabel.setAttribute('opacity', '1');
+      l7PktLabelBg.setAttribute('opacity', '1');
+    }},
+    { t: 600, fn: () => {
+      // Animate packets to LB
+      animateAttr(l4Packet, 'cy', 66, 140, 500);
+      animateAttr(l7Packet, 'cy', 66, 130, 500);
+    }},
+    { t: 1200, fn: () => {
+      status.textContent = 'Step 2: L4 forwards bytes blindly; L7 parses HTTP...';
+      commentary.textContent = 'L4 sees only "SRC:4821 DST:80" -- it picks a backend by IP/port and forwards raw bytes. L7 terminates TLS, reads "GET /api/users HTTP/1.1", and routes to the Users service.';
+      l7ParseLine.setAttribute('opacity', '1');
+      l4PktLabel.textContent = 'SRC:4821 DST:80';
+      l7PktLabel.textContent = 'GET /api/users HTTP/1.1';
+    }},
+    { t: 2400, fn: () => {
+      status.textContent = 'Step 3: Routing decision...';
+      // L4: random backend (B2)
+      const l4Line2 = document.getElementById('l4-line2');
+      l4Line2.setAttribute('stroke', 'var(--accent-orange)');
+      l4Line2.setAttribute('stroke-width', '2');
+      document.getElementById('l4-b2').setAttribute('stroke', 'var(--accent-orange)');
+      animateAttr(l4Packet, 'cy', 140, 248, 500);
+      l4Bytes.setAttribute('opacity', '1');
+      // L7: /api/users -> B1
+      const l7Line1 = document.getElementById('l7-line1');
+      l7Line1.setAttribute('stroke', 'var(--accent-purple)');
+      l7Line1.setAttribute('stroke-width', '2');
+      document.getElementById('l7-b1').setAttribute('stroke', 'var(--accent-purple)');
+      animateAttr(l7Packet, 'cy', 130, 258, 500);
+      animateAttr(l7Packet, 'cx', 220, 80, 500);
+      l7Route.setAttribute('opacity', '1');
+      commentary.textContent = 'L4 picked Backend 2 by round-robin on IP:port -- it has no idea what the request contains. L7 parsed the path "/api/users" and routed specifically to the Users service.';
+    }},
+    { t: 3600, fn: () => {
+      status.textContent = 'Demo complete.';
+      commentary.textContent = 'Key difference: L4 forwards bytes without understanding content. L7 parses the protocol and makes content-aware routing decisions. For WebSocket or TCP-native workloads, L4 is sufficient and faster. For REST APIs with multiple backend services, L7 enables path-based routing and per-request retries.';
+      btn.disabled = false;
+    }}
+  ];
+  let i = 0;
+  function run() {
+    if (i >= steps.length) return;
+    const step = steps[i++];
+    l4l7Timer = setTimeout(() => { step.fn(); run(); }, step.t);
+  }
+  run();
+}
+
+function resetL4L7() {
+  if (l4l7Timer) clearTimeout(l4l7Timer);
+  document.getElementById('btn-l4l7').disabled = false;
+  document.getElementById('l4l7-status').textContent = '';
+  document.getElementById('l4l7-commentary').textContent = 'Click "Run demo" to see L4 forwarding raw bytes vs L7 parsing and routing by path.';
+  ['l4-packet','l7-packet','l4-pkt-label','l4-pkt-label-bg','l7-pkt-label','l7-pkt-label-bg','l7-parse-line','l4-bytes','l7-route-label'].forEach(id => {
+    document.getElementById(id).setAttribute('opacity', '0');
+  });
+  document.getElementById('l4-packet').setAttribute('cy', '66');
+  document.getElementById('l4-packet').setAttribute('cx', '220');
+  document.getElementById('l7-packet').setAttribute('cy', '66');
+  document.getElementById('l7-packet').setAttribute('cx', '220');
+  ['l4-line1','l4-line2','l4-line3'].forEach(id => {
+    document.getElementById(id).setAttribute('stroke', 'var(--border)');
+    document.getElementById(id).setAttribute('stroke-width', '1');
+  });
+  ['l7-line1','l7-line2','l7-line3'].forEach(id => {
+    document.getElementById(id).setAttribute('stroke', 'var(--border)');
+    document.getElementById(id).setAttribute('stroke-width', '1');
+  });
+  ['l4-b1','l4-b2','l4-b3'].forEach(id => document.getElementById(id).setAttribute('stroke', 'var(--border)'));
+  ['l7-b1','l7-b2','l7-b3'].forEach(id => document.getElementById(id).setAttribute('stroke', 'var(--border)'));
+}
+
+function animateAttr(el, attr, from, to, dur) {
+  const start = performance.now();
+  function tick(now) {
+    const p = Math.min((now - start) / dur, 1);
+    const ease = p < 0.5 ? 2*p*p : 1-Math.pow(-2*p+2,2)/2;
+    el.setAttribute(attr, from + (to - from) * ease);
+    if (p < 1) requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+}
+
+
+// ============================================================
+// Section 2: LB algorithms
+// ============================================================
+let currentAlgo = 'rr';
+let algoRunning = false;
+let algoTimers = [];
+const backendSpeeds = [200, 200, 800, 200]; // ms (simulated)
+const backendWeights = [1, 1, 1, 1];
+const backendCentersX = [150, 400, 650, 900];
+const backendState = [
+  { active: 0, total: 0 },
+  { active: 0, total: 0 },
+  { active: 0, total: 0 },
+  { active: 0, total: 0 }
+];
+let rrIndex = 0;
+const hashUsers = ['user-A', 'user-B', 'user-C', 'user-D', 'user-A', 'user-B', 'user-C', 'user-D', 'user-A', 'user-B', 'user-C', 'user-D', 'user-A', 'user-B', 'user-C', 'user-D'];
+const hashColors = { 'user-A': 'var(--accent-cyan)', 'user-B': 'var(--accent-orange)', 'user-C': 'var(--accent-green)', 'user-D': 'var(--accent-purple)' };
+// Simple hash for demo
+function simpleHash(s) { let h = 0; for (let i = 0; i < s.length; i++) h = ((h << 5) - h + s.charCodeAt(i)) | 0; return Math.abs(h); }
+const hashMap = {};
+hashUsers.forEach(u => { if (!(u in hashMap)) hashMap[u] = simpleHash(u) % 4; });
+
+function setAlgo(a) {
+  currentAlgo = a;
+  ['rr','lc','wrr','hash'].forEach(k => {
+    document.getElementById('algo-' + k).classList.toggle('active-btn', k === a);
+  });
+  // Update weights display
+  const w = a === 'wrr' ? [3, 2, 1, 1] : [1, 1, 1, 1];
+  for (let i = 0; i < 4; i++) {
+    backendWeights[i] = w[i];
+    document.getElementById('algo-be-' + i + '-weight').textContent = 'weight: ' + w[i];
+  }
+  // Show hash labels
+  document.getElementById('algo-hash-labels').setAttribute('opacity', a === 'hash' ? '1' : '0');
+  // Update commentary
+  const descs = {
+    rr: 'Round-robin: requests cycle 1 -> 2 -> 3 -> 4 -> 1 -> ... regardless of backend load. Simple and fair by count, but blind to slow backends.',
+    lc: 'Least connections: each request goes to the backend with the fewest active connections. Naturally routes around slow backends.',
+    wrr: 'Weighted round-robin: backends 1-4 have weights 3:2:1:1. Higher weight = more requests. Used when backends have different capacity.',
+    hash: 'Hash-based: hash(user-ID) -> backend. Same user always hits the same backend. Great for cache locality.'
+  };
+  document.getElementById('algo-commentary').textContent = descs[a];
+  resetAlgo();
+}
+
+function pickBackend(reqIndex) {
+  if (currentAlgo === 'rr') {
+    const idx = rrIndex % 4;
+    rrIndex++;
+    return idx;
+  }
+  if (currentAlgo === 'lc') {
+    let minConn = Infinity, pick = 0;
+    for (let i = 0; i < 4; i++) {
+      if (backendState[i].active < minConn) { minConn = backendState[i].active; pick = i; }
+    }
+    return pick;
+  }
+  if (currentAlgo === 'wrr') {
+    // Weighted: expand to [0,0,0,1,1,2,3] and round-robin through
+    const expanded = [];
+    for (let i = 0; i < 4; i++) for (let w = 0; w < backendWeights[i]; w++) expanded.push(i);
+    const idx = rrIndex % expanded.length;
+    rrIndex++;
+    return expanded[idx];
+  }
+  if (currentAlgo === 'hash') {
+    const user = hashUsers[reqIndex % hashUsers.length];
+    return hashMap[user];
+  }
+  return 0;
+}
+
+function updateAlgoUI() {
+  for (let i = 0; i < 4; i++) {
+    document.getElementById('algo-be-' + i + '-conns').textContent = 'active: ' + backendState[i].active;
+    document.getElementById('algo-be-' + i + '-total').textContent = 'total: ' + backendState[i].total;
+    const pct = Math.min(backendState[i].active * 20, 160);
+    document.getElementById('algo-be-' + i + '-bar').setAttribute('width', pct);
+    const color = backendState[i].active > 4 ? 'var(--accent-red)' : backendState[i].active > 2 ? 'var(--accent-yellow)' : 'var(--accent-green)';
+    document.getElementById('algo-be-' + i + '-bar').setAttribute('fill', color);
+    document.getElementById('algo-be-' + i + '-conns').setAttribute('fill', color);
+  }
+}
+
+function startAlgoDemo() {
+  if (algoRunning) return;
+  resetAlgo();
+  algoRunning = true;
+  document.getElementById('btn-algo').disabled = true;
+
+  const totalReqs = 16;
+  for (let r = 0; r < totalReqs; r++) {
+    const t = setTimeout(() => {
+      const be = pickBackend(r);
+      backendState[be].active++;
+      backendState[be].total++;
+      updateAlgoUI();
+
+      // Create flying dot
+      const svg = document.getElementById('svg-algo');
+      const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      const isHash = currentAlgo === 'hash';
+      const user = hashUsers[r % hashUsers.length];
+      const fillColor = isHash ? hashColors[user] : 'var(--accent-blue)';
+      dot.setAttribute('r', '5');
+      dot.setAttribute('fill', fillColor);
+      dot.setAttribute('cx', '530');
+      dot.setAttribute('cy', '85');
+      svg.appendChild(dot);
+
+      // Animate to backend center
+      const targetX = backendCentersX[be];
+      const targetY = 195;
+      animateAttr(dot, 'cx', 530, targetX, 400);
+      animateAttr(dot, 'cy', 85, targetY, 400);
+
+      // Simulate backend processing
+      const speed = backendSpeeds[be];
+      const dur = speed + Math.random() * speed * 0.5;
+      const t2 = setTimeout(() => {
+        backendState[be].active--;
+        updateAlgoUI();
+        dot.setAttribute('opacity', '0.3');
+        const t3 = setTimeout(() => svg.removeChild(dot), 500);
+        algoTimers.push(t3);
+      }, 400 + dur);
+      algoTimers.push(t2);
+    }, r * 250);
+    algoTimers.push(t);
+  }
+
+  const tEnd = setTimeout(() => {
+    algoRunning = false;
+    document.getElementById('btn-algo').disabled = false;
+    // Summary
+    const totals = backendState.map(b => b.total);
+    const descs = {
+      rr: 'Round-robin distributed evenly by count (' + totals.join(', ') + ') but Backend 3 accumulated active connections because it is slow.',
+      lc: 'Least-connections naturally avoided Backend 3 (' + totals.join(', ') + '). The slow backend got fewer requests because it always had more active connections.',
+      wrr: 'Weighted round-robin sent proportionally more to Backends 1 and 2 (' + totals.join(', ') + ') based on their higher weights.',
+      hash: 'Hash-based pinned each user to a fixed backend (' + totals.join(', ') + '). Same user always hits the same backend -- warm caches.'
+    };
+    document.getElementById('algo-commentary').textContent = descs[currentAlgo];
+  }, totalReqs * 250 + 2000);
+  algoTimers.push(tEnd);
+}
+
+function resetAlgo() {
+  algoTimers.forEach(clearTimeout);
+  algoTimers = [];
+  algoRunning = false;
+  rrIndex = 0;
+  document.getElementById('btn-algo').disabled = false;
+  for (let i = 0; i < 4; i++) {
+    backendState[i].active = 0;
+    backendState[i].total = 0;
+  }
+  updateAlgoUI();
+  // Remove any flying dots
+  const svg = document.getElementById('svg-algo');
+  svg.querySelectorAll('circle').forEach(c => c.remove());
+}
+
+
+// ============================================================
+// Section 3: Sticky sessions
+// ============================================================
+let stickyMode = 'cookie';
+let stickyRunning = false;
+let stickyTimers = [];
+const stickyUsers = [
+  { name: 'Alice', color: 'var(--accent-cyan)', x: 90 },
+  { name: 'Bob', color: 'var(--accent-orange)', x: 260 },
+  { name: 'Carol', color: 'var(--accent-green)', x: 430 }
+];
+const stickyBackendX = [230, 450, 670, 890];
+const stickyAssignment = {}; // user -> backend index
+
+function setStickyMode(m) {
+  stickyMode = m;
+  ['cookie','iphash','chash'].forEach(k => {
+    document.getElementById('sticky-' + k).classList.toggle('active-btn', k === m);
+  });
+  const labels = {
+    cookie: 'Cookie: route=backend-2',
+    iphash: 'hash(client-IP) -> backend',
+    chash: 'hash(user-ID header) -> backend'
+  };
+  document.getElementById('sticky-lb-detail').textContent = labels[m];
+  const descs = {
+    cookie: 'Cookie-based: LB sets a cookie naming the backend. Subsequent requests carry it. Works at L7 only.',
+    iphash: 'IP hash: hash(client IP) -> backend. Works at L4. Caveat: NAT clients all hash the same.',
+    chash: 'Consistent hash on a request key (user-ID header, path). Survives backend additions better than mod-N.'
+  };
+  document.getElementById('sticky-commentary').textContent = descs[m];
+  resetSticky();
+}
+
+function startStickyDemo() {
+  if (stickyRunning) return;
+  resetSticky();
+  stickyRunning = true;
+  document.getElementById('btn-sticky').disabled = true;
+
+  // Assign users to backends
+  stickyUsers.forEach((u, i) => {
+    if (stickyMode === 'cookie') {
+      stickyAssignment[u.name] = i; // Alice->0, Bob->1, Carol->2
+    } else if (stickyMode === 'iphash') {
+      stickyAssignment[u.name] = simpleHash('192.168.1.' + (i + 1)) % 4;
+    } else {
+      stickyAssignment[u.name] = simpleHash(u.name) % 4;
+    }
+  });
+
+  // Send 3 rounds of requests (all 3 users each round)
+  const rounds = 3;
+  let step = 0;
+  for (let r = 0; r < rounds; r++) {
+    for (let ui = 0; ui < stickyUsers.length; ui++) {
+      const delay = step * 600;
+      const t = setTimeout(() => {
+        const u = stickyUsers[ui];
+        const be = stickyAssignment[u.name];
+
+        // Highlight backend
+        document.getElementById('sticky-b' + (be + 1)).setAttribute('stroke', u.color);
+
+        // Session label
+        document.getElementById('sticky-b' + (be + 1) + '-session').textContent = u.name + "'s session";
+
+        // Create flying dot
+        const svg = document.getElementById('svg-sticky');
+        const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        dot.setAttribute('r', '5');
+        dot.setAttribute('fill', u.color);
+        dot.setAttribute('cx', u.x);
+        dot.setAttribute('cy', '50');
+        svg.appendChild(dot);
+
+        animateAttr(dot, 'cx', u.x, stickyBackendX[be], 400);
+        animateAttr(dot, 'cy', 50, 245, 400);
+
+        const t2 = setTimeout(() => {
+          dot.setAttribute('opacity', '0.2');
+          const t3 = setTimeout(() => svg.removeChild(dot), 300);
+          stickyTimers.push(t3);
+        }, 500);
+        stickyTimers.push(t2);
+      }, delay);
+      stickyTimers.push(t);
+      step++;
+    }
+  }
+
+  // Backend failure scenario
+  const failDelay = step * 600 + 400;
+  const t4 = setTimeout(() => {
+    const failBe = stickyAssignment['Alice'];
+    document.getElementById('sticky-b' + (failBe + 1)).setAttribute('stroke', 'var(--accent-red)');
+    document.getElementById('sticky-b' + (failBe + 1) + '-session').textContent = 'FAILED';
+    document.getElementById('sticky-failure-label').setAttribute('opacity', '1');
+    document.getElementById('sticky-failure-label').textContent = 'Backend ' + (failBe + 1) + ' dies -- Alice loses her session. On reconnect, LB picks a new backend.';
+    document.getElementById('sticky-commentary').textContent = 'Backend ' + (failBe + 1) + ' failed. Alice\'s sticky session is lost. She must reconnect and the LB will assign a new backend. This is the fundamental cost of stickiness: when the pinned backend dies, the session dies with it.';
+
+    // Alice reconnects to a different backend
+    const t5 = setTimeout(() => {
+      const newBe = (failBe + 1) % 4;
+      const svg = document.getElementById('svg-sticky');
+      const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      dot.setAttribute('r', '5');
+      dot.setAttribute('fill', stickyUsers[0].color);
+      dot.setAttribute('cx', stickyUsers[0].x);
+      dot.setAttribute('cy', '50');
+      svg.appendChild(dot);
+      animateAttr(dot, 'cx', stickyUsers[0].x, stickyBackendX[newBe], 400);
+      animateAttr(dot, 'cy', 50, 245, 400);
+      document.getElementById('sticky-b' + (newBe + 1)).setAttribute('stroke', stickyUsers[0].color);
+      document.getElementById('sticky-b' + (newBe + 1) + '-session').textContent = 'Alice (reconnected)';
+      document.getElementById('sticky-failure-label').textContent += ' Alice now pinned to Backend ' + (newBe + 1) + '.';
+
+      const t6 = setTimeout(() => { svg.removeChild(dot); stickyRunning = false; document.getElementById('btn-sticky').disabled = false; }, 800);
+      stickyTimers.push(t6);
+    }, 1200);
+    stickyTimers.push(t5);
+  }, failDelay);
+  stickyTimers.push(t4);
+}
+
+function resetSticky() {
+  stickyTimers.forEach(clearTimeout);
+  stickyTimers = [];
+  stickyRunning = false;
+  document.getElementById('btn-sticky').disabled = false;
+  for (let i = 1; i <= 4; i++) {
+    document.getElementById('sticky-b' + i).setAttribute('stroke', 'var(--border)');
+    document.getElementById('sticky-b' + i + '-session').textContent = '';
+  }
+  document.getElementById('sticky-failure-label').setAttribute('opacity', '0');
+  document.getElementById('sticky-ws-group').setAttribute('opacity', '0');
+  // Remove dots
+  document.getElementById('svg-sticky').querySelectorAll('circle').forEach(c => c.remove());
+}
+
+
+// ============================================================
+// Section 4: Health checks
+// ============================================================
+let healthRunning = false;
+let healthTimers = [];
+
+function startHealthDemo() {
+  if (healthRunning) return;
+  resetHealth();
+  healthRunning = true;
+  document.getElementById('btn-health').disabled = true;
+  const commentary = document.getElementById('health-commentary');
+
+  const steps = [
+    { t: 0, fn: () => {
+      commentary.textContent = 'Phase 1: All backends healthy. Active probes succeed, traffic flows normally.';
+    }},
+    { t: 1500, fn: () => {
+      commentary.textContent = 'Phase 2: Backend 3 starts returning errors. Passive detection notices rising error rate...';
+      document.getElementById('health-b3-status').textContent = 'DEGRADED';
+      document.getElementById('health-b3-status').setAttribute('fill', 'var(--accent-yellow)');
+      document.getElementById('health-b3-box').setAttribute('stroke', 'var(--accent-yellow)');
+      document.getElementById('health-err-3').setAttribute('width', '30');
+      document.getElementById('health-err-3').setAttribute('fill', 'var(--accent-yellow)');
+      document.getElementById('health-err-3-label').textContent = 'B3: 12%';
+      document.getElementById('health-b3-detail').textContent = 'errors: 12% | traffic: 100%';
+    }},
+    { t: 3000, fn: () => {
+      commentary.textContent = 'Phase 3: Error rate exceeds threshold. Outlier detection ejects Backend 3. Active probe marks it unhealthy.';
+      document.getElementById('health-b3-status').textContent = 'UNHEALTHY';
+      document.getElementById('health-b3-status').setAttribute('fill', 'var(--accent-red)');
+      document.getElementById('health-b3-box').setAttribute('stroke', 'var(--accent-red)');
+      document.getElementById('health-err-3').setAttribute('width', '60');
+      document.getElementById('health-err-3').setAttribute('fill', 'var(--accent-red)');
+      document.getElementById('health-err-3-label').textContent = 'B3: 45%';
+      document.getElementById('health-b3-detail').textContent = 'errors: 45% | traffic: 0% (ejected)';
+    }},
+    { t: 5000, fn: () => {
+      commentary.textContent = 'Phase 4: Backend 3 recovers. Active probe passes. But instead of full load instantly, slow start ramps traffic gradually...';
+      document.getElementById('health-b3-status').textContent = 'RECOVERING';
+      document.getElementById('health-b3-status').setAttribute('fill', 'var(--accent-blue)');
+      document.getElementById('health-b3-box').setAttribute('stroke', 'var(--accent-blue)');
+      document.getElementById('health-err-3').setAttribute('width', '2');
+      document.getElementById('health-err-3').setAttribute('fill', 'var(--accent-green)');
+      document.getElementById('health-err-3-label').textContent = 'B3: 0.2%';
+    }},
+    { t: 5500, fn: () => {
+      // Ramp 10%
+      animateAttr(document.getElementById('health-ramp-bar'), 'width', 0, 64, 400);
+      document.getElementById('health-ramp-label').textContent = '10%';
+      document.getElementById('health-b3-detail').textContent = 'errors: 0.2% | traffic: 10%';
+    }},
+    { t: 6500, fn: () => {
+      animateAttr(document.getElementById('health-ramp-bar'), 'width', 64, 160, 400);
+      document.getElementById('health-ramp-label').textContent = '25%';
+      document.getElementById('health-b3-detail').textContent = 'errors: 0.1% | traffic: 25%';
+    }},
+    { t: 7500, fn: () => {
+      animateAttr(document.getElementById('health-ramp-bar'), 'width', 160, 320, 400);
+      document.getElementById('health-ramp-label').textContent = '50%';
+      document.getElementById('health-b3-detail').textContent = 'errors: 0.1% | traffic: 50%';
+    }},
+    { t: 8500, fn: () => {
+      animateAttr(document.getElementById('health-ramp-bar'), 'width', 320, 640, 400);
+      document.getElementById('health-ramp-label').textContent = '100%';
+      document.getElementById('health-b3-detail').textContent = 'errors: 0.1% | traffic: 100%';
+      document.getElementById('health-b3-status').textContent = 'HEALTHY';
+      document.getElementById('health-b3-status').setAttribute('fill', 'var(--accent-green)');
+      document.getElementById('health-b3-box').setAttribute('stroke', 'var(--accent-green)');
+      commentary.textContent = 'Phase 5: Slow start complete. Backend 3 is back to full traffic. The ramp prevented a cold-start cascade -- caches warmed up, connections pooled, JIT compiled. Without slow start, dumping 100% traffic onto a cold backend can immediately re-trigger the failure.';
+      healthRunning = false;
+      document.getElementById('btn-health').disabled = false;
+    }}
+  ];
+
+  steps.forEach(s => {
+    const t = setTimeout(s.fn, s.t);
+    healthTimers.push(t);
+  });
+}
+
+function resetHealth() {
+  healthTimers.forEach(clearTimeout);
+  healthTimers = [];
+  healthRunning = false;
+  document.getElementById('btn-health').disabled = false;
+  document.getElementById('health-commentary').textContent = 'Click "Run demo" to watch Backend 3 flap: passive detection ejects it, active probe re-admits it, traffic ramps gradually via slow start.';
+  for (let i = 1; i <= 4; i++) {
+    document.getElementById('health-b' + i + '-status').textContent = 'HEALTHY';
+    document.getElementById('health-b' + i + '-status').setAttribute('fill', 'var(--accent-green)');
+    document.getElementById('health-b' + i + '-box').setAttribute('stroke', 'var(--accent-green)');
+  }
+  document.getElementById('health-b1-detail').textContent = 'errors: 0 | traffic: 100%';
+  document.getElementById('health-b2-detail').textContent = 'errors: 0 | traffic: 100%';
+  document.getElementById('health-b3-detail').textContent = 'errors: 0 | traffic: 100%';
+  document.getElementById('health-b4-detail').textContent = 'errors: 0 | traffic: 100%';
+  document.getElementById('health-err-3').setAttribute('width', '1');
+  document.getElementById('health-err-3').setAttribute('fill', 'var(--accent-green)');
+  document.getElementById('health-err-3-label').textContent = 'B3: 0.1%';
+  document.getElementById('health-ramp-bar').setAttribute('width', '0');
+  document.getElementById('health-ramp-label').textContent = '0%';
+}
+
+
+// ============================================================
+// Section 5: Service mesh
+// ============================================================
+let meshRunning = false;
+let meshTimers = [];
+let meshCanaryState = 0; // 0=off, 1=5%, 2=50%, 3=100%
+
+function startMeshDemo() {
+  if (meshRunning) return;
+  resetMesh();
+  meshRunning = true;
+  document.getElementById('btn-mesh').disabled = true;
+  const commentary = document.getElementById('mesh-commentary');
+
+  const steps = [
+    { t: 0, fn: () => {
+      commentary.textContent = 'Service A sends a request. It talks to localhost -- the sidecar proxy intercepts transparently.';
+    }},
+    { t: 800, fn: () => {
+      document.getElementById('mesh-conn-ab').setAttribute('opacity', '1');
+      document.getElementById('mesh-mtls-label').setAttribute('opacity', '1');
+      commentary.textContent = 'Envoy sidecar in Pod A encrypts with mTLS, routes to Pod B\'s Envoy sidecar, which decrypts and forwards to Service B. The application code never handles TLS certificates.';
+
+      // Animate traffic dot
+      const svg = document.getElementById('svg-mesh');
+      const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      dot.setAttribute('r', '4');
+      dot.setAttribute('fill', 'var(--accent-orange)');
+      dot.setAttribute('cx', '332');
+      dot.setAttribute('cy', '165');
+      svg.appendChild(dot);
+      animateAttr(dot, 'cx', 332, 540, 500);
+      const t2 = setTimeout(() => {
+        dot.setAttribute('opacity', '0.3');
+        const t3 = setTimeout(() => svg.removeChild(dot), 300);
+        meshTimers.push(t3);
+      }, 600);
+      meshTimers.push(t2);
+    }},
+    { t: 2000, fn: () => {
+      commentary.textContent = 'Each sidecar reports metrics (latency, error rate, request count) back to the control plane. This gives uniform observability across all services regardless of language.';
+      // Show config push arrows briefly
+    }},
+    { t: 3500, fn: () => {
+      // Send a few more traffic dots
+      const svg = document.getElementById('svg-mesh');
+      for (let i = 0; i < 3; i++) {
+        const t = setTimeout(() => {
+          const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+          dot.setAttribute('r', '3');
+          dot.setAttribute('fill', 'var(--accent-orange)');
+          dot.setAttribute('cx', '332');
+          dot.setAttribute('cy', String(162 + i * 4));
+          svg.appendChild(dot);
+          animateAttr(dot, 'cx', 332, 540, 400);
+          const t2 = setTimeout(() => svg.removeChild(dot), 600);
+          meshTimers.push(t2);
+        }, i * 200);
+        meshTimers.push(t);
+      }
+      commentary.textContent = 'All traffic flows through the sidecar mesh. Retries, circuit breaking, and timeout policies are configured centrally via the control plane -- no code changes needed in any service.';
+    }},
+    { t: 5000, fn: () => {
+      meshRunning = false;
+      document.getElementById('btn-mesh').disabled = false;
+      document.getElementById('btn-canary').disabled = false;
+      commentary.textContent = 'Traffic flowing through the mesh. Try "Canary deploy" to see traffic splitting between v1 and v2 of Service B, controlled entirely by the mesh without code changes.';
+    }}
+  ];
+
+  steps.forEach(s => {
+    const t = setTimeout(s.fn, s.t);
+    meshTimers.push(t);
+  });
+}
+
+function setMeshCanary() {
+  if (meshCanaryState > 0) return;
+  meshCanaryState = 1;
+  document.getElementById('btn-canary').disabled = true;
+  document.getElementById('btn-promote').disabled = false;
+  const commentary = document.getElementById('mesh-commentary');
+
+  // Show v2 pod
+  document.getElementById('mesh-pod-b2').setAttribute('opacity', '1');
+  document.getElementById('mesh-conn-ab2').setAttribute('opacity', '1');
+
+  // Show traffic split bar
+  document.getElementById('mesh-traffic-split').setAttribute('opacity', '1');
+
+  // 95/5 split
+  updateMeshSplit(95, 5);
+
+  commentary.textContent = 'Canary deployed: Service B v2 receives 5% of traffic. The mesh control plane pushes routing rules to all Envoy sidecars. Click "Promote v2" to shift more traffic.';
+
+  // Animate canary traffic
+  startCanaryTraffic();
+}
+
+function promoteMeshCanary() {
+  meshCanaryState++;
+  const commentary = document.getElementById('mesh-commentary');
+  if (meshCanaryState === 2) {
+    updateMeshSplit(50, 50);
+    commentary.textContent = 'Promoted to 50/50 traffic split. Error rates and latency look good on v2. Click "Promote v2" again for full promotion.';
+  } else if (meshCanaryState === 3) {
+    updateMeshSplit(0, 100);
+    document.getElementById('btn-promote').disabled = true;
+    commentary.textContent = 'Full promotion: 100% traffic to v2. The mesh gradually drained v1 connections. v1 pods can now be scaled down. The entire deployment was controlled via config -- zero code changes, zero downtime.';
+    // Hide v1 connection
+    document.getElementById('mesh-conn-ab').setAttribute('opacity', '0.2');
+  }
+}
+
+function updateMeshSplit(v1Pct, v2Pct) {
+  const totalW = 700;
+  const v1W = Math.max(totalW * v1Pct / 100, 0);
+  const v2W = Math.max(totalW * v2Pct / 100, 0);
+  document.getElementById('mesh-v1-bar').setAttribute('width', v1W);
+  document.getElementById('mesh-v2-bar').setAttribute('x', 180 + v1W);
+  document.getElementById('mesh-v2-bar').setAttribute('width', v2W);
+  document.getElementById('mesh-v1-pct').textContent = v1Pct > 0 ? 'v1: ' + v1Pct + '%' : '';
+  document.getElementById('mesh-v2-pct').textContent = v2Pct > 0 ? (v2Pct < 10 ? v2Pct + '%' : 'v2: ' + v2Pct + '%') : '';
+  // Position labels
+  if (v1Pct > 0) {
+    document.getElementById('mesh-v1-pct').setAttribute('x', 180 + v1W / 2);
+  }
+  document.getElementById('mesh-v2-pct').setAttribute('x', 180 + v1W + v2W / 2);
+}
+
+let canaryInterval = null;
+function startCanaryTraffic() {
+  if (canaryInterval) clearInterval(canaryInterval);
+  canaryInterval = setInterval(() => {
+    if (meshCanaryState === 0) { clearInterval(canaryInterval); return; }
+    const svg = document.getElementById('svg-mesh');
+    const pctV2 = meshCanaryState === 1 ? 5 : meshCanaryState === 2 ? 50 : 100;
+    const goToV2 = Math.random() * 100 < pctV2;
+
+    const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    dot.setAttribute('r', '3');
+    dot.setAttribute('fill', goToV2 ? 'var(--accent-yellow)' : 'var(--accent-green)');
+    dot.setAttribute('cx', '332');
+    dot.setAttribute('cy', goToV2 ? '175' : '165');
+    svg.appendChild(dot);
+
+    const targetX = goToV2 ? 870 : 540;
+    animateAttr(dot, 'cx', 332, targetX, 500);
+    setTimeout(() => { try { svg.removeChild(dot); } catch(e) {} }, 700);
+  }, 300);
+  meshTimers.push(canaryInterval);
+}
+
+function resetMesh() {
+  meshTimers.forEach(id => { clearTimeout(id); clearInterval(id); });
+  meshTimers = [];
+  if (canaryInterval) { clearInterval(canaryInterval); canaryInterval = null; }
+  meshRunning = false;
+  meshCanaryState = 0;
+  document.getElementById('btn-mesh').disabled = false;
+  document.getElementById('btn-canary').disabled = false;
+  document.getElementById('btn-promote').disabled = true;
+  document.getElementById('mesh-conn-ab').setAttribute('opacity', '0');
+  document.getElementById('mesh-mtls-label').setAttribute('opacity', '0');
+  document.getElementById('mesh-conn-ab2').setAttribute('opacity', '0');
+  document.getElementById('mesh-pod-b2').setAttribute('opacity', '0');
+  document.getElementById('mesh-traffic-split').setAttribute('opacity', '0');
+  document.getElementById('mesh-commentary').textContent = 'Click "Show traffic flow" to see mTLS-encrypted east-west traffic. Then "Canary deploy" to split traffic between v1 and v2 via the mesh.';
+  // Remove dots
+  document.getElementById('svg-mesh').querySelectorAll('circle').forEach(c => c.remove());
+}
+
+
+// ============================================================
+// Section 6: Layered architecture
+// ============================================================
+let layersRunning = false;
+let layersTimers = [];
+
+function startLayersDemo() {
+  if (layersRunning) return;
+  resetLayers();
+  layersRunning = true;
+  document.getElementById('btn-layers').disabled = true;
+  const commentary = document.getElementById('layers-commentary');
+  const ball = document.getElementById('layers-ball');
+  const ballLabel = document.getElementById('layers-ball-label');
+  const stepLabel = document.getElementById('layers-step-label');
+
+  ball.setAttribute('opacity', '1');
+  ballLabel.setAttribute('opacity', '1');
+
+  const steps = [
+    { t: 0, fn: () => {
+      commentary.textContent = 'A client sends GET /api/orders/123 from their browser. The request enters the edge layer first.';
+      stepLabel.textContent = 'Client -> Edge LB / CDN';
+      ball.setAttribute('cy', '5');
+      ballLabel.setAttribute('y', '-5');
+    }},
+    { t: 1200, fn: () => {
+      animateAttr(ball, 'cy', 5, 50, 600);
+      document.getElementById('layer-edge-box').setAttribute('stroke-width', '3');
+      commentary.textContent = 'Layer 1 (Edge): CloudFront checks the request against DDoS rules, terminates TLS, checks if the response is cached. Not cached -- forward to API Gateway.';
+      stepLabel.textContent = 'Edge: DDoS check, TLS termination, cache miss';
+    }},
+    { t: 2800, fn: () => {
+      document.getElementById('layer-edge-box').setAttribute('stroke-width', '1.5');
+      animateAttr(ball, 'cy', 50, 160, 600);
+      document.getElementById('layer-gw-box').setAttribute('stroke-width', '3');
+      commentary.textContent = 'Layer 2 (API Gateway): Kong validates the JWT token, checks rate limits (user is under quota), transforms the request (strips internal headers, adds request-id).';
+      stepLabel.textContent = 'Gateway: JWT validate, rate limit, transform';
+    }},
+    { t: 4400, fn: () => {
+      document.getElementById('layer-gw-box').setAttribute('stroke-width', '1.5');
+      animateAttr(ball, 'cy', 160, 270, 600);
+      document.getElementById('layer-ingress-box').setAttribute('stroke-width', '3');
+      commentary.textContent = 'Layer 3 (Ingress): NGINX Ingress Controller matches the path /api/orders/* to the Orders k8s Service. Routes traffic into the cluster.';
+      stepLabel.textContent = 'Ingress: path match -> Orders Service';
+    }},
+    { t: 6000, fn: () => {
+      document.getElementById('layer-ingress-box').setAttribute('stroke-width', '1.5');
+      animateAttr(ball, 'cy', 270, 380, 600);
+      document.getElementById('layer-mesh-box').setAttribute('stroke-width', '3');
+      commentary.textContent = 'Layer 4 (Service Mesh): Envoy sidecar picks a healthy Orders pod, establishes mTLS, forwards the request. If the pod returns 503, Envoy retries on another pod automatically.';
+      stepLabel.textContent = 'Mesh: mTLS, load balance, retry on failure';
+    }},
+    { t: 7600, fn: () => {
+      document.getElementById('layer-mesh-box').setAttribute('stroke-width', '1.5');
+      animateAttr(ball, 'cy', 380, 480, 600);
+      animateAttr(ball, 'cx', 530, 530, 600);
+      commentary.textContent = 'Request arrives at the Orders pod. Four layers, each with a distinct responsibility. In interviews, name the layer that matches the concern being discussed -- don\'t conflate CDN with API Gateway with Ingress.';
+      stepLabel.textContent = 'Request delivered to Orders pod';
+    }},
+    { t: 9000, fn: () => {
+      layersRunning = false;
+      document.getElementById('btn-layers').disabled = false;
+      stepLabel.textContent = '';
+      commentary.textContent = 'Complete request path: Edge (DDoS, TLS, cache) -> API Gateway (auth, rate limit, transform) -> Ingress (cluster routing) -> Mesh (pod-level LB, mTLS, retry). Each layer is independently scalable and replaceable.';
+    }}
+  ];
+
+  steps.forEach(s => {
+    const t = setTimeout(s.fn, s.t);
+    layersTimers.push(t);
+  });
+}
+
+function resetLayers() {
+  layersTimers.forEach(clearTimeout);
+  layersTimers = [];
+  layersRunning = false;
+  document.getElementById('btn-layers').disabled = false;
+  document.getElementById('layers-ball').setAttribute('opacity', '0');
+  document.getElementById('layers-ball').setAttribute('cy', '-10');
+  document.getElementById('layers-ball').setAttribute('cx', '530');
+  document.getElementById('layers-ball-label').setAttribute('opacity', '0');
+  document.getElementById('layers-step-label').textContent = '';
+  document.getElementById('layers-commentary').textContent = 'Click "Trace a request" to follow a request through all 4 layers from internet to pod.';
+  ['layer-edge-box', 'layer-gw-box', 'layer-ingress-box', 'layer-mesh-box'].forEach(id => {
+    document.getElementById(id).setAttribute('stroke-width', '1.5');
+  });
+}
+</script>
+
+</body>
+</html>

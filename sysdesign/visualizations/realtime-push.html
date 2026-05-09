@@ -1,0 +1,1446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Real-time Push -- WebSockets / SSE / Long Polling</title>
+<style>
+:root {
+  --bg: #0f0f15;
+  --surface: #181820;
+  --surface-2: #20202a;
+  --border: #2a2a35;
+  --text: #e6e6ea;
+  --text-2: #cfcfd6;
+  --text-3: #888;
+  --accent-red: #ff6b6b;
+  --accent-green: #51cf66;
+  --accent-blue: #339af0;
+  --accent-yellow: #ffd43b;
+  --accent-purple: #cc5de8;
+  --accent-cyan: #8be9fd;
+  --accent-orange: #ffa94d;
+}
+*, *::before, *::after { box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  padding: 32px 24px;
+  max-width: 1100px;
+  margin: 0 auto;
+  line-height: 1.55;
+}
+h1 { color: #fff; margin-bottom: 4px; }
+h1 + p.sub { color: var(--text-3); font-style: italic; margin-top: 0; margin-bottom: 24px; }
+h2 { color: #fff; margin-top: 32px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+h3 { color: var(--text-2); margin-top: 20px; }
+code {
+  background: var(--surface-2);
+  padding: 2px 6px;
+  border-radius: 3px;
+  color: var(--accent-cyan);
+  font-size: 13px;
+}
+pre {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 14px;
+  font-size: 13px;
+  color: var(--accent-cyan);
+  overflow-x: auto;
+  line-height: 1.5;
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+}
+svg {
+  background: var(--surface);
+  border-radius: 8px;
+  display: block;
+  margin: 14px auto;
+  width: 100%;
+  height: auto;
+}
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0;
+  align-items: center;
+}
+.controls button, .btn {
+  padding: 10px 16px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  border-radius: 6px;
+  cursor: pointer;
+  min-height: 44px;
+  font-size: 14px;
+  transition: background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+.controls button:hover, .btn:hover { background: var(--surface); }
+.controls button:disabled, .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.controls button.active-btn { border-color: var(--accent-blue); color: var(--accent-blue); }
+.commentary {
+  background: var(--surface-2);
+  padding: 14px;
+  border-radius: 6px;
+  font-size: 14px;
+  color: var(--text-2);
+  margin: 12px 0;
+  min-height: 44px;
+  line-height: 1.5;
+}
+.takeaway {
+  background: #1a1a22;
+  border-left: 3px solid var(--accent-green);
+  padding: 12px 16px;
+  margin: 14px 0;
+  font-size: 14px;
+}
+.takeaway strong { color: var(--accent-green); }
+.takeaway ul { margin: 6px 0 0 0; padding-left: 18px; }
+.takeaway li { margin-bottom: 6px; }
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  margin: 14px 0;
+}
+th, td {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  text-align: left;
+}
+th {
+  background: var(--surface-2);
+  color: #fff;
+  font-weight: 600;
+  white-space: nowrap;
+}
+td { background: var(--surface); }
+.table-wrap {
+  overflow-x: auto;
+  margin: 14px 0;
+  border-radius: 6px;
+}
+.decision-tree {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 18px;
+  margin: 14px 0;
+}
+.decision-node {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 14px;
+  margin: 8px 0 8px 20px;
+  font-size: 14px;
+}
+.decision-node.answer {
+  border-left: 3px solid var(--accent-blue);
+  color: var(--accent-blue);
+}
+.decision-node .q { color: var(--accent-yellow); font-weight: 600; }
+.use-case-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin: 14px 0;
+}
+.use-case-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 12px 14px;
+}
+.use-case-card h4 {
+  margin: 0 0 6px 0;
+  font-size: 14px;
+  color: #fff;
+}
+.use-case-card .mech {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.use-case-card .reason {
+  font-size: 13px;
+  color: var(--text-3);
+}
+.pitfall-table td:first-child {
+  color: var(--accent-red);
+  font-weight: 500;
+  white-space: nowrap;
+}
+.pitfall-table td:nth-child(2) {
+  color: var(--accent-green);
+}
+@media (max-width: 720px) {
+  body { padding: 20px 14px; }
+  .use-case-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 480px) {
+  .controls { flex-direction: column; }
+  .controls button { width: 100%; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Real-time push -- WebSockets / SSE / long polling</h1>
+  <p class="sub">Pick the right transport. Scale to 1M connections via thin edge + pub/sub backbone. The senior signal: replay-on-reconnect, jittered backoff, sticky sessions on the edge.</p>
+</header>
+
+<!-- ============================================================ -->
+<!-- SECTION 1: THE FOUR MECHANISMS                                -->
+<!-- ============================================================ -->
+<h2>1. The Four Mechanisms -- Animated Comparison</h2>
+<p>How does the client receive a server-side event? Four approaches, from simplest to most capable. Same scenario: client subscribes to stock prices, server emits 5 ticks over ~10 seconds.</p>
+
+<div class="controls">
+  <button id="anim-start" onclick="startAnimation()">Run Animation</button>
+  <button onclick="resetAnimation()">Reset</button>
+</div>
+
+<svg id="mechanism-svg" viewBox="0 0 1060 620" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="arrowR" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#339af0"/>
+    </marker>
+    <marker id="arrowG" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#51cf66"/>
+    </marker>
+    <marker id="arrowY" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#ffd43b"/>
+    </marker>
+    <marker id="arrowP" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#cc5de8"/>
+    </marker>
+    <marker id="arrowGray" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#888"/>
+    </marker>
+  </defs>
+
+  <!-- Column headers -->
+  <text x="132" y="28" fill="#fff" font-size="14" font-weight="600" text-anchor="middle">Polling</text>
+  <text x="370" y="28" fill="#fff" font-size="14" font-weight="600" text-anchor="middle">Long Polling</text>
+  <text x="610" y="28" fill="#fff" font-size="14" font-weight="600" text-anchor="middle">SSE</text>
+  <text x="850" y="28" fill="#fff" font-size="14" font-weight="600" text-anchor="middle">WebSocket</text>
+
+  <!-- Dividers -->
+  <line x1="250" y1="15" x2="250" y2="580" stroke="#2a2a35" stroke-width="1"/>
+  <line x1="490" y1="15" x2="490" y2="580" stroke="#2a2a35" stroke-width="1"/>
+  <line x1="730" y1="15" x2="730" y2="580" stroke="#2a2a35" stroke-width="1"/>
+
+  <!-- Client / Server labels -->
+  <text x="55" y="58" fill="#888" font-size="11">Client</text>
+  <text x="195" y="58" fill="#888" font-size="11">Server</text>
+  <text x="293" y="58" fill="#888" font-size="11">Client</text>
+  <text x="433" y="58" fill="#888" font-size="11">Server</text>
+  <text x="533" y="58" fill="#888" font-size="11">Client</text>
+  <text x="673" y="58" fill="#888" font-size="11">Server</text>
+  <text x="773" y="58" fill="#888" font-size="11">Client</text>
+  <text x="913" y="58" fill="#888" font-size="11">Server</text>
+
+  <!-- Vertical lifelines -->
+  <!-- Polling -->
+  <line x1="70" y1="65" x2="70" y2="560" stroke="#555" stroke-width="1" stroke-dasharray="4,3"/>
+  <line x1="210" y1="65" x2="210" y2="560" stroke="#555" stroke-width="1" stroke-dasharray="4,3"/>
+  <!-- Long Polling -->
+  <line x1="308" y1="65" x2="308" y2="560" stroke="#555" stroke-width="1" stroke-dasharray="4,3"/>
+  <line x1="448" y1="65" x2="448" y2="560" stroke="#555" stroke-width="1" stroke-dasharray="4,3"/>
+  <!-- SSE -->
+  <line x1="548" y1="65" x2="548" y2="560" stroke="#555" stroke-width="1" stroke-dasharray="4,3"/>
+  <line x1="688" y1="65" x2="688" y2="560" stroke="#555" stroke-width="1" stroke-dasharray="4,3"/>
+  <!-- WebSocket -->
+  <line x1="788" y1="65" x2="788" y2="560" stroke="#555" stroke-width="1" stroke-dasharray="4,3"/>
+  <line x1="928" y1="65" x2="928" y2="560" stroke="#555" stroke-width="1" stroke-dasharray="4,3"/>
+
+  <!-- Animation groups (populated by JS) -->
+  <g id="anim-polling"></g>
+  <g id="anim-longpoll"></g>
+  <g id="anim-sse"></g>
+  <g id="anim-ws"></g>
+</svg>
+
+<div id="anim-commentary" class="commentary">
+  Press <strong>Run Animation</strong> to watch all four mechanisms handle the same scenario: 5 stock price updates over ~10 seconds.
+</div>
+
+<!-- Stats row -->
+<div class="table-wrap">
+<table id="stats-table">
+  <thead>
+    <tr>
+      <th>Metric</th>
+      <th>Polling</th>
+      <th>Long Polling</th>
+      <th>SSE</th>
+      <th>WebSocket</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>HTTP requests</td>
+      <td id="stat-poll-req">--</td>
+      <td id="stat-lp-req">--</td>
+      <td id="stat-sse-req">--</td>
+      <td id="stat-ws-req">--</td>
+    </tr>
+    <tr>
+      <td>Avg latency</td>
+      <td id="stat-poll-lat">--</td>
+      <td id="stat-lp-lat">--</td>
+      <td id="stat-sse-lat">--</td>
+      <td id="stat-ws-lat">--</td>
+    </tr>
+    <tr>
+      <td>Overhead / event</td>
+      <td id="stat-poll-oh">--</td>
+      <td id="stat-lp-oh">--</td>
+      <td id="stat-sse-oh">--</td>
+      <td id="stat-ws-oh">--</td>
+    </tr>
+    <tr>
+      <td>Connections held</td>
+      <td id="stat-poll-conn">--</td>
+      <td id="stat-lp-conn">--</td>
+      <td id="stat-sse-conn">--</td>
+      <td id="stat-ws-conn">--</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<div class="takeaway">
+  <strong>Takeaway:</strong> Polling = obsolete for real-time. Long polling = simplest server-push (hold-until-event). SSE = clean server-only stream over HTTP. WebSockets = full duplex when you need bidirectional. Each step up trades simplicity for capability.
+</div>
+
+
+<!-- ============================================================ -->
+<!-- SECTION 2: PICK BY USE CASE                                   -->
+<!-- ============================================================ -->
+<h2>2. Pick by Use Case</h2>
+<p>Start with the decision tree. Fall through until you hit a match.</p>
+
+<div class="decision-tree">
+  <div class="decision-node"><span class="q">Need bidirectional communication?</span> (typing indicators, client commands, interactive)</div>
+  <div class="decision-node answer" style="margin-left: 40px;">Yes -- <strong>WebSockets</strong></div>
+
+  <div class="decision-node"><span class="q">Server to client only. Behind picky proxy / corporate firewall?</span></div>
+  <div class="decision-node answer" style="margin-left: 40px;">Yes -- <strong>Long Polling</strong> (works through anything that supports HTTP)</div>
+
+  <div class="decision-node"><span class="q">Server to client only. Modern infrastructure?</span></div>
+  <div class="decision-node answer" style="margin-left: 40px;">Yes -- <strong>SSE</strong> (simplest, auto-reconnect, Last-Event-ID resume)</div>
+
+  <div class="decision-node"><span class="q">Few events, batch-oriented?</span></div>
+  <div class="decision-node answer" style="margin-left: 40px;">Regular GET on demand (no push needed)</div>
+</div>
+
+<h3>Specific use cases</h3>
+<div class="use-case-grid">
+  <div class="use-case-card">
+    <h4>Live Chat</h4>
+    <div class="mech" style="color: var(--accent-purple);">WebSockets</div>
+    <div class="reason">Typing indicators, read receipts, message send all require client-to-server. Full duplex.</div>
+  </div>
+  <div class="use-case-card">
+    <h4>Stock Ticker / Live Dashboard</h4>
+    <div class="mech" style="color: var(--accent-green);">SSE</div>
+    <div class="reason">One-way push of values. Auto-reconnect with Last-Event-ID handles network blips.</div>
+  </div>
+  <div class="use-case-card">
+    <h4>Server Log Tail</h4>
+    <div class="mech" style="color: var(--accent-green);">SSE</div>
+    <div class="reason">Continuous server-to-client stream. Text-native format is a natural fit for log lines.</div>
+  </div>
+  <div class="use-case-card">
+    <h4>Multiplayer Game</h4>
+    <div class="mech" style="color: var(--accent-purple);">WebSockets</div>
+    <div class="reason">Low-latency bidirectional. Player inputs and game state both flow in real time.</div>
+  </div>
+  <div class="use-case-card">
+    <h4>Notification Center</h4>
+    <div class="mech" style="color: var(--accent-blue);">Long Polling or WebSockets</div>
+    <div class="reason">Long polling if simple (bell icon count). WebSockets if you need mark-as-read, dismiss, etc.</div>
+  </div>
+  <div class="use-case-card">
+    <h4>File Upload Progress</h4>
+    <div class="mech" style="color: var(--accent-green);">SSE</div>
+    <div class="reason">Server reports percentage/status updates. Client only watches -- no need to send back.</div>
+  </div>
+</div>
+
+<div class="takeaway">
+  <strong>Takeaway:</strong> WebSockets if you need duplex. SSE if you don't. Long polling if proxies break SSE. Don't use plain polling for real-time.
+</div>
+
+
+<!-- ============================================================ -->
+<!-- SECTION 3: SSE DEEP DIVE                                      -->
+<!-- ============================================================ -->
+<h2>3. SSE Deep Dive</h2>
+<p>Server-Sent Events: a persistent HTTP connection where the server pushes UTF-8 event frames. The browser handles reconnection automatically.</p>
+
+<h3>Event format</h3>
+<pre>event: priceUpdate
+data: {"symbol":"AAPL","price":192.50}
+id: 42
+
+event: priceUpdate
+data: {"symbol":"GOOG","price":178.30}
+id: 43
+
+</pre>
+<p>Each event has optional <code>event:</code> (type name), required <code>data:</code> (payload), optional <code>id:</code> (for resume). Events are separated by a blank line. The server can also send <code>retry: 5000</code> to control the client's reconnect interval in milliseconds.</p>
+
+<h3>Auto-reconnect and resume</h3>
+<p>When the connection drops, the browser automatically reconnects after the <code>retry</code> interval (default ~3s). On reconnect, it sends the <code>Last-Event-ID</code> HTTP header with the last received <code>id:</code> value. The server uses this to replay missed events.</p>
+
+<h3>JS API</h3>
+<pre>const source = new EventSource('/stream');
+
+// Listen to named events
+source.addEventListener('priceUpdate', (e) => {
+  const data = JSON.parse(e.data);
+  console.log(data.symbol, data.price);
+});
+
+// Or catch all unnamed events
+source.onmessage = (e) => { /* ... */ };
+
+// Connection lifecycle
+source.onopen = () => { /* connected */ };
+source.onerror = () => { /* will auto-reconnect */ };</pre>
+
+<h3>Limits and gotchas</h3>
+<div class="table-wrap">
+<table>
+  <tr><th>Limit</th><th>Detail</th><th>Mitigation</th></tr>
+  <tr>
+    <td>6 connections per origin</td>
+    <td>HTTP/1.1 browser limit. Multiple SSE streams from same origin starve other requests.</td>
+    <td>Use HTTP/2 (multiplexed). Or consolidate into one stream with event types.</td>
+  </tr>
+  <tr>
+    <td>Text only (UTF-8)</td>
+    <td>No binary frames. Images/audio would need base64 encoding.</td>
+    <td>Use WebSockets for binary data.</td>
+  </tr>
+  <tr>
+    <td>Server to client only</td>
+    <td>No upstream channel. Client must use separate HTTP requests for commands.</td>
+    <td>Pair SSE (downstream) with REST (upstream). Or switch to WebSockets.</td>
+  </tr>
+  <tr>
+    <td>No IE support</td>
+    <td>Internet Explorer never implemented EventSource.</td>
+    <td>Polyfill or long-polling fallback. Not relevant for modern stacks.</td>
+  </tr>
+</table>
+</div>
+
+<h3>Animated: SSE reconnect with Last-Event-ID</h3>
+<div class="controls">
+  <button onclick="startSSEDemo()">Run SSE Demo</button>
+  <button onclick="resetSSEDemo()">Reset</button>
+</div>
+
+<svg id="sse-svg" viewBox="0 0 700 420" xmlns="http://www.w3.org/2000/svg">
+  <!-- Client / Server columns -->
+  <text x="150" y="28" fill="#fff" font-size="14" font-weight="600" text-anchor="middle">Client (Browser)</text>
+  <text x="550" y="28" fill="#fff" font-size="14" font-weight="600" text-anchor="middle">Server</text>
+
+  <line x1="150" y1="40" x2="150" y2="400" stroke="#555" stroke-width="1" stroke-dasharray="4,3"/>
+  <line x1="550" y1="40" x2="550" y2="400" stroke="#555" stroke-width="1" stroke-dasharray="4,3"/>
+
+  <g id="sse-demo-g"></g>
+</svg>
+<div id="sse-commentary" class="commentary">Press <strong>Run SSE Demo</strong> to see: server sends events with IDs, connection drops, client auto-reconnects with Last-Event-ID, server replays missed events.</div>
+
+<div class="takeaway">
+  <strong>Takeaway:</strong> SSE + Last-Event-ID = built-in resumable stream. The forgotten cousin of WebSockets -- works for 80% of push needs with less complexity. Remember the 6-connection HTTP/1.1 limit; use HTTP/2 in production.
+</div>
+
+
+<!-- ============================================================ -->
+<!-- SECTION 4: WEBSOCKET DEEP DIVE                                -->
+<!-- ============================================================ -->
+<h2>4. WebSocket Deep Dive</h2>
+<p>Full-duplex communication over a single TCP connection. Starts as HTTP, upgrades to a binary framing protocol.</p>
+
+<h3>The upgrade handshake</h3>
+<pre>// Client request
+GET /chat HTTP/1.1
+Host: server.example.com
+Upgrade: websocket
+Connection: Upgrade
+Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==
+Sec-WebSocket-Version: 13
+Sec-WebSocket-Protocol: chat, superchat
+
+// Server response
+HTTP/1.1 101 Switching Protocols
+Upgrade: websocket
+Connection: Upgrade
+Sec-WebSocket-Accept: s3pPLMBiTxaQ9kYGzzhZRbK+xOo=
+Sec-WebSocket-Protocol: chat</pre>
+
+<p>The <code>Sec-WebSocket-Accept</code> value = Base64(SHA1(<code>Sec-WebSocket-Key</code> + magic GUID <code>258EAFA5-E914-47DA-95CA-5AB5DC85B11</code>)). This proves the server understood the WebSocket protocol, not just any HTTP server.</p>
+
+<h3>Frame structure</h3>
+<div class="table-wrap">
+<table>
+  <tr><th>Field</th><th>Size</th><th>Purpose</th></tr>
+  <tr><td>FIN</td><td>1 bit</td><td>Final fragment of message</td></tr>
+  <tr><td>Opcode</td><td>4 bits</td><td>0x1 = text, 0x2 = binary, 0x8 = close, 0x9 = ping, 0xA = pong</td></tr>
+  <tr><td>MASK</td><td>1 bit</td><td>Client-to-server frames must be masked</td></tr>
+  <tr><td>Payload length</td><td>7/16/64 bits</td><td>7 bits if &lt;126, 16 bits if 126, 64 bits if 127</td></tr>
+  <tr><td>Masking key</td><td>0 or 32 bits</td><td>XOR key for payload (client-to-server only)</td></tr>
+  <tr><td>Payload</td><td>variable</td><td>Application data</td></tr>
+</table>
+</div>
+<p>Minimal overhead: 2-14 bytes per frame vs. ~800 bytes of HTTP headers per request. This is why WebSockets win for high-frequency messaging.</p>
+
+<h3>Subprotocols</h3>
+<p>The <code>Sec-WebSocket-Protocol</code> header negotiates an application-level protocol on top of WebSocket framing:</p>
+<ul>
+  <li><code>graphql-ws</code> / <code>graphql-transport-ws</code> -- GraphQL subscriptions</li>
+  <li><code>mqtt</code> -- IoT messaging</li>
+  <li><code>stomp</code> -- message broker interop (ActiveMQ, RabbitMQ)</li>
+  <li><code>wamp</code> -- RPC + pub/sub combined</li>
+</ul>
+
+<h3>Heartbeat: ping / pong</h3>
+<p>Server sends a <strong>ping</strong> frame every ~30s. Client must respond with <strong>pong</strong> (browser does this automatically). If no pong arrives within timeout, server closes the connection as stale. This detects half-open connections (client crashed, network died silently).</p>
+
+<h3>Reconnection</h3>
+<p>Unlike SSE, the browser WebSocket API has <strong>no auto-reconnect</strong>. You must implement it in application code. Libraries like Socket.IO, ReconnectingWebSocket, or custom logic with exponential backoff + jitter handle this.</p>
+
+<h3>Common libraries</h3>
+<div class="table-wrap">
+<table>
+  <tr><th>Library</th><th>Key feature</th></tr>
+  <tr><td>Socket.IO</td><td>Transport agnostic (WebSocket + long-polling fallback). Auto-reconnect. Room-based pub/sub.</td></tr>
+  <tr><td>ws (Node.js)</td><td>Minimal, fast, raw WebSocket. No opinions.</td></tr>
+  <tr><td>gorilla/websocket (Go)</td><td>Battle-tested Go implementation. Used by most Go WS servers.</td></tr>
+  <tr><td>GraphQL Subscriptions</td><td>Typed real-time queries over WebSocket. Schema-driven.</td></tr>
+</table>
+</div>
+
+<h3>Animated: WebSocket lifecycle</h3>
+<div class="controls">
+  <button onclick="startWSDemo()">Run WebSocket Demo</button>
+  <button onclick="resetWSDemo()">Reset</button>
+</div>
+
+<svg id="ws-svg" viewBox="0 0 700 500" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="wsArrowR" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#339af0"/>
+    </marker>
+    <marker id="wsArrowG" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#51cf66"/>
+    </marker>
+    <marker id="wsArrowP" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#cc5de8"/>
+    </marker>
+    <marker id="wsArrowY" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#ffd43b"/>
+    </marker>
+    <marker id="wsArrowRed" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#ff6b6b"/>
+    </marker>
+  </defs>
+
+  <text x="150" y="28" fill="#fff" font-size="14" font-weight="600" text-anchor="middle">Client</text>
+  <text x="550" y="28" fill="#fff" font-size="14" font-weight="600" text-anchor="middle">Server</text>
+
+  <line x1="150" y1="40" x2="150" y2="480" stroke="#555" stroke-width="1" stroke-dasharray="4,3"/>
+  <line x1="550" y1="40" x2="550" y2="480" stroke="#555" stroke-width="1" stroke-dasharray="4,3"/>
+
+  <g id="ws-demo-g"></g>
+</svg>
+<div id="ws-commentary" class="commentary">Press <strong>Run WebSocket Demo</strong> to see: HTTP upgrade handshake, bidirectional message flow, ping/pong heartbeat, and close sequence.</div>
+
+<div class="takeaway">
+  <strong>Takeaway:</strong> WebSockets = TCP socket with framing. 2-14 byte overhead per frame vs. ~800 bytes for HTTP. Heartbeat (ping/pong) for liveness detection. Reconnect must be done in application code. Subprotocol header for application semantics.
+</div>
+
+
+<!-- ============================================================ -->
+<!-- SECTION 5: SCALING -- THE CONNECTION PROBLEM                  -->
+<!-- ============================================================ -->
+<h2>5. Scaling -- The Connection Problem</h2>
+<p>A WebSocket or SSE connection is <strong>long-lived</strong>. Every concurrent user = 1 open connection on the server. This changes everything about capacity planning.</p>
+
+<h3>Single server limits</h3>
+<div class="table-wrap">
+<table>
+  <tr><th>Resource</th><th>Default</th><th>Practical limit</th><th>Notes</th></tr>
+  <tr>
+    <td>File descriptors</td>
+    <td>~1024 (soft) / ~28K (hard)</td>
+    <td>Raise with <code>ulimit -n</code></td>
+    <td>Each connection = 1 fd. Set to 500K+ for WS servers.</td>
+  </tr>
+  <tr>
+    <td>Memory per connection</td>
+    <td>50-500 KB</td>
+    <td>100K conns x 200KB = 20GB</td>
+    <td>Framework-dependent. Go/Rust < Node.js < Java/Spring.</td>
+  </tr>
+  <tr>
+    <td>Connections per server</td>
+    <td>--</td>
+    <td>100K-1M (epoll-based)</td>
+    <td>Node.js, Go, Rust handle 100K+. Java NIO / Netty too. Thread-per-conn = much less.</td>
+  </tr>
+</table>
+</div>
+
+<h3>Scaled architecture: edge + pub/sub backbone</h3>
+<p>Don't broadcast from a single backend. Don't do fanout in the database. The pattern:</p>
+
+<div class="controls">
+  <button onclick="startScaleDemo()">Run Scale Demo</button>
+  <button onclick="resetScaleDemo()">Reset</button>
+</div>
+
+<svg id="scale-svg" viewBox="0 0 1060 520" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="scArrowB" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#339af0"/>
+    </marker>
+    <marker id="scArrowG" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#51cf66"/>
+    </marker>
+    <marker id="scArrowY" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#ffd43b"/>
+    </marker>
+    <marker id="scArrowP" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#cc5de8"/>
+    </marker>
+  </defs>
+
+  <!-- Title -->
+  <text x="530" y="30" fill="#fff" font-size="15" font-weight="600" text-anchor="middle">100K Clients -- 10 Edge Servers -- Redis Pub/Sub Backbone</text>
+
+  <!-- Backend box -->
+  <rect x="440" y="55" width="180" height="50" rx="6" fill="#20202a" stroke="#cc5de8" stroke-width="2"/>
+  <text x="530" y="85" fill="#cc5de8" font-size="13" font-weight="600" text-anchor="middle">Application Backend</text>
+  <text x="530" y="100" fill="#888" font-size="10" text-anchor="middle">(produces events)</text>
+
+  <!-- Pub/Sub backbone -->
+  <rect x="330" y="155" width="400" height="50" rx="6" fill="#20202a" stroke="#ffd43b" stroke-width="2"/>
+  <text x="530" y="180" fill="#ffd43b" font-size="13" font-weight="600" text-anchor="middle">Redis Pub/Sub (or Kafka / NATS)</text>
+  <text x="530" y="195" fill="#888" font-size="10" text-anchor="middle">broadcast backbone -- publish once, all subscribers receive</text>
+
+  <!-- Arrow: backend to pub/sub -->
+  <line x1="530" y1="105" x2="530" y2="153" stroke="#cc5de8" stroke-width="2" marker-end="url(#scArrowP)"/>
+  <text x="545" y="133" fill="#888" font-size="10">PUBLISH</text>
+
+  <!-- Edge servers -->
+  <g id="edge-servers">
+  </g>
+
+  <!-- Client clusters -->
+  <g id="client-clusters">
+  </g>
+
+  <!-- Animated messages -->
+  <g id="scale-anim-g"></g>
+
+  <!-- Load balancer hint -->
+  <rect x="330" y="455" width="400" height="40" rx="6" fill="#1a1a22" stroke="#2a2a35" stroke-width="1"/>
+  <text x="530" y="472" fill="#888" font-size="11" text-anchor="middle">Load Balancer: IP hash or cookie-based sticky sessions</text>
+  <text x="530" y="487" fill="#555" font-size="10" text-anchor="middle">Each client must stick to the edge server holding its connection</text>
+</svg>
+
+<div id="scale-commentary" class="commentary">Press <strong>Run Scale Demo</strong> to see: backend publishes one event to Redis Pub/Sub, all 10 edge servers receive it, each fans out to its 10K connected clients.</div>
+
+<h3>Layered architecture</h3>
+<ol>
+  <li><strong>Edge / WS proxy</strong> (Cloudflare, AWS API Gateway WebSocket, Envoy, Kong, custom Go gateway): terminates client connections, maintains client identity, subscribes to pub/sub topics.</li>
+  <li><strong>Pub/sub backbone</strong> (Redis Pub/Sub, NATS, Kafka): broadcasts events to all interested edge servers. Backend publishes once; backbone handles fan-out to edges.</li>
+  <li><strong>Application backend</strong>: produces events to the backbone. Does not speak directly to clients. Single point of fanout -- no connection management.</li>
+</ol>
+
+<h3>Sticky sessions</h3>
+<p>Each client must reach the same edge server that holds its open connection. The load balancer must use <strong>IP hash</strong> or <strong>cookie-based</strong> session affinity. Without stickiness, a client reconnect hits a different edge and loses its connection state.</p>
+
+<h3>Reconnect strategy</h3>
+<p>Client disconnects, reconnects through CDN/LB to <em>any</em> edge server. The new edge fetches missed events from the backbone's history:</p>
+<ul>
+  <li><strong>SSE style:</strong> Last-Event-ID header, server replays from that point.</li>
+  <li><strong>WebSocket style:</strong> per-client ack tracking in Redis, replay from last-acked offset.</li>
+  <li><strong>Kafka-backed:</strong> each edge consumes from a topic with a per-client offset; replay is built into the consumer group model.</li>
+</ul>
+
+<div class="takeaway">
+  <strong>Takeaway:</strong> Push at scale = thin edge servers + pub/sub backbone. Don't try to broadcast from a single backend. Don't try to do fanout in the database. Sticky sessions on the edge; replay missed events on reconnect.
+</div>
+
+
+<!-- ============================================================ -->
+<!-- SECTION 6: COMMON PITFALLS                                    -->
+<!-- ============================================================ -->
+<h2>6. Common Pitfalls</h2>
+<p>Quick reference for the failure modes you'll encounter (and interviewers will probe).</p>
+
+<div class="table-wrap">
+<table class="pitfall-table">
+  <thead>
+    <tr><th>Symptom</th><th>Fix</th><th>Why</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Connection drops every 60s</td>
+      <td>Heartbeats + LB idle timeout</td>
+      <td>Intermediate proxy/LB has idle timeout. Server must send ping before timeout expires. Configure LB idle timeout > heartbeat interval.</td>
+    </tr>
+    <tr>
+      <td>Memory grows over time</td>
+      <td>Cleanup on close event</td>
+      <td>Connections leaking -- close handler not removing state. Monitor active connection count as a metric.</td>
+    </tr>
+    <tr>
+      <td>All clients reconnect at once after deploy</td>
+      <td>Jittered reconnect delays</td>
+      <td>Thundering herd: all connections drop simultaneously, all retry at once. Add random jitter (0-5s) to reconnect delay.</td>
+    </tr>
+    <tr>
+      <td>Lost events on reconnect</td>
+      <td>Track last_seen_id + replay</td>
+      <td>No replay mechanism. Must store per-client last-acked event and replay missed events from a durable source.</td>
+    </tr>
+    <tr>
+      <td>WebSockets fail behind corporate proxy</td>
+      <td>Fallback to long polling</td>
+      <td>Some proxies strip the <code>Upgrade</code> header. Socket.IO handles this automatically with transport fallback.</td>
+    </tr>
+    <tr>
+      <td>Mobile network: connection churn</td>
+      <td>Aggressive heartbeats + fast reconnect</td>
+      <td>Cell tower handoff, WiFi/cell switches. Short heartbeat interval (15s) + immediate reconnect with backoff.</td>
+    </tr>
+    <tr>
+      <td>Head-of-line blocking in multiplexed streams</td>
+      <td>Separate connections or priority frames</td>
+      <td>HTTP/2 multiplexing means one slow SSE stream can block others. Use dedicated connections for critical streams.</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<div class="takeaway">
+  <strong>Takeaway:</strong> The three non-negotiable answers: (1) heartbeat for liveness, (2) jittered reconnect to prevent thundering herd, (3) Last-Event-ID / offset-based replay for missed events. These are what separate "I've built this" from "I've read about this."
+</div>
+
+
+<!-- ============================================================ -->
+<!-- SECTION 7: COMPARISON MATRIX                                  -->
+<!-- ============================================================ -->
+<h2>7. Comparison Matrix</h2>
+
+<div class="table-wrap">
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Polling</th>
+      <th>Long Polling</th>
+      <th>SSE</th>
+      <th>WebSocket</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Direction</strong></td>
+      <td>Client pulls</td>
+      <td>Server pushes (simulated)</td>
+      <td>Server pushes</td>
+      <td>Bidirectional</td>
+    </tr>
+    <tr>
+      <td><strong>Protocol</strong></td>
+      <td>HTTP request/response</td>
+      <td>HTTP request/response (held)</td>
+      <td>HTTP streaming</td>
+      <td>WS (TCP + framing)</td>
+    </tr>
+    <tr>
+      <td><strong>Per-message overhead</strong></td>
+      <td>~800B (full HTTP headers)</td>
+      <td>~800B (full HTTP headers)</td>
+      <td>~50B (event frame)</td>
+      <td>2-14B (WS frame header)</td>
+    </tr>
+    <tr>
+      <td><strong>Latency</strong></td>
+      <td>0 to N seconds (poll interval)</td>
+      <td>Near-instant (held connection)</td>
+      <td>Near-instant (open stream)</td>
+      <td>Near-instant (open socket)</td>
+    </tr>
+    <tr>
+      <td><strong>Connections held</strong></td>
+      <td>0 (short-lived)</td>
+      <td>1 (re-established per event)</td>
+      <td>1 (persistent)</td>
+      <td>1 (persistent)</td>
+    </tr>
+    <tr>
+      <td><strong>Auto-reconnect</strong></td>
+      <td>N/A</td>
+      <td>App code</td>
+      <td>Built-in (browser)</td>
+      <td>App code (or library)</td>
+    </tr>
+    <tr>
+      <td><strong>Resume / replay</strong></td>
+      <td>N/A</td>
+      <td>App code</td>
+      <td>Last-Event-ID (built-in)</td>
+      <td>App code</td>
+    </tr>
+    <tr>
+      <td><strong>Binary support</strong></td>
+      <td>Yes (any HTTP body)</td>
+      <td>Yes (any HTTP body)</td>
+      <td>No (UTF-8 text only)</td>
+      <td>Yes (binary frames)</td>
+    </tr>
+    <tr>
+      <td><strong>Proxy compatibility</strong></td>
+      <td>Excellent</td>
+      <td>Excellent</td>
+      <td>Good (HTTP/2 helps)</td>
+      <td>Sometimes blocked</td>
+    </tr>
+    <tr>
+      <td><strong>Complexity</strong></td>
+      <td>Trivial</td>
+      <td>Low</td>
+      <td>Low</td>
+      <td>Medium</td>
+    </tr>
+    <tr>
+      <td><strong>Best for</strong></td>
+      <td>Legacy / rare updates</td>
+      <td>Simple push, max compat</td>
+      <td>Server-only streams</td>
+      <td>Chat, games, collab</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<div class="takeaway" style="border-left-color: var(--accent-blue);">
+  <strong style="color: var(--accent-blue);">The senior tell.</strong> "I'd use SSE for one-way push, WebSockets for bidirectional. Scaling = thin edge gateway + pub/sub backbone (Redis Pub/Sub or Kafka), not direct from backend. Sticky sessions on the edge; replay missed events on reconnect via Last-Event-ID or per-client offset tracking. Jittered exponential backoff on reconnect to prevent thundering herd."
+</div>
+
+
+<!-- ============================================================ -->
+<!-- JAVASCRIPT                                                    -->
+<!-- ============================================================ -->
+<script>
+(function() {
+  'use strict';
+
+  // ---- SECTION 1: Four-mechanism animation ----
+
+  var animTimer = null;
+  var animStep = 0;
+  var animRunning = false;
+
+  // Stock ticks: 5 events at these relative times (in "steps" of ~600ms each)
+  // Events at steps: 3, 6, 8, 12, 15
+  var eventSteps = [3, 6, 8, 12, 15];
+  var prices = ['$192.50', '$193.10', '$192.80', '$194.20', '$195.00'];
+  var totalSteps = 18;
+
+  // Poll interval: every 2 steps (so polls at 0, 2, 4, 6, 8, 10, 12, 14, 16)
+  var pollInterval = 2;
+
+  function clearGroup(id) {
+    var g = document.getElementById(id);
+    while (g.firstChild) g.removeChild(g.firstChild);
+  }
+
+  function svgEl(tag, attrs) {
+    var el = document.createElementNS('http://www.w3.org/2000/svg', tag);
+    for (var k in attrs) el.setAttribute(k, attrs[k]);
+    return el;
+  }
+
+  function addArrow(group, x1, y1, x2, y2, color, markerEnd, label, labelSide) {
+    var g = document.getElementById(group);
+    var line = svgEl('line', {x1:x1, y1:y1, x2:x2, y2:y2, stroke:color, 'stroke-width':'2'});
+    if (markerEnd) line.setAttribute('marker-end', 'url(#' + markerEnd + ')');
+    line.style.opacity = '0';
+    line.style.transition = 'opacity 0.3s';
+    g.appendChild(line);
+    setTimeout(function() { line.style.opacity = '1'; }, 30);
+
+    if (label) {
+      var lx = (x1 + x2) / 2;
+      var ly = (y1 + y2) / 2 - 5;
+      if (labelSide === 'below') ly = (y1 + y2) / 2 + 12;
+      var txt = svgEl('text', {x:lx, y:ly, fill:color, 'font-size':'9', 'text-anchor':'middle'});
+      txt.textContent = label;
+      txt.style.opacity = '0';
+      txt.style.transition = 'opacity 0.3s';
+      g.appendChild(txt);
+      setTimeout(function() { txt.style.opacity = '1'; }, 30);
+    }
+  }
+
+  // Track stats
+  var stats = {
+    poll: { reqs: 0, delivered: 0, latencies: [] },
+    lp:   { reqs: 0, delivered: 0, latencies: [] },
+    sse:  { reqs: 0, delivered: 0, latencies: [] },
+    ws:   { reqs: 0, delivered: 0, latencies: [] }
+  };
+
+  // Polling state
+  var pollPending = {}; // eventStep -> when it occurred
+  var pollLastDelivered = -1;
+
+  // Long poll state
+  var lpWaiting = false;
+  var lpWaitStart = 0;
+  var lpPendingEvents = [];
+
+  // SSE: single connection, events arrive instantly
+  // WS: single connection, events arrive instantly
+
+  function yForStep(step) {
+    return 72 + step * 28;
+  }
+
+  function doAnimStep() {
+    if (animStep > totalSteps) {
+      animRunning = false;
+      document.getElementById('anim-start').disabled = false;
+      showFinalStats();
+      return;
+    }
+
+    var y = yForStep(animStep);
+
+    // Check if an event fires this step
+    var eventIdx = eventSteps.indexOf(animStep);
+    var hasEvent = eventIdx !== -1;
+    var price = hasEvent ? prices[eventIdx] : null;
+
+    // --- POLLING ---
+    if (animStep % pollInterval === 0) {
+      stats.poll.reqs++;
+      // Client -> Server: GET
+      addArrow('anim-polling', 70, y, 210, y + 6, '#339af0', 'arrowR', 'GET /price', null);
+      // Server -> Client: response
+      if (hasEvent || pollPending[animStep]) {
+        // There's data to return (current event or buffered)
+        addArrow('anim-polling', 210, y + 10, 70, y + 16, '#51cf66', 'arrowG', price || 'data', 'below');
+        stats.poll.delivered++;
+        stats.poll.latencies.push(animStep % pollInterval);
+      } else {
+        // Empty response
+        addArrow('anim-polling', 210, y + 10, 70, y + 16, '#888', 'arrowGray', '204 empty', 'below');
+      }
+    }
+
+    // --- LONG POLLING ---
+    if (!lpWaiting && animStep <= totalSteps) {
+      // Open a new long poll request
+      lpWaiting = true;
+      lpWaitStart = animStep;
+      stats.lp.reqs++;
+      addArrow('anim-longpoll', 308, y, 448, y + 6, '#339af0', 'arrowR', 'GET (hold)', null);
+    }
+    if (lpWaiting && hasEvent) {
+      // Event occurred, respond immediately
+      addArrow('anim-longpoll', 448, y + 10, 308, y + 16, '#51cf66', 'arrowG', price, 'below');
+      stats.lp.delivered++;
+      stats.lp.latencies.push(0);
+      lpWaiting = false;
+    }
+    // Timeout at 10 steps if no event
+    if (lpWaiting && (animStep - lpWaitStart) >= 10) {
+      addArrow('anim-longpoll', 448, y + 10, 308, y + 16, '#888', 'arrowGray', 'timeout', 'below');
+      lpWaiting = false;
+    }
+
+    // --- SSE ---
+    if (animStep === 0) {
+      stats.sse.reqs = 1;
+      addArrow('anim-sse', 548, y, 688, y + 6, '#339af0', 'arrowR', 'GET /stream', null);
+      // Connection established line
+      var connLine = svgEl('line', {x1:'618', y1: String(y + 14), x2:'618', y2: String(yForStep(totalSteps)), stroke:'#51cf66', 'stroke-width':'1', 'stroke-dasharray':'3,2', opacity:'0.4'});
+      document.getElementById('anim-sse').appendChild(connLine);
+    }
+    if (hasEvent) {
+      addArrow('anim-sse', 688, y + 4, 548, y + 10, '#51cf66', 'arrowG', 'data: ' + price, 'below');
+      stats.sse.delivered++;
+      stats.sse.latencies.push(0);
+    }
+
+    // --- WEBSOCKET ---
+    if (animStep === 0) {
+      stats.ws.reqs = 1;
+      addArrow('anim-ws', 788, y, 928, y + 4, '#cc5de8', 'arrowP', 'Upgrade: ws', null);
+      addArrow('anim-ws', 928, y + 8, 788, y + 12, '#cc5de8', 'arrowP', '101 Switch', 'below');
+      // Connection line
+      var wsConn = svgEl('line', {x1:'858', y1: String(y + 18), x2:'858', y2: String(yForStep(totalSteps)), stroke:'#cc5de8', 'stroke-width':'1', 'stroke-dasharray':'3,2', opacity:'0.4'});
+      document.getElementById('anim-ws').appendChild(wsConn);
+    }
+    if (hasEvent) {
+      addArrow('anim-ws', 928, y + 4, 788, y + 10, '#51cf66', 'arrowG', price, 'below');
+      stats.ws.delivered++;
+      stats.ws.latencies.push(0);
+    }
+
+    // Commentary
+    var cEl = document.getElementById('anim-commentary');
+    if (hasEvent) {
+      cEl.innerHTML = '<strong>Event ' + (eventIdx + 1) + '/5:</strong> Server has price update <code>' + price + '</code>. SSE and WebSocket deliver instantly. Long polling responds and re-polls. Polling waits until next interval.';
+    } else if (animStep === 0) {
+      cEl.innerHTML = 'Connections opening. Polling will GET every 2 intervals. Long polling holds. SSE opens a persistent stream. WebSocket upgrades protocol.';
+    }
+
+    animStep++;
+    animTimer = setTimeout(doAnimStep, 500);
+  }
+
+  function showFinalStats() {
+    document.getElementById('stat-poll-req').textContent = stats.poll.reqs + ' requests';
+    document.getElementById('stat-lp-req').textContent = stats.lp.reqs + ' requests';
+    document.getElementById('stat-sse-req').textContent = stats.sse.reqs + ' request';
+    document.getElementById('stat-ws-req').textContent = stats.ws.reqs + ' request';
+
+    document.getElementById('stat-poll-lat').textContent = '0-' + pollInterval + ' intervals';
+    document.getElementById('stat-lp-lat').textContent = 'near-instant';
+    document.getElementById('stat-sse-lat').textContent = 'instant';
+    document.getElementById('stat-ws-lat').textContent = 'instant';
+
+    document.getElementById('stat-poll-oh').textContent = '~800B (HTTP headers)';
+    document.getElementById('stat-lp-oh').textContent = '~800B (HTTP headers)';
+    document.getElementById('stat-sse-oh').textContent = '~50B (event frame)';
+    document.getElementById('stat-ws-oh').textContent = '2-14B (WS frame)';
+
+    document.getElementById('stat-poll-conn').textContent = '0 (short-lived)';
+    document.getElementById('stat-lp-conn').textContent = '1 (re-established)';
+    document.getElementById('stat-sse-conn').textContent = '1 (persistent)';
+    document.getElementById('stat-ws-conn').textContent = '1 (persistent)';
+  }
+
+  window.startAnimation = function() {
+    if (animRunning) return;
+    resetAnimation();
+    animRunning = true;
+    document.getElementById('anim-start').disabled = true;
+    animTimer = setTimeout(doAnimStep, 300);
+  };
+
+  window.resetAnimation = function() {
+    if (animTimer) clearTimeout(animTimer);
+    animRunning = false;
+    animStep = 0;
+    document.getElementById('anim-start').disabled = false;
+    clearGroup('anim-polling');
+    clearGroup('anim-longpoll');
+    clearGroup('anim-sse');
+    clearGroup('anim-ws');
+    document.getElementById('anim-commentary').innerHTML = 'Press <strong>Run Animation</strong> to watch all four mechanisms handle the same scenario: 5 stock price updates over ~10 seconds.';
+
+    stats = {
+      poll: { reqs: 0, delivered: 0, latencies: [] },
+      lp:   { reqs: 0, delivered: 0, latencies: [] },
+      sse:  { reqs: 0, delivered: 0, latencies: [] },
+      ws:   { reqs: 0, delivered: 0, latencies: [] }
+    };
+    lpWaiting = false;
+    lpWaitStart = 0;
+
+    var fields = ['stat-poll-req','stat-lp-req','stat-sse-req','stat-ws-req',
+                  'stat-poll-lat','stat-lp-lat','stat-sse-lat','stat-ws-lat',
+                  'stat-poll-oh','stat-lp-oh','stat-sse-oh','stat-ws-oh',
+                  'stat-poll-conn','stat-lp-conn','stat-sse-conn','stat-ws-conn'];
+    fields.forEach(function(id) { document.getElementById(id).textContent = '--'; });
+  };
+
+
+  // ---- SECTION 3: SSE reconnect demo ----
+
+  var sseTimer = null;
+  var sseRunning = false;
+
+  window.startSSEDemo = function() {
+    if (sseRunning) return;
+    resetSSEDemo();
+    sseRunning = true;
+
+    var g = document.getElementById('sse-demo-g');
+    var steps = [
+      { delay: 300, fn: function() {
+        addSSEArrow(150, 60, 550, 66, '#339af0', 'GET /stream');
+        setSSEComment('Client opens SSE connection: <code>new EventSource("/stream")</code>');
+      }},
+      { delay: 800, fn: function() {
+        addSSEArrow(550, 80, 150, 86, '#51cf66', 'data: {AAPL:192.50}  id:1');
+        setSSEComment('Server sends event with <code>id: 1</code>. Client stores last event ID internally.');
+      }},
+      { delay: 800, fn: function() {
+        addSSEArrow(550, 110, 150, 116, '#51cf66', 'data: {AAPL:193.10}  id:2');
+        setSSEComment('Event <code>id: 2</code> received. Connection still open -- no new HTTP request needed.');
+      }},
+      { delay: 800, fn: function() {
+        addSSEArrow(550, 140, 150, 146, '#51cf66', 'data: {AAPL:192.80}  id:3');
+        setSSEComment('Event <code>id: 3</code> received.');
+      }},
+      { delay: 1000, fn: function() {
+        // Connection drops
+        var cross = svgEl('text', {x:'350', y:'178', fill:'#ff6b6b', 'font-size':'14', 'text-anchor':'middle', 'font-weight':'bold'});
+        cross.textContent = '--- CONNECTION DROPPED ---';
+        g.appendChild(cross);
+        setSSEComment('<span style="color:var(--accent-red)">Network failure!</span> Connection lost. Browser will auto-reconnect after <code>retry</code> interval.');
+      }},
+      { delay: 1200, fn: function() {
+        // Server sends id:4 (client won't get it)
+        var missed = svgEl('text', {x:'550', y:'208', fill:'#888', 'font-size':'11', 'text-anchor':'middle'});
+        missed.textContent = 'id:4 sent (client offline)';
+        g.appendChild(missed);
+        setSSEComment('Server keeps producing events. <code>id: 4</code> sent but no client connected to receive it.');
+      }},
+      { delay: 1200, fn: function() {
+        addSSEArrow(150, 230, 550, 236, '#ffd43b', 'GET /stream  Last-Event-ID: 3');
+        setSSEComment('Browser auto-reconnects with <code>Last-Event-ID: 3</code> header. Server knows to replay from id 4.');
+      }},
+      { delay: 800, fn: function() {
+        addSSEArrow(550, 260, 150, 266, '#51cf66', 'data: {AAPL:194.20}  id:4  (replay)');
+        setSSEComment('Server replays missed event <code>id: 4</code>. Client catches up -- no data loss.');
+      }},
+      { delay: 800, fn: function() {
+        addSSEArrow(550, 290, 150, 296, '#51cf66', 'data: {AAPL:195.00}  id:5');
+        setSSEComment('Normal streaming resumes. Event <code>id: 5</code> delivered in real time.');
+      }},
+      { delay: 800, fn: function() {
+        addSSEArrow(550, 320, 150, 326, '#51cf66', 'data: {AAPL:195.40}  id:6');
+        setSSEComment('Seamless recovery. Client never explicitly reconnected -- the browser handled it. This is why SSE is powerful for server-push.');
+        sseRunning = false;
+      }}
+    ];
+
+    var totalDelay = 0;
+    steps.forEach(function(step) {
+      totalDelay += step.delay;
+      sseTimer = setTimeout(step.fn, totalDelay);
+    });
+  };
+
+  function addSSEArrow(x1, y1, x2, y2, color, label) {
+    var g = document.getElementById('sse-demo-g');
+    var markerId = 'sseMk' + Math.random().toString(36).substr(2, 5);
+    var marker = svgEl('marker', {id: markerId, markerWidth:'8', markerHeight:'6', refX:'8', refY:'3', orient:'auto'});
+    var poly = svgEl('polygon', {points:'0 0, 8 3, 0 6', fill:color});
+    marker.appendChild(poly);
+    var defs = document.querySelector('#sse-svg defs') || (function() {
+      var d = svgEl('defs', {});
+      document.getElementById('sse-svg').insertBefore(d, document.getElementById('sse-svg').firstChild);
+      return d;
+    })();
+    defs.appendChild(marker);
+
+    var line = svgEl('line', {x1:x1, y1:y1, x2:x2, y2:y2, stroke:color, 'stroke-width':'2', 'marker-end':'url(#'+markerId+')'});
+    line.style.opacity = '0'; line.style.transition = 'opacity 0.3s';
+    g.appendChild(line);
+    setTimeout(function() { line.style.opacity = '1'; }, 30);
+
+    if (label) {
+      var lx = (x1 + x2) / 2;
+      var ly = Math.min(y1, y2) - 5;
+      var txt = svgEl('text', {x:lx, y:ly, fill:color, 'font-size':'10', 'text-anchor':'middle'});
+      txt.textContent = label;
+      txt.style.opacity = '0'; txt.style.transition = 'opacity 0.3s';
+      g.appendChild(txt);
+      setTimeout(function() { txt.style.opacity = '1'; }, 30);
+    }
+  }
+
+  function setSSEComment(html) {
+    document.getElementById('sse-commentary').innerHTML = html;
+  }
+
+  window.resetSSEDemo = function() {
+    sseRunning = false;
+    clearGroup('sse-demo-g');
+    // Remove any added defs markers
+    var defs = document.querySelector('#sse-svg defs');
+    if (defs) defs.innerHTML = '';
+    document.getElementById('sse-commentary').innerHTML = 'Press <strong>Run SSE Demo</strong> to see: server sends events with IDs, connection drops, client auto-reconnects with Last-Event-ID, server replays missed events.';
+  };
+
+
+  // ---- SECTION 4: WebSocket lifecycle demo ----
+
+  var wsTimer = null;
+  var wsRunning = false;
+
+  window.startWSDemo = function() {
+    if (wsRunning) return;
+    resetWSDemo();
+    wsRunning = true;
+
+    var steps = [
+      { delay: 300, fn: function() {
+        addWSArrow(150, 60, 550, 68, '#339af0', 'GET /chat  Upgrade: websocket');
+        setWSComment('Client sends HTTP GET with <code>Upgrade: websocket</code> and <code>Sec-WebSocket-Key</code> (base64 nonce).');
+      }},
+      { delay: 900, fn: function() {
+        addWSArrow(550, 85, 150, 93, '#339af0', '101 Switching Protocols  Sec-WebSocket-Accept: ...');
+        setWSComment('Server responds <code>101 Switching Protocols</code>. <code>Sec-WebSocket-Accept</code> = SHA1(key + magic GUID). Connection is now WebSocket.');
+      }},
+      { delay: 600, fn: function() {
+        // Draw persistent connection indicator
+        var g = document.getElementById('ws-demo-g');
+        var rect = svgEl('rect', {x:'145', y:'105', width:'410', height:'8', rx:'4', fill:'#cc5de8', opacity:'0.2'});
+        g.appendChild(rect);
+        var lbl = svgEl('text', {x:'350', y:'100', fill:'#cc5de8', 'font-size':'10', 'text-anchor':'middle', opacity:'0.7'});
+        lbl.textContent = '--- full-duplex WebSocket connection ---';
+        g.appendChild(lbl);
+        setWSComment('Full-duplex connection established. Both sides can send frames at any time -- no request/response pattern.');
+      }},
+      { delay: 800, fn: function() {
+        addWSArrow(150, 130, 550, 138, '#51cf66', 'TEXT: {"action":"subscribe","channel":"stocks"}');
+        setWSComment('<strong>Client sends</strong> a subscribe message. This is client-to-server -- impossible with SSE.');
+      }},
+      { delay: 800, fn: function() {
+        addWSArrow(550, 160, 150, 168, '#51cf66', 'TEXT: {"event":"price","data":{"AAPL":192.50}}');
+        setWSComment('Server pushes a price update frame. Overhead: 2-14 bytes of framing vs. ~800 bytes of HTTP headers.');
+      }},
+      { delay: 600, fn: function() {
+        addWSArrow(550, 190, 150, 198, '#51cf66', 'TEXT: {"event":"price","data":{"AAPL":193.10}}');
+        setWSComment('Another server push. Frames arrive with sub-millisecond overhead -- just framing, no HTTP negotiation.');
+      }},
+      { delay: 600, fn: function() {
+        addWSArrow(150, 220, 550, 228, '#51cf66', 'TEXT: {"action":"unsubscribe","channel":"stocks"}');
+        setWSComment('Client sends an unsubscribe command upstream. Bidirectional flow in action.');
+      }},
+      { delay: 1000, fn: function() {
+        addWSArrow(550, 260, 150, 268, '#ffd43b', 'PING (opcode 0x9)');
+        setWSComment('<strong>Heartbeat:</strong> Server sends PING frame (~every 30s in production). Detects half-open connections where client crashed silently.');
+      }},
+      { delay: 800, fn: function() {
+        addWSArrow(150, 285, 550, 293, '#ffd43b', 'PONG (opcode 0xA)');
+        setWSComment('Client responds with PONG (browser does this automatically). If no PONG arrives within timeout, server closes the connection as stale.');
+      }},
+      { delay: 800, fn: function() {
+        addWSArrow(550, 320, 150, 328, '#51cf66', 'TEXT: {"event":"price","data":{"AAPL":194.20}}');
+        setWSComment('Normal data flow continues between heartbeats. Ping/pong is invisible to application logic.');
+      }},
+      { delay: 1000, fn: function() {
+        addWSArrow(150, 360, 550, 368, '#ff6b6b', 'CLOSE (opcode 0x8, code: 1000)');
+        setWSComment('<strong>Close handshake:</strong> Client initiates close with status code 1000 (normal). Both sides must agree.');
+      }},
+      { delay: 800, fn: function() {
+        addWSArrow(550, 385, 150, 393, '#ff6b6b', 'CLOSE (opcode 0x8, code: 1000)');
+        setWSComment('Server confirms close. TCP connection torn down. To reconnect, app code must create a new WebSocket (no auto-reconnect in browser API).');
+        wsRunning = false;
+      }}
+    ];
+
+    var totalDelay = 0;
+    steps.forEach(function(step) {
+      totalDelay += step.delay;
+      wsTimer = setTimeout(step.fn, totalDelay);
+    });
+  };
+
+  function addWSArrow(x1, y1, x2, y2, color, label) {
+    var g = document.getElementById('ws-demo-g');
+    var markerId = 'wsMk' + Math.random().toString(36).substr(2, 5);
+    var marker = svgEl('marker', {id: markerId, markerWidth:'8', markerHeight:'6', refX:'8', refY:'3', orient:'auto'});
+    var poly = svgEl('polygon', {points:'0 0, 8 3, 0 6', fill:color});
+    marker.appendChild(poly);
+    var defs = document.querySelector('#ws-svg defs');
+    defs.appendChild(marker);
+
+    var line = svgEl('line', {x1:x1, y1:y1, x2:x2, y2:y2, stroke:color, 'stroke-width':'2', 'marker-end':'url(#'+markerId+')'});
+    line.style.opacity = '0'; line.style.transition = 'opacity 0.3s';
+    g.appendChild(line);
+    setTimeout(function() { line.style.opacity = '1'; }, 30);
+
+    if (label) {
+      var lx = (x1 + x2) / 2;
+      var ly = Math.min(y1, y2) - 5;
+      var txt = svgEl('text', {x:lx, y:ly, fill:color, 'font-size':'10', 'text-anchor':'middle'});
+      txt.textContent = label;
+      txt.style.opacity = '0'; txt.style.transition = 'opacity 0.3s';
+      g.appendChild(txt);
+      setTimeout(function() { txt.style.opacity = '1'; }, 30);
+    }
+  }
+
+  function setWSComment(html) {
+    document.getElementById('ws-commentary').innerHTML = html;
+  }
+
+  window.resetWSDemo = function() {
+    wsRunning = false;
+    clearGroup('ws-demo-g');
+    document.getElementById('ws-commentary').innerHTML = 'Press <strong>Run WebSocket Demo</strong> to see: HTTP upgrade handshake, bidirectional message flow, ping/pong heartbeat, and close sequence.';
+  };
+
+
+  // ---- SECTION 5: Scale demo ----
+
+  var scaleTimer = null;
+  var scaleRunning = false;
+
+  // Build edge servers and client clusters
+  (function buildScaleDiagram() {
+    var edgeG = document.getElementById('edge-servers');
+    var clientG = document.getElementById('client-clusters');
+    var edgeCount = 5;
+    var startX = 110;
+    var spacing = 180;
+    var edgeY = 260;
+    var clientY = 370;
+
+    for (var i = 0; i < edgeCount; i++) {
+      var cx = startX + i * spacing;
+
+      // Edge server box
+      var rect = svgEl('rect', {x: String(cx - 50), y: String(edgeY), width:'100', height:'45', rx:'6', fill:'#20202a', stroke:'#339af0', 'stroke-width':'1.5'});
+      edgeG.appendChild(rect);
+      var txt = svgEl('text', {x: String(cx), y: String(edgeY + 22), fill:'#339af0', 'font-size':'11', 'text-anchor':'middle', 'font-weight':'600'});
+      txt.textContent = 'Edge ' + (i + 1);
+      edgeG.appendChild(txt);
+      var sub = svgEl('text', {x: String(cx), y: String(edgeY + 37), fill:'#888', 'font-size':'9', 'text-anchor':'middle'});
+      sub.textContent = '20K conns';
+      edgeG.appendChild(sub);
+
+      // Line from pub/sub to edge
+      var pubsubLine = svgEl('line', {x1: String(cx), y1:'207', x2: String(cx), y2: String(edgeY - 2), stroke:'#ffd43b', 'stroke-width':'1', 'stroke-dasharray':'4,3', opacity:'0.5'});
+      edgeG.appendChild(pubsubLine);
+
+      // Client cluster
+      // Draw 3 small client icons
+      for (var j = -1; j <= 1; j++) {
+        var ccx = cx + j * 22;
+        var clientRect = svgEl('rect', {x: String(ccx - 10), y: String(clientY), width:'20', height:'16', rx:'3', fill:'#20202a', stroke:'#51cf66', 'stroke-width':'1', opacity:'0.7'});
+        clientG.appendChild(clientRect);
+      }
+      var cLabel = svgEl('text', {x: String(cx), y: String(clientY + 32), fill:'#888', 'font-size':'9', 'text-anchor':'middle'});
+      cLabel.textContent = '20K clients';
+      clientG.appendChild(cLabel);
+
+      // Lines from edge to clients
+      var cline = svgEl('line', {x1: String(cx), y1: String(edgeY + 45), x2: String(cx), y2: String(clientY - 2), stroke:'#51cf66', 'stroke-width':'1', 'stroke-dasharray':'3,2', opacity:'0.4'});
+      clientG.appendChild(cline);
+    }
+  })();
+
+  window.startScaleDemo = function() {
+    if (scaleRunning) return;
+    resetScaleDemo();
+    scaleRunning = true;
+
+    var g = document.getElementById('scale-anim-g');
+    var edgeCount = 5;
+    var startX = 110;
+    var spacing = 180;
+
+    var steps = [
+      { delay: 400, fn: function() {
+        // Backend publishes to pub/sub
+        var arrow = svgEl('line', {x1:'530', y1:'107', x2:'530', y2:'153', stroke:'#cc5de8', 'stroke-width':'3', 'marker-end':'url(#scArrowP)'});
+        arrow.style.opacity = '0'; arrow.style.transition = 'opacity 0.4s';
+        g.appendChild(arrow);
+        setTimeout(function() { arrow.style.opacity = '1'; }, 30);
+
+        var lbl = svgEl('text', {x:'560', y:'133', fill:'#cc5de8', 'font-size':'11', 'font-weight':'600'});
+        lbl.textContent = 'PUBLISH';
+        lbl.style.opacity = '0'; lbl.style.transition = 'opacity 0.4s';
+        g.appendChild(lbl);
+        setTimeout(function() { lbl.style.opacity = '1'; }, 30);
+
+        document.getElementById('scale-commentary').innerHTML = '<strong>Step 1:</strong> Application backend publishes one event to Redis Pub/Sub. Single write -- O(1) for the backend.';
+      }},
+      { delay: 800, fn: function() {
+        // Pub/sub fans out to edges -- highlight the pub/sub bar
+        var highlight = svgEl('rect', {x:'330', y:'155', width:'400', height:'50', rx:'6', fill:'none', stroke:'#ffd43b', 'stroke-width':'3'});
+        highlight.style.opacity = '0'; highlight.style.transition = 'opacity 0.3s';
+        g.appendChild(highlight);
+        setTimeout(function() { highlight.style.opacity = '1'; }, 30);
+        setTimeout(function() { highlight.style.opacity = '0'; }, 600);
+
+        document.getElementById('scale-commentary').innerHTML = '<strong>Step 2:</strong> Redis Pub/Sub broadcasts to all subscribed edge servers. Backbone handles O(E) fan-out where E = edge count (5 here, not 100K).';
+      }},
+      { delay: 800, fn: function() {
+        // Arrows from pub/sub to each edge
+        for (var i = 0; i < edgeCount; i++) {
+          var cx = startX + i * spacing;
+          (function(x, idx) {
+            setTimeout(function() {
+              var arrow = svgEl('line', {x1: String(x), y1:'207', x2: String(x), y2:'258', stroke:'#ffd43b', 'stroke-width':'2', 'marker-end':'url(#scArrowY)'});
+              arrow.style.opacity = '0'; arrow.style.transition = 'opacity 0.3s';
+              g.appendChild(arrow);
+              setTimeout(function() { arrow.style.opacity = '1'; }, 30);
+            }, idx * 100);
+          })(cx, i);
+        }
+        document.getElementById('scale-commentary').innerHTML = '<strong>Step 3:</strong> Each edge server receives the event. 5 edge servers, each holding 20K connections.';
+      }},
+      { delay: 1000, fn: function() {
+        // Edges fan out to clients
+        for (var i = 0; i < edgeCount; i++) {
+          var cx = startX + i * spacing;
+          (function(x, idx) {
+            setTimeout(function() {
+              var arrow = svgEl('line', {x1: String(x), y1:'305', x2: String(x), y2:'368', stroke:'#51cf66', 'stroke-width':'2', 'marker-end':'url(#scArrowG)'});
+              arrow.style.opacity = '0'; arrow.style.transition = 'opacity 0.3s';
+              g.appendChild(arrow);
+              setTimeout(function() { arrow.style.opacity = '1'; }, 30);
+
+              // Fan-out indicator
+              var fan = svgEl('text', {x: String(x), y:'345', fill:'#51cf66', 'font-size':'9', 'text-anchor':'middle', 'font-weight':'600'});
+              fan.textContent = '20K push';
+              fan.style.opacity = '0'; fan.style.transition = 'opacity 0.3s';
+              g.appendChild(fan);
+              setTimeout(function() { fan.style.opacity = '1'; }, 30);
+            }, idx * 120);
+          })(cx, i);
+        }
+        document.getElementById('scale-commentary').innerHTML = '<strong>Step 4:</strong> Each edge pushes to its 20K connected clients. Total: 100K clients receive the event. Backend published <strong>once</strong>. This is the "thin edge + pub/sub backbone" pattern.';
+        scaleRunning = false;
+      }}
+    ];
+
+    var totalDelay = 0;
+    steps.forEach(function(step) {
+      totalDelay += step.delay;
+      scaleTimer = setTimeout(step.fn, totalDelay);
+    });
+  };
+
+  window.resetScaleDemo = function() {
+    scaleRunning = false;
+    if (scaleTimer) clearTimeout(scaleTimer);
+    clearGroup('scale-anim-g');
+    document.getElementById('scale-commentary').innerHTML = 'Press <strong>Run Scale Demo</strong> to see: backend publishes one event to Redis Pub/Sub, all 5 edge servers receive it, each fans out to its 20K connected clients.';
+  };
+
+})();
+</script>
+
+</body>
+</html>

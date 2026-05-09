@@ -1,0 +1,1485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>API Security -- Beyond Auth</title>
+<style>
+:root {
+  --bg: #0f0f15;
+  --surface: #181820;
+  --surface-2: #20202a;
+  --border: #2a2a35;
+  --text: #e6e6ea;
+  --text-2: #cfcfd6;
+  --text-3: #888;
+  --accent-red: #ff6b6b;
+  --accent-green: #51cf66;
+  --accent-blue: #339af0;
+  --accent-yellow: #ffd43b;
+  --accent-purple: #cc5de8;
+  --accent-cyan: #8be9fd;
+  --accent-orange: #ffa94d;
+}
+*, *::before, *::after { box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  padding: 32px 24px;
+  max-width: 1100px;
+  margin: 0 auto;
+  line-height: 1.55;
+}
+h1 { color: #fff; margin-bottom: 4px; }
+h1 + p.sub { color: var(--text-3); font-style: italic; margin-top: 0; margin-bottom: 24px; }
+h2 { color: #fff; margin-top: 48px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+h3 { color: var(--text-2); margin-top: 20px; }
+code {
+  background: var(--surface-2);
+  padding: 2px 6px;
+  border-radius: 3px;
+  color: var(--accent-cyan);
+  font-size: 13px;
+}
+pre {
+  background: var(--surface);
+  padding: 14px 18px;
+  border-radius: 6px;
+  overflow-x: auto;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-2);
+  border: 1px solid var(--border);
+}
+pre code { background: none; padding: 0; }
+svg {
+  background: var(--surface);
+  border-radius: 8px;
+  display: block;
+  margin: 14px auto;
+  width: 100%;
+  height: auto;
+}
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0;
+  align-items: center;
+}
+.controls button, .btn {
+  padding: 10px 16px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  border-radius: 6px;
+  cursor: pointer;
+  min-height: 44px;
+  font-size: 14px;
+  transition: background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+.controls button:hover, .btn:hover { background: var(--surface); }
+.controls button:disabled, .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.controls button.active-btn { border-color: var(--accent-blue); color: var(--accent-blue); }
+.commentary {
+  background: var(--surface-2);
+  padding: 14px;
+  border-radius: 6px;
+  font-size: 14px;
+  color: var(--text-2);
+  margin: 12px 0;
+  min-height: 44px;
+  line-height: 1.5;
+}
+.takeaway {
+  background: #1a1a22;
+  border-left: 3px solid var(--accent-green);
+  padding: 12px 16px;
+  margin: 14px 0;
+  font-size: 14px;
+}
+.takeaway strong { color: var(--accent-green); }
+.takeaway ul { margin: 6px 0 0 0; padding-left: 18px; }
+.takeaway li { margin-bottom: 6px; }
+
+/* Section-specific styles */
+.algo-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin: 16px 0;
+}
+.algo-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+  position: relative;
+}
+.algo-card h4 {
+  margin: 0 0 8px 0;
+  color: #fff;
+  font-size: 15px;
+}
+.algo-card .stats {
+  font-size: 13px;
+  color: var(--text-3);
+  margin-bottom: 10px;
+}
+.req-bar {
+  display: flex;
+  gap: 1px;
+  height: 20px;
+  margin: 6px 0;
+  align-items: flex-end;
+}
+.req-bar .tick {
+  flex: 1;
+  min-width: 2px;
+  max-width: 6px;
+  transition: background 0.15s, height 0.15s;
+  border-radius: 1px 1px 0 0;
+}
+.req-bar .tick.pass { background: var(--accent-green); height: 16px; }
+.req-bar .tick.fail { background: var(--accent-red); height: 10px; }
+.req-bar .tick.pending { background: var(--border); height: 8px; }
+
+.where-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12px 0;
+  font-size: 13px;
+}
+.where-table th {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  padding: 8px 12px;
+  text-align: left;
+  color: var(--text-2);
+}
+.where-table td {
+  border: 1px solid var(--border);
+  padding: 8px 12px;
+  color: var(--text);
+}
+
+/* Quota vs Rate section */
+.dual-panel {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin: 16px 0;
+}
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+}
+.panel h4 { margin: 0 0 8px; color: #fff; }
+.meter-bar {
+  height: 24px;
+  background: var(--surface-2);
+  border-radius: 4px;
+  overflow: hidden;
+  margin: 8px 0;
+  position: relative;
+}
+.meter-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+.meter-label {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 11px;
+  color: var(--text-3);
+}
+
+/* AuthZ section */
+.authz-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.authz-tabs button {
+  padding: 10px 20px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-2);
+  border-radius: 6px;
+  cursor: pointer;
+  min-height: 44px;
+  font-size: 14px;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.authz-tabs button:hover { background: var(--surface); }
+.authz-tabs button.active {
+  border-color: var(--accent-blue);
+  border-bottom: 2px solid var(--accent-blue);
+  color: #fff;
+}
+.authz-panel { display: none; }
+.authz-panel.active { display: block; }
+
+/* Secrets antipatterns */
+.antipattern-list {
+  display: grid;
+  gap: 12px;
+  margin: 12px 0;
+}
+.antipattern {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 16px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.antipattern .bad {
+  border-left: 3px solid var(--accent-red);
+  padding-left: 12px;
+}
+.antipattern .fix {
+  border-left: 3px solid var(--accent-green);
+  padding-left: 12px;
+}
+.antipattern .bad h5 { color: var(--accent-red); margin: 0 0 6px; font-size: 13px; }
+.antipattern .fix h5 { color: var(--accent-green); margin: 0 0 6px; font-size: 13px; }
+.antipattern p { margin: 0; font-size: 13px; color: var(--text-2); }
+
+/* OWASP cards */
+.owasp-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin: 16px 0;
+}
+.owasp-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 16px;
+}
+.owasp-card .num {
+  font-size: 11px;
+  color: var(--accent-orange);
+  font-weight: 700;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+.owasp-card h4 {
+  margin: 0 0 6px;
+  color: #fff;
+  font-size: 14px;
+}
+.owasp-card .desc {
+  font-size: 13px;
+  color: var(--text-2);
+  margin-bottom: 6px;
+}
+.owasp-card .fix-label {
+  font-size: 12px;
+  color: var(--accent-green);
+  font-weight: 600;
+}
+.owasp-card .fix-text {
+  font-size: 12px;
+  color: var(--text-3);
+}
+
+/* Defense-in-depth */
+.layer-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 16px 0;
+}
+.layer {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  gap: 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 12px 16px;
+  align-items: center;
+  transition: border-color 0.2s;
+}
+.layer:hover { border-color: var(--accent-blue); }
+.layer .layer-name {
+  font-weight: 600;
+  font-size: 14px;
+  color: #fff;
+}
+.layer .layer-desc {
+  font-size: 13px;
+  color: var(--text-2);
+}
+
+/* IDOR demo */
+.idor-demo {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin: 16px 0;
+}
+.idor-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+}
+.idor-panel h4 { margin: 0 0 10px; font-size: 14px; }
+.idor-panel.vulnerable h4 { color: var(--accent-red); }
+.idor-panel.fixed h4 { color: var(--accent-green); }
+.idor-flow-step {
+  background: var(--surface-2);
+  border-radius: 4px;
+  padding: 8px 12px;
+  margin: 6px 0;
+  font-size: 13px;
+  color: var(--text-2);
+  border-left: 2px solid var(--border);
+  transition: border-color 0.3s, background 0.3s;
+}
+.idor-flow-step.active { background: #1a2030; }
+.idor-flow-step.fail { border-left-color: var(--accent-red); }
+.idor-flow-step.ok { border-left-color: var(--accent-green); }
+
+@media (max-width: 720px) {
+  body { padding: 20px 14px; }
+  .algo-grid, .dual-panel, .owasp-grid, .idor-demo, .antipattern { grid-template-columns: 1fr; }
+  .authz-tabs { flex-wrap: wrap; }
+  .layer { grid-template-columns: 100px 1fr; }
+}
+@media (max-width: 480px) {
+  .controls { flex-direction: column; }
+  .controls button { width: 100%; }
+  .authz-tabs button { flex: 1; min-width: 80px; text-align: center; font-size: 13px; padding: 10px 12px; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>API security -- beyond auth</h1>
+  <p class="sub">Rate limiting, quotas, RBAC vs ABAC vs ReBAC, secrets, mTLS, the OWASP API Top 10. The defenses you layer between the user and the database.</p>
+</header>
+
+<!-- ================================================================ -->
+<!-- SECTION 1: Rate Limiting Algorithms                               -->
+<!-- ================================================================ -->
+<h2>1. Rate Limiting Algorithms</h2>
+<p>Same incoming traffic: 200 requests in 1.5 seconds against a 100 req/sec budget. Each algorithm decides differently which requests pass and which get <code>429 Too Many Requests</code>.</p>
+
+<div class="controls">
+  <button onclick="runRateLimitDemo()" id="rl-run-btn">Run Demo</button>
+  <button onclick="resetRateLimitDemo()" id="rl-reset-btn" disabled>Reset</button>
+</div>
+
+<div class="algo-grid" id="rl-grid">
+  <!-- Fixed Window -->
+  <div class="algo-card" id="card-fixed-window">
+    <h4 style="color: var(--accent-blue)">Fixed Window</h4>
+    <div class="stats" id="stats-fixed-window">Waiting...</div>
+    <div class="req-bar" id="bar-fixed-window"></div>
+    <p style="font-size:12px;color:var(--text-3);margin:6px 0 0">Count reqs in 1-second buckets. Reset on boundary. Burst vulnerability: up to 2x budget at bucket edge.</p>
+  </div>
+
+  <!-- Sliding Log -->
+  <div class="algo-card" id="card-sliding-log">
+    <h4 style="color: var(--accent-purple)">Sliding Log</h4>
+    <div class="stats" id="stats-sliding-log">Waiting...</div>
+    <div class="req-bar" id="bar-sliding-log"></div>
+    <p style="font-size:12px;color:var(--text-3);margin:6px 0 0">Store timestamp of every request in last 1s window. O(N) memory. Precise but expensive at scale.</p>
+  </div>
+
+  <!-- Sliding Window Counter -->
+  <div class="algo-card" id="card-sliding-counter">
+    <h4 style="color: var(--accent-cyan)">Sliding Window Counter</h4>
+    <div class="stats" id="stats-sliding-counter">Waiting...</div>
+    <div class="req-bar" id="bar-sliding-counter"></div>
+    <p style="font-size:12px;color:var(--text-3);margin:6px 0 0">Weighted average of current + previous fixed window count. Cheap approximation, smooth enforcement.</p>
+  </div>
+
+  <!-- Token Bucket -->
+  <div class="algo-card" id="card-token-bucket">
+    <h4 style="color: var(--accent-green)">Token Bucket</h4>
+    <div class="stats" id="stats-token-bucket">Waiting...</div>
+    <div class="req-bar" id="bar-token-bucket"></div>
+    <p style="font-size:12px;color:var(--text-3);margin:6px 0 0">Bucket holds N tokens, refills at R/sec. Each request takes 1 token. Allows controlled bursts up to bucket capacity.</p>
+  </div>
+
+  <!-- Leaky Bucket -->
+  <div class="algo-card" style="grid-column: 1 / -1;" id="card-leaky-bucket">
+    <h4 style="color: var(--accent-yellow)">Leaky Bucket</h4>
+    <div class="stats" id="stats-leaky-bucket">Waiting...</div>
+    <div class="req-bar" id="bar-leaky-bucket"></div>
+    <p style="font-size:12px;color:var(--text-3);margin:6px 0 0">Requests enter a queue (bucket) that drains at a fixed rate. If queue is full, request is rejected. Smooths bursts to a steady output rate.</p>
+  </div>
+</div>
+
+<div class="commentary" id="rl-commentary">Click <strong>Run Demo</strong> to send 200 requests over 1.5 seconds. Watch how each algorithm handles the same burst differently.</div>
+
+<h3>Where rate limiting runs</h3>
+<table class="where-table">
+  <thead>
+    <tr><th>Layer</th><th>Scope</th><th>Algorithm</th><th>Example</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>API Gateway</td><td>Per API key, per IP</td><td>Token bucket (AWS), sliding window (Kong)</td><td>Global abuse protection</td></tr>
+    <tr><td>Service Mesh</td><td>Per pod, per route</td><td>Token bucket (Envoy), fixed window (Istio)</td><td>Internal service protection</td></tr>
+    <tr><td>Application Code</td><td>Per user, per feature</td><td>Sliding window (Redis-backed)</td><td>Feature-specific limits (e.g. 10 uploads/hour)</td></tr>
+  </tbody>
+</table>
+
+<div class="takeaway">
+  <strong>Takeaway.</strong> Token bucket is the senior default -- handles bursts, simple to reason about. Sliding window counter for smoother enforcement without O(N) memory. Fixed window only when you need the cheapest possible counting.
+</div>
+
+<!-- ================================================================ -->
+<!-- SECTION 2: Quotas vs Rate Limits                                  -->
+<!-- ================================================================ -->
+<h2>2. Quotas vs Rate Limits</h2>
+<p>Two concepts often conflated. Rate limits protect throughput; quotas cap total consumption. They trigger at different times, for different reasons, and need different alerts.</p>
+
+<div class="controls">
+  <button onclick="runQuotaDemo()" id="quota-run-btn">Simulate Day</button>
+  <button onclick="resetQuotaDemo()" id="quota-reset-btn" disabled>Reset</button>
+</div>
+
+<div class="dual-panel">
+  <div class="panel">
+    <h4 style="color: var(--accent-blue)">Rate Limit: 100 req/min</h4>
+    <p style="font-size:13px;color:var(--text-3);margin:4px 0">Resets every minute. Blocks bursts; recovers quickly.</p>
+    <div class="meter-bar">
+      <div class="meter-fill" id="rate-fill" style="width:0%;background:var(--accent-blue)"></div>
+      <span class="meter-label" id="rate-label">0 / 100</span>
+    </div>
+    <div style="font-size:13px;color:var(--text-2);margin-top:8px" id="rate-status">Idle</div>
+  </div>
+
+  <div class="panel">
+    <h4 style="color: var(--accent-orange)">Quota: 10,000 req/day</h4>
+    <p style="font-size:13px;color:var(--text-3);margin:4px 0">Resets at midnight. Blocks at month-end; no quick recovery.</p>
+    <div class="meter-bar">
+      <div class="meter-fill" id="quota-fill" style="width:0%;background:var(--accent-orange)"></div>
+      <span class="meter-label" id="quota-label">0 / 10,000</span>
+    </div>
+    <div style="font-size:13px;color:var(--text-2);margin-top:8px" id="quota-status">Idle</div>
+  </div>
+</div>
+
+<div class="commentary" id="quota-commentary">Click <strong>Simulate Day</strong> to see 24 hours of traffic. The rate limit blocks bursts within each minute; the quota accumulates all day and may exhaust before midnight.</div>
+
+<div class="takeaway">
+  <strong>Takeaway.</strong> Rate = throughput floor. Quota = absolute cap. Both exist; communicate them separately. Rate limit recovery: wait 1 minute. Quota recovery: wait until billing cycle resets (or buy more).
+</div>
+
+<!-- ================================================================ -->
+<!-- SECTION 3: AuthZ Models                                           -->
+<!-- ================================================================ -->
+<h2>3. AuthZ Models -- RBAC vs ABAC vs ReBAC</h2>
+<p>Authentication asks "who are you?" Authorization asks "are you allowed to do this?" Three models, each suited to different relationship complexity.</p>
+
+<div class="authz-tabs">
+  <button class="active" onclick="setAuthzTab('rbac')">RBAC</button>
+  <button onclick="setAuthzTab('abac')">ABAC</button>
+  <button onclick="setAuthzTab('rebac')">ReBAC</button>
+</div>
+
+<!-- RBAC Panel -->
+<div class="authz-panel active" id="authz-rbac">
+  <h3>Role-Based Access Control</h3>
+  <p>Assign <strong>Roles</strong> to users. Roles contain <strong>Permissions</strong>. Decision: does the user's role include the required permission?</p>
+
+  <svg viewBox="0 0 700 220" style="max-width:700px">
+    <!-- User -->
+    <rect x="30" y="80" width="110" height="50" rx="6" fill="#1a2a3a" stroke="#339af0" stroke-width="1.5"/>
+    <text x="85" y="110" text-anchor="middle" fill="#e6e6ea" font-size="14">Alice</text>
+    <text x="85" y="126" text-anchor="middle" fill="#888" font-size="10">User</text>
+
+    <!-- Arrow user -> role -->
+    <line x1="140" y1="105" x2="220" y2="105" stroke="#555" stroke-width="1.5" marker-end="url(#arrowhead-rbac)"/>
+    <text x="180" y="98" text-anchor="middle" fill="#888" font-size="10">has role</text>
+
+    <!-- Role -->
+    <rect x="220" y="80" width="110" height="50" rx="6" fill="#1a2a22" stroke="#51cf66" stroke-width="1.5"/>
+    <text x="275" y="110" text-anchor="middle" fill="#e6e6ea" font-size="14">Editor</text>
+    <text x="275" y="126" text-anchor="middle" fill="#888" font-size="10">Role</text>
+
+    <!-- Arrow role -> perms -->
+    <line x1="330" y1="105" x2="420" y2="75" stroke="#555" stroke-width="1.5" marker-end="url(#arrowhead-rbac)"/>
+    <line x1="330" y1="105" x2="420" y2="135" stroke="#555" stroke-width="1.5" marker-end="url(#arrowhead-rbac)"/>
+    <text x="375" y="78" text-anchor="middle" fill="#888" font-size="10">grants</text>
+
+    <!-- Permissions -->
+    <rect x="420" y="50" width="130" height="40" rx="6" fill="#2a1a2a" stroke="#cc5de8" stroke-width="1.5"/>
+    <text x="485" y="75" text-anchor="middle" fill="#e6e6ea" font-size="13">edit_post</text>
+
+    <rect x="420" y="115" width="130" height="40" rx="6" fill="#2a1a2a" stroke="#cc5de8" stroke-width="1.5"/>
+    <text x="485" y="140" text-anchor="middle" fill="#e6e6ea" font-size="13">delete_post</text>
+
+    <!-- Decision -->
+    <rect x="590" y="80" width="90" height="50" rx="6" fill="#1a2a1a" stroke="#51cf66" stroke-width="2"/>
+    <text x="635" y="105" text-anchor="middle" fill="#51cf66" font-size="13" font-weight="600">ALLOW</text>
+    <text x="635" y="120" text-anchor="middle" fill="#888" font-size="10">edit_post?</text>
+    <line x1="550" y1="75" x2="590" y2="100" stroke="#51cf66" stroke-width="1" stroke-dasharray="4"/>
+
+    <defs>
+      <marker id="arrowhead-rbac" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+        <polygon points="0 0, 8 3, 0 6" fill="#555"/>
+      </marker>
+    </defs>
+  </svg>
+
+  <div class="commentary">
+    <strong>Pros:</strong> Simple mental model. Fast lookup (user -> role -> permission set). Scales well for small, stable role sets.<br>
+    <strong>Cons:</strong> Role explosion at scale. "Editor of category X for tenant Y" requires combinatorial roles. No environmental context (time, IP, resource attributes).
+  </div>
+</div>
+
+<!-- ABAC Panel -->
+<div class="authz-panel" id="authz-abac">
+  <h3>Attribute-Based Access Control</h3>
+  <p>Decision based on attributes of the <strong>subject</strong>, <strong>action</strong>, <strong>resource</strong>, and <strong>context</strong>. Policies are boolean expressions evaluated by a Policy Decision Point (PDP).</p>
+
+  <svg viewBox="0 0 700 280" style="max-width:700px">
+    <!-- Subject attrs -->
+    <rect x="20" y="20" width="150" height="80" rx="6" fill="#1a2a3a" stroke="#339af0" stroke-width="1.5"/>
+    <text x="95" y="42" text-anchor="middle" fill="#339af0" font-size="11" font-weight="600">SUBJECT</text>
+    <text x="95" y="60" text-anchor="middle" fill="#e6e6ea" font-size="12">user.role = "editor"</text>
+    <text x="95" y="76" text-anchor="middle" fill="#e6e6ea" font-size="12">user.tenant = "acme"</text>
+    <text x="95" y="92" text-anchor="middle" fill="#e6e6ea" font-size="12">user.dept = "eng"</text>
+
+    <!-- Resource attrs -->
+    <rect x="20" y="120" width="150" height="80" rx="6" fill="#2a1a2a" stroke="#cc5de8" stroke-width="1.5"/>
+    <text x="95" y="142" text-anchor="middle" fill="#cc5de8" font-size="11" font-weight="600">RESOURCE</text>
+    <text x="95" y="160" text-anchor="middle" fill="#e6e6ea" font-size="12">res.tenant = "acme"</text>
+    <text x="95" y="176" text-anchor="middle" fill="#e6e6ea" font-size="12">res.classified = false</text>
+    <text x="95" y="192" text-anchor="middle" fill="#e6e6ea" font-size="12">res.owner = "bob"</text>
+
+    <!-- Context attrs -->
+    <rect x="20" y="220" width="150" height="50" rx="6" fill="#1a2520" stroke="#ffd43b" stroke-width="1.5"/>
+    <text x="95" y="242" text-anchor="middle" fill="#ffd43b" font-size="11" font-weight="600">CONTEXT</text>
+    <text x="95" y="260" text-anchor="middle" fill="#e6e6ea" font-size="12">time = 14:30 UTC</text>
+
+    <!-- Arrows to PDP -->
+    <line x1="170" y1="60" x2="260" y2="140" stroke="#555" stroke-width="1.5" marker-end="url(#arrowhead-abac)"/>
+    <line x1="170" y1="160" x2="260" y2="150" stroke="#555" stroke-width="1.5" marker-end="url(#arrowhead-abac)"/>
+    <line x1="170" y1="245" x2="260" y2="160" stroke="#555" stroke-width="1.5" marker-end="url(#arrowhead-abac)"/>
+
+    <!-- PDP -->
+    <rect x="260" y="110" width="200" height="80" rx="8" fill="#181820" stroke="#ffa94d" stroke-width="2"/>
+    <text x="360" y="135" text-anchor="middle" fill="#ffa94d" font-size="12" font-weight="600">Policy Decision Point</text>
+    <text x="360" y="155" text-anchor="middle" fill="#8be9fd" font-size="11">allow if role == "editor"</text>
+    <text x="360" y="170" text-anchor="middle" fill="#8be9fd" font-size="11">&amp;&amp; res.tenant == user.tenant</text>
+    <text x="360" y="185" text-anchor="middle" fill="#8be9fd" font-size="11">&amp;&amp; !res.classified</text>
+
+    <!-- PDP -> PEP -->
+    <line x1="460" y1="150" x2="530" y2="150" stroke="#555" stroke-width="1.5" marker-end="url(#arrowhead-abac)"/>
+
+    <!-- PEP -->
+    <rect x="530" y="120" width="140" height="60" rx="6" fill="#1a2a1a" stroke="#51cf66" stroke-width="2"/>
+    <text x="600" y="145" text-anchor="middle" fill="#51cf66" font-size="13" font-weight="600">ALLOW</text>
+    <text x="600" y="165" text-anchor="middle" fill="#888" font-size="10">PEP enforces</text>
+
+    <defs>
+      <marker id="arrowhead-abac" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+        <polygon points="0 0, 8 3, 0 6" fill="#555"/>
+      </marker>
+    </defs>
+  </svg>
+
+  <div class="commentary">
+    <strong>Pros:</strong> Extremely expressive. One policy handles multi-tenant, time-based, classification-based access without role explosion. Dynamic context (IP, time) supported natively.<br>
+    <strong>Cons:</strong> Harder to audit ("who can access X?" requires evaluating all policies). More expensive to evaluate. Policy language learning curve (OPA/Rego, Cedar).
+  </div>
+</div>
+
+<!-- ReBAC Panel -->
+<div class="authz-panel" id="authz-rebac">
+  <h3>Relationship-Based Access Control (Zanzibar)</h3>
+  <p>Authorization is a graph traversal: "Does a path exist from this user to this resource with the required relation?" Google Zanzibar model, used by Google Drive, Notion, Auth0 FGA, OpenFGA, SpiceDB.</p>
+
+  <svg viewBox="0 0 700 300" style="max-width:700px">
+    <!-- Alice -->
+    <circle cx="80" cy="60" r="28" fill="#1a2a3a" stroke="#339af0" stroke-width="1.5"/>
+    <text x="80" y="64" text-anchor="middle" fill="#e6e6ea" font-size="12">Alice</text>
+
+    <!-- Team Eng -->
+    <rect x="200" y="35" width="110" height="45" rx="6" fill="#1a2520" stroke="#ffd43b" stroke-width="1.5"/>
+    <text x="255" y="62" text-anchor="middle" fill="#e6e6ea" font-size="12">Team:eng</text>
+
+    <!-- Folder -->
+    <rect x="400" y="35" width="120" height="45" rx="6" fill="#2a1a2a" stroke="#cc5de8" stroke-width="1.5"/>
+    <text x="460" y="62" text-anchor="middle" fill="#e6e6ea" font-size="12">Folder:/finance</text>
+
+    <!-- Doc -->
+    <rect x="400" y="160" width="120" height="45" rx="6" fill="#1a2a1a" stroke="#51cf66" stroke-width="1.5"/>
+    <text x="460" y="187" text-anchor="middle" fill="#e6e6ea" font-size="12">Doc:123</text>
+
+    <!-- Alice -> Team:eng -->
+    <line x1="108" y1="60" x2="200" y2="57" stroke="#339af0" stroke-width="1.5" marker-end="url(#arrowhead-rebac)"/>
+    <text x="154" y="48" text-anchor="middle" fill="#339af0" font-size="10">member</text>
+
+    <!-- Team:eng -> Folder -->
+    <line x1="310" y1="57" x2="400" y2="57" stroke="#ffd43b" stroke-width="1.5" marker-end="url(#arrowhead-rebac)"/>
+    <text x="355" y="48" text-anchor="middle" fill="#ffd43b" font-size="10">editor</text>
+
+    <!-- Folder -> Doc -->
+    <line x1="460" y1="80" x2="460" y2="160" stroke="#cc5de8" stroke-width="1.5" marker-end="url(#arrowhead-rebac)"/>
+    <text x="478" y="125" text-anchor="middle" fill="#cc5de8" font-size="10">contains</text>
+
+    <!-- Decision box -->
+    <rect x="560" y="140" width="120" height="80" rx="8" fill="#181820" stroke="#51cf66" stroke-width="2"/>
+    <text x="620" y="165" text-anchor="middle" fill="#51cf66" font-size="13" font-weight="600">ALLOW</text>
+    <text x="620" y="182" text-anchor="middle" fill="#888" font-size="10">Alice can edit</text>
+    <text x="620" y="196" text-anchor="middle" fill="#888" font-size="10">Doc:123?</text>
+    <text x="620" y="212" text-anchor="middle" fill="#51cf66" font-size="10">Path exists!</text>
+
+    <line x1="520" y1="182" x2="560" y2="180" stroke="#51cf66" stroke-width="1" stroke-dasharray="4"/>
+
+    <!-- Query text -->
+    <text x="80" y="260" fill="#888" font-size="12">Query: check(Alice, edit, Doc:123)</text>
+    <text x="80" y="278" fill="#8be9fd" font-size="11">Alice --member--> Team:eng --editor--> Folder:/finance --contains--> Doc:123</text>
+
+    <defs>
+      <marker id="arrowhead-rebac" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+        <polygon points="0 0, 8 3, 0 6" fill="#555"/>
+      </marker>
+    </defs>
+  </svg>
+
+  <div class="commentary">
+    <strong>Pros:</strong> Naturally models hierarchical sharing (folders, teams, orgs). Adding a team member instantly grants access to everything the team can reach. Scales to billions of relationships (Google Zanzibar serves 10M+ checks/sec).<br>
+    <strong>Cons:</strong> Graph traversal cost -- need indexing/caching for performance. Harder to understand "why was access granted?" (path can be deep). Requires a dedicated authz service (OpenFGA, SpiceDB, Authzed).
+  </div>
+</div>
+
+<div class="takeaway">
+  <strong>Takeaway.</strong> RBAC for simple cases (small, stable role set). ABAC for expressive, context-aware policies (multi-tenant, time-gated). ReBAC for hierarchical sharing models (Drive, Notion, any "team > folder > document" hierarchy). Pick by relationship complexity, not by trend.
+</div>
+
+<!-- ================================================================ -->
+<!-- SECTION 4: Secrets Management                                     -->
+<!-- ================================================================ -->
+<h2>4. Secrets Management</h2>
+<p>The gap between "we have authentication" and "our secrets are actually secure" is where breaches happen. Anti-patterns on the left, fixes on the right.</p>
+
+<div class="antipattern-list">
+  <div class="antipattern">
+    <div class="bad">
+      <h5>Anti-pattern: Env vars in code</h5>
+      <p>Visible in <code>ps aux</code>, leaks to logs and crash dumps, no rotation, no audit trail.</p>
+    </div>
+    <div class="fix">
+      <h5>Fix: External secrets store</h5>
+      <p>Load from Vault / AWS Secrets Manager at startup. App never sees raw secret in env; fetched via API with short-lived lease.</p>
+    </div>
+  </div>
+
+  <div class="antipattern">
+    <div class="bad">
+      <h5>Anti-pattern: Hardcoded secrets</h5>
+      <p><code>const API_KEY = "sk-abc123..."</code> in source code. Discovered by any engineer with repo access.</p>
+    </div>
+    <div class="fix">
+      <h5>Fix: Placeholder + injection at deploy</h5>
+      <p>CI/CD pipeline injects from secrets manager. Source code contains only <code>${API_KEY}</code> references. Secret never exists in the codebase.</p>
+    </div>
+  </div>
+
+  <div class="antipattern">
+    <div class="bad">
+      <h5>Anti-pattern: Secrets in Git history</h5>
+      <p>Even if deleted in HEAD, recoverable from Git history forever. Catastrophic for API keys and DB credentials.</p>
+    </div>
+    <div class="fix">
+      <h5>Fix: Pre-commit hooks + immediate rotation</h5>
+      <p>Use <code>gitleaks</code> or <code>trufflehog</code> in pre-commit. If caught post-push: rotate the secret immediately (it is compromised), then scrub history.</p>
+    </div>
+  </div>
+
+  <div class="antipattern">
+    <div class="bad">
+      <h5>Anti-pattern: One static API key forever</h5>
+      <p>Never rotated. If leaked, attacker has permanent access. No way to detect compromise via key age.</p>
+    </div>
+    <div class="fix">
+      <h5>Fix: Short-lived credentials + auto-rotation</h5>
+      <p>AWS STS temporary tokens (15 min - 12 hr), GCP workload identity, Vault dynamic secrets with TTL. Rotate static keys every 90 days max.</p>
+    </div>
+  </div>
+</div>
+
+<h3>Tools Landscape</h3>
+<table class="where-table">
+  <thead>
+    <tr><th>Tool</th><th>Model</th><th>Strengths</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><strong>HashiCorp Vault</strong></td><td>Central server, lease-based</td><td>Dynamic secrets, auto-revoke on TTL, PKI engine, multi-cloud</td></tr>
+    <tr><td><strong>AWS Secrets Manager</strong></td><td>AWS-native SaaS</td><td>IAM integration, auto-rotation for RDS/Redshift, pay-per-secret</td></tr>
+    <tr><td><strong>AWS SSM Parameter Store</strong></td><td>AWS-native, free tier</td><td>Simple key-value, IAM-gated, cheaper for config (not just secrets)</td></tr>
+    <tr><td><strong>Sealed Secrets / SOPS</strong></td><td>Encrypt in Git, decrypt at deploy</td><td>GitOps-friendly, works with Flux/ArgoCD, secrets version-controlled (encrypted)</td></tr>
+  </tbody>
+</table>
+
+<h3>Kubernetes Secrets Injection Flow</h3>
+<svg viewBox="0 0 700 160" style="max-width:700px">
+  <!-- Vault -->
+  <rect x="20" y="50" width="100" height="60" rx="6" fill="#1a2a3a" stroke="#339af0" stroke-width="1.5"/>
+  <text x="70" y="78" text-anchor="middle" fill="#e6e6ea" font-size="12">Vault</text>
+  <text x="70" y="95" text-anchor="middle" fill="#888" font-size="10">secrets/db-cred</text>
+
+  <!-- Arrow Vault -> ESO -->
+  <line x1="120" y1="80" x2="190" y2="80" stroke="#555" stroke-width="1.5" marker-end="url(#arrowhead-sec)"/>
+  <text x="155" y="72" text-anchor="middle" fill="#888" font-size="9">API call</text>
+
+  <!-- ESO -->
+  <rect x="190" y="50" width="130" height="60" rx="6" fill="#2a1a2a" stroke="#cc5de8" stroke-width="1.5"/>
+  <text x="255" y="75" text-anchor="middle" fill="#e6e6ea" font-size="11">External Secrets</text>
+  <text x="255" y="92" text-anchor="middle" fill="#888" font-size="10">Operator</text>
+
+  <!-- Arrow ESO -> K8s Secret -->
+  <line x1="320" y1="80" x2="400" y2="80" stroke="#555" stroke-width="1.5" marker-end="url(#arrowhead-sec)"/>
+  <text x="360" y="72" text-anchor="middle" fill="#888" font-size="9">creates</text>
+
+  <!-- K8s Secret -->
+  <rect x="400" y="50" width="110" height="60" rx="6" fill="#1a2520" stroke="#ffd43b" stroke-width="1.5"/>
+  <text x="455" y="78" text-anchor="middle" fill="#e6e6ea" font-size="12">K8s Secret</text>
+  <text x="455" y="95" text-anchor="middle" fill="#888" font-size="10">db-credentials</text>
+
+  <!-- Arrow Secret -> Pod -->
+  <line x1="510" y1="80" x2="580" y2="80" stroke="#555" stroke-width="1.5" marker-end="url(#arrowhead-sec)"/>
+  <text x="545" y="72" text-anchor="middle" fill="#888" font-size="9">mounts</text>
+
+  <!-- Pod -->
+  <rect x="580" y="50" width="100" height="60" rx="6" fill="#1a2a1a" stroke="#51cf66" stroke-width="1.5"/>
+  <text x="630" y="78" text-anchor="middle" fill="#e6e6ea" font-size="12">Pod</text>
+  <text x="630" y="95" text-anchor="middle" fill="#888" font-size="10">/var/secrets/</text>
+
+  <!-- Rotation arrow -->
+  <path d="M 70,120 C 70,140 255,140 255,120" fill="none" stroke="#ffa94d" stroke-width="1" stroke-dasharray="4"/>
+  <text x="162" y="148" text-anchor="middle" fill="#ffa94d" font-size="9">Auto-rotate + re-sync</text>
+
+  <defs>
+    <marker id="arrowhead-sec" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#555"/>
+    </marker>
+  </defs>
+</svg>
+
+<div class="takeaway">
+  <strong>Takeaway.</strong> Never commit secrets. Prefer short-lived credentials over static keys. Use a secrets manager + automation around rotation. The secure default is: app requests credential at startup, gets a lease, lease expires, app re-fetches.
+</div>
+
+<!-- ================================================================ -->
+<!-- SECTION 5: mTLS                                                   -->
+<!-- ================================================================ -->
+<h2>5. mTLS -- Service-to-Service Auth</h2>
+<p>Regular TLS: the client verifies the server. Mutual TLS: <em>both sides</em> verify each other. The service-to-service identity story in microservices.</p>
+
+<div class="controls">
+  <button onclick="runMtlsDemo()" id="mtls-run-btn">Animate Handshake</button>
+  <button onclick="resetMtlsDemo()" id="mtls-reset-btn" disabled>Reset</button>
+</div>
+
+<svg viewBox="0 0 700 320" style="max-width:700px" id="mtls-svg">
+  <!-- Service A with sidecar -->
+  <rect x="30" y="60" width="140" height="180" rx="8" fill="#181820" stroke="#339af0" stroke-width="1"/>
+  <text x="100" y="85" text-anchor="middle" fill="#339af0" font-size="11" font-weight="600">SERVICE A</text>
+
+  <rect x="50" y="100" width="100" height="40" rx="4" fill="#1a2a3a" stroke="#339af0" stroke-width="1"/>
+  <text x="100" y="124" text-anchor="middle" fill="#e6e6ea" font-size="11">App Logic</text>
+
+  <rect x="50" y="155" width="100" height="65" rx="4" fill="#20202a" stroke="#555" stroke-width="1"/>
+  <text x="100" y="175" text-anchor="middle" fill="#ffa94d" font-size="10" font-weight="600">Sidecar Proxy</text>
+  <text x="100" y="192" text-anchor="middle" fill="#888" font-size="9">Client Cert</text>
+  <text x="100" y="204" text-anchor="middle" fill="#888" font-size="9">Private Key</text>
+
+  <!-- Service B with sidecar -->
+  <rect x="530" y="60" width="140" height="180" rx="8" fill="#181820" stroke="#51cf66" stroke-width="1"/>
+  <text x="600" y="85" text-anchor="middle" fill="#51cf66" font-size="11" font-weight="600">SERVICE B</text>
+
+  <rect x="550" y="100" width="100" height="40" rx="4" fill="#1a2a1a" stroke="#51cf66" stroke-width="1"/>
+  <text x="600" y="124" text-anchor="middle" fill="#e6e6ea" font-size="11">App Logic</text>
+
+  <rect x="550" y="155" width="100" height="65" rx="4" fill="#20202a" stroke="#555" stroke-width="1"/>
+  <text x="600" y="175" text-anchor="middle" fill="#ffa94d" font-size="10" font-weight="600">Sidecar Proxy</text>
+  <text x="600" y="192" text-anchor="middle" fill="#888" font-size="9">Server Cert</text>
+  <text x="600" y="204" text-anchor="middle" fill="#888" font-size="9">Private Key</text>
+
+  <!-- CA -->
+  <rect x="280" y="10" width="140" height="40" rx="6" fill="#2a1a2a" stroke="#cc5de8" stroke-width="1.5"/>
+  <text x="350" y="35" text-anchor="middle" fill="#cc5de8" font-size="12">Org CA (SPIFFE/SPIRE)</text>
+  <line x1="280" y1="35" x2="170" y2="60" stroke="#cc5de8" stroke-width="1" stroke-dasharray="3"/>
+  <line x1="420" y1="35" x2="530" y2="60" stroke="#cc5de8" stroke-width="1" stroke-dasharray="3"/>
+  <text x="210" y="42" fill="#888" font-size="9">issues cert</text>
+  <text x="490" y="42" fill="#888" font-size="9">issues cert</text>
+
+  <!-- Handshake steps (animated) -->
+  <g id="mtls-step1" style="opacity:0">
+    <line x1="150" y1="188" x2="550" y2="188" stroke="#339af0" stroke-width="2" marker-end="url(#arrowhead-mtls-blue)"/>
+    <rect x="230" y="168" width="240" height="24" rx="4" fill="#1a2a3a"/>
+    <text x="350" y="184" text-anchor="middle" fill="#339af0" font-size="10">1. ClientHello + request server cert</text>
+  </g>
+
+  <g id="mtls-step2" style="opacity:0">
+    <line x1="550" y1="200" x2="150" y2="200" stroke="#51cf66" stroke-width="2" marker-end="url(#arrowhead-mtls-green)"/>
+    <rect x="210" y="204" width="280" height="24" rx="4" fill="#1a2a1a"/>
+    <text x="350" y="220" text-anchor="middle" fill="#51cf66" font-size="10">2. ServerHello + server cert + request client cert</text>
+  </g>
+
+  <g id="mtls-step3" style="opacity:0">
+    <line x1="150" y1="240" x2="550" y2="240" stroke="#ffd43b" stroke-width="2" marker-end="url(#arrowhead-mtls-yellow)"/>
+    <rect x="240" y="244" width="220" height="24" rx="4" fill="#2a2520"/>
+    <text x="350" y="260" text-anchor="middle" fill="#ffd43b" font-size="10">3. Client cert + key exchange + Finished</text>
+  </g>
+
+  <g id="mtls-step4" style="opacity:0">
+    <rect x="200" y="278" width="300" height="28" rx="6" fill="#1a2a1a" stroke="#51cf66" stroke-width="1.5"/>
+    <text x="350" y="296" text-anchor="middle" fill="#51cf66" font-size="11" font-weight="600">4. Mutual identity verified -- encrypted channel open</text>
+  </g>
+
+  <defs>
+    <marker id="arrowhead-mtls-blue" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#339af0"/>
+    </marker>
+    <marker id="arrowhead-mtls-green" markerWidth="8" markerHeight="6" refX="0" refY="3" orient="auto">
+      <polygon points="8 0, 0 3, 8 6" fill="#51cf66"/>
+    </marker>
+    <marker id="arrowhead-mtls-yellow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#ffd43b"/>
+    </marker>
+  </defs>
+</svg>
+
+<div class="commentary" id="mtls-commentary">Click <strong>Animate Handshake</strong> to step through the mTLS exchange. Both services present certificates signed by the same organizational CA. Neither side trusts the other until the certificate chain validates.</div>
+
+<h3>SPIFFE / SPIRE</h3>
+<p><strong>SPIFFE</strong> (Secure Production Identity Framework For Everyone) defines a standard for workload identity: each service gets a <code>spiffe://trust-domain/workload-id</code> URI embedded in its X.509 certificate. <strong>SPIRE</strong> is the reference implementation that issues and rotates these identities automatically.</p>
+
+<div class="commentary">
+  <strong>Pros:</strong> No shared secrets between services. Identity baked into transport layer. Rotation via short cert lifetime (hours, not months). Compromise of one service does not leak another's credentials.<br>
+  <strong>Cons:</strong> Certificate distribution and rotation is operationally complex without automation. PKI infrastructure must be highly available. Debugging cert issues is harder than debugging API keys.
+</div>
+
+<div class="takeaway">
+  <strong>Takeaway.</strong> mTLS = the service-to-service identity story. Service mesh (Istio, Linkerd) makes it operationally tractable by automating cert issuance, rotation, and verification in the sidecar proxy. The app code never touches certificates.
+</div>
+
+<!-- ================================================================ -->
+<!-- SECTION 6: OWASP API Top 10                                       -->
+<!-- ================================================================ -->
+<h2>6. Common API Attacks -- OWASP API Top 10 (2023)</h2>
+<p>The ten most critical API security risks, ranked by prevalence and impact. BOLA/IDOR is #1 for a reason.</p>
+
+<div class="owasp-grid">
+  <div class="owasp-card">
+    <div class="num">API1</div>
+    <h4>Broken Object Level Authorization (BOLA / IDOR)</h4>
+    <div class="desc"><code>GET /users/123/profile</code> -- does the handler verify user 123 is the requester? Often missed on internal endpoints.</div>
+    <div class="fix-label">Fix</div>
+    <div class="fix-text">Check object ownership in every handler. Middleware cannot do this -- it requires business logic context.</div>
+  </div>
+
+  <div class="owasp-card">
+    <div class="num">API2</div>
+    <h4>Broken Authentication</h4>
+    <div class="desc">Weak passwords, missing MFA, predictable tokens, session fixation. The classic auth bypass vector.</div>
+    <div class="fix-label">Fix</div>
+    <div class="fix-text">Standard auth library (never roll your own). Password hash with bcrypt/argon2. MFA for sensitive operations. Short-lived JWTs.</div>
+  </div>
+
+  <div class="owasp-card">
+    <div class="num">API3</div>
+    <h4>Broken Object Property Level Authorization</h4>
+    <div class="desc">API returns full object including <code>ssn</code>, <code>salary</code>, <code>internal_notes</code>. Client filters, but attacker reads raw response.</div>
+    <div class="fix-label">Fix</div>
+    <div class="fix-text">Explicit allow-list of fields per endpoint per role. Never serialize the full ORM object.</div>
+  </div>
+
+  <div class="owasp-card">
+    <div class="num">API4</div>
+    <h4>Unrestricted Resource Consumption</h4>
+    <div class="desc">No rate limit or query bounds. Attacker sends expensive query (<code>SELECT * JOIN ... JOIN ...</code>), consumes all DB connections.</div>
+    <div class="fix-label">Fix</div>
+    <div class="fix-text">Rate limit + quota. Query complexity bounds (GraphQL depth limit). Pagination enforced server-side.</div>
+  </div>
+
+  <div class="owasp-card">
+    <div class="num">API5</div>
+    <h4>Broken Function Level Authorization</h4>
+    <div class="desc"><code>POST /admin/delete-user</code> accessible to any authenticated user. Admin endpoints not gated by role.</div>
+    <div class="fix-label">Fix</div>
+    <div class="fix-text">Middleware enforces role per route group. Deny by default; explicitly grant admin routes.</div>
+  </div>
+
+  <div class="owasp-card">
+    <div class="num">API6</div>
+    <h4>Unrestricted Access to Sensitive Business Flows</h4>
+    <div class="desc">Automated abuse of business features: mass account creation, coupon harvesting, ticket scalping via API.</div>
+    <div class="fix-label">Fix</div>
+    <div class="fix-text">CAPTCHA, device fingerprinting, behavioral analysis. Rate limit by business action, not just HTTP request.</div>
+  </div>
+
+  <div class="owasp-card">
+    <div class="num">API7</div>
+    <h4>Server-Side Request Forgery (SSRF)</h4>
+    <div class="desc">Server fetches user-supplied URL. Attacker uses <code>http://169.254.169.254/</code> to hit cloud metadata (IMDS) and steal IAM credentials.</div>
+    <div class="fix-label">Fix</div>
+    <div class="fix-text">URL allow-list. Block private IP ranges. IMDS v2 (requires token). Egress firewall rules.</div>
+  </div>
+
+  <div class="owasp-card">
+    <div class="num">API8</div>
+    <h4>Security Misconfiguration</h4>
+    <div class="desc">Default credentials, debug mode in prod, CORS <code>*</code>, verbose error messages exposing stack traces.</div>
+    <div class="fix-label">Fix</div>
+    <div class="fix-text">Automated config scanning. Secure defaults. Different config per environment. No debug endpoints in prod.</div>
+  </div>
+
+  <div class="owasp-card">
+    <div class="num">API9</div>
+    <h4>Improper Inventory Management</h4>
+    <div class="desc">Shadow APIs, unversioned endpoints, deprecated endpoints still running. Attacker finds old <code>/v1/users</code> without auth.</div>
+    <div class="fix-label">Fix</div>
+    <div class="fix-text">API gateway as the only ingress. Deprecated endpoints removed (not just docs). API catalog enforced.</div>
+  </div>
+
+  <div class="owasp-card">
+    <div class="num">API10</div>
+    <h4>Unsafe Consumption of APIs</h4>
+    <div class="desc">Trusting third-party API responses without validation. Malicious upstream injects data that your service blindly processes.</div>
+    <div class="fix-label">Fix</div>
+    <div class="fix-text">Validate all external input. Schema validation on third-party responses. Timeout and circuit break on external calls.</div>
+  </div>
+</div>
+
+<h3>IDOR Attack Demo</h3>
+<p>The #1 API vulnerability, demonstrated. Alice (user 42) requests Bob's profile (user 123).</p>
+
+<div class="controls">
+  <button onclick="runIdorDemo()" id="idor-run-btn">Run IDOR Demo</button>
+  <button onclick="resetIdorDemo()" id="idor-reset-btn" disabled>Reset</button>
+</div>
+
+<div class="idor-demo">
+  <div class="idor-panel vulnerable">
+    <h4>Vulnerable Endpoint</h4>
+    <pre><code>// No ownership check!
+app.get('/users/:id/profile', auth, (req, res) => {
+  const user = db.findById(req.params.id);
+  res.json(user);  // serves ANY user's data
+});</code></pre>
+    <div id="idor-vuln-steps">
+      <div class="idor-flow-step" id="vuln-step1">Alice (user 42) logs in, gets valid JWT</div>
+      <div class="idor-flow-step" id="vuln-step2">Alice sends GET /users/123/profile</div>
+      <div class="idor-flow-step" id="vuln-step3">Server checks: valid JWT? Yes</div>
+      <div class="idor-flow-step" id="vuln-step4">Server returns Bob's profile to Alice</div>
+      <div class="idor-flow-step" id="vuln-step5">Result: 200 OK -- data leaked</div>
+    </div>
+  </div>
+
+  <div class="idor-panel fixed">
+    <h4>Fixed Endpoint</h4>
+    <pre><code>// Ownership check!
+app.get('/users/:id/profile', auth, (req, res) => {
+  if (req.params.id !== req.user.id)
+    return res.status(403).json({error: 'forbidden'});
+  const user = db.findById(req.params.id);
+  res.json(user);
+});</code></pre>
+    <div id="idor-fix-steps">
+      <div class="idor-flow-step" id="fix-step1">Alice (user 42) logs in, gets valid JWT</div>
+      <div class="idor-flow-step" id="fix-step2">Alice sends GET /users/123/profile</div>
+      <div class="idor-flow-step" id="fix-step3">Server checks: valid JWT? Yes</div>
+      <div class="idor-flow-step" id="fix-step4">Server checks: req.user.id (42) === params.id (123)?</div>
+      <div class="idor-flow-step" id="fix-step5">Result: 403 Forbidden -- access denied</div>
+    </div>
+  </div>
+</div>
+
+<div class="commentary" id="idor-commentary">Click <strong>Run IDOR Demo</strong> to see both flows side by side. The vulnerable endpoint trusts the JWT for <em>authentication</em> but never checks <em>authorization</em> -- whether user 42 should see user 123's data.</div>
+
+<div class="takeaway">
+  <strong>Takeaway.</strong> BOLA / IDOR is the #1 API vulnerability. Authentication (who are you?) is not authorization (are you allowed?). Every handler that accesses a resource by ID must check: "does the authenticated user own (or have permission for) this object?"
+</div>
+
+<!-- ================================================================ -->
+<!-- SECTION 7: Defense-in-Depth Checklist                             -->
+<!-- ================================================================ -->
+<h2>7. Defense-in-Depth Checklist</h2>
+<p>The senior interview answer to "is this API secure?" is never a single control. It is <em>layers</em>. Each layer assumes the previous one might fail.</p>
+
+<div class="layer-stack">
+  <div class="layer" style="border-left: 3px solid var(--accent-red)">
+    <div class="layer-name" style="color: var(--accent-red)">Edge</div>
+    <div class="layer-desc">WAF (rule-based + ML anomaly detection). Blocks SQLi, XSS, known attack signatures before they reach your code. Example: AWS WAF, Cloudflare WAF.</div>
+  </div>
+
+  <div class="layer" style="border-left: 3px solid var(--accent-orange)">
+    <div class="layer-name" style="color: var(--accent-orange)">Gateway</div>
+    <div class="layer-desc">Rate limit + quota enforcement + authentication (JWT validation, API key check). Central policy point. Example: Kong, AWS API Gateway, Envoy.</div>
+  </div>
+
+  <div class="layer" style="border-left: 3px solid var(--accent-yellow)">
+    <div class="layer-name" style="color: var(--accent-yellow)">Service</div>
+    <div class="layer-desc">Input validation (schema, types, bounds). Authorization check per object (BOLA prevention). Business logic abuse detection. This is where IDOR gets caught -- or missed.</div>
+  </div>
+
+  <div class="layer" style="border-left: 3px solid var(--accent-green)">
+    <div class="layer-name" style="color: var(--accent-green)">Network</div>
+    <div class="layer-desc">mTLS between services. Network policies (only service A can call service B). Private subnets for data stores. No public-internet path to the database.</div>
+  </div>
+
+  <div class="layer" style="border-left: 3px solid var(--accent-blue)">
+    <div class="layer-name" style="color: var(--accent-blue)">Data</div>
+    <div class="layer-desc">Encryption at rest (AES-256) + in transit (TLS 1.3). Secrets in Vault with TTL. Column-level encryption for PII. Key rotation automated.</div>
+  </div>
+
+  <div class="layer" style="border-left: 3px solid var(--accent-purple)">
+    <div class="layer-name" style="color: var(--accent-purple)">Audit</div>
+    <div class="layer-desc">Log all auth decisions (allow and deny). Immutable audit trail. Alert on anomalies (spike in 403s, unusual access patterns, off-hours admin activity). SIEM integration.</div>
+  </div>
+</div>
+
+<div class="takeaway" style="border-left-color: var(--accent-cyan);">
+  <strong style="color: var(--accent-cyan)">The senior tell.</strong> When asked "is this API secure?", answer in layers. WAF at the edge, rate limiting at the gateway, authorization in the service, mTLS on the network, encryption on the data, audit on everything. Naming each layer signals you have built real systems, not just read OWASP. A single missing layer is a finding; naming all six is the signal.
+</div>
+
+<!-- ================================================================ -->
+<!-- JAVASCRIPT                                                        -->
+<!-- ================================================================ -->
+<script>
+// ─── Section 1: Rate Limiting Demo ──────────────────────────────────
+
+function generateRequests(count, durationMs) {
+  // 200 requests over 1500ms, front-loaded burst
+  const reqs = [];
+  for (let i = 0; i < count; i++) {
+    // Cluster most requests in the first 800ms, tail off after
+    let t;
+    if (i < 140) {
+      t = (i / 140) * 800;
+    } else {
+      t = 800 + ((i - 140) / (count - 140)) * (durationMs - 800);
+    }
+    reqs.push(t);
+  }
+  return reqs;
+}
+
+function simulateFixedWindow(requests, limit, windowMs) {
+  const results = [];
+  for (const t of requests) {
+    const windowStart = Math.floor(t / windowMs) * windowMs;
+    const countInWindow = results.filter(r =>
+      r.time >= windowStart && r.time < windowStart + windowMs && r.passed
+    ).length;
+    results.push({ time: t, passed: countInWindow < limit });
+  }
+  return results;
+}
+
+function simulateSlidingLog(requests, limit, windowMs) {
+  const results = [];
+  const log = [];
+  for (const t of requests) {
+    // Remove entries older than window
+    while (log.length > 0 && log[0] <= t - windowMs) log.shift();
+    if (log.length < limit) {
+      log.push(t);
+      results.push({ time: t, passed: true });
+    } else {
+      results.push({ time: t, passed: false });
+    }
+  }
+  return results;
+}
+
+function simulateSlidingWindowCounter(requests, limit, windowMs) {
+  const results = [];
+  const fixedWindows = {};
+  for (const t of requests) {
+    const currentWindow = Math.floor(t / windowMs);
+    const prevWindow = currentWindow - 1;
+    const elapsed = (t % windowMs) / windowMs;
+    const prevCount = fixedWindows[prevWindow] || 0;
+    const curCount = fixedWindows[currentWindow] || 0;
+    const estimate = prevCount * (1 - elapsed) + curCount;
+    if (estimate < limit) {
+      fixedWindows[currentWindow] = (fixedWindows[currentWindow] || 0) + 1;
+      results.push({ time: t, passed: true });
+    } else {
+      results.push({ time: t, passed: false });
+    }
+  }
+  return results;
+}
+
+function simulateTokenBucket(requests, bucketSize, refillRate, refillIntervalMs) {
+  const results = [];
+  let tokens = bucketSize;
+  let lastRefill = 0;
+  for (const t of requests) {
+    // Refill tokens based on time elapsed
+    const elapsed = t - lastRefill;
+    const newTokens = (elapsed / refillIntervalMs) * refillRate;
+    tokens = Math.min(bucketSize, tokens + newTokens);
+    lastRefill = t;
+    if (tokens >= 1) {
+      tokens -= 1;
+      results.push({ time: t, passed: true });
+    } else {
+      results.push({ time: t, passed: false });
+    }
+  }
+  return results;
+}
+
+function simulateLeakyBucket(requests, bucketSize, leakRatePerSec) {
+  const results = [];
+  let queueSize = 0;
+  let lastLeak = 0;
+  for (const t of requests) {
+    // Leak out requests at fixed rate
+    const elapsed = (t - lastLeak) / 1000;
+    queueSize = Math.max(0, queueSize - elapsed * leakRatePerSec);
+    lastLeak = t;
+    if (queueSize < bucketSize) {
+      queueSize += 1;
+      results.push({ time: t, passed: true });
+    } else {
+      results.push({ time: t, passed: false });
+    }
+  }
+  return results;
+}
+
+function renderBar(containerId, results) {
+  const bar = document.getElementById(containerId);
+  bar.innerHTML = '';
+  results.forEach((r, i) => {
+    const tick = document.createElement('div');
+    tick.className = 'tick pending';
+    bar.appendChild(tick);
+  });
+  return bar.children;
+}
+
+function animateBar(ticks, results, delay) {
+  results.forEach((r, i) => {
+    setTimeout(() => {
+      ticks[i].className = 'tick ' + (r.passed ? 'pass' : 'fail');
+    }, delay + (r.time / 1500) * 2000);
+  });
+}
+
+function updateStats(id, results) {
+  const passed = results.filter(r => r.passed).length;
+  const failed = results.length - passed;
+  document.getElementById(id).textContent =
+    `Passed: ${passed} | Rejected: ${failed} | Total: ${results.length}`;
+}
+
+let rlRunning = false;
+function runRateLimitDemo() {
+  if (rlRunning) return;
+  rlRunning = true;
+  document.getElementById('rl-run-btn').disabled = true;
+  document.getElementById('rl-reset-btn').disabled = false;
+
+  const requests = generateRequests(200, 1500);
+  const limit = 100;
+  const windowMs = 1000;
+
+  // Fixed Window
+  const fwResults = simulateFixedWindow(requests, limit, windowMs);
+  const fwTicks = renderBar('bar-fixed-window', fwResults);
+  animateBar(fwTicks, fwResults, 0);
+  setTimeout(() => updateStats('stats-fixed-window', fwResults), 2200);
+
+  // Sliding Log
+  const slResults = simulateSlidingLog(requests, limit, windowMs);
+  const slTicks = renderBar('bar-sliding-log', slResults);
+  animateBar(slTicks, slResults, 0);
+  setTimeout(() => updateStats('stats-sliding-log', slResults), 2200);
+
+  // Sliding Window Counter
+  const scResults = simulateSlidingWindowCounter(requests, limit, windowMs);
+  const scTicks = renderBar('bar-sliding-counter', scResults);
+  animateBar(scTicks, scResults, 0);
+  setTimeout(() => updateStats('stats-sliding-counter', scResults), 2200);
+
+  // Token Bucket (capacity 100, refill 100/sec)
+  const tbResults = simulateTokenBucket(requests, 100, 100, 1000);
+  const tbTicks = renderBar('bar-token-bucket', tbResults);
+  animateBar(tbTicks, tbResults, 0);
+  setTimeout(() => updateStats('stats-token-bucket', tbResults), 2200);
+
+  // Leaky Bucket (queue size 50, leak rate 100/sec)
+  const lbResults = simulateLeakyBucket(requests, 50, 100);
+  const lbTicks = renderBar('bar-leaky-bucket', lbResults);
+  animateBar(lbTicks, lbResults, 0);
+  setTimeout(() => updateStats('stats-leaky-bucket', lbResults), 2200);
+
+  setTimeout(() => {
+    const fwPassed = fwResults.filter(r => r.passed).length;
+    const slPassed = slResults.filter(r => r.passed).length;
+    const scPassed = scResults.filter(r => r.passed).length;
+    const tbPassed = tbResults.filter(r => r.passed).length;
+    const lbPassed = lbResults.filter(r => r.passed).length;
+    document.getElementById('rl-commentary').innerHTML =
+      '<strong>Results with 200 requests in 1.5s (budget: 100/sec):</strong><br>' +
+      'Fixed window lets <strong>' + fwPassed + '</strong> through (boundary burst possible). ' +
+      'Sliding log: <strong>' + slPassed + '</strong> (precise, O(N) memory). ' +
+      'Sliding window counter: <strong>' + scPassed + '</strong> (weighted approximation). ' +
+      'Token bucket: <strong>' + tbPassed + '</strong> (burst-friendly). ' +
+      'Leaky bucket: <strong>' + lbPassed + '</strong> (smooths output to fixed rate).';
+  }, 2300);
+}
+
+function resetRateLimitDemo() {
+  rlRunning = false;
+  document.getElementById('rl-run-btn').disabled = false;
+  document.getElementById('rl-reset-btn').disabled = true;
+  ['fixed-window', 'sliding-log', 'sliding-counter', 'token-bucket', 'leaky-bucket'].forEach(id => {
+    document.getElementById('bar-' + id).innerHTML = '';
+    document.getElementById('stats-' + id).textContent = 'Waiting...';
+  });
+  document.getElementById('rl-commentary').innerHTML =
+    'Click <strong>Run Demo</strong> to send 200 requests over 1.5 seconds. Watch how each algorithm handles the same burst differently.';
+}
+
+// ─── Section 2: Quota vs Rate Limit Demo ────────────────────────────
+
+let quotaRunning = false;
+let quotaInterval = null;
+
+function runQuotaDemo() {
+  if (quotaRunning) return;
+  quotaRunning = true;
+  document.getElementById('quota-run-btn').disabled = true;
+  document.getElementById('quota-reset-btn').disabled = false;
+
+  const totalMinutes = 1440; // 24 hours
+  const quotaLimit = 10000;
+  const rateLimit = 100; // per minute
+  let minute = 0;
+  let quotaUsed = 0;
+  let rateBurst = false;
+  let quotaExhausted = false;
+
+  // Traffic pattern: varies by hour, with a burst around minute 480 (8:00)
+  function trafficForMinute(m) {
+    const hour = m / 60;
+    // Base: sine curve peaking at noon
+    let base = 3 + 6 * Math.sin((hour / 24) * Math.PI);
+    // Burst at ~8:00 (minute 480)
+    if (m >= 470 && m < 485) base = 130; // exceeds rate limit
+    return Math.round(base);
+  }
+
+  quotaInterval = setInterval(() => {
+    if (minute >= totalMinutes || quotaExhausted) {
+      clearInterval(quotaInterval);
+      quotaRunning = false;
+      if (quotaExhausted) {
+        document.getElementById('quota-commentary').innerHTML =
+          '<strong>Quota exhausted at hour ' + Math.floor(minute / 60) + '.</strong> Rate limit blocked the burst at ~08:00 (130 req/min > 100 limit) but recovered in 1 minute. The quota accumulated all day and eventually hit the 10,000 ceiling -- no quick recovery until the next billing cycle.';
+      } else {
+        document.getElementById('quota-commentary').innerHTML =
+          '<strong>Day complete.</strong> Quota survived (' + quotaUsed + ' / ' + quotaLimit + '). Rate limit blocked the burst at ~08:00 but recovered immediately. Different failure modes, different alert thresholds.';
+      }
+      return;
+    }
+
+    const reqs = trafficForMinute(minute);
+    const rateBlocked = reqs > rateLimit;
+    const effectiveReqs = Math.min(reqs, rateLimit);
+    quotaUsed += effectiveReqs;
+
+    if (quotaUsed >= quotaLimit) {
+      quotaExhausted = true;
+      quotaUsed = quotaLimit;
+    }
+
+    // Update rate meter
+    const ratePct = Math.min(100, (reqs / rateLimit) * 100);
+    document.getElementById('rate-fill').style.width = ratePct + '%';
+    document.getElementById('rate-fill').style.background = rateBlocked ? 'var(--accent-red)' : 'var(--accent-blue)';
+    document.getElementById('rate-label').textContent = reqs + ' / ' + rateLimit;
+    document.getElementById('rate-status').textContent = rateBlocked
+      ? 'BLOCKED -- ' + (reqs - rateLimit) + ' requests rejected (hour ' + Math.floor(minute / 60) + ')'
+      : 'OK -- hour ' + Math.floor(minute / 60) + ':' + String(minute % 60).padStart(2, '0');
+    document.getElementById('rate-status').style.color = rateBlocked ? 'var(--accent-red)' : 'var(--text-2)';
+
+    // Update quota meter
+    const quotaPct = Math.min(100, (quotaUsed / quotaLimit) * 100);
+    document.getElementById('quota-fill').style.width = quotaPct + '%';
+    document.getElementById('quota-fill').style.background = quotaExhausted ? 'var(--accent-red)' :
+      quotaPct > 80 ? 'var(--accent-yellow)' : 'var(--accent-orange)';
+    document.getElementById('quota-label').textContent = quotaUsed.toLocaleString() + ' / ' + quotaLimit.toLocaleString();
+    document.getElementById('quota-status').textContent = quotaExhausted
+      ? 'EXHAUSTED -- no recovery until billing reset'
+      : quotaPct > 80 ? 'WARNING -- ' + Math.round(quotaPct) + '% consumed' : 'OK -- ' + Math.round(quotaPct) + '% consumed';
+    document.getElementById('quota-status').style.color = quotaExhausted ? 'var(--accent-red)' :
+      quotaPct > 80 ? 'var(--accent-yellow)' : 'var(--text-2)';
+
+    minute += 6; // Jump 6 minutes per tick for speed
+  }, 50);
+}
+
+function resetQuotaDemo() {
+  if (quotaInterval) clearInterval(quotaInterval);
+  quotaRunning = false;
+  document.getElementById('quota-run-btn').disabled = false;
+  document.getElementById('quota-reset-btn').disabled = true;
+  document.getElementById('rate-fill').style.width = '0%';
+  document.getElementById('rate-label').textContent = '0 / 100';
+  document.getElementById('rate-status').textContent = 'Idle';
+  document.getElementById('rate-status').style.color = 'var(--text-2)';
+  document.getElementById('quota-fill').style.width = '0%';
+  document.getElementById('quota-label').textContent = '0 / 10,000';
+  document.getElementById('quota-status').textContent = 'Idle';
+  document.getElementById('quota-status').style.color = 'var(--text-2)';
+  document.getElementById('quota-commentary').innerHTML =
+    'Click <strong>Simulate Day</strong> to see 24 hours of traffic. The rate limit blocks bursts within each minute; the quota accumulates all day and may exhaust before midnight.';
+}
+
+// ─── Section 3: AuthZ Tabs ──────────────────────────────────────────
+
+function setAuthzTab(tab) {
+  document.querySelectorAll('.authz-tabs button').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.authz-panel').forEach(p => p.classList.remove('active'));
+  document.querySelector('.authz-tabs button[onclick*="' + tab + '"]').classList.add('active');
+  document.getElementById('authz-' + tab).classList.add('active');
+}
+
+// ─── Section 5: mTLS Animation ─────────────────────────────────────
+
+let mtlsRunning = false;
+function runMtlsDemo() {
+  if (mtlsRunning) return;
+  mtlsRunning = true;
+  document.getElementById('mtls-run-btn').disabled = true;
+  document.getElementById('mtls-reset-btn').disabled = false;
+
+  const steps = ['mtls-step1', 'mtls-step2', 'mtls-step3', 'mtls-step4'];
+  const messages = [
+    'Step 1: Service A sends ClientHello to Service B, requesting the server certificate.',
+    'Step 2: Service B responds with its server certificate AND requests Service A\'s client certificate.',
+    'Step 3: Service A presents its client certificate. Both sides complete key exchange.',
+    'Step 4: Both identities verified via the organizational CA. Encrypted channel established. App-level request proceeds.'
+  ];
+
+  steps.forEach((id, i) => {
+    setTimeout(() => {
+      document.getElementById(id).style.opacity = '1';
+      document.getElementById(id).style.transition = 'opacity 0.5s ease';
+      document.getElementById('mtls-commentary').textContent = messages[i];
+    }, (i + 1) * 1200);
+  });
+}
+
+function resetMtlsDemo() {
+  mtlsRunning = false;
+  document.getElementById('mtls-run-btn').disabled = false;
+  document.getElementById('mtls-reset-btn').disabled = true;
+  ['mtls-step1', 'mtls-step2', 'mtls-step3', 'mtls-step4'].forEach(id => {
+    document.getElementById(id).style.opacity = '0';
+  });
+  document.getElementById('mtls-commentary').textContent =
+    'Click Animate Handshake to step through the mTLS exchange. Both services present certificates signed by the same organizational CA. Neither side trusts the other until the certificate chain validates.';
+}
+
+// ─── Section 6: IDOR Demo ──────────────────────────────────────────
+
+let idorRunning = false;
+function runIdorDemo() {
+  if (idorRunning) return;
+  idorRunning = true;
+  document.getElementById('idor-run-btn').disabled = true;
+  document.getElementById('idor-reset-btn').disabled = false;
+
+  const vulnSteps = ['vuln-step1', 'vuln-step2', 'vuln-step3', 'vuln-step4', 'vuln-step5'];
+  const fixSteps = ['fix-step1', 'fix-step2', 'fix-step3', 'fix-step4', 'fix-step5'];
+
+  // Vulnerable flow
+  vulnSteps.forEach((id, i) => {
+    setTimeout(() => {
+      const el = document.getElementById(id);
+      el.classList.add('active');
+      if (i <= 2) el.classList.add('ok');
+      if (i === 3) el.classList.add('fail');
+      if (i === 4) {
+        el.classList.add('fail');
+        el.innerHTML = '<span style="color:var(--accent-red);font-weight:600">Result: 200 OK -- Bob\'s data leaked to Alice</span>';
+      }
+    }, (i + 1) * 800);
+  });
+
+  // Fixed flow
+  fixSteps.forEach((id, i) => {
+    setTimeout(() => {
+      const el = document.getElementById(id);
+      el.classList.add('active');
+      if (i <= 2) el.classList.add('ok');
+      if (i === 3) {
+        el.classList.add('fail');
+        el.innerHTML = '<span style="color:var(--accent-red)">Server checks: req.user.id (42) !== params.id (123)</span>';
+      }
+      if (i === 4) {
+        el.classList.add('ok');
+        el.innerHTML = '<span style="color:var(--accent-green);font-weight:600">Result: 403 Forbidden -- attack blocked</span>';
+      }
+    }, (i + 1) * 800);
+  });
+
+  setTimeout(() => {
+    document.getElementById('idor-commentary').innerHTML =
+      '<strong>Key insight:</strong> Both endpoints have authentication (JWT validation). Only the fixed endpoint has authorization (ownership check). Authentication answers "who are you?" Authorization answers "are you allowed to access <em>this specific object</em>?" BOLA happens when you confuse the two.';
+  }, 4500);
+}
+
+function resetIdorDemo() {
+  idorRunning = false;
+  document.getElementById('idor-run-btn').disabled = false;
+  document.getElementById('idor-reset-btn').disabled = true;
+
+  const vulnSteps = ['vuln-step1', 'vuln-step2', 'vuln-step3', 'vuln-step4', 'vuln-step5'];
+  const fixSteps = ['fix-step1', 'fix-step2', 'fix-step3', 'fix-step4', 'fix-step5'];
+
+  vulnSteps[0] && (document.getElementById('vuln-step1').textContent = 'Alice (user 42) logs in, gets valid JWT');
+  document.getElementById('vuln-step2').textContent = 'Alice sends GET /users/123/profile';
+  document.getElementById('vuln-step3').textContent = 'Server checks: valid JWT? Yes';
+  document.getElementById('vuln-step4').textContent = 'Server returns Bob\'s profile to Alice';
+  document.getElementById('vuln-step5').textContent = 'Result: 200 OK -- data leaked';
+
+  document.getElementById('fix-step1').textContent = 'Alice (user 42) logs in, gets valid JWT';
+  document.getElementById('fix-step2').textContent = 'Alice sends GET /users/123/profile';
+  document.getElementById('fix-step3').textContent = 'Server checks: valid JWT? Yes';
+  document.getElementById('fix-step4').textContent = 'Server checks: req.user.id (42) === params.id (123)?';
+  document.getElementById('fix-step5').textContent = 'Result: 403 Forbidden -- access denied';
+
+  [...vulnSteps, ...fixSteps].forEach(id => {
+    const el = document.getElementById(id);
+    el.classList.remove('active', 'ok', 'fail');
+  });
+
+  document.getElementById('idor-commentary').innerHTML =
+    'Click <strong>Run IDOR Demo</strong> to see both flows side by side. The vulnerable endpoint trusts the JWT for <em>authentication</em> but never checks <em>authorization</em> -- whether user 42 should see user 123\'s data.';
+}
+</script>
+</body>
+</html>

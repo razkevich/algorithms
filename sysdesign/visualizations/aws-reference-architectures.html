@@ -1,0 +1,1627 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AWS Reference Architectures -- Interactive Visualization</title>
+<style>
+:root {
+  --bg: #0f0f15;
+  --surface: #181820;
+  --surface-2: #20202a;
+  --border: #2a2a35;
+  --text: #e6e6ea;
+  --text-2: #cfcfd6;
+  --text-3: #888;
+  --accent-red: #ff6b6b;
+  --accent-green: #51cf66;
+  --accent-blue: #339af0;
+  --accent-yellow: #ffd43b;
+  --accent-purple: #cc5de8;
+  --accent-cyan: #8be9fd;
+  --accent-orange: #ffa94d;
+}
+*, *::before, *::after { box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  padding: 32px 24px;
+  max-width: 1100px;
+  margin: 0 auto;
+  line-height: 1.55;
+}
+h1 { color: #fff; margin-bottom: 4px; }
+h1 + p.sub { color: var(--text-3); font-style: italic; margin-top: 0; margin-bottom: 24px; }
+h2 { color: #fff; margin-top: 32px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+h3 { color: var(--text-2); margin-top: 20px; }
+code {
+  background: var(--surface-2);
+  padding: 2px 6px;
+  border-radius: 3px;
+  color: var(--accent-cyan);
+  font-size: 13px;
+}
+svg {
+  background: var(--surface);
+  border-radius: 8px;
+  display: block;
+  margin: 14px auto;
+  width: 100%;
+  height: auto;
+}
+.tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+.tabs button {
+  padding: 10px 20px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-2);
+  border-radius: 6px;
+  cursor: pointer;
+  min-height: 44px;
+  font-size: 14px;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.tabs button:hover { background: var(--surface); }
+.tabs button.active {
+  border-color: var(--accent-blue);
+  border-bottom: 2px solid var(--accent-blue);
+  color: #fff;
+}
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0;
+  align-items: center;
+}
+.controls button, .btn {
+  padding: 10px 16px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  border-radius: 6px;
+  cursor: pointer;
+  min-height: 44px;
+  font-size: 14px;
+  transition: background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+.controls button:hover, .btn:hover { background: var(--surface); }
+.controls button:disabled, .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.controls button.active-btn { border-color: var(--accent-blue); color: var(--accent-blue); }
+.controls button.danger { border-color: var(--accent-red); color: var(--accent-red); }
+.controls button.danger:hover { background: #2a1520; }
+.commentary {
+  background: var(--surface-2);
+  padding: 14px;
+  border-radius: 6px;
+  font-size: 14px;
+  color: var(--text-2);
+  margin: 12px 0;
+  min-height: 44px;
+  line-height: 1.5;
+}
+.takeaway {
+  background: #1a1a22;
+  border-left: 3px solid var(--accent-green);
+  padding: 12px 16px;
+  margin: 14px 0;
+  font-size: 14px;
+}
+.takeaway strong { color: var(--accent-green); }
+.takeaway ul { margin: 6px 0 0 0; padding-left: 18px; }
+.takeaway li { margin-bottom: 6px; }
+section[hidden] { display: none !important; }
+.table-wrap {
+  overflow-x: auto;
+  margin: 14px 0;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.table-wrap table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  min-width: 700px;
+}
+.table-wrap th {
+  background: var(--surface-2);
+  color: var(--accent-blue);
+  padding: 10px 12px;
+  text-align: left;
+  font-weight: 600;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+.table-wrap td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-2);
+  vertical-align: top;
+}
+.table-wrap tr:last-child td { border-bottom: none; }
+.table-wrap tr:hover td { background: var(--surface); }
+.table-wrap td:first-child { color: var(--accent-cyan); font-weight: 600; white-space: nowrap; }
+.table-wrap td:last-child { color: var(--text-3); font-style: italic; }
+@media (max-width: 720px) {
+  body { padding: 20px 14px; }
+}
+@media (max-width: 600px) {
+  .tabs { gap: 4px; }
+  .tabs button { padding: 10px 12px; font-size: 13px; flex: 1; min-width: 70px; text-align: center; }
+}
+@media (max-width: 480px) {
+  .controls { flex-direction: column; }
+  .controls button { width: 100%; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>AWS reference architectures</h1>
+  <p class="sub">Five canonical shapes, the service decision matrices behind each box. The senior tell isn't naming services -- it's picking the right one with the right tradeoff.</p>
+</header>
+
+<nav class="tabs">
+  <button class="active" onclick="setActiveTab('three-tier')">3-Tier Web App</button>
+  <button onclick="setActiveTab('async-pipeline')">Async Event Pipeline</button>
+  <button onclick="setActiveTab('multi-region')">Multi-Region Active-Active</button>
+  <button onclick="setActiveTab('data-lake')">Event-Driven Data Lake</button>
+  <button onclick="setActiveTab('decision-matrices')">Service Decision Matrices</button>
+</nav>
+
+<!-- ============================================================ -->
+<!-- TAB 1: 3-TIER WEB APP                                         -->
+<!-- ============================================================ -->
+<section data-tab="three-tier">
+  <h2>3-Tier Web Application</h2>
+  <p>The canonical AWS web architecture: DNS resolution, CDN edge caching, L7 load balancing, auto-scaled compute, relational storage with read replicas, in-memory caching, and static asset storage. Click any service box to see its role. Toggle request flow to watch a user request hop through the stack.</p>
+
+  <svg id="t3-svg" viewBox="0 0 960 580" preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <marker id="t3-arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="#444"/>
+      </marker>
+      <marker id="t3-arrow-blue" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="#339af0"/>
+      </marker>
+    </defs>
+    <g id="t3-scene"></g>
+    <g id="t3-packets"></g>
+  </svg>
+
+  <div class="controls">
+    <button onclick="T3.animateRequest('miss')" id="t3-btn-miss">User Request (cache miss)</button>
+    <button onclick="T3.animateRequest('hit')" id="t3-btn-hit">User Request (cache hit)</button>
+    <button onclick="T3.animateRequest('cdn')" id="t3-btn-cdn">User Request (CDN hit)</button>
+    <button onclick="T3.reset()">Reset</button>
+  </div>
+
+  <div class="commentary" id="t3-commentary">Click any service box above to see its role in the architecture. Use the buttons to animate different request flows and observe how caching layers change the path.</div>
+
+  <div class="takeaway">
+    <strong>Takeaways</strong>
+    <ul>
+      <li>TLS terminates at ALB (or CloudFront) -- compute nodes handle plaintext HTTP internally, reducing CPU overhead and certificate management complexity.</li>
+      <li>Read replicas handle read scaling horizontally; the primary handles writes. Aurora can have up to 15 read replicas with sub-10ms replication lag.</li>
+      <li>ElastiCache (Redis) sits between app and DB: cache-aside pattern. Cache miss goes to DB, populates cache, returns. Cache hit skips DB entirely -- 10x latency improvement.</li>
+      <li>S3 + CloudFront for static assets (JS, CSS, images) offloads compute and provides edge-cached sub-50ms delivery globally.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- TAB 2: ASYNC EVENT PIPELINE                                    -->
+<!-- ============================================================ -->
+<section data-tab="async-pipeline" hidden>
+  <h2>Async Event Pipeline</h2>
+  <p>Decouple producers from consumers with a durable queue or stream between them. The choice of SQS vs Kinesis vs EventBridge determines ordering, replay, and failure semantics. Toggle the messaging backbone to see how the flow and properties change.</p>
+
+  <svg id="ap-svg" viewBox="0 0 960 440" preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <marker id="ap-arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="#444"/>
+      </marker>
+    </defs>
+    <g id="ap-scene"></g>
+    <g id="ap-packets"></g>
+  </svg>
+
+  <div class="controls">
+    <button onclick="AP.setBackbone('sqs')" id="ap-btn-sqs" class="active-btn">SQS</button>
+    <button onclick="AP.setBackbone('kinesis')" id="ap-btn-kinesis">Kinesis</button>
+    <button onclick="AP.setBackbone('eventbridge')" id="ap-btn-eb">EventBridge</button>
+    <button onclick="AP.animateFlow()" id="ap-btn-flow">Send Event</button>
+    <button onclick="AP.animateFailure()" id="ap-btn-fail" class="danger">Lambda Failure</button>
+    <button onclick="AP.reset()">Reset</button>
+  </div>
+
+  <div class="commentary" id="ap-commentary">SQS is a durable work queue: at-least-once delivery, no ordering guarantee (unless FIFO), messages deleted after processing. Best for decoupling microservices with independent consumers. Toggle to Kinesis or EventBridge to compare.</div>
+
+  <div class="takeaway">
+    <strong>Takeaways</strong>
+    <ul>
+      <li>SQS: at-least-once, no ordering (standard) or exactly-once + FIFO (FIFO queues). DLQ after N failed retries. Best for work queues.</li>
+      <li>Kinesis: ordered within shard, 24h-365d retention, replayable. Checkpoint-based consumption -- stuck checkpoint blocks the shard. Best for streaming analytics.</li>
+      <li>EventBridge: rule-based routing to multiple targets (fanout). Content-based filtering. Best for event-driven architectures with many consumers.</li>
+      <li>The interview tell: "SQS for work queues, Kinesis for ordered streams, EventBridge for event routing" -- know which properties each guarantees.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- TAB 3: MULTI-REGION ACTIVE-ACTIVE                              -->
+<!-- ============================================================ -->
+<section data-tab="multi-region" hidden>
+  <h2>Multi-Region Active-Active</h2>
+  <p>Both regions serve traffic simultaneously. Route 53 latency-based routing directs users to the nearest region. DynamoDB Global Tables and Aurora Global Database handle cross-region data replication. Kill a region to watch failover.</p>
+
+  <svg id="mr-svg" viewBox="0 0 960 560" preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <marker id="mr-arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="#444"/>
+      </marker>
+    </defs>
+    <g id="mr-scene"></g>
+    <g id="mr-packets"></g>
+  </svg>
+
+  <div class="controls">
+    <button onclick="MR.animateRequest('us')" id="mr-btn-us">US User Request</button>
+    <button onclick="MR.animateRequest('eu')" id="mr-btn-eu">EU User Request</button>
+    <button onclick="MR.killRegion()" id="mr-btn-kill" class="danger">Kill us-east-1</button>
+    <button onclick="MR.bringBack()" id="mr-btn-back" disabled>Restore us-east-1</button>
+    <button onclick="MR.reset()">Reset</button>
+  </div>
+
+  <div class="commentary" id="mr-commentary">Both us-east-1 and eu-west-1 serve reads and writes. Route 53 latency-based routing sends users to the closest region. DynamoDB Global Tables replicate writes with last-writer-wins conflict resolution (~1s RPO). Aurora Global Database has one writer region with global readers (~1s replication lag).</div>
+
+  <div class="takeaway">
+    <strong>Takeaways</strong>
+    <ul>
+      <li>DynamoDB Global Tables: true active-active writes in all regions. Last-writer-wins conflict resolution. RPO ~1 second. Eventually consistent cross-region.</li>
+      <li>Aurora Global Database: one primary writer region, read replicas in other regions. Planned failover promotes a secondary to writer (~1 min). Unplanned failover RPO ~1s.</li>
+      <li>S3 Cross-Region Replication: async, eventually consistent. Good for static assets, backups, disaster recovery. Not for real-time sync.</li>
+      <li>The hard tradeoff: DynamoDB GT gives you multi-region writes but only eventual consistency. Aurora GDB gives you strong consistency but single-writer. Pick based on your consistency requirement.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- TAB 4: EVENT-DRIVEN DATA LAKE                                  -->
+<!-- ============================================================ -->
+<section data-tab="data-lake" hidden>
+  <h2>Event-Driven Data Lake</h2>
+  <p>Ingest events, land them in S3, transform with ETL, query with serverless SQL or load into a warehouse. Two paths: batch (Firehose + Glue) and real-time (DMS CDC + Lambda). Toggle between them to see how data flows differently.</p>
+
+  <svg id="dl-svg" viewBox="0 0 960 460" preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <marker id="dl-arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="#444"/>
+      </marker>
+    </defs>
+    <g id="dl-scene"></g>
+    <g id="dl-packets"></g>
+  </svg>
+
+  <div class="controls">
+    <button onclick="DL.setPath('batch')" id="dl-btn-batch" class="active-btn">Batch Path</button>
+    <button onclick="DL.setPath('realtime')" id="dl-btn-realtime">Real-Time Path</button>
+    <button onclick="DL.animateFlow()" id="dl-btn-flow">Send Events</button>
+    <button onclick="DL.reset()">Reset</button>
+  </div>
+
+  <div class="commentary" id="dl-commentary">Batch path: Kinesis Data Firehose buffers events and delivers them to S3 in micro-batches (1-15 min). Glue ETL transforms raw data into curated Parquet/ORC in S3. Athena queries directly on S3 -- serverless, pay-per-query. Good for analytics workloads where minutes of latency is acceptable.</div>
+
+  <div class="takeaway">
+    <strong>Takeaways</strong>
+    <ul>
+      <li>Raw zone + curated zone in S3: raw is append-only event log (JSON/CSV), curated is transformed columnar format (Parquet/ORC) partitioned by date/entity for efficient queries.</li>
+      <li>Athena: serverless SQL on S3. No infrastructure. Pay per TB scanned. Partition pruning + columnar format = 90% cost reduction vs full scans.</li>
+      <li>Redshift: managed warehouse for complex joins, aggregations, dashboards. Use when Athena query complexity or concurrency exceeds serverless limits.</li>
+      <li>DMS CDC path: Change Data Capture from RDS streams row-level changes through Kinesis to Lambda for near-real-time analytics. Seconds of latency vs minutes for batch.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- TAB 5: SERVICE DECISION MATRICES                               -->
+<!-- ============================================================ -->
+<section data-tab="decision-matrices" hidden>
+  <h2>Service Decision Matrices</h2>
+  <p>Three decision tables covering compute, messaging, and storage. For each service: when to pick it, the one-liner interview answer, and the transferable pattern it maps to outside AWS.</p>
+
+  <h3>Compute</h3>
+  <div class="table-wrap" style="overflow-x:auto">
+    <table>
+      <thead>
+        <tr>
+          <th>Service</th>
+          <th>Cold Start</th>
+          <th>Ops Control</th>
+          <th>Scale Curve</th>
+          <th>Cost Model</th>
+          <th>Interview Line</th>
+          <th>Transferable Pattern</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Lambda</td>
+          <td>100ms-10s (language-dependent)</td>
+          <td>Zero -- fully managed</td>
+          <td>Per-request, 0 to 10k concurrent in seconds</td>
+          <td>Pay per invocation + duration</td>
+          <td>"Lambda for event-driven, sub-15-min tasks where cold start is acceptable. No servers to patch."</td>
+          <td>FaaS / serverless function -- same shape as Cloud Functions, Azure Functions</td>
+        </tr>
+        <tr>
+          <td>ECS Fargate</td>
+          <td>30-60s container pull</td>
+          <td>Low -- define task def, AWS manages hosts</td>
+          <td>Task-level, autoscale on CPU/mem/custom</td>
+          <td>Pay per vCPU-hour + GB-hour</td>
+          <td>"Fargate for long-running containers without managing EC2. Good default for microservices."</td>
+          <td>Managed container runtime -- same shape as Cloud Run, Azure Container Apps</td>
+        </tr>
+        <tr>
+          <td>EKS</td>
+          <td>Pod scheduling, seconds</td>
+          <td>High -- full K8s API, node groups, networking</td>
+          <td>Pod-level HPA + cluster autoscaler for nodes</td>
+          <td>EC2 node cost + EKS control plane fee</td>
+          <td>"EKS when you need Kubernetes API compatibility, complex scheduling, or multi-cloud portability."</td>
+          <td>Managed Kubernetes -- same shape as GKE, AKS</td>
+        </tr>
+        <tr>
+          <td>EC2 ASG</td>
+          <td>Minutes (AMI boot)</td>
+          <td>Full -- OS, kernel, GPU, custom networking</td>
+          <td>Instance-level, scale on CloudWatch metrics</td>
+          <td>On-demand, reserved, spot pricing</td>
+          <td>"EC2 when you need GPU, custom kernel, or cost optimization via spot/reserved. Maximum control."</td>
+          <td>IaaS VM -- same shape as GCE, Azure VMs</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Messaging</h3>
+  <div class="table-wrap" style="overflow-x:auto">
+    <table>
+      <thead>
+        <tr>
+          <th>Service</th>
+          <th>Ordering</th>
+          <th>Replay</th>
+          <th>Fanout</th>
+          <th>Retention</th>
+          <th>Interview Line</th>
+          <th>Transferable Pattern</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>SQS</td>
+          <td>Best-effort (Standard) or FIFO</td>
+          <td>No -- message deleted after processing</td>
+          <td>Single consumer per message</td>
+          <td>1-14 days, default 4</td>
+          <td>"SQS for durable work queues: decouple producer from consumer, at-least-once, DLQ for failures."</td>
+          <td>Work queue -- same shape as RabbitMQ, Azure Service Bus Queue</td>
+        </tr>
+        <tr>
+          <td>SNS</td>
+          <td>No ordering guarantee</td>
+          <td>No -- fire-and-forget push</td>
+          <td>1-to-many: push to SQS, Lambda, HTTP, email</td>
+          <td>None -- immediate delivery</td>
+          <td>"SNS for fan-out: one event, multiple subscribers. Combine with SQS for durable fan-out."</td>
+          <td>Pub/sub topic -- same shape as Google Pub/Sub, Azure Service Bus Topic</td>
+        </tr>
+        <tr>
+          <td>EventBridge</td>
+          <td>No ordering guarantee</td>
+          <td>Archive + replay (configurable)</td>
+          <td>Rule-based routing to 5+ target types</td>
+          <td>Archive-based, configurable</td>
+          <td>"EventBridge for event-driven routing with content filtering. Schema registry + cross-account."</td>
+          <td>Event bus with routing rules -- similar to event mesh / event router pattern</td>
+        </tr>
+        <tr>
+          <td>Kinesis Data Streams</td>
+          <td>Ordered within shard (partition key)</td>
+          <td>Yes -- replayable from any point in retention</td>
+          <td>Multiple consumers (enhanced fan-out)</td>
+          <td>24h-365d</td>
+          <td>"Kinesis for ordered, replayable event streams. Partition key determines shard = ordering unit."</td>
+          <td>Distributed log / stream -- same shape as Kafka, Azure Event Hubs</td>
+        </tr>
+        <tr>
+          <td>MSK (Managed Kafka)</td>
+          <td>Ordered within partition</td>
+          <td>Yes -- offset-based</td>
+          <td>Consumer groups + multiple topics</td>
+          <td>Configurable (disk-based)</td>
+          <td>"MSK when you need Kafka API compatibility, existing Kafka ecosystem tooling, or complex topologies."</td>
+          <td>Kafka itself -- use when Kinesis shard limits or API constraints are blockers</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Storage</h3>
+  <div class="table-wrap" style="overflow-x:auto">
+    <table>
+      <thead>
+        <tr>
+          <th>Service</th>
+          <th>Access Pattern</th>
+          <th>Scale</th>
+          <th>Cost Model</th>
+          <th>Consistency</th>
+          <th>Interview Line</th>
+          <th>Transferable Pattern</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>RDS (Postgres/MySQL)</td>
+          <td>Relational, complex joins, transactions</td>
+          <td>Vertical + read replicas (max ~5)</td>
+          <td>Instance-hour + storage</td>
+          <td>Strong (single-writer)</td>
+          <td>"RDS for relational workloads with ACID transactions. Multi-AZ for HA, read replicas for read scaling."</td>
+          <td>Managed RDBMS -- same shape as Cloud SQL, Azure SQL</td>
+        </tr>
+        <tr>
+          <td>Aurora</td>
+          <td>Relational, MySQL/Postgres compatible</td>
+          <td>Up to 15 read replicas, auto-storage scaling to 128TB</td>
+          <td>Instance-hour + I/O + storage</td>
+          <td>Strong (single-writer) or eventual (global)</td>
+          <td>"Aurora when you outgrow RDS: faster replication, more replicas, auto-scaling storage, global database."</td>
+          <td>Cloud-native RDBMS -- unique to AWS, closest is Cloud Spanner for global</td>
+        </tr>
+        <tr>
+          <td>DynamoDB</td>
+          <td>Key-value / document, single-digit ms at any scale</td>
+          <td>Unlimited (auto-partitioned)</td>
+          <td>On-demand (per-request) or provisioned (RCU/WCU)</td>
+          <td>Eventually consistent (default) or strong (per-read)</td>
+          <td>"DynamoDB for key-value at scale: predictable latency, auto-scaling, Global Tables for multi-region."</td>
+          <td>Managed wide-column / KV store -- same shape as Bigtable, Cosmos DB</td>
+        </tr>
+        <tr>
+          <td>S3</td>
+          <td>Object storage, any size, any format</td>
+          <td>Unlimited objects, 5TB per object</td>
+          <td>Per-GB stored + per-request + egress</td>
+          <td>Read-after-write (strong since Dec 2020)</td>
+          <td>"S3 for blob storage, static hosting, data lake landing zone. Lifecycle policies for cost tiers."</td>
+          <td>Object store -- same shape as GCS, Azure Blob, MinIO</td>
+        </tr>
+        <tr>
+          <td>EFS</td>
+          <td>POSIX file system, shared across instances</td>
+          <td>Petabytes, elastic</td>
+          <td>Per-GB stored + throughput mode</td>
+          <td>Strong (NFS semantics)</td>
+          <td>"EFS when multiple EC2/Fargate tasks need shared POSIX filesystem. Not for high-IOPS workloads."</td>
+          <td>Managed NFS -- same shape as Filestore, Azure Files</td>
+        </tr>
+        <tr>
+          <td>ElastiCache (Redis)</td>
+          <td>In-memory key-value, sub-ms latency</td>
+          <td>Cluster mode: up to 500 shards</td>
+          <td>Node-hour</td>
+          <td>Single-threaded per shard (linearizable per key)</td>
+          <td>"ElastiCache Redis for caching, sessions, leaderboards, rate limiting. Cache-aside or write-through."</td>
+          <td>Managed Redis -- same shape as Memorystore, Azure Cache for Redis</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="takeaway">
+    <strong>Takeaways</strong>
+    <ul>
+      <li>The senior tell is not naming the service -- it's articulating WHY that service over alternatives. "DynamoDB because we need single-digit-ms reads at 100k QPS with auto-scaling, and our access pattern is pure key-value lookups."</li>
+      <li>Transferable patterns matter: SQS is a work queue (same shape everywhere), Kinesis is a distributed log (same shape as Kafka), S3 is an object store. Name the pattern, then the AWS service.</li>
+      <li>Cost model drives architecture: Lambda is cheap at low QPS but expensive at sustained high QPS. EC2 Reserved/Spot is cheap at steady-state but complex to manage. Match cost model to traffic shape.</li>
+    </ul>
+  </div>
+</section>
+
+<script>
+/* ================================================================
+   SHARED UTILITIES
+   ================================================================ */
+function delay(ms) { return new Promise(function(r) { setTimeout(r, ms); }); }
+
+function setActiveTab(name) {
+  var tabNames = ['three-tier', 'async-pipeline', 'multi-region', 'data-lake', 'decision-matrices'];
+  var btns = document.querySelectorAll('nav.tabs button');
+  btns.forEach(function(b, i) { b.classList.toggle('active', tabNames[i] === name); });
+  document.querySelectorAll('section[data-tab]').forEach(function(s) {
+    s.hidden = s.getAttribute('data-tab') !== name;
+  });
+}
+
+function svgEl(tag, attrs) {
+  var el = document.createElementNS('http://www.w3.org/2000/svg', tag);
+  if (attrs) { for (var k in attrs) { el.setAttribute(k, attrs[k]); } }
+  return el;
+}
+
+function svgText(x, y, text, opts) {
+  var t = svgEl('text', Object.assign({
+    x: x, y: y, 'text-anchor': 'middle', fill: '#888', 'font-size': '11'
+  }, opts || {}));
+  t.textContent = text;
+  return t;
+}
+
+function drawArrow(g, x1, y1, x2, y2, color, markerId) {
+  var line = svgEl('line', {
+    x1: x1, y1: y1, x2: x2, y2: y2,
+    stroke: color || '#444', 'stroke-width': '1.5',
+    'marker-end': 'url(#' + (markerId || 't3-arrow') + ')'
+  });
+  g.appendChild(line);
+  return line;
+}
+
+function drawDashedLine(g, x1, y1, x2, y2, color) {
+  var line = svgEl('line', {
+    x1: x1, y1: y1, x2: x2, y2: y2,
+    stroke: color || '#333', 'stroke-width': '1',
+    'stroke-dasharray': '4,4'
+  });
+  g.appendChild(line);
+  return line;
+}
+
+function drawBox(g, x, y, w, h, opts) {
+  var rx = (opts && opts.rx) || 6;
+  var fill = (opts && opts.fill) || '#181820';
+  var stroke = (opts && opts.stroke) || '#444';
+  var strokeW = (opts && opts.strokeWidth) || 1.5;
+  var rect = svgEl('rect', {
+    x: x, y: y, width: w, height: h, rx: rx,
+    fill: fill, stroke: stroke, 'stroke-width': strokeW
+  });
+  if (opts && opts.cursor) rect.style.cursor = opts.cursor;
+  if (opts && opts.id) rect.id = opts.id;
+  g.appendChild(rect);
+  return rect;
+}
+
+function drawServiceBox(g, x, y, w, h, label, sublabel, color, clickCb) {
+  var group = svgEl('g', {});
+  group.style.cursor = 'pointer';
+
+  var rect = svgEl('rect', {
+    x: x, y: y, width: w, height: h, rx: 6,
+    fill: '#181820', stroke: color, 'stroke-width': 1.5
+  });
+  group.appendChild(rect);
+
+  var t1 = svgText(x + w / 2, y + h / 2 - (sublabel ? 4 : 0), label, {
+    fill: color, 'font-size': '12', 'font-weight': '600'
+  });
+  group.appendChild(t1);
+
+  if (sublabel) {
+    var t2 = svgText(x + w / 2, y + h / 2 + 12, sublabel, {
+      fill: '#666', 'font-size': '9'
+    });
+    group.appendChild(t2);
+  }
+
+  if (clickCb) {
+    group.addEventListener('click', clickCb);
+  }
+
+  g.appendChild(group);
+  return group;
+}
+
+function createPacket(g, cx, cy, color, label) {
+  var pktG = svgEl('g', {});
+  pktG.appendChild(svgEl('circle', {
+    cx: cx, cy: cy, r: 8, fill: color, opacity: '0.9'
+  }));
+  if (label) {
+    var t = svgText(cx, cy + 3, label, {
+      fill: '#fff', 'font-size': '7', 'font-weight': '700'
+    });
+    pktG.appendChild(t);
+  }
+  g.appendChild(pktG);
+  return pktG;
+}
+
+function animatePacket(pktG, cx, cy, durMs) {
+  var children = pktG.children;
+  for (var i = 0; i < children.length; i++) {
+    children[i].style.transition = 'all ' + durMs + 'ms ease';
+    if (children[i].tagName === 'circle') {
+      children[i].setAttribute('cx', cx);
+      children[i].setAttribute('cy', cy);
+    } else if (children[i].tagName === 'text') {
+      children[i].setAttribute('x', cx);
+      children[i].setAttribute('y', cy + 3);
+    }
+  }
+  return delay(durMs + 30);
+}
+
+function removePacket(pktG) {
+  if (pktG && pktG.parentNode) pktG.parentNode.removeChild(pktG);
+}
+
+function flashPacket(pktG, color, durMs) {
+  var circle = pktG.querySelector('circle');
+  if (circle) circle.setAttribute('fill', color);
+  return delay(durMs);
+}
+
+
+/* ================================================================
+   TAB 1 -- 3-TIER WEB APP
+   ================================================================ */
+var T3 = (function() {
+  var scene, packets;
+  var animating = false;
+
+  /* Service positions: x, y, w, h */
+  var services = {
+    user:       { x: 30,  y: 30,  w: 100, h: 44, label: 'User',          sub: 'Browser',          color: '#51cf66' },
+    route53:    { x: 180, y: 30,  w: 120, h: 44, label: 'Route 53',      sub: 'DNS',              color: '#ffa94d' },
+    cloudfront: { x: 350, y: 30,  w: 130, h: 44, label: 'CloudFront',    sub: 'CDN (edge cache)', color: '#ffd43b' },
+    alb:        { x: 540, y: 30,  w: 120, h: 44, label: 'ALB',           sub: 'L7 Load Balancer', color: '#339af0' },
+    asg:        { x: 460, y: 140, w: 280, h: 170, label: '',             sub: '',                 color: '#339af044' },
+    ecs1:       { x: 480, y: 170, w: 110, h: 44, label: 'ECS Task 1',    sub: 'Fargate',          color: '#339af0' },
+    ecs2:       { x: 610, y: 170, w: 110, h: 44, label: 'ECS Task 2',    sub: 'Fargate',          color: '#339af0' },
+    ecs3:       { x: 480, y: 245, w: 110, h: 44, label: 'ECS Task 3',    sub: 'Fargate',          color: '#339af0' },
+    cache:      { x: 180, y: 200, w: 130, h: 44, label: 'ElastiCache',   sub: 'Redis',            color: '#ff6b6b' },
+    rds_primary:{ x: 180, y: 370, w: 130, h: 44, label: 'RDS Primary',   sub: 'Postgres/MySQL',   color: '#cc5de8' },
+    rds_replica:{ x: 380, y: 370, w: 130, h: 44, label: 'RDS Replica',   sub: 'Read Replica',     color: '#cc5de8' },
+    s3:         { x: 700, y: 370, w: 130, h: 44, label: 'S3',            sub: 'Static Assets',    color: '#ffa94d' },
+    s3_cf:      { x: 540, y: 480, w: 130, h: 44, label: 'CloudFront',    sub: 'Asset CDN',        color: '#ffd43b' }
+  };
+
+  var descriptions = {
+    user:        'The end user\'s browser initiates an HTTPS request. DNS lookup resolves the domain name to an IP, which points at CloudFront or ALB.',
+    route53:     'Route 53: AWS managed DNS. Provides latency-based, weighted, failover, and geolocation routing. Health checks can trigger automatic failover to a secondary region.',
+    cloudfront:  'CloudFront: Global CDN with 400+ edge locations. Caches responses at the edge for low-latency delivery. TLS termination here means origin sees HTTP. Cache behaviors control TTL per path pattern.',
+    alb:         'ALB (Application Load Balancer): L7 load balancer. Routes by path/host/header. TLS termination, sticky sessions, connection draining. Distributes traffic across ECS tasks in multiple AZs.',
+    ecs1:        'ECS Fargate: serverless containers. Define CPU/memory per task, no EC2 management. Auto-scaling based on CPU, memory, or custom CloudWatch metrics. Each task runs your container image.',
+    ecs2:        'ECS Fargate: serverless containers. Define CPU/memory per task, no EC2 management. Auto-scaling based on CPU, memory, or custom CloudWatch metrics. Each task runs your container image.',
+    ecs3:        'ECS Fargate: serverless containers. Define CPU/memory per task, no EC2 management. Auto-scaling based on CPU, memory, or custom CloudWatch metrics. Each task runs your container image.',
+    asg:         'Auto Scaling Group: scales ECS tasks (or EC2 instances) based on CloudWatch alarms. Target tracking (e.g., keep CPU at 60%), step scaling, or scheduled scaling. Multi-AZ for HA.',
+    cache:       'ElastiCache (Redis): in-memory cache for hot data. Cache-aside pattern: app checks cache first, on miss reads from DB and populates cache. Sub-ms reads, offloads DB by 80-90%.',
+    rds_primary: 'RDS Primary: the single write endpoint. Multi-AZ deployment has a synchronous standby replica for automatic failover (~30s). Handles all INSERT/UPDATE/DELETE traffic.',
+    rds_replica: 'RDS Read Replica: async replication from primary. Handles read queries to offload the primary. Aurora supports up to 15 replicas with ~10ms lag. Promotes to primary on failover.',
+    s3:          'S3: object storage for static assets (images, JS, CSS, uploads). Virtually unlimited storage. Lifecycle policies move cold data to cheaper tiers (IA, Glacier).',
+    s3_cf:       'CloudFront distribution for S3 static assets. Origin Access Identity restricts S3 access to CloudFront only. Edge caching provides sub-50ms delivery of static files globally.'
+  };
+
+  function init() {
+    scene = document.getElementById('t3-scene');
+    packets = document.getElementById('t3-packets');
+    draw();
+  }
+
+  function draw() {
+    scene.innerHTML = '';
+    packets.innerHTML = '';
+
+    /* ASG container */
+    var asg = services.asg;
+    drawBox(scene, asg.x, asg.y, asg.w, asg.h, {
+      fill: '#12121a', stroke: '#339af033', strokeWidth: 1
+    });
+    scene.appendChild(svgText(asg.x + asg.w / 2, asg.y + 16, 'Auto Scaling Group (ECS Fargate)', {
+      fill: '#339af0', 'font-size': '10', 'font-weight': '600'
+    }));
+
+    /* Connection arrows */
+    /* User -> Route53 */
+    drawArrow(scene, 130, 52, 178, 52, '#444', 't3-arrow');
+    scene.appendChild(svgText(155, 45, 'DNS', { fill: '#555', 'font-size': '8' }));
+
+    /* Route53 -> CloudFront */
+    drawArrow(scene, 300, 52, 348, 52, '#444', 't3-arrow');
+    scene.appendChild(svgText(324, 45, 'IP', { fill: '#555', 'font-size': '8' }));
+
+    /* CloudFront -> ALB */
+    drawArrow(scene, 480, 52, 538, 52, '#444', 't3-arrow');
+    scene.appendChild(svgText(510, 45, 'HTTPS', { fill: '#555', 'font-size': '8' }));
+
+    /* ALB -> ECS tasks */
+    drawArrow(scene, 600, 74, 535, 168, '#339af055', 't3-arrow');
+    drawArrow(scene, 600, 74, 665, 168, '#339af055', 't3-arrow');
+    drawArrow(scene, 600, 74, 535, 243, '#339af055', 't3-arrow');
+
+    /* ECS -> Cache */
+    drawDashedLine(scene, 478, 192, 312, 222);
+    scene.appendChild(svgText(395, 200, 'cache check', { fill: '#555', 'font-size': '8' }));
+
+    /* ECS -> RDS Primary (writes) */
+    drawDashedLine(scene, 478, 267, 245, 368);
+    scene.appendChild(svgText(340, 330, 'write', { fill: '#555', 'font-size': '8' }));
+
+    /* ECS -> RDS Replica (reads on miss) */
+    drawDashedLine(scene, 535, 289, 445, 368);
+    scene.appendChild(svgText(500, 340, 'read', { fill: '#555', 'font-size': '8' }));
+
+    /* RDS Primary -> Replica (replication) */
+    drawArrow(scene, 310, 392, 378, 392, '#cc5de833', 't3-arrow');
+    scene.appendChild(svgText(344, 384, 'async repl', { fill: '#cc5de844', 'font-size': '8' }));
+
+    /* S3 -> CloudFront CDN */
+    drawArrow(scene, 765, 414, 670, 490, '#ffa94d44', 't3-arrow');
+
+    /* Multi-AZ indicator */
+    drawBox(scene, 155, 345, 380, 90, { fill: 'none', stroke: '#cc5de822', strokeWidth: 1, rx: 8 });
+    scene.appendChild(svgText(345, 426, 'Multi-AZ', { fill: '#cc5de833', 'font-size': '9' }));
+
+    /* Service boxes */
+    for (var id in services) {
+      if (id === 'asg') continue;
+      var s = services[id];
+      drawServiceBox(scene, s.x, s.y, s.w, s.h, s.label, s.sub, s.color, (function(sid) {
+        return function() { showDesc(sid); };
+      })(id));
+    }
+  }
+
+  function showDesc(serviceId) {
+    var el = document.getElementById('t3-commentary');
+    el.textContent = descriptions[serviceId] || 'Click a service box to see its role.';
+  }
+
+  function cx(id) { return services[id].x + services[id].w / 2; }
+  function cy(id) { return services[id].y + services[id].h / 2; }
+
+  async function animateRequest(type) {
+    if (animating) return;
+    animating = true;
+    var el = document.getElementById('t3-commentary');
+
+    var pkt = createPacket(packets, cx('user'), cy('user'), '#51cf66', 'REQ');
+
+    /* User -> Route53 */
+    el.textContent = 'Step 1: Browser DNS lookup. Route 53 resolves domain to CloudFront distribution endpoint (or ALB IP if no CDN).';
+    await animatePacket(pkt, cx('route53'), cy('route53'), 400);
+
+    /* Route53 -> CloudFront */
+    el.textContent = 'Step 2: Request hits CloudFront edge location. Checks edge cache for this URL + cache key.';
+    await animatePacket(pkt, cx('cloudfront'), cy('cloudfront'), 400);
+
+    if (type === 'cdn') {
+      /* CDN cache hit -- return immediately */
+      el.textContent = 'CDN Cache HIT. CloudFront serves the cached response directly from the edge. No origin request needed. ~5ms latency globally.';
+      await flashPacket(pkt, '#ffd43b', 300);
+      await animatePacket(pkt, cx('user'), cy('user'), 500);
+      await flashPacket(pkt, '#51cf66', 200);
+      removePacket(pkt);
+      el.textContent = 'Response served from CDN edge cache. Zero load on origin infrastructure. This is why CloudFront matters: hot content never touches your servers.';
+      animating = false;
+      return;
+    }
+
+    /* CloudFront -> ALB */
+    el.textContent = 'Step 3: CDN cache miss. CloudFront forwards request to ALB (origin). TLS terminates at ALB; internal traffic is HTTP.';
+    await animatePacket(pkt, cx('alb'), cy('alb'), 400);
+
+    /* ALB -> ECS Task */
+    el.textContent = 'Step 4: ALB routes to an ECS Fargate task using round-robin (or least connections). Health checks remove unhealthy tasks.';
+    await animatePacket(pkt, cx('ecs1'), cy('ecs1'), 350);
+
+    /* ECS -> Cache */
+    el.textContent = 'Step 5: Application checks ElastiCache (Redis) for cached data. Cache-aside pattern: GET key, check if present.';
+    await animatePacket(pkt, cx('cache'), cy('cache'), 350);
+
+    if (type === 'hit') {
+      /* Cache hit */
+      el.textContent = 'Cache HIT. Redis returns data in <1ms. Application skips database entirely. Response travels back through ALB -> CloudFront -> User.';
+      await flashPacket(pkt, '#ff6b6b', 300);
+      /* Return path */
+      await animatePacket(pkt, cx('ecs1'), cy('ecs1'), 250);
+      await animatePacket(pkt, cx('alb'), cy('alb'), 250);
+      await animatePacket(pkt, cx('cloudfront'), cy('cloudfront'), 250);
+      await animatePacket(pkt, cx('user'), cy('user'), 400);
+      await flashPacket(pkt, '#51cf66', 200);
+      removePacket(pkt);
+      el.textContent = 'Cache hit path: User -> Route53 -> CloudFront -> ALB -> ECS -> Redis (HIT) -> response back. DB never touched. ~20-50ms total.';
+      animating = false;
+      return;
+    }
+
+    /* Cache miss */
+    el.textContent = 'Cache MISS. Key not found in Redis. Application must read from database.';
+    await flashPacket(pkt, '#888', 200);
+
+    /* Cache -> ECS -> RDS Replica (read) */
+    await animatePacket(pkt, cx('ecs1'), cy('ecs1'), 200);
+    el.textContent = 'Step 6: Application reads from RDS Read Replica (not primary). Read replicas handle SELECT queries to offload the primary writer.';
+    await animatePacket(pkt, cx('rds_replica'), cy('rds_replica'), 400);
+    await flashPacket(pkt, '#cc5de8', 300);
+
+    /* RDS -> ECS */
+    el.textContent = 'Step 7: Data returned from RDS. Application now populates the cache (SET key, data, TTL) so the next request hits Redis instead.';
+    await animatePacket(pkt, cx('ecs1'), cy('ecs1'), 300);
+
+    /* ECS -> Cache (write-back) */
+    var cachePkt = createPacket(packets, cx('ecs1'), cy('ecs1'), '#ff6b6b', 'SET');
+    await animatePacket(cachePkt, cx('cache'), cy('cache'), 300);
+    await flashPacket(cachePkt, '#51cf66', 200);
+    removePacket(cachePkt);
+
+    /* Return path */
+    el.textContent = 'Step 8: Response travels back: ECS -> ALB -> CloudFront (caches for next time) -> User. Full miss path complete.';
+    await animatePacket(pkt, cx('alb'), cy('alb'), 250);
+    await animatePacket(pkt, cx('cloudfront'), cy('cloudfront'), 250);
+    await animatePacket(pkt, cx('user'), cy('user'), 400);
+    await flashPacket(pkt, '#51cf66', 200);
+    removePacket(pkt);
+
+    el.textContent = 'Cache miss path: User -> Route53 -> CloudFront -> ALB -> ECS -> Redis (MISS) -> RDS Replica -> populate cache -> response back. ~100-200ms total. Next identical request will be a cache hit (~20ms).';
+    animating = false;
+  }
+
+  function reset() {
+    animating = false;
+    draw();
+    document.getElementById('t3-commentary').textContent = 'Click any service box above to see its role in the architecture. Use the buttons to animate different request flows and observe how caching layers change the path.';
+  }
+
+  document.addEventListener('DOMContentLoaded', init);
+  return { animateRequest: animateRequest, reset: reset };
+})();
+
+
+/* ================================================================
+   TAB 2 -- ASYNC EVENT PIPELINE
+   ================================================================ */
+var AP = (function() {
+  var scene, packets;
+  var backbone = 'sqs';
+  var animating = false;
+
+  var commentaries = {
+    sqs: 'SQS is a durable work queue: at-least-once delivery, no ordering guarantee (unless FIFO), messages deleted after processing. Best for decoupling microservices with independent consumers. Toggle to Kinesis or EventBridge to compare.',
+    kinesis: 'Kinesis Data Streams: ordered within each shard (partition key determines shard). Messages retained 24h-365d and replayable from any checkpoint. Multiple consumers can read independently. Best for streaming analytics with ordering requirements.',
+    eventbridge: 'EventBridge: event bus with rule-based routing. Events matched against rules and fanned out to multiple targets (Lambda, SQS, Step Functions, etc). Content-based filtering. Schema registry for event discovery. Best for event-driven architectures with complex routing.'
+  };
+
+  var failureCommentaries = {
+    sqs: 'SQS failure: Lambda worker throws an error. SQS returns the message to the queue (visibility timeout). After N failed retries (configurable), the message moves to the Dead Letter Queue (DLQ). Other messages are unaffected -- no head-of-line blocking.',
+    kinesis: 'Kinesis failure: Lambda consumer checkpoint is stuck on the failed record. All subsequent records in the same shard are blocked -- head-of-line blocking. Options: bisect batch (find the bad record), skip after N retries, or route failed records to a DLQ destination.',
+    eventbridge: 'EventBridge failure: target invocation fails. EventBridge retries with exponential backoff for up to 24 hours. Failed events can be sent to a DLQ (SQS) or archived for replay. Other rules/targets are unaffected -- failures are isolated per target.'
+  };
+
+  /* Service positions per backbone */
+  var layouts = {
+    sqs: {
+      apigw:    { x: 40,  y: 80,  w: 130, h: 44, label: 'API Gateway',     sub: 'REST endpoint',    color: '#ffa94d' },
+      lambda1:  { x: 220, y: 80,  w: 130, h: 44, label: 'Lambda',          sub: 'Validation',       color: '#ffd43b' },
+      queue:    { x: 400, y: 80,  w: 140, h: 44, label: 'SQS Queue',       sub: 'Durable queue',    color: '#339af0' },
+      lambda2:  { x: 590, y: 80,  w: 130, h: 44, label: 'Lambda',          sub: 'Worker',           color: '#ffd43b' },
+      db:       { x: 780, y: 80,  w: 130, h: 44, label: 'DynamoDB',        sub: 'Data store',       color: '#cc5de8' },
+      dlq:      { x: 400, y: 240, w: 140, h: 44, label: 'SQS DLQ',        sub: 'Dead Letter Queue', color: '#ff6b6b' },
+      props:    { x: 40,  y: 330, w: 870, h: 70 }
+    },
+    kinesis: {
+      apigw:    { x: 40,  y: 80,  w: 130, h: 44, label: 'API Gateway',     sub: 'REST endpoint',    color: '#ffa94d' },
+      lambda1:  { x: 220, y: 80,  w: 130, h: 44, label: 'Lambda',          sub: 'Validation',       color: '#ffd43b' },
+      queue:    { x: 400, y: 80,  w: 160, h: 44, label: 'Kinesis Stream',  sub: 'Ordered shards',   color: '#339af0' },
+      lambda2:  { x: 610, y: 80,  w: 130, h: 44, label: 'Lambda',          sub: 'Consumer',         color: '#ffd43b' },
+      db:       { x: 790, y: 80,  w: 130, h: 44, label: 'DynamoDB',        sub: 'Data store',       color: '#cc5de8' },
+      dlq:      { x: 400, y: 240, w: 160, h: 44, label: 'Checkpoint Stuck', sub: 'Shard blocked',   color: '#ff6b6b' },
+      props:    { x: 40,  y: 330, w: 870, h: 70 }
+    },
+    eventbridge: {
+      apigw:    { x: 40,  y: 80,  w: 130, h: 44, label: 'API Gateway',     sub: 'REST endpoint',    color: '#ffa94d' },
+      lambda1:  { x: 220, y: 80,  w: 130, h: 44, label: 'Lambda',          sub: 'Validation',       color: '#ffd43b' },
+      queue:    { x: 400, y: 80,  w: 160, h: 44, label: 'EventBridge',     sub: 'Rule-based routing', color: '#339af0' },
+      target1:  { x: 610, y: 30,  w: 130, h: 40, label: 'Lambda A',        sub: 'Order processing', color: '#ffd43b' },
+      target2:  { x: 610, y: 90,  w: 130, h: 40, label: 'SQS Queue',       sub: 'Analytics queue',  color: '#8be9fd' },
+      target3:  { x: 610, y: 150, w: 130, h: 40, label: 'Step Functions',   sub: 'Workflow',         color: '#51cf66' },
+      db:       { x: 800, y: 30,  w: 120, h: 40, label: 'DynamoDB',        sub: 'Data store',       color: '#cc5de8' },
+      dlq:      { x: 400, y: 240, w: 160, h: 44, label: 'DLQ (SQS)',       sub: 'Failed events',    color: '#ff6b6b' },
+      props:    { x: 40,  y: 330, w: 870, h: 70 }
+    }
+  };
+
+  var propTexts = {
+    sqs: [
+      'Ordering: best-effort (Standard) | exactly-once FIFO',
+      'Retention: 1-14 days | Replay: No (deleted after ACK)',
+      'Failure: DLQ after N retries | No HOL blocking'
+    ],
+    kinesis: [
+      'Ordering: per-shard (partition key) | Replay: yes, from any checkpoint',
+      'Retention: 24h-365d | Multiple independent consumers',
+      'Failure: checkpoint stuck = shard blocked (HOL blocking)'
+    ],
+    eventbridge: [
+      'Ordering: none | Fanout: rule-based to multiple targets',
+      'Replay: archive + replay | Content-based filtering',
+      'Failure: per-target retry + DLQ | Failures isolated per target'
+    ]
+  };
+
+  function init() {
+    scene = document.getElementById('ap-scene');
+    packets = document.getElementById('ap-packets');
+    draw();
+  }
+
+  function draw() {
+    scene.innerHTML = '';
+    packets.innerHTML = '';
+    var L = layouts[backbone];
+
+    /* Property box */
+    var propBox = L.props;
+    drawBox(scene, propBox.x, propBox.y, propBox.w, propBox.h, {
+      fill: '#12121a', stroke: '#333', strokeWidth: 1, rx: 6
+    });
+    var props = propTexts[backbone];
+    for (var pi = 0; pi < props.length; pi++) {
+      scene.appendChild(svgText(propBox.x + propBox.w / 2, propBox.y + 20 + pi * 18, props[pi], {
+        fill: '#888', 'font-size': '10'
+      }));
+    }
+
+    if (backbone === 'eventbridge') {
+      /* EventBridge layout */
+      drawArrow(scene, 170, 102, 218, 102, '#444', 'ap-arrow');
+      drawArrow(scene, 350, 102, 398, 102, '#444', 'ap-arrow');
+      drawArrow(scene, 560, 80, 608, 50, '#444', 'ap-arrow');
+      drawArrow(scene, 560, 102, 608, 110, '#444', 'ap-arrow');
+      drawArrow(scene, 560, 120, 608, 170, '#444', 'ap-arrow');
+      drawArrow(scene, 740, 50, 798, 50, '#444', 'ap-arrow');
+
+      /* Failure arrow */
+      drawDashedLine(scene, 480, 124, 480, 238);
+
+      /* Rule labels */
+      scene.appendChild(svgText(585, 55, 'rule: order.*', { fill: '#555', 'font-size': '8' }));
+      scene.appendChild(svgText(585, 110, 'rule: event.*', { fill: '#555', 'font-size': '8' }));
+      scene.appendChild(svgText(585, 163, 'rule: signup.*', { fill: '#555', 'font-size': '8' }));
+
+      /* Draw service boxes */
+      for (var sid in L) {
+        if (sid === 'props') continue;
+        var s = L[sid];
+        drawServiceBox(scene, s.x, s.y, s.w, s.h, s.label, s.sub, s.color);
+      }
+    } else {
+      /* SQS / Kinesis layout */
+      drawArrow(scene, 170, 102, 218, 102, '#444', 'ap-arrow');
+      drawArrow(scene, 350, 102, 398, 102, '#444', 'ap-arrow');
+      var queueEnd = backbone === 'kinesis' ? 560 : 540;
+      var l2Start = backbone === 'kinesis' ? 608 : 588;
+      drawArrow(scene, queueEnd, 102, l2Start, 102, '#444', 'ap-arrow');
+      var l2End = backbone === 'kinesis' ? 740 : 720;
+      var dbStart = backbone === 'kinesis' ? 788 : 778;
+      drawArrow(scene, l2End, 102, dbStart, 102, '#444', 'ap-arrow');
+
+      /* Failure arrow */
+      var queueCx = L.queue.x + L.queue.w / 2;
+      drawDashedLine(scene, queueCx, 124, queueCx, 238);
+      scene.appendChild(svgText(queueCx + 30, 180, backbone === 'sqs' ? 'N retries' : 'stuck', {
+        fill: '#ff6b6b88', 'font-size': '9'
+      }));
+
+      /* Draw service boxes */
+      for (var sid2 in L) {
+        if (sid2 === 'props') continue;
+        var s2 = L[sid2];
+        drawServiceBox(scene, s2.x, s2.y, s2.w, s2.h, s2.label, s2.sub, s2.color);
+      }
+    }
+  }
+
+  function setBackbone(bb) {
+    backbone = bb;
+    ['sqs', 'kinesis', 'eb'].forEach(function(id) {
+      var btn = document.getElementById('ap-btn-' + id);
+      btn.classList.toggle('active-btn', (id === 'sqs' && bb === 'sqs') || (id === 'kinesis' && bb === 'kinesis') || (id === 'eb' && bb === 'eventbridge'));
+    });
+    draw();
+    document.getElementById('ap-commentary').textContent = commentaries[bb];
+  }
+
+  async function animateFlow() {
+    if (animating) return;
+    animating = true;
+    var L = layouts[backbone];
+    var el = document.getElementById('ap-commentary');
+
+    function scx(id) { return L[id].x + L[id].w / 2; }
+    function scy(id) { return L[id].y + L[id].h / 2; }
+
+    var pkt = createPacket(packets, scx('apigw'), scy('apigw'), '#ffa94d', 'EVT');
+
+    el.textContent = 'Step 1: Event arrives at API Gateway. Validated, rate-limited, authenticated.';
+    await animatePacket(pkt, scx('lambda1'), scy('lambda1'), 400);
+
+    el.textContent = 'Step 2: Validation Lambda: schema check, enrichment, transform. Lightweight -- sub-100ms.';
+    await delay(300);
+    await animatePacket(pkt, scx('queue'), scy('queue'), 400);
+
+    if (backbone === 'eventbridge') {
+      el.textContent = 'Step 3: EventBridge matches event against rules. Each matching rule sends the event to its target -- fan-out to multiple consumers simultaneously.';
+      await delay(300);
+
+      var pkt1 = createPacket(packets, scx('queue'), scy('queue'), '#ffd43b', 'E1');
+      var pkt2 = createPacket(packets, scx('queue'), scy('queue'), '#8be9fd', 'E2');
+      var pkt3 = createPacket(packets, scx('queue'), scy('queue'), '#51cf66', 'E3');
+
+      await Promise.all([
+        animatePacket(pkt1, scx('target1'), scy('target1'), 400),
+        animatePacket(pkt2, scx('target2'), scy('target2'), 400),
+        animatePacket(pkt3, scx('target3'), scy('target3'), 400)
+      ]);
+
+      el.textContent = 'Step 4: All three targets receive the event independently. Lambda A processes the order and writes to DynamoDB.';
+      await animatePacket(pkt1, scx('db'), scy('db'), 400);
+      await flashPacket(pkt1, '#51cf66', 200);
+
+      removePacket(pkt); removePacket(pkt1); removePacket(pkt2); removePacket(pkt3);
+      el.textContent = 'Flow complete. EventBridge fanned the event to 3 targets simultaneously. Each target processes independently -- failure in one does not block others.';
+    } else {
+      el.textContent = 'Step 3: Event durably stored in ' + (backbone === 'sqs' ? 'SQS queue' : 'Kinesis shard') + '. Producer gets acknowledgment. Decoupling achieved.';
+      await delay(400);
+      await animatePacket(pkt, scx('lambda2'), scy('lambda2'), 400);
+
+      el.textContent = 'Step 4: Worker Lambda processes the event. Business logic, transformations, side effects.';
+      await delay(300);
+      await animatePacket(pkt, scx('db'), scy('db'), 400);
+
+      el.textContent = 'Step 5: Result written to DynamoDB. ' + (backbone === 'sqs' ? 'SQS message deleted (ACK).' : 'Kinesis checkpoint advanced.');
+      await flashPacket(pkt, '#51cf66', 300);
+      removePacket(pkt);
+      el.textContent = 'Flow complete. Event processed successfully: API Gateway -> Lambda (validate) -> ' + (backbone === 'sqs' ? 'SQS' : 'Kinesis') + ' -> Lambda (worker) -> DynamoDB.';
+    }
+    animating = false;
+  }
+
+  async function animateFailure() {
+    if (animating) return;
+    animating = true;
+    var L = layouts[backbone];
+    var el = document.getElementById('ap-commentary');
+
+    function scx(id) { return L[id].x + L[id].w / 2; }
+    function scy(id) { return L[id].y + L[id].h / 2; }
+
+    var pkt = createPacket(packets, scx('apigw'), scy('apigw'), '#ffa94d', 'EVT');
+
+    await animatePacket(pkt, scx('lambda1'), scy('lambda1'), 300);
+    await animatePacket(pkt, scx('queue'), scy('queue'), 300);
+
+    if (backbone === 'eventbridge') {
+      el.textContent = 'Event matched a rule, sent to Lambda target. Lambda throws an error...';
+      await animatePacket(pkt, scx('target1'), scy('target1'), 300);
+      await flashPacket(pkt, '#ff6b6b', 400);
+      el.textContent = 'EventBridge retries with exponential backoff (up to 24 hours). After max retries, event sent to DLQ. Other targets unaffected.';
+      await animatePacket(pkt, scx('dlq'), scy('dlq'), 500);
+    } else if (backbone === 'sqs') {
+      el.textContent = 'Worker Lambda picks up message and throws an error. SQS returns message to queue (visibility timeout expires).';
+      await animatePacket(pkt, scx('lambda2'), scy('lambda2'), 300);
+      await flashPacket(pkt, '#ff6b6b', 400);
+
+      el.textContent = 'Retry 1... Lambda fails again. Message returned to queue.';
+      await animatePacket(pkt, scx('queue'), scy('queue'), 300);
+      await animatePacket(pkt, scx('lambda2'), scy('lambda2'), 300);
+      await flashPacket(pkt, '#ff6b6b', 300);
+
+      el.textContent = 'After N failed retries (configured maxReceiveCount), SQS moves the message to the Dead Letter Queue. Other messages are unaffected.';
+      await animatePacket(pkt, scx('queue'), scy('queue'), 200);
+      await animatePacket(pkt, scx('dlq'), scy('dlq'), 500);
+    } else {
+      /* Kinesis */
+      el.textContent = 'Consumer Lambda reads from shard and throws an error. Checkpoint does NOT advance.';
+      await animatePacket(pkt, scx('lambda2'), scy('lambda2'), 300);
+      await flashPacket(pkt, '#ff6b6b', 400);
+
+      el.textContent = 'Checkpoint stuck -- all subsequent records in this shard are blocked. Head-of-line blocking. This is the critical Kinesis failure mode.';
+      await animatePacket(pkt, scx('dlq'), scy('dlq'), 500);
+
+      /* Show blocked indicator */
+      var blocked1 = createPacket(packets, scx('queue') + 30, scy('queue'), '#ff6b6b55', '');
+      var blocked2 = createPacket(packets, scx('queue') + 50, scy('queue'), '#ff6b6b33', '');
+      scene.appendChild(svgText(scx('queue'), scy('queue') + 35, 'shard blocked', {
+        fill: '#ff6b6b', 'font-size': '10', 'font-weight': '600'
+      }));
+    }
+
+    await flashPacket(pkt, '#ff6b6b', 300);
+    removePacket(pkt);
+    el.textContent = failureCommentaries[backbone];
+    animating = false;
+  }
+
+  function reset() {
+    animating = false;
+    draw();
+    document.getElementById('ap-commentary').textContent = commentaries[backbone];
+  }
+
+  document.addEventListener('DOMContentLoaded', init);
+  return { setBackbone: setBackbone, animateFlow: animateFlow, animateFailure: animateFailure, reset: reset };
+})();
+
+
+/* ================================================================
+   TAB 3 -- MULTI-REGION ACTIVE-ACTIVE
+   ================================================================ */
+var MR = (function() {
+  var scene, packets;
+  var animating = false;
+  var usAlive = true;
+
+  /* Regions */
+  var regions = {
+    us: {
+      x: 70, y: 140, w: 380, h: 380,
+      label: 'us-east-1',
+      services: {
+        alb:    { x: 110, y: 180, w: 120, h: 38, label: 'ALB',           sub: '',           color: '#339af0' },
+        ecs:    { x: 110, y: 240, w: 120, h: 38, label: 'ECS Fargate',   sub: 'Compute',    color: '#339af0' },
+        ddb:    { x: 260, y: 180, w: 140, h: 38, label: 'DynamoDB',      sub: 'Global Table', color: '#cc5de8' },
+        aurora: { x: 260, y: 240, w: 140, h: 38, label: 'Aurora',        sub: 'Writer',     color: '#ffa94d' },
+        s3:     { x: 110, y: 310, w: 120, h: 38, label: 'S3',            sub: 'Assets',     color: '#ffd43b' },
+        cache:  { x: 260, y: 310, w: 140, h: 38, label: 'ElastiCache',   sub: 'Redis',      color: '#ff6b6b' }
+      }
+    },
+    eu: {
+      x: 510, y: 140, w: 380, h: 380,
+      label: 'eu-west-1',
+      services: {
+        alb:    { x: 550, y: 180, w: 120, h: 38, label: 'ALB',           sub: '',           color: '#339af0' },
+        ecs:    { x: 550, y: 240, w: 120, h: 38, label: 'ECS Fargate',   sub: 'Compute',    color: '#339af0' },
+        ddb:    { x: 700, y: 180, w: 140, h: 38, label: 'DynamoDB',      sub: 'Global Table', color: '#cc5de8' },
+        aurora: { x: 700, y: 240, w: 140, h: 38, label: 'Aurora',        sub: 'Reader',     color: '#ffa94d' },
+        s3:     { x: 550, y: 310, w: 120, h: 38, label: 'S3',            sub: 'Assets',     color: '#ffd43b' },
+        cache:  { x: 700, y: 310, w: 140, h: 38, label: 'ElastiCache',   sub: 'Redis',      color: '#ff6b6b' }
+      }
+    }
+  };
+
+  function init() {
+    scene = document.getElementById('mr-scene');
+    packets = document.getElementById('mr-packets');
+    draw();
+  }
+
+  function draw() {
+    scene.innerHTML = '';
+    packets.innerHTML = '';
+
+    /* Route 53 */
+    drawServiceBox(scene, 370, 30, 220, 40, 'Route 53', 'Latency-based routing', '#ffa94d');
+
+    /* US User */
+    drawServiceBox(scene, 100, 30, 100, 40, 'US User', '', '#51cf66');
+    drawArrow(scene, 200, 50, 368, 50, '#444', 'mr-arrow');
+
+    /* EU User */
+    drawServiceBox(scene, 760, 30, 100, 40, 'EU User', '', '#51cf66');
+    drawArrow(scene, 758, 50, 592, 50, '#444', 'mr-arrow');
+
+    /* Region boxes */
+    for (var rid in regions) {
+      var reg = regions[rid];
+      var isDead = (rid === 'us' && !usAlive);
+      var regionStroke = isDead ? '#ff6b6b44' : '#339af033';
+      var regionFill = isDead ? '#1a101022' : '#12121a';
+
+      drawBox(scene, reg.x, reg.y, reg.w, reg.h, {
+        fill: regionFill, stroke: regionStroke, strokeWidth: 1.5, rx: 10
+      });
+
+      /* Region label */
+      var labelColor = isDead ? '#ff6b6b' : '#339af0';
+      scene.appendChild(svgText(reg.x + reg.w / 2, reg.y + 18, reg.label + (isDead ? ' (DOWN)' : ''), {
+        fill: labelColor, 'font-size': '12', 'font-weight': '700'
+      }));
+
+      /* Dead X overlay */
+      if (isDead) {
+        scene.appendChild(svgEl('line', {
+          x1: reg.x + 40, y1: reg.y + 40, x2: reg.x + reg.w - 40, y2: reg.y + reg.h - 40,
+          stroke: '#ff6b6b33', 'stroke-width': 4
+        }));
+        scene.appendChild(svgEl('line', {
+          x1: reg.x + reg.w - 40, y1: reg.y + 40, x2: reg.x + 40, y2: reg.y + reg.h - 40,
+          stroke: '#ff6b6b33', 'stroke-width': 4
+        }));
+      }
+
+      /* Service boxes within region */
+      for (var sid in reg.services) {
+        var s = reg.services[sid];
+        var scolor = isDead ? '#444' : s.color;
+        drawServiceBox(scene, s.x, s.y, s.w, s.h, s.label, s.sub, scolor);
+      }
+
+      /* Internal arrows */
+      if (!isDead) {
+        /* Route53 -> ALB */
+        var albS = reg.services.alb;
+        drawArrow(scene, reg.x + reg.w / 2, reg.y, albS.x + albS.w / 2, albS.y, '#33333388', 'mr-arrow');
+
+        /* ALB -> ECS */
+        drawDashedLine(scene, albS.x + albS.w / 2, albS.y + albS.h, reg.services.ecs.x + reg.services.ecs.w / 2, reg.services.ecs.y);
+
+        /* ECS -> DDB */
+        drawDashedLine(scene, reg.services.ecs.x + reg.services.ecs.w, reg.services.ecs.y + reg.services.ecs.h / 2, reg.services.ddb.x, reg.services.ddb.y + reg.services.ddb.h / 2);
+
+        /* ECS -> Aurora */
+        drawDashedLine(scene, reg.services.ecs.x + reg.services.ecs.w, reg.services.ecs.y + reg.services.ecs.h, reg.services.aurora.x, reg.services.aurora.y + reg.services.aurora.h / 2);
+
+        /* ECS -> Cache */
+        drawDashedLine(scene, reg.services.ecs.x + reg.services.ecs.w / 2, reg.services.ecs.y + reg.services.ecs.h, reg.services.cache.x + reg.services.cache.w / 2, reg.services.cache.y);
+      }
+    }
+
+    /* Cross-region replication arrows */
+    /* DDB Global Tables replication */
+    var usDdb = regions.us.services.ddb;
+    var euDdb = regions.eu.services.ddb;
+    if (usAlive) {
+      drawArrow(scene, usDdb.x + usDdb.w, usDdb.y + usDdb.h / 2, euDdb.x, euDdb.y + euDdb.h / 2, '#cc5de844', 'mr-arrow');
+      drawArrow(scene, euDdb.x, euDdb.y + euDdb.h / 2 + 8, usDdb.x + usDdb.w, usDdb.y + usDdb.h / 2 + 8, '#cc5de844', 'mr-arrow');
+      scene.appendChild(svgText(480, usDdb.y + usDdb.h / 2 - 6, 'DDB Global Tables', { fill: '#cc5de855', 'font-size': '8' }));
+      scene.appendChild(svgText(480, usDdb.y + usDdb.h / 2 + 22, 'bi-directional (~1s)', { fill: '#cc5de844', 'font-size': '7' }));
+    }
+
+    /* Aurora Global DB */
+    var usAurora = regions.us.services.aurora;
+    var euAurora = regions.eu.services.aurora;
+    if (usAlive) {
+      drawArrow(scene, usAurora.x + usAurora.w, usAurora.y + usAurora.h / 2, euAurora.x, euAurora.y + euAurora.h / 2, '#ffa94d33', 'mr-arrow');
+      scene.appendChild(svgText(480, usAurora.y + usAurora.h / 2 - 4, 'Aurora Global DB', { fill: '#ffa94d44', 'font-size': '8' }));
+      scene.appendChild(svgText(480, usAurora.y + usAurora.h / 2 + 8, 'writer->reader (~1s)', { fill: '#ffa94d33', 'font-size': '7' }));
+    }
+
+    /* S3 Cross-Region Replication */
+    var usS3 = regions.us.services.s3;
+    var euS3 = regions.eu.services.s3;
+    if (usAlive) {
+      drawArrow(scene, usS3.x + usS3.w, usS3.y + usS3.h / 2, euS3.x, euS3.y + euS3.h / 2, '#ffd43b33', 'mr-arrow');
+      scene.appendChild(svgText(410, usS3.y + usS3.h / 2 - 4, 'S3 CRR', { fill: '#ffd43b44', 'font-size': '8' }));
+    }
+
+    /* RPO indicators at bottom */
+    drawBox(scene, 70, 440, 820, 50, { fill: '#12121a', stroke: '#333', strokeWidth: 1, rx: 6 });
+    if (usAlive) {
+      scene.appendChild(svgText(480, 460, 'RPO: DynamoDB GT ~1s | Aurora Global DB ~1s | S3 CRR minutes (async)', {
+        fill: '#888', 'font-size': '10'
+      }));
+      scene.appendChild(svgText(480, 478, 'RTO: Route 53 health check failover 60-90s | DDB GT automatic | Aurora manual promotion ~1 min', {
+        fill: '#666', 'font-size': '9'
+      }));
+    } else {
+      scene.appendChild(svgText(480, 460, 'us-east-1 DOWN. All traffic routed to eu-west-1. DDB GT serving from EU replica.', {
+        fill: '#ff6b6b', 'font-size': '11', 'font-weight': '600'
+      }));
+      scene.appendChild(svgText(480, 478, 'Aurora: EU reader promoted to writer (~1 min). Data loss window: ~1s of uncommitted writes.', {
+        fill: '#ffa94d', 'font-size': '10'
+      }));
+    }
+  }
+
+  function scx(region, svc) { return regions[region].services[svc].x + regions[region].services[svc].w / 2; }
+  function scy(region, svc) { return regions[region].services[svc].y + regions[region].services[svc].h / 2; }
+
+  async function animateRequest(origin) {
+    if (animating) return;
+    animating = true;
+    var el = document.getElementById('mr-commentary');
+    var targetRegion = (origin === 'us' && usAlive) ? 'us' : 'eu';
+
+    var startX = origin === 'us' ? 150 : 810;
+    var pkt = createPacket(packets, startX, 50, '#51cf66', 'REQ');
+
+    el.textContent = 'Step 1: Route 53 latency-based routing sends ' + origin.toUpperCase() + ' user to ' + regions[targetRegion].label + ' (lowest latency endpoint).';
+    await animatePacket(pkt, 480, 50, 400);
+
+    if (origin === 'us' && !usAlive) {
+      el.textContent = 'us-east-1 health check failed. Route 53 routes US traffic to eu-west-1 instead. Failover latency: 60-90s for DNS TTL.';
+      await flashPacket(pkt, '#ff6b6b', 300);
+      await flashPacket(pkt, '#51cf66', 200);
+    }
+
+    el.textContent = 'Step 2: Request arrives at ' + regions[targetRegion].label + ' ALB. Distributed across ECS tasks.';
+    await animatePacket(pkt, scx(targetRegion, 'alb'), scy(targetRegion, 'alb'), 400);
+
+    await animatePacket(pkt, scx(targetRegion, 'ecs'), scy(targetRegion, 'ecs'), 300);
+
+    el.textContent = 'Step 3: ECS reads from local DynamoDB Global Table replica. Single-digit-ms latency. Writes propagate to other region ~1s.';
+    await animatePacket(pkt, scx(targetRegion, 'ddb'), scy(targetRegion, 'ddb'), 350);
+    await flashPacket(pkt, '#cc5de8', 200);
+
+    /* Show replication to other region */
+    if (usAlive) {
+      var otherRegion = targetRegion === 'us' ? 'eu' : 'us';
+      var replPkt = createPacket(packets, scx(targetRegion, 'ddb'), scy(targetRegion, 'ddb'), '#cc5de855', 'RPL');
+      animatePacket(replPkt, scx(otherRegion, 'ddb'), scy(otherRegion, 'ddb'), 800).then(function() {
+        flashPacket(replPkt, '#51cf6644', 300).then(function() { removePacket(replPkt); });
+      });
+    }
+
+    el.textContent = 'Step 4: Response served from ' + regions[targetRegion].label + '. DynamoDB write asynchronously replicates to other region (~1s).';
+    await animatePacket(pkt, scx(targetRegion, 'ecs'), scy(targetRegion, 'ecs'), 250);
+    await animatePacket(pkt, scx(targetRegion, 'alb'), scy(targetRegion, 'alb'), 250);
+    await animatePacket(pkt, startX, 50, 400);
+    await flashPacket(pkt, '#51cf66', 200);
+    removePacket(pkt);
+
+    el.textContent = 'Request served from ' + regions[targetRegion].label + '. Both regions serve traffic actively. DynamoDB Global Tables handle conflict resolution with last-writer-wins. Aurora Global Database has one writer (us-east-1) with readers in eu-west-1.';
+    animating = false;
+  }
+
+  function killRegion() {
+    if (!usAlive) return;
+    usAlive = false;
+    draw();
+    document.getElementById('mr-btn-kill').disabled = true;
+    document.getElementById('mr-btn-back').disabled = false;
+    document.getElementById('mr-commentary').textContent = 'us-east-1 is DOWN. Route 53 detects health check failure and removes US endpoints. All traffic shifts to eu-west-1. DynamoDB Global Tables continue serving from EU replica. Aurora: EU reader must be promoted to writer (~1 min manual failover or automated with Global Database).';
+  }
+
+  function bringBack() {
+    if (usAlive) return;
+    usAlive = true;
+    draw();
+    document.getElementById('mr-btn-kill').disabled = false;
+    document.getElementById('mr-btn-back').disabled = true;
+    document.getElementById('mr-commentary').textContent = 'us-east-1 restored. Route 53 health checks pass, US endpoints re-added. DynamoDB Global Tables re-sync automatically. Aurora: original writer reclaims leadership or stays reader (depends on configuration). Traffic gradually shifts back as DNS TTLs expire.';
+  }
+
+  function reset() {
+    animating = false;
+    usAlive = true;
+    document.getElementById('mr-btn-kill').disabled = false;
+    document.getElementById('mr-btn-back').disabled = true;
+    draw();
+    document.getElementById('mr-commentary').textContent = 'Both us-east-1 and eu-west-1 serve reads and writes. Route 53 latency-based routing sends users to the closest region. DynamoDB Global Tables replicate writes with last-writer-wins conflict resolution (~1s RPO). Aurora Global Database has one writer region with global readers (~1s replication lag).';
+  }
+
+  document.addEventListener('DOMContentLoaded', init);
+  return { animateRequest: animateRequest, killRegion: killRegion, bringBack: bringBack, reset: reset };
+})();
+
+
+/* ================================================================
+   TAB 4 -- EVENT-DRIVEN DATA LAKE
+   ================================================================ */
+var DL = (function() {
+  var scene, packets;
+  var path = 'batch';
+  var animating = false;
+
+  var commentaries = {
+    batch: 'Batch path: Kinesis Data Firehose buffers events and delivers them to S3 in micro-batches (1-15 min). Glue ETL transforms raw data into curated Parquet/ORC in S3. Athena queries directly on S3 -- serverless, pay-per-query. Good for analytics workloads where minutes of latency is acceptable.',
+    realtime: 'Real-time path: DMS Change Data Capture streams row-level changes from RDS. Events flow through Kinesis Data Streams for ordering, Lambda transforms and loads into Redshift in near-real-time. Seconds of latency vs minutes for batch. Best for dashboards and alerts that need fresh data.'
+  };
+
+  var batchLayout = {
+    source:    { x: 40,  y: 80,  w: 120, h: 44, label: 'Event Sources',    sub: 'Apps / APIs',       color: '#51cf66' },
+    firehose:  { x: 200, y: 80,  w: 140, h: 44, label: 'Firehose',         sub: 'Buffered delivery', color: '#ffa94d' },
+    s3raw:     { x: 380, y: 80,  w: 120, h: 44, label: 'S3 Raw Zone',      sub: 'JSON / CSV',        color: '#ffd43b' },
+    glue:      { x: 540, y: 80,  w: 120, h: 44, label: 'Glue ETL',         sub: 'Transform',         color: '#339af0' },
+    s3curated: { x: 380, y: 200, w: 120, h: 44, label: 'S3 Curated',       sub: 'Parquet / ORC',     color: '#ffd43b' },
+    athena:    { x: 540, y: 200, w: 120, h: 44, label: 'Athena',           sub: 'Serverless SQL',    color: '#8be9fd' },
+    redshift:  { x: 700, y: 200, w: 130, h: 44, label: 'Redshift',         sub: 'Warehouse',         color: '#cc5de8' },
+    quicksight:{ x: 700, y: 80,  w: 130, h: 44, label: 'QuickSight',       sub: 'BI / Dashboards',   color: '#51cf66' }
+  };
+
+  var realtimeLayout = {
+    rds:       { x: 40,  y: 80,  w: 120, h: 44, label: 'RDS (source)',      sub: 'Postgres/MySQL',    color: '#cc5de8' },
+    dms:       { x: 200, y: 80,  w: 120, h: 44, label: 'DMS CDC',          sub: 'Change Capture',    color: '#ffa94d' },
+    kinesis:   { x: 360, y: 80,  w: 140, h: 44, label: 'Kinesis Stream',   sub: 'Ordered events',    color: '#339af0' },
+    lambda:    { x: 540, y: 80,  w: 120, h: 44, label: 'Lambda',           sub: 'Transform + Load',  color: '#ffd43b' },
+    redshift:  { x: 700, y: 80,  w: 130, h: 44, label: 'Redshift',         sub: 'Warehouse',         color: '#cc5de8' },
+    s3archive: { x: 360, y: 200, w: 140, h: 44, label: 'S3 Archive',       sub: 'Raw backup',        color: '#ffd43b' },
+    quicksight:{ x: 700, y: 200, w: 130, h: 44, label: 'QuickSight',       sub: 'Real-time dashboards', color: '#51cf66' }
+  };
+
+  function init() {
+    scene = document.getElementById('dl-scene');
+    packets = document.getElementById('dl-packets');
+    draw();
+  }
+
+  function draw() {
+    scene.innerHTML = '';
+    packets.innerHTML = '';
+    var L = path === 'batch' ? batchLayout : realtimeLayout;
+
+    if (path === 'batch') {
+      /* Arrows */
+      drawArrow(scene, 160, 102, 198, 102, '#444', 'dl-arrow');
+      drawArrow(scene, 340, 102, 378, 102, '#444', 'dl-arrow');
+      drawArrow(scene, 500, 102, 538, 102, '#444', 'dl-arrow');
+      drawArrow(scene, 600, 124, 440, 198, '#444', 'dl-arrow');
+      scene.appendChild(svgText(520, 165, 'transform', { fill: '#555', 'font-size': '8' }));
+
+      /* Curated -> Athena */
+      drawArrow(scene, 500, 222, 538, 222, '#444', 'dl-arrow');
+
+      /* Curated -> Redshift */
+      drawArrow(scene, 500, 230, 698, 230, '#44444488', 'dl-arrow');
+      scene.appendChild(svgText(600, 242, 'COPY command', { fill: '#555', 'font-size': '8' }));
+
+      /* Athena/Redshift -> QuickSight */
+      drawArrow(scene, 660, 210, 698, 102, '#44444488', 'dl-arrow');
+      drawArrow(scene, 765, 198, 765, 126, '#44444488', 'dl-arrow');
+
+      /* Labels */
+      scene.appendChild(svgText(270, 68, '1-15 min buffer', { fill: '#ffa94d55', 'font-size': '8' }));
+      scene.appendChild(svgText(460, 68, 'micro-batches', { fill: '#ffd43b55', 'font-size': '8' }));
+    } else {
+      /* Real-time arrows */
+      drawArrow(scene, 160, 102, 198, 102, '#444', 'dl-arrow');
+      scene.appendChild(svgText(180, 92, 'CDC events', { fill: '#ffa94d55', 'font-size': '8' }));
+
+      drawArrow(scene, 320, 102, 358, 102, '#444', 'dl-arrow');
+      drawArrow(scene, 500, 102, 538, 102, '#444', 'dl-arrow');
+      drawArrow(scene, 660, 102, 698, 102, '#444', 'dl-arrow');
+
+      /* Kinesis -> S3 archive */
+      drawDashedLine(scene, 430, 124, 430, 198);
+      scene.appendChild(svgText(450, 165, 'archive', { fill: '#555', 'font-size': '8' }));
+
+      /* Redshift -> QuickSight */
+      drawArrow(scene, 765, 124, 765, 198, '#44444488', 'dl-arrow');
+
+      /* Labels */
+      scene.appendChild(svgText(430, 68, 'ordered, replayable', { fill: '#339af055', 'font-size': '8' }));
+      scene.appendChild(svgText(600, 68, 'seconds latency', { fill: '#ffd43b55', 'font-size': '8' }));
+    }
+
+    /* Draw boxes */
+    for (var sid in L) {
+      var s = L[sid];
+      drawServiceBox(scene, s.x, s.y, s.w, s.h, s.label, s.sub, s.color);
+    }
+
+    /* Latency indicator */
+    drawBox(scene, 40, 300, 790, 40, { fill: '#12121a', stroke: '#333', strokeWidth: 1, rx: 6 });
+    var latText = path === 'batch'
+      ? 'End-to-end latency: 5-30 minutes (Firehose buffer + Glue ETL schedule). Cost: low (serverless, pay-per-query).'
+      : 'End-to-end latency: 5-30 seconds (DMS CDC + Lambda transform). Cost: higher (Kinesis shard hours + Lambda invocations).';
+    scene.appendChild(svgText(435, 325, latText, { fill: '#888', 'font-size': '10' }));
+  }
+
+  function setPath(p) {
+    path = p;
+    document.getElementById('dl-btn-batch').classList.toggle('active-btn', p === 'batch');
+    document.getElementById('dl-btn-realtime').classList.toggle('active-btn', p === 'realtime');
+    draw();
+    document.getElementById('dl-commentary').textContent = commentaries[p];
+  }
+
+  async function animateFlow() {
+    if (animating) return;
+    animating = true;
+    var el = document.getElementById('dl-commentary');
+    var L = path === 'batch' ? batchLayout : realtimeLayout;
+
+    function scx(id) { return L[id].x + L[id].w / 2; }
+    function scy(id) { return L[id].y + L[id].h / 2; }
+
+    if (path === 'batch') {
+      /* Create multiple event packets */
+      el.textContent = 'Events arrive from application sources. Kinesis Data Firehose buffers them for 1-15 minutes (configurable).';
+      var pkts = [];
+      for (var i = 0; i < 4; i++) {
+        var pkt = createPacket(packets, scx('source'), scy('source'), '#51cf66', 'E' + (i + 1));
+        pkts.push(pkt);
+        await animatePacket(pkt, scx('firehose'), scy('firehose'), 300);
+        await delay(100);
+      }
+
+      el.textContent = 'Firehose buffers events into micro-batches. When buffer size or time threshold is reached, batch is written to S3 Raw Zone.';
+      await delay(500);
+
+      /* Move as a batch to S3 */
+      for (var j = 0; j < pkts.length; j++) {
+        animatePacket(pkts[j], scx('s3raw'), scy('s3raw'), 400);
+        await delay(80);
+      }
+      await delay(450);
+
+      el.textContent = 'Raw events land in S3 as JSON/CSV files. Partitioned by date (s3://bucket/raw/year=2024/month=03/day=28/). Glue ETL job triggers.';
+      await delay(400);
+
+      /* Batch -> Glue */
+      for (var k = 0; k < pkts.length; k++) {
+        animatePacket(pkts[k], scx('glue'), scy('glue'), 350);
+        await delay(60);
+      }
+      await delay(400);
+
+      el.textContent = 'Glue ETL transforms raw JSON to columnar Parquet format. Schema validation, deduplication, enrichment. Output written to S3 Curated Zone.';
+      await delay(300);
+
+      /* Glue -> S3 Curated */
+      for (var m = 0; m < pkts.length; m++) {
+        await flashPacket(pkts[m], '#339af0', 100);
+        animatePacket(pkts[m], scx('s3curated'), scy('s3curated'), 400);
+        await delay(60);
+      }
+      await delay(450);
+      el.textContent = 'Curated data in Parquet format on S3. Athena can now query it with standard SQL -- serverless, no infrastructure, pay per TB scanned. Partition pruning + columnar = 90% cost reduction.';
+
+      /* Flash green */
+      for (var n = 0; n < pkts.length; n++) {
+        await flashPacket(pkts[n], '#51cf66', 100);
+      }
+      await delay(300);
+      pkts.forEach(removePacket);
+
+    } else {
+      /* Real-time path */
+      el.textContent = 'DMS Change Data Capture detects row-level changes (INSERT/UPDATE/DELETE) from RDS binlog/WAL.';
+      var pkt2 = createPacket(packets, scx('rds'), scy('rds'), '#cc5de8', 'CDC');
+      await animatePacket(pkt2, scx('dms'), scy('dms'), 400);
+
+      el.textContent = 'DMS streams change events to Kinesis Data Streams. Partition key = table + PK ensures ordering per entity.';
+      await animatePacket(pkt2, scx('kinesis'), scy('kinesis'), 400);
+
+      /* Archive fork */
+      var archivePkt = createPacket(packets, scx('kinesis'), scy('kinesis'), '#ffd43b55', 'ARC');
+      animatePacket(archivePkt, scx('s3archive'), scy('s3archive'), 600).then(function() {
+        flashPacket(archivePkt, '#51cf6644', 200).then(function() { removePacket(archivePkt); });
+      });
+
+      el.textContent = 'Lambda consumer reads from Kinesis shard. Transforms the CDC event and writes to Redshift using COPY or Data API.';
+      await animatePacket(pkt2, scx('lambda'), scy('lambda'), 400);
+
+      el.textContent = 'Lambda loads transformed data into Redshift. Near-real-time: seconds from database change to warehouse availability.';
+      await animatePacket(pkt2, scx('redshift'), scy('redshift'), 400);
+      await flashPacket(pkt2, '#51cf66', 300);
+
+      el.textContent = 'QuickSight dashboards query Redshift for near-real-time analytics. Seconds of latency from source change to dashboard update.';
+      await animatePacket(pkt2, scx('quicksight'), scy('quicksight'), 400);
+      await flashPacket(pkt2, '#51cf66', 200);
+      removePacket(pkt2);
+    }
+
+    el.textContent = path === 'batch'
+      ? 'Batch flow complete. Events buffered by Firehose, landed in S3, transformed by Glue, queried by Athena. End-to-end latency: minutes. Cost: lowest (all serverless, pay-per-use).'
+      : 'Real-time flow complete. CDC events from RDS streamed through Kinesis, transformed by Lambda, loaded into Redshift. End-to-end latency: seconds. Cost: higher but enables real-time dashboards.';
+    animating = false;
+  }
+
+  function reset() {
+    animating = false;
+    draw();
+    document.getElementById('dl-commentary').textContent = commentaries[path];
+  }
+
+  document.addEventListener('DOMContentLoaded', init);
+  return { setPath: setPath, animateFlow: animateFlow, reset: reset };
+})();
+
+</script>
+</body>
+</html>

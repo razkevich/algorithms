@@ -1,0 +1,1961 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kubernetes Topologies -- Interactive Simulation</title>
+<style>
+:root {
+  --bg: #0f0f15;
+  --surface: #181820;
+  --surface-2: #20202a;
+  --border: #2a2a35;
+  --text: #e6e6ea;
+  --text-2: #cfcfd6;
+  --text-3: #888;
+  --accent-red: #ff6b6b;
+  --accent-green: #51cf66;
+  --accent-blue: #339af0;
+  --accent-yellow: #ffd43b;
+  --accent-purple: #cc5de8;
+  --accent-cyan: #8be9fd;
+  --accent-orange: #ffa94d;
+}
+*, *::before, *::after { box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  padding: 32px 24px;
+  max-width: 1100px;
+  margin: 0 auto;
+  line-height: 1.55;
+}
+h1 { color: #fff; margin-bottom: 4px; }
+h1 + p.sub { color: var(--text-3); font-style: italic; margin-top: 0; margin-bottom: 24px; }
+h2 { color: #fff; margin-top: 32px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+h3 { color: var(--text-2); margin-top: 20px; }
+code {
+  background: var(--surface-2);
+  padding: 2px 6px;
+  border-radius: 3px;
+  color: var(--accent-cyan);
+  font-size: 13px;
+}
+svg {
+  background: var(--surface);
+  border-radius: 8px;
+  display: block;
+  margin: 14px auto;
+  width: 100%;
+  height: auto;
+}
+.tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+.tabs button {
+  padding: 10px 20px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-2);
+  border-radius: 6px;
+  cursor: pointer;
+  min-height: 44px;
+  font-size: 14px;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.tabs button:hover { background: var(--surface); }
+.tabs button.active {
+  border-color: var(--accent-blue);
+  border-bottom: 2px solid var(--accent-blue);
+  color: #fff;
+}
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0;
+  align-items: center;
+}
+.controls button, .btn {
+  padding: 10px 16px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  border-radius: 6px;
+  cursor: pointer;
+  min-height: 44px;
+  font-size: 14px;
+  transition: background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+.controls button:hover, .btn:hover { background: var(--surface); }
+.controls button:disabled, .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.controls button.active-btn { border-color: var(--accent-blue); color: var(--accent-blue); }
+.controls button.danger { border-color: var(--accent-red); color: var(--accent-red); }
+.controls button.danger:hover { background: #2a1520; }
+.commentary {
+  background: var(--surface-2);
+  padding: 14px;
+  border-radius: 6px;
+  font-size: 14px;
+  color: var(--text-2);
+  margin: 12px 0;
+  min-height: 44px;
+  line-height: 1.5;
+}
+.takeaway {
+  background: #1a1a22;
+  border-left: 3px solid var(--accent-green);
+  padding: 12px 16px;
+  margin: 14px 0;
+  font-size: 14px;
+}
+.takeaway strong { color: var(--accent-green); }
+.takeaway ul { margin: 6px 0 0 0; padding-left: 18px; }
+.takeaway li { margin-bottom: 6px; }
+section[hidden] { display: none !important; }
+.resource-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 2px 0;
+  font-size: 11px;
+  color: var(--text-3);
+}
+.resource-bar .bar-track {
+  flex: 1;
+  height: 10px;
+  background: #0f0f15;
+  border-radius: 3px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  max-width: 120px;
+}
+.resource-bar .bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.5s ease;
+}
+@media (max-width: 720px) {
+  body { padding: 20px 14px; }
+}
+@media (max-width: 600px) {
+  .tabs { gap: 4px; }
+  .tabs button { padding: 10px 12px; font-size: 13px; flex: 1; min-width: 70px; text-align: center; }
+}
+@media (max-width: 480px) {
+  .controls { flex-direction: column; }
+  .controls button { width: 100%; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Kubernetes topologies</h1>
+  <p class="sub">Watch kubectl apply propagate through the apiserver, etcd, controllers, scheduler, kubelet. Click "kill apiserver," watch the reconciler keep going. Build the intuition for "explain how k8s actually works."</p>
+</header>
+
+<nav class="tabs">
+  <button class="active" onclick="setActiveTab('controlplane')">Control Plane</button>
+  <button onclick="setActiveTab('scheduling')">Scheduling</button>
+  <button onclick="setActiveTab('networking')">Networking</button>
+  <button onclick="setActiveTab('storage')">Storage</button>
+  <button onclick="setActiveTab('ha')">HA + Multi-CP</button>
+</nav>
+
+<!-- ============================================================ -->
+<!-- TAB 1: CONTROL PLANE + DATA PLANE                             -->
+<!-- ============================================================ -->
+<section data-tab="controlplane">
+  <h2>Control Plane + Data Plane</h2>
+  <p>Every Kubernetes operation is a reconciliation loop: controllers watch desired state in etcd via the apiserver, compare to actual state, and converge. <code>kubectl apply</code> triggers a cascade: Deployment controller creates ReplicaSet, ReplicaSet controller creates Pods, Scheduler binds Pods to Nodes, Kubelet starts containers.</p>
+
+  <svg id="cp-svg" viewBox="0 0 960 620" preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <marker id="cp-arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="#555"/>
+      </marker>
+      <marker id="cp-arrow-blue" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="#339af0"/>
+      </marker>
+    </defs>
+    <g id="cp-scene"></g>
+  </svg>
+
+  <div class="controls">
+    <button onclick="CP.runApply()" id="cp-btn-apply">kubectl apply</button>
+    <button onclick="CP.killApiserver()" id="cp-btn-kill-api" class="danger">Kill apiserver-1</button>
+    <button onclick="CP.killScheduler()" id="cp-btn-kill-sched" class="danger">Kill scheduler</button>
+    <button onclick="CP.reset()">Reset</button>
+  </div>
+
+  <div class="commentary" id="cp-commentary">The control plane is the brain: apiserver (the front door), etcd (the source of truth), controller-manager (the reconcilers), scheduler (the matchmaker). Worker nodes run kubelet (the agent) and kube-proxy (the network plumber). Everything communicates through the apiserver -- no component talks to etcd directly except apiserver.</div>
+
+  <div class="takeaway">
+    <strong>Takeaways</strong>
+    <ul>
+      <li>The reconciler pattern is the entire k8s philosophy. apiserver is the source of truth (via etcd). Everything else is a controller polling for changes.</li>
+      <li>No component except apiserver reads/writes etcd. This is a deliberate bottleneck -- it makes the system auditable and consistent.</li>
+      <li>Killing the scheduler leaves pods Pending. Killing an apiserver in HA mode is transparent -- other apiservers continue serving via etcd raft consensus.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- TAB 2: POD SCHEDULING                                         -->
+<!-- ============================================================ -->
+<section data-tab="scheduling" hidden>
+  <h2>Pod Scheduling: Filter, Score, Bind</h2>
+  <p>The scheduler watches for Pending pods, then runs a two-phase algorithm: <strong>Filtering</strong> (which nodes can run this pod?) then <strong>Scoring</strong> (which of those is best?). The highest-scoring node gets the pod bound to it.</p>
+
+  <svg id="sc-svg" viewBox="0 0 960 520" preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <marker id="sc-arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="#555"/>
+      </marker>
+    </defs>
+    <g id="sc-scene"></g>
+  </svg>
+
+  <div class="controls">
+    <button onclick="SC.schedulePod()" id="sc-btn-schedule">Schedule new pod</button>
+    <button onclick="SC.toggleAffinity()" id="sc-btn-affinity">Toggle nodeSelector: zone=us-east-1a</button>
+    <button onclick="SC.toggleToleration()" id="sc-btn-toleration">Toggle toleration: special-hw</button>
+    <button onclick="SC.toggleSpread()" id="sc-btn-spread">Toggle topologySpread</button>
+    <button onclick="SC.preempt()" id="sc-btn-preempt" class="danger">Preempt (high-priority)</button>
+    <button onclick="SC.reset()">Reset</button>
+  </div>
+
+  <div class="commentary" id="sc-commentary">5 nodes with varying CPU and memory capacity. A new pod requests 500m CPU and 1Gi memory. The scheduler filters nodes that cannot satisfy the request, then scores the survivors to pick the best fit.</div>
+
+  <div class="takeaway">
+    <strong>Takeaways</strong>
+    <ul>
+      <li>Filter then Score then Bind. PriorityClass + preemption is how production traffic kicks tier-2 workloads off when capacity is tight.</li>
+      <li><code>requests</code> are guarantees (used for scheduling). <code>limits</code> are ceilings (used for enforcement). Schedule by requests, throttle/kill by limits.</li>
+      <li><code>topologySpreadConstraints</code> is the modern replacement for pod anti-affinity -- it distributes replicas across zones/nodes evenly.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- TAB 3: NETWORKING                                             -->
+<!-- ============================================================ -->
+<section data-tab="networking" hidden>
+  <h2>Networking: Services, Ingress, CNI</h2>
+  <p>Every pod gets its own IP (from the CNI plugin). Services provide stable virtual IPs. kube-proxy writes iptables/IPVS rules to forward traffic from Service IP to pod IPs. Ingress adds L7 routing on top.</p>
+
+  <svg id="net-svg" viewBox="0 0 960 560" preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <marker id="net-arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="#555"/>
+      </marker>
+    </defs>
+    <g id="net-scene"></g>
+  </svg>
+
+  <div class="controls">
+    <button onclick="NET.showServiceType('clusterip')" id="net-btn-cip" class="active-btn">ClusterIP</button>
+    <button onclick="NET.showServiceType('nodeport')" id="net-btn-np">NodePort</button>
+    <button onclick="NET.showServiceType('loadbalancer')" id="net-btn-lb">LoadBalancer</button>
+    <button onclick="NET.showServiceType('externalname')" id="net-btn-en">ExternalName</button>
+    <button onclick="NET.showIngress()" id="net-btn-ingress">Ingress (L7)</button>
+    <button onclick="NET.showCNI()" id="net-btn-cni">CNI pod-to-pod</button>
+    <button onclick="NET.animateRequest()" id="net-btn-req">Animate request</button>
+  </div>
+
+  <div class="commentary" id="net-commentary">ClusterIP is the default Service type: a virtual IP reachable only inside the cluster. kube-proxy on every node programs iptables/IPVS rules that DNAT traffic destined for the ClusterIP to one of the backing pod IPs (round-robin or random).</div>
+
+  <div class="takeaway">
+    <strong>Takeaways</strong>
+    <ul>
+      <li>Pod IPs are ephemeral; Service IPs are stable. kube-proxy is just iptables/IPVS rule-writing -- it does not proxy traffic itself (in iptables mode).</li>
+      <li>Ingress is L7 (Host/path routing) in front of Services. The Ingress controller is itself a Pod running nginx/Traefik/ALB, fronted by a LoadBalancer Service.</li>
+      <li>CNI plugins (Calico, Cilium, Flannel) implement the "every pod gets a routable IP" contract. NetworkPolicy is the firewall -- ingress/egress rules on pod label selectors.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- TAB 4: STORAGE                                                -->
+<!-- ============================================================ -->
+<section data-tab="storage" hidden>
+  <h2>Storage: PV / PVC / StorageClass</h2>
+  <p>Kubernetes decouples storage requests (PVC) from actual storage (PV) with a matchmaker layer (StorageClass). The CSI driver handles the real provisioning -- creating EBS volumes, NFS mounts, or Ceph blocks.</p>
+
+  <svg id="st-svg" viewBox="0 0 960 500" preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <marker id="st-arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="#555"/>
+      </marker>
+    </defs>
+    <g id="st-scene"></g>
+  </svg>
+
+  <div class="controls">
+    <button onclick="ST.animateProvision()" id="st-btn-provision">Dynamic provisioning</button>
+    <button onclick="ST.showStatefulSet()" id="st-btn-sts">StatefulSet storage</button>
+    <button onclick="ST.showAccessModes()" id="st-btn-modes">Access modes</button>
+    <button onclick="ST.reset()">Reset</button>
+  </div>
+
+  <div class="commentary" id="st-commentary">A Pod declares a volumeMount. A PVC (PersistentVolumeClaim) requests storage by size and access mode. If no matching PV exists, the StorageClass triggers dynamic provisioning via the CSI driver, which creates the actual cloud volume.</div>
+
+  <div class="takeaway">
+    <strong>Takeaways</strong>
+    <ul>
+      <li>PVCs are claims (demand); PVs are real volumes (supply). StorageClass is the matchmaker (dynamic provisioning). This decoupling lets developers request storage without knowing the infrastructure.</li>
+      <li>RWO (ReadWriteOnce) is the most common access mode -- a single node mounts the volume. EBS volumes are RWO and AZ-bound -- <code>WaitForFirstConsumer</code> binding mode prevents cross-AZ scheduling mistakes.</li>
+      <li>StatefulSet gives each replica its own PVC via <code>volumeClaimTemplates</code>. On delete + recreate, the same PVC reattaches -- data persists across pod identity.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- TAB 5: HA + MULTI-CLUSTER CONTROL PLANE                       -->
+<!-- ============================================================ -->
+<section data-tab="ha" hidden>
+  <h2>HA Control Plane</h2>
+  <p>Production Kubernetes runs 3+ control-plane nodes: etcd forms a raft quorum, multiple apiservers sit behind a load balancer, and scheduler/controller-manager use lease-based leader election. Lose one node, the cluster keeps working.</p>
+
+  <svg id="ha-svg" viewBox="0 0 960 500" preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <marker id="ha-arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="#555"/>
+      </marker>
+    </defs>
+    <g id="ha-scene"></g>
+  </svg>
+
+  <div class="controls">
+    <button onclick="HA.killNode(0)" id="ha-btn-kill0" class="danger">Kill CP node 1</button>
+    <button onclick="HA.killNode(1)" id="ha-btn-kill1" class="danger">Kill CP node 2</button>
+    <button onclick="HA.sendWrite()" id="ha-btn-write">Write to etcd</button>
+    <button onclick="HA.triggerElection()" id="ha-btn-elect">Trigger leader election</button>
+    <button onclick="HA.reset()">Reset</button>
+  </div>
+
+  <div class="commentary" id="ha-commentary">3 control-plane nodes, each running apiserver + etcd + scheduler + controller-manager. etcd uses Raft consensus: writes go to the leader, replicate to followers. apiserver instances are stateless -- any can serve reads/writes (they all talk to etcd). Scheduler and controller-manager use lease objects for leader election -- only one active instance at a time.</div>
+
+  <div class="takeaway">
+    <strong>Takeaways</strong>
+    <ul>
+      <li>etcd quorum = majority (2 of 3, 3 of 5). Losing one node is safe; losing two means the cluster cannot write. This is why 3 is the minimum for HA.</li>
+      <li>apiserver is stateless -- scale it horizontally behind a load balancer. The bottleneck is etcd, not apiserver.</li>
+      <li>Scheduler and controller-manager run active/standby via lease objects. On leader death, a standby acquires the lease within seconds.</li>
+    </ul>
+  </div>
+</section>
+
+<script>
+/* ================================================================
+   SHARED UTILITIES
+   ================================================================ */
+function delay(ms) { return new Promise(function(r) { setTimeout(r, ms); }); }
+
+var TAB_NAMES = ['controlplane', 'scheduling', 'networking', 'storage', 'ha'];
+
+function setActiveTab(name) {
+  var btns = document.querySelectorAll('nav.tabs button');
+  btns.forEach(function(b, i) { b.classList.toggle('active', TAB_NAMES[i] === name); });
+  document.querySelectorAll('section[data-tab]').forEach(function(s) {
+    s.hidden = s.getAttribute('data-tab') !== name;
+  });
+}
+
+function svgEl(tag, attrs) {
+  var el = document.createElementNS('http://www.w3.org/2000/svg', tag);
+  if (attrs) { for (var k in attrs) { el.setAttribute(k, attrs[k]); } }
+  return el;
+}
+
+function svgText(x, y, text, opts) {
+  var t = svgEl('text', Object.assign({
+    x: x, y: y, 'text-anchor': 'middle', fill: '#888', 'font-size': '11'
+  }, opts || {}));
+  t.textContent = text;
+  return t;
+}
+
+function svgRect(x, y, w, h, opts) {
+  return svgEl('rect', Object.assign({
+    x: x, y: y, width: w, height: h, rx: 6, fill: '#181820', stroke: '#333', 'stroke-width': 1
+  }, opts || {}));
+}
+
+function drawArrow(scene, x1, y1, x2, y2, color, markerId) {
+  scene.appendChild(svgEl('line', {
+    x1: x1, y1: y1, x2: x2, y2: y2,
+    stroke: color || '#333', 'stroke-width': 1.5,
+    'marker-end': 'url(#' + (markerId || 'cp-arrow') + ')'
+  }));
+}
+
+function drawDashed(scene, x1, y1, x2, y2, color) {
+  scene.appendChild(svgEl('line', {
+    x1: x1, y1: y1, x2: x2, y2: y2,
+    stroke: color || '#33333366', 'stroke-width': 1, 'stroke-dasharray': '4,4'
+  }));
+}
+
+function animPkt(scene, fx, fy, tx, ty, color, label, ms) {
+  return new Promise(function(resolve) {
+    var g = svgEl('g', {});
+    g.appendChild(svgEl('circle', { cx: fx, cy: fy, r: 6, fill: color, opacity: '0.9' }));
+    if (label) {
+      var txt = svgText(fx, fy - 12, label, { fill: color, 'font-size': '9', 'font-weight': '600' });
+      g.appendChild(txt);
+    }
+    scene.appendChild(g);
+    requestAnimationFrame(function() {
+      var ch = g.children;
+      for (var i = 0; i < ch.length; i++) {
+        ch[i].style.transition = 'all ' + ms + 'ms ease';
+        if (ch[i].tagName === 'circle') {
+          ch[i].setAttribute('cx', tx);
+          ch[i].setAttribute('cy', ty);
+        } else {
+          ch[i].setAttribute('x', tx);
+          ch[i].setAttribute('y', ty - 12);
+        }
+      }
+    });
+    setTimeout(function() {
+      if (g.parentNode) g.parentNode.removeChild(g);
+      resolve();
+    }, ms + 30);
+  });
+}
+
+
+/* ================================================================
+   TAB 1 -- CONTROL PLANE + DATA PLANE
+   ================================================================ */
+var CP = (function() {
+  var scene;
+  var state = {
+    apiserverDead: false,
+    schedulerDead: false,
+    running: false,
+    step: '',
+    pods: []
+  };
+
+  /* Layout coordinates */
+  var CP_NODES = [
+    { x: 140, y: 60, label: 'Control Plane 1' },
+    { x: 400, y: 60, label: 'Control Plane 2' },
+    { x: 660, y: 60, label: 'Control Plane 3' }
+  ];
+  var WORKERS = [
+    { x: 140, y: 420, label: 'Worker Node 1', pods: [] },
+    { x: 400, y: 420, label: 'Worker Node 2', pods: [] },
+    { x: 660, y: 420, label: 'Worker Node 3', pods: [] }
+  ];
+
+  var KUBECTL = { x: 48, y: 300 };
+
+  function cpComp(baseX, baseY) {
+    return {
+      apiserver: { x: baseX + 10, y: baseY + 30, w: 80, h: 28, label: 'apiserver', color: '#339af0' },
+      etcd:      { x: baseX + 100, y: baseY + 30, w: 60, h: 28, label: 'etcd', color: '#ffd43b' },
+      sched:     { x: baseX + 10, y: baseY + 68, w: 80, h: 28, label: 'scheduler', color: '#51cf66' },
+      cm:        { x: baseX + 100, y: baseY + 68, w: 60, h: 28, label: 'ctrl-mgr', color: '#cc5de8' }
+    };
+  }
+
+  function workerComp(baseX, baseY) {
+    return {
+      kubelet:   { x: baseX + 10, y: baseY + 30, w: 80, h: 28, label: 'kubelet', color: '#8be9fd' },
+      proxy:     { x: baseX + 100, y: baseY + 30, w: 65, h: 28, label: 'kube-proxy', color: '#ffa94d' },
+      cri:       { x: baseX + 10, y: baseY + 68, w: 155, h: 28, label: 'container runtime (CRI)', color: '#888' }
+    };
+  }
+
+  function draw() {
+    scene = document.getElementById('cp-scene');
+    scene.innerHTML = '';
+
+    /* kubectl box */
+    scene.appendChild(svgRect(KUBECTL.x - 38, KUBECTL.y - 18, 76, 36, { stroke: '#51cf66', fill: '#12121a' }));
+    scene.appendChild(svgText(KUBECTL.x, KUBECTL.y + 4, 'kubectl', { fill: '#51cf66', 'font-size': '11', 'font-weight': '700' }));
+
+    /* Step indicator */
+    if (state.step) {
+      scene.appendChild(svgRect(180, 280, 600, 28, { fill: '#1a1520', stroke: '#339af033' }));
+      scene.appendChild(svgText(480, 298, state.step, { fill: '#339af0', 'font-size': '11', 'font-weight': '600' }));
+    }
+
+    /* Control plane nodes */
+    CP_NODES.forEach(function(cp, idx) {
+      var isDead = (idx === 0 && state.apiserverDead);
+      var outerColor = isDead ? '#ff6b6b' : '#339af0';
+      scene.appendChild(svgRect(cp.x, cp.y, 180, 110, { stroke: outerColor, fill: '#12121a' }));
+      scene.appendChild(svgText(cp.x + 90, cp.y + 18, cp.label, { fill: outerColor, 'font-size': '11', 'font-weight': '700' }));
+
+      var comps = cpComp(cp.x, cp.y);
+      for (var k in comps) {
+        var c = comps[k];
+        var dead = false;
+        if (k === 'apiserver' && idx === 0 && state.apiserverDead) dead = true;
+        if (k === 'sched' && state.schedulerDead) dead = true;
+
+        var fillColor = dead ? '#1f1015' : '#0f0f15';
+        var strokeColor = dead ? '#ff6b6b44' : c.color + '44';
+        scene.appendChild(svgRect(c.x, c.y, c.w, c.h, { fill: fillColor, stroke: strokeColor }));
+        scene.appendChild(svgText(c.x + c.w / 2, c.y + c.h / 2 + 4, c.label, {
+          fill: dead ? '#ff6b6b66' : c.color, 'font-size': '9', 'font-weight': '600'
+        }));
+
+        if (dead) {
+          scene.appendChild(svgEl('line', { x1: c.x + 4, y1: c.y + 4, x2: c.x + c.w - 4, y2: c.y + c.h - 4, stroke: '#ff6b6b', 'stroke-width': 2 }));
+          scene.appendChild(svgEl('line', { x1: c.x + c.w - 4, y1: c.y + 4, x2: c.x + 4, y2: c.y + c.h - 4, stroke: '#ff6b6b', 'stroke-width': 2 }));
+        }
+      }
+    });
+
+    /* Connections: kubectl -> apiservers */
+    CP_NODES.forEach(function(cp, idx) {
+      if (idx === 0 && state.apiserverDead) return;
+      var comp = cpComp(cp.x, cp.y);
+      drawDashed(scene, KUBECTL.x + 38, KUBECTL.y, comp.apiserver.x, comp.apiserver.y + comp.apiserver.h);
+    });
+
+    /* etcd raft connections between control planes */
+    for (var i = 0; i < CP_NODES.length; i++) {
+      for (var j = i + 1; j < CP_NODES.length; j++) {
+        var ei = cpComp(CP_NODES[i].x, CP_NODES[i].y).etcd;
+        var ej = cpComp(CP_NODES[j].x, CP_NODES[j].y).etcd;
+        drawDashed(scene, ei.x + ei.w, ei.y + ei.h / 2, ej.x, ej.y + ej.h / 2, '#ffd43b22');
+      }
+    }
+    scene.appendChild(svgText(480, 115, 'etcd raft', { fill: '#ffd43b33', 'font-size': '9', 'font-style': 'italic' }));
+
+    /* Worker nodes */
+    WORKERS.forEach(function(w, idx) {
+      scene.appendChild(svgRect(w.x, w.y, 180, 120, { stroke: '#8be9fd55', fill: '#12121a' }));
+      scene.appendChild(svgText(w.x + 90, w.y + 18, w.label, { fill: '#8be9fd', 'font-size': '11', 'font-weight': '700' }));
+
+      var comps = workerComp(w.x, w.y);
+      for (var k in comps) {
+        var c = comps[k];
+        scene.appendChild(svgRect(c.x, c.y, c.w, c.h, { fill: '#0f0f15', stroke: c.color + '44' }));
+        scene.appendChild(svgText(c.x + c.w / 2, c.y + c.h / 2 + 4, c.label, {
+          fill: c.color, 'font-size': '9', 'font-weight': '600'
+        }));
+      }
+
+      /* Draw pods inside worker */
+      if (w.pods) {
+        w.pods.forEach(function(pod, pi) {
+          var px = w.x + 18 + pi * 55;
+          var py = w.y + 105;
+          scene.appendChild(svgRect(px, py, 48, 22, { fill: '#0f0f15', stroke: '#51cf6666', rx: 4 }));
+          scene.appendChild(svgText(px + 24, py + 15, pod, { fill: '#51cf66', 'font-size': '8', 'font-weight': '600' }));
+        });
+      }
+    });
+
+    /* Connections: apiserver <-> kubelet */
+    CP_NODES.forEach(function(cp, cpIdx) {
+      if (cpIdx === 0 && state.apiserverDead) return;
+      var api = cpComp(cp.x, cp.y).apiserver;
+      WORKERS.forEach(function(w) {
+        var kl = workerComp(w.x, w.y).kubelet;
+        drawDashed(scene, api.x + api.w / 2, api.y + api.h, kl.x + kl.w / 2, kl.y, '#8be9fd11');
+      });
+    });
+
+    /* "watch loop" annotation */
+    scene.appendChild(svgRect(700, 320, 240, 50, { fill: '#0f0f15', stroke: '#339af044' }));
+    scene.appendChild(svgText(820, 340, 'Reconciler pattern:', { fill: '#339af0', 'font-size': '10', 'font-weight': '700' }));
+    scene.appendChild(svgText(820, 357, 'watch desired -> reconcile actual', { fill: '#339af088', 'font-size': '9' }));
+  }
+
+  function commentary(text) {
+    document.getElementById('cp-commentary').textContent = text;
+  }
+
+  draw();
+
+  async function runApply() {
+    if (state.running) return;
+    state.running = true;
+    document.getElementById('cp-btn-apply').disabled = true;
+
+    var activeCP = state.apiserverDead ? 1 : 0;
+    var api = cpComp(CP_NODES[activeCP].x, CP_NODES[activeCP].y).apiserver;
+    var etcdC = cpComp(CP_NODES[activeCP].x, CP_NODES[activeCP].y).etcd;
+    var cm = cpComp(CP_NODES[activeCP].x, CP_NODES[activeCP].y).cm;
+    var sched = cpComp(CP_NODES[state.schedulerDead ? 1 : activeCP].x, CP_NODES[state.schedulerDead ? 1 : activeCP].y).sched;
+
+    /* Step 1: kubectl -> apiserver */
+    state.step = 'Step 1/6: kubectl -> apiserver (TLS + token auth)';
+    draw();
+    commentary('kubectl sends the Deployment manifest to the apiserver over TLS. The apiserver authenticates the request (bearer token or client certificate), authorizes it (RBAC), runs admission controllers, then persists the Deployment object.');
+    await animPkt(scene, KUBECTL.x + 38, KUBECTL.y, api.x + api.w / 2, api.y + api.h / 2, '#51cf66', 'Deployment YAML', 800);
+    await delay(400);
+
+    /* Step 2: apiserver -> etcd */
+    state.step = 'Step 2/6: apiserver -> etcd (write Deployment object)';
+    draw();
+    commentary('The apiserver validates the Deployment spec and writes it to etcd. etcd is the only persistent store in the cluster -- it holds every resource (pods, services, configmaps, secrets) as key-value pairs. The write is replicated across the etcd raft quorum.');
+    await animPkt(scene, api.x + api.w, api.y + api.h / 2, etcdC.x, etcdC.y + etcdC.h / 2, '#ffd43b', 'PUT /deployments/nginx', 500);
+    await delay(400);
+
+    /* Step 3: Deployment controller -> ReplicaSet */
+    state.step = 'Step 3/6: Deployment controller creates ReplicaSet';
+    draw();
+    commentary('The Deployment controller (inside controller-manager) watches for new/changed Deployments. It sees the new Deployment and creates a ReplicaSet object with the matching pod template and replica count. The ReplicaSet is written to etcd via apiserver.');
+    await animPkt(scene, cm.x + cm.w / 2, cm.y + cm.h / 2, api.x + api.w / 2, api.y + api.h / 2, '#cc5de8', 'watch: new Deployment', 400);
+    await delay(200);
+    await animPkt(scene, cm.x + cm.w / 2, cm.y + cm.h / 2, api.x + api.w / 2, api.y + api.h / 2, '#cc5de8', 'create ReplicaSet', 400);
+    await animPkt(scene, api.x + api.w, api.y + api.h / 2, etcdC.x, etcdC.y + etcdC.h / 2, '#ffd43b', 'PUT /replicasets/nginx-abc', 400);
+    await delay(400);
+
+    /* Step 4: ReplicaSet controller -> Pod objects (Pending) */
+    state.step = 'Step 4/6: ReplicaSet controller creates Pod objects (Pending)';
+    draw();
+    commentary('The ReplicaSet controller watches for ReplicaSets with fewer pods than desired. It creates individual Pod objects (status: Pending, no node assigned yet) and writes them to etcd via apiserver. Pods exist as API objects but no container is running yet.');
+    await animPkt(scene, cm.x + cm.w / 2, cm.y + cm.h / 2, api.x + api.w / 2, api.y + api.h / 2, '#cc5de8', 'create Pod-1 (Pending)', 400);
+    await animPkt(scene, api.x + api.w, api.y + api.h / 2, etcdC.x, etcdC.y + etcdC.h / 2, '#ffd43b', 'PUT /pods/nginx-xyz', 400);
+    await delay(300);
+
+    /* Step 5: Scheduler binds pod to node */
+    if (state.schedulerDead) {
+      state.step = 'Step 5/6: BLOCKED -- scheduler is dead, pod stays Pending';
+      draw();
+      commentary('The scheduler is down. No component is watching for Pending pods to assign them to nodes. The pod remains in Pending state indefinitely until the scheduler recovers. This is a common interview scenario -- "what happens if the scheduler dies?"');
+      await delay(2000);
+      state.step = '';
+      state.running = false;
+      document.getElementById('cp-btn-apply').disabled = false;
+      draw();
+      return;
+    }
+
+    state.step = 'Step 5/6: Scheduler binds Pod to best Node';
+    draw();
+    commentary('The scheduler watches for pods with no spec.nodeName (Pending). It runs Filter (which nodes fit?) then Score (which is best?), patches pod.spec.nodeName, and writes back to etcd. The pod is now "bound" to a node.');
+    await animPkt(scene, sched.x + sched.w / 2, sched.y + sched.h / 2, api.x + api.w / 2, api.y + api.h / 2, '#51cf66', 'watch: Pending pod', 400);
+    await delay(200);
+    await animPkt(scene, sched.x + sched.w / 2, sched.y + sched.h / 2, api.x + api.w / 2, api.y + api.h / 2, '#51cf66', 'PATCH nodeName=worker-2', 400);
+    await animPkt(scene, api.x + api.w, api.y + api.h / 2, etcdC.x, etcdC.y + etcdC.h / 2, '#ffd43b', 'PUT /pods/nginx-xyz', 400);
+    await delay(400);
+
+    /* Step 6: Kubelet starts container */
+    state.step = 'Step 6/6: Kubelet on worker-2 starts container via CRI';
+    var targetWorker = WORKERS[1];
+    var kl = workerComp(targetWorker.x, targetWorker.y).kubelet;
+    var cri = workerComp(targetWorker.x, targetWorker.y).cri;
+    draw();
+    commentary('The kubelet on worker-2 watches (via apiserver) for pods bound to its node. It sees the new pod, pulls the container image, and calls the Container Runtime Interface (CRI) to start the container. Once running, kubelet reports pod status back through apiserver to etcd.');
+
+    await animPkt(scene, api.x + api.w / 2, api.y + api.h, kl.x + kl.w / 2, kl.y, '#8be9fd', 'watch: pod for this node', 600);
+    await delay(200);
+    await animPkt(scene, kl.x + kl.w / 2, kl.y + kl.h, cri.x + cri.w / 2, cri.y, '#888', 'CRI: RunPodSandbox', 400);
+    await delay(300);
+
+    /* Pod appears */
+    targetWorker.pods.push('nginx');
+    draw();
+    commentary('Container is running. Kubelet reports status=Running back to apiserver, which persists it to etcd. The reconciliation loop is complete: desired state (Deployment YAML) is now actual state (running container on worker-2).');
+    await animPkt(scene, kl.x + kl.w / 2, kl.y, api.x + api.w / 2, api.y + api.h, '#8be9fd', 'status: Running', 600);
+    await delay(500);
+
+    state.step = 'kubectl apply complete -- Deployment -> ReplicaSet -> Pod -> Node -> Container';
+    draw();
+    state.running = false;
+    document.getElementById('cp-btn-apply').disabled = false;
+  }
+
+  function killApiserver() {
+    state.apiserverDead = !state.apiserverDead;
+    var btn = document.getElementById('cp-btn-kill-api');
+    btn.textContent = state.apiserverDead ? 'Restore apiserver-1' : 'Kill apiserver-1';
+    btn.classList.toggle('active-btn', state.apiserverDead);
+    draw();
+    if (state.apiserverDead) {
+      commentary('apiserver on CP-1 is dead. In HA mode, kubectl and kubelets fail over to CP-2 or CP-3 apiservers. etcd raft quorum still has 2 of 3 -- reads and writes continue. The cluster is fully operational.');
+    } else {
+      commentary('apiserver on CP-1 restored. All three control-plane nodes are healthy again.');
+    }
+  }
+
+  function killScheduler() {
+    state.schedulerDead = !state.schedulerDead;
+    var btn = document.getElementById('cp-btn-kill-sched');
+    btn.textContent = state.schedulerDead ? 'Restore scheduler' : 'Kill scheduler';
+    btn.classList.toggle('active-btn', state.schedulerDead);
+    draw();
+    if (state.schedulerDead) {
+      commentary('All schedulers are dead. Existing pods keep running (kubelet is independent), but new pods cannot be assigned to nodes -- they stay in Pending state. Run "kubectl apply" to see it.');
+    } else {
+      commentary('Scheduler restored. Pending pods (if any) will be scheduled immediately.');
+    }
+  }
+
+  function reset() {
+    state = { apiserverDead: false, schedulerDead: false, running: false, step: '', pods: [] };
+    WORKERS.forEach(function(w) { w.pods = []; });
+    document.getElementById('cp-btn-apply').disabled = false;
+    document.getElementById('cp-btn-kill-api').textContent = 'Kill apiserver-1';
+    document.getElementById('cp-btn-kill-api').classList.remove('active-btn');
+    document.getElementById('cp-btn-kill-sched').textContent = 'Kill scheduler';
+    document.getElementById('cp-btn-kill-sched').classList.remove('active-btn');
+    draw();
+    commentary('The control plane is the brain: apiserver (the front door), etcd (the source of truth), controller-manager (the reconcilers), scheduler (the matchmaker). Worker nodes run kubelet (the agent) and kube-proxy (the network plumber). Everything communicates through the apiserver -- no component talks to etcd directly except apiserver.');
+  }
+
+  return { runApply: runApply, killApiserver: killApiserver, killScheduler: killScheduler, reset: reset };
+})();
+
+
+/* ================================================================
+   TAB 2 -- POD SCHEDULING
+   ================================================================ */
+var SC = (function() {
+  var scene;
+  var affinityOn = false;
+  var tolerationOn = false;
+  var spreadOn = false;
+  var running = false;
+
+  var NODES = [
+    { id: 'node-1', zone: 'us-east-1a', cpu: 4000, mem: 8192, usedCpu: 1500, usedMem: 3072, taint: null, pods: ['web-1'], label: 'Node 1' },
+    { id: 'node-2', zone: 'us-east-1a', cpu: 4000, mem: 8192, usedCpu: 3200, usedMem: 7000, taint: null, pods: ['web-2', 'api-1'], label: 'Node 2' },
+    { id: 'node-3', zone: 'us-east-1b', cpu: 8000, mem: 16384, usedCpu: 2000, usedMem: 4096, taint: null, pods: ['db-1'], label: 'Node 3' },
+    { id: 'node-4', zone: 'us-east-1b', cpu: 2000, mem: 4096, usedCpu: 200, usedMem: 512, taint: 'special-hw', pods: [], label: 'Node 4' },
+    { id: 'node-5', zone: 'us-east-1c', cpu: 4000, mem: 8192, usedCpu: 1000, usedMem: 2048, taint: null, pods: ['cache-1'], label: 'Node 5' }
+  ];
+
+  var POD_REQ = { cpu: 500, mem: 1024 };
+
+  function nodeX(idx) { return 40 + idx * 180; }
+  var NODE_Y = 180;
+  var NODE_W = 160;
+  var NODE_H = 290;
+  var SCHED_X = 480;
+  var SCHED_Y = 30;
+
+  function draw(filterResults, scoreResults, boundNode) {
+    scene = document.getElementById('sc-scene');
+    scene.innerHTML = '';
+
+    /* Scheduler box */
+    scene.appendChild(svgRect(SCHED_X - 80, SCHED_Y, 160, 40, { stroke: '#51cf66', fill: '#12121a' }));
+    scene.appendChild(svgText(SCHED_X, SCHED_Y + 24, 'kube-scheduler', { fill: '#51cf66', 'font-size': '12', 'font-weight': '700' }));
+
+    /* Pod request box */
+    scene.appendChild(svgRect(SCHED_X - 80, SCHED_Y + 55, 160, 50, { stroke: '#339af044', fill: '#0f0f15' }));
+    scene.appendChild(svgText(SCHED_X, SCHED_Y + 72, 'New Pod Request:', { fill: '#339af0', 'font-size': '10', 'font-weight': '600' }));
+    scene.appendChild(svgText(SCHED_X, SCHED_Y + 88, 'cpu: 500m, mem: 1Gi', { fill: '#888', 'font-size': '10' }));
+
+    /* Constraints display */
+    var constraintY = SCHED_Y + 118;
+    var constraints = [];
+    if (affinityOn) constraints.push('nodeSelector: zone=us-east-1a');
+    if (tolerationOn) constraints.push('toleration: special-hw');
+    if (spreadOn) constraints.push('topologySpread: max 1/zone');
+    if (constraints.length > 0) {
+      scene.appendChild(svgRect(SCHED_X - 110, constraintY - 10, 220, 14 + constraints.length * 14, { fill: '#1a1a22', stroke: '#ffa94d44' }));
+      constraints.forEach(function(c, ci) {
+        scene.appendChild(svgText(SCHED_X, constraintY + 4 + ci * 14, c, { fill: '#ffa94d', 'font-size': '9' }));
+      });
+    }
+
+    /* Nodes */
+    NODES.forEach(function(node, idx) {
+      var x = nodeX(idx);
+      var isFiltered = filterResults && !filterResults[idx];
+      var isBound = boundNode === idx;
+      var score = scoreResults ? scoreResults[idx] : null;
+
+      var outerStroke = isFiltered ? '#ff6b6b44' : (isBound ? '#51cf66' : '#339af055');
+      var outerFill = isFiltered ? '#1f101522' : '#12121a';
+
+      scene.appendChild(svgRect(x, NODE_Y, NODE_W, NODE_H, { stroke: outerStroke, fill: outerFill }));
+
+      /* Node label */
+      scene.appendChild(svgText(x + NODE_W / 2, NODE_Y + 18, node.label, {
+        fill: isFiltered ? '#ff6b6b66' : '#fff', 'font-size': '11', 'font-weight': '700'
+      }));
+
+      /* Zone label */
+      scene.appendChild(svgText(x + NODE_W / 2, NODE_Y + 34, node.zone, {
+        fill: isFiltered ? '#88888844' : '#888', 'font-size': '9'
+      }));
+
+      /* Taint badge */
+      if (node.taint) {
+        scene.appendChild(svgRect(x + 10, NODE_Y + 42, NODE_W - 20, 18, { fill: '#1f1015', stroke: '#ff6b6b44', rx: 3 }));
+        scene.appendChild(svgText(x + NODE_W / 2, NODE_Y + 55, 'taint: ' + node.taint, {
+          fill: '#ff6b6b', 'font-size': '8'
+        }));
+      }
+
+      /* CPU bar */
+      var barY = NODE_Y + (node.taint ? 68 : 48);
+      var cpuPct = Math.min(100, (node.usedCpu / node.cpu) * 100);
+      scene.appendChild(svgText(x + 14, barY + 8, 'CPU', { fill: '#888', 'font-size': '8', 'text-anchor': 'start' }));
+      scene.appendChild(svgRect(x + 38, barY, NODE_W - 54, 12, { fill: '#0f0f15', stroke: '#333', rx: 3 }));
+      scene.appendChild(svgEl('rect', {
+        x: x + 39, y: barY + 1, width: Math.max(0, (NODE_W - 56) * cpuPct / 100), height: 10,
+        rx: 2, fill: cpuPct > 80 ? '#ff6b6b' : '#339af0'
+      }));
+      scene.appendChild(svgText(x + NODE_W - 8, barY + 9, node.usedCpu + '/' + node.cpu + 'm', {
+        fill: '#666', 'font-size': '7', 'text-anchor': 'end'
+      }));
+
+      /* Memory bar */
+      var memY = barY + 18;
+      var memPct = Math.min(100, (node.usedMem / node.mem) * 100);
+      scene.appendChild(svgText(x + 14, memY + 8, 'MEM', { fill: '#888', 'font-size': '8', 'text-anchor': 'start' }));
+      scene.appendChild(svgRect(x + 38, memY, NODE_W - 54, 12, { fill: '#0f0f15', stroke: '#333', rx: 3 }));
+      scene.appendChild(svgEl('rect', {
+        x: x + 39, y: memY + 1, width: Math.max(0, (NODE_W - 56) * memPct / 100), height: 10,
+        rx: 2, fill: memPct > 80 ? '#ff6b6b' : '#cc5de8'
+      }));
+      scene.appendChild(svgText(x + NODE_W - 8, memY + 9, node.usedMem + '/' + node.mem + 'Mi', {
+        fill: '#666', 'font-size': '7', 'text-anchor': 'end'
+      }));
+
+      /* Existing pods */
+      var podY = memY + 22;
+      node.pods.forEach(function(p, pi) {
+        scene.appendChild(svgRect(x + 10, podY + pi * 24, NODE_W - 20, 20, { fill: '#0f0f15', stroke: '#51cf6644', rx: 3 }));
+        scene.appendChild(svgText(x + NODE_W / 2, podY + pi * 24 + 13, p, { fill: '#51cf66', 'font-size': '9' }));
+      });
+
+      /* Filtered X overlay */
+      if (isFiltered) {
+        scene.appendChild(svgEl('line', { x1: x + 10, y1: NODE_Y + 10, x2: x + NODE_W - 10, y2: NODE_Y + NODE_H - 10, stroke: '#ff6b6b44', 'stroke-width': 2 }));
+        scene.appendChild(svgEl('line', { x1: x + NODE_W - 10, y1: NODE_Y + 10, x2: x + 10, y2: NODE_Y + NODE_H - 10, stroke: '#ff6b6b44', 'stroke-width': 2 }));
+      }
+
+      /* Score badge */
+      if (score !== null && score !== undefined && !isFiltered) {
+        scene.appendChild(svgEl('circle', { cx: x + NODE_W - 12, cy: NODE_Y + 12, r: 14, fill: isBound ? '#51cf66' : '#339af0' }));
+        scene.appendChild(svgText(x + NODE_W - 12, NODE_Y + 16, score, {
+          fill: '#fff', 'font-size': '10', 'font-weight': '700'
+        }));
+      }
+
+      /* Bound marker */
+      if (isBound) {
+        scene.appendChild(svgRect(x + 20, NODE_Y + NODE_H - 30, NODE_W - 40, 22, { fill: '#51cf6622', stroke: '#51cf66', rx: 4 }));
+        scene.appendChild(svgText(x + NODE_W / 2, NODE_Y + NODE_H - 15, 'BOUND', { fill: '#51cf66', 'font-size': '10', 'font-weight': '700' }));
+      }
+    });
+  }
+
+  function commentary(text) {
+    document.getElementById('sc-commentary').textContent = text;
+  }
+
+  draw();
+
+  function filterNodes() {
+    var results = [true, true, true, true, true];
+
+    NODES.forEach(function(node, idx) {
+      /* Resource fit */
+      var availCpu = node.cpu - node.usedCpu;
+      var availMem = node.mem - node.usedMem;
+      if (availCpu < POD_REQ.cpu || availMem < POD_REQ.mem) {
+        results[idx] = false;
+      }
+
+      /* nodeSelector: zone */
+      if (affinityOn && node.zone !== 'us-east-1a') {
+        results[idx] = false;
+      }
+
+      /* Taints without toleration */
+      if (node.taint && !tolerationOn) {
+        results[idx] = false;
+      }
+    });
+
+    return results;
+  }
+
+  function scoreNodes(filterResults) {
+    var scores = [];
+    NODES.forEach(function(node, idx) {
+      if (!filterResults[idx]) {
+        scores.push(null);
+        return;
+      }
+      /* Least-allocated scoring */
+      var cpuFree = (node.cpu - node.usedCpu) / node.cpu;
+      var memFree = (node.mem - node.usedMem) / node.mem;
+      var baseScore = Math.round((cpuFree * 50 + memFree * 50));
+
+      /* topologySpread penalty */
+      if (spreadOn) {
+        var zoneCount = {};
+        NODES.forEach(function(n) {
+          if (n.pods.length > 0) {
+            zoneCount[n.zone] = (zoneCount[n.zone] || 0) + n.pods.length;
+          }
+        });
+        var myZone = node.zone;
+        var zc = zoneCount[myZone] || 0;
+        baseScore = Math.max(0, baseScore - zc * 15);
+      }
+
+      scores.push(baseScore);
+    });
+    return scores;
+  }
+
+  async function schedulePod() {
+    if (running) return;
+    running = true;
+    document.getElementById('sc-btn-schedule').disabled = true;
+
+    /* Phase 1: Filtering */
+    commentary('Phase 1: FILTERING -- checking resource fit (' + POD_REQ.cpu + 'm CPU, ' + POD_REQ.mem + 'Mi memory), nodeSelector, taints/tolerations, topologySpreadConstraints. Nodes that fail any predicate are eliminated.');
+    await delay(800);
+    var filterResults = filterNodes();
+    draw(filterResults);
+    var passed = filterResults.filter(function(r) { return r; }).length;
+    var failed = filterResults.length - passed;
+    commentary('Filtering complete: ' + passed + ' nodes pass, ' + failed + ' filtered out.' +
+      (affinityOn ? ' nodeSelector=zone:us-east-1a eliminates nodes outside that zone.' : '') +
+      (!tolerationOn ? ' Tainted nodes (special-hw) are excluded -- pod has no matching toleration.' : ' Pod tolerates special-hw taint.'));
+    await delay(1500);
+
+    if (passed === 0) {
+      commentary('No nodes pass filtering. Pod stays in Pending state. In production: scale up, remove taints, relax constraints, or use preemption.');
+      running = false;
+      document.getElementById('sc-btn-schedule').disabled = false;
+      return;
+    }
+
+    /* Phase 2: Scoring */
+    commentary('Phase 2: SCORING -- surviving nodes scored by: LeastAllocated (prefer nodes with more free resources), BalancedResourceAllocation, ImageLocality' + (spreadOn ? ', TopologySpreadConstraints (penalty for zones with existing pods)' : '') + '. Highest score wins.');
+    await delay(800);
+    var scoreResults = scoreNodes(filterResults);
+    draw(filterResults, scoreResults);
+    await delay(1500);
+
+    /* Pick winner */
+    var bestIdx = -1;
+    var bestScore = -1;
+    scoreResults.forEach(function(s, i) {
+      if (s !== null && s > bestScore) {
+        bestScore = s;
+        bestIdx = i;
+      }
+    });
+
+    /* Phase 3: Bind */
+    commentary('Phase 3: BIND -- scheduler patches pod.spec.nodeName = ' + NODES[bestIdx].id + ' (score: ' + bestScore + '). The kubelet on that node watches for newly-bound pods and starts the container.');
+    NODES[bestIdx].pods.push('new-pod');
+    NODES[bestIdx].usedCpu += POD_REQ.cpu;
+    NODES[bestIdx].usedMem += POD_REQ.mem;
+    draw(filterResults, scoreResults, bestIdx);
+    await delay(1500);
+
+    draw();
+    commentary('Pod scheduled to ' + NODES[bestIdx].label + ' (' + NODES[bestIdx].zone + ') with score ' + bestScore + '. Filter -> Score -> Bind is the complete scheduling cycle.');
+    running = false;
+    document.getElementById('sc-btn-schedule').disabled = false;
+  }
+
+  async function preempt() {
+    if (running) return;
+    running = true;
+    document.getElementById('sc-btn-preempt').disabled = true;
+
+    commentary('High-priority pod (PriorityClass=system-critical, cpu: 2000m, mem: 4096Mi) cannot fit on any node. Scheduler searches for a node where evicting lower-priority pods would make room.');
+    await delay(1200);
+
+    /* Find node with low-priority pod to evict */
+    var targetIdx = 0;
+    var evictedPod = NODES[targetIdx].pods[0];
+
+    commentary('Preemption: evicting "' + evictedPod + '" (low priority) from ' + NODES[targetIdx].label + ' to make room for high-priority pod. The evicted pod goes back to Pending and may be rescheduled to another node.');
+    NODES[targetIdx].pods = ['HI-PRIO'];
+    NODES[targetIdx].usedCpu = 2000;
+    NODES[targetIdx].usedMem = 4096;
+    draw();
+    await delay(1500);
+
+    commentary('Preemption complete. High-priority pod runs on ' + NODES[targetIdx].label + '. Evicted pod "' + evictedPod + '" re-enters the scheduling queue. PriorityClass is how production workloads guarantee resources over batch/dev workloads.');
+    running = false;
+    document.getElementById('sc-btn-preempt').disabled = false;
+  }
+
+  function toggleAffinity() {
+    affinityOn = !affinityOn;
+    document.getElementById('sc-btn-affinity').classList.toggle('active-btn', affinityOn);
+    draw();
+    commentary(affinityOn
+      ? 'nodeSelector: zone=us-east-1a enabled. Only nodes in us-east-1a will pass filtering. This is a hard constraint -- no fallback.'
+      : 'nodeSelector removed. All zones are eligible.');
+  }
+
+  function toggleToleration() {
+    tolerationOn = !tolerationOn;
+    document.getElementById('sc-btn-toleration').classList.toggle('active-btn', tolerationOn);
+    draw();
+    commentary(tolerationOn
+      ? 'Toleration for taint "special-hw" enabled. Node 4 (tainted) is now eligible for scheduling.'
+      : 'Toleration removed. Tainted nodes are excluded from scheduling.');
+  }
+
+  function toggleSpread() {
+    spreadOn = !spreadOn;
+    document.getElementById('sc-btn-spread').classList.toggle('active-btn', spreadOn);
+    draw();
+    commentary(spreadOn
+      ? 'topologySpreadConstraints enabled (maxSkew=1 across zones). Scoring penalizes zones that already have pods, spreading replicas evenly.'
+      : 'topologySpreadConstraints removed. No zone-spread penalty in scoring.');
+  }
+
+  function reset() {
+    affinityOn = false;
+    tolerationOn = false;
+    spreadOn = false;
+    running = false;
+    NODES[0] = { id: 'node-1', zone: 'us-east-1a', cpu: 4000, mem: 8192, usedCpu: 1500, usedMem: 3072, taint: null, pods: ['web-1'], label: 'Node 1' };
+    NODES[1] = { id: 'node-2', zone: 'us-east-1a', cpu: 4000, mem: 8192, usedCpu: 3200, usedMem: 7000, taint: null, pods: ['web-2', 'api-1'], label: 'Node 2' };
+    NODES[2] = { id: 'node-3', zone: 'us-east-1b', cpu: 8000, mem: 16384, usedCpu: 2000, usedMem: 4096, taint: null, pods: ['db-1'], label: 'Node 3' };
+    NODES[3] = { id: 'node-4', zone: 'us-east-1b', cpu: 2000, mem: 4096, usedCpu: 200, usedMem: 512, taint: 'special-hw', pods: [], label: 'Node 4' };
+    NODES[4] = { id: 'node-5', zone: 'us-east-1c', cpu: 4000, mem: 8192, usedCpu: 1000, usedMem: 2048, taint: null, pods: ['cache-1'], label: 'Node 5' };
+    document.getElementById('sc-btn-schedule').disabled = false;
+    document.getElementById('sc-btn-preempt').disabled = false;
+    ['sc-btn-affinity', 'sc-btn-toleration', 'sc-btn-spread'].forEach(function(id) {
+      document.getElementById(id).classList.remove('active-btn');
+    });
+    draw();
+    commentary('5 nodes with varying CPU and memory capacity. A new pod requests 500m CPU and 1Gi memory. The scheduler filters nodes that cannot satisfy the request, then scores the survivors to pick the best fit.');
+  }
+
+  return { schedulePod: schedulePod, preempt: preempt, toggleAffinity: toggleAffinity, toggleToleration: toggleToleration, toggleSpread: toggleSpread, reset: reset };
+})();
+
+
+/* ================================================================
+   TAB 3 -- NETWORKING
+   ================================================================ */
+var NET = (function() {
+  var scene;
+  var currentView = 'clusterip';
+
+  var SVC_TYPES = {
+    clusterip: {
+      desc: 'ClusterIP is the default Service type: a virtual IP reachable only inside the cluster. kube-proxy on every node programs iptables/IPVS rules that DNAT traffic destined for the ClusterIP to one of the backing pod IPs (round-robin or random).',
+      color: '#339af0'
+    },
+    nodeport: {
+      desc: 'NodePort allocates a port (30000-32767) on every node. Traffic to any node\'s IP on that port is forwarded to the ClusterIP, which forwards to a backing pod. Useful for development or when you control the LB layer yourself.',
+      color: '#ffa94d'
+    },
+    loadbalancer: {
+      desc: 'LoadBalancer asks the cloud provider to create an external load balancer (ALB, NLB, GCP LB). The external LB routes to NodePorts on every node, which forward to ClusterIP, which forwards to pods. This is the standard way to expose services to the internet.',
+      color: '#cc5de8'
+    },
+    externalname: {
+      desc: 'ExternalName maps a Service to a DNS CNAME record (e.g., mydb.example.com). No proxying, no ClusterIP -- kube-dns just returns the CNAME. Used to alias external services into the cluster namespace.',
+      color: '#51cf66'
+    },
+    ingress: {
+      desc: 'Ingress is L7 routing: path-based and host-based rules that route HTTP(S) traffic to different Services. The Ingress controller (nginx, Traefik, ALB) is itself a Pod behind a LoadBalancer Service. It reads Ingress resources and configures routing rules.',
+      color: '#ffd43b'
+    },
+    cni: {
+      desc: 'CNI (Container Network Interface) gives every pod a unique, routable IP. Pod-to-pod across nodes: traffic goes through veth pair -> bridge -> CNI plugin (Calico: BGP routing, Cilium: eBPF, Flannel: VXLAN overlay) -> physical network -> destination node -> reverse path -> destination pod.',
+      color: '#8be9fd'
+    }
+  };
+
+  /* Layout */
+  var NODE_A = { x: 100, y: 180, w: 350, h: 320 };
+  var NODE_B = { x: 520, y: 180, w: 350, h: 320 };
+
+  function podPos(nodeBox, idx) {
+    return { x: nodeBox.x + 40 + idx * 140, y: nodeBox.y + 200, w: 110, h: 50 };
+  }
+
+  function draw() {
+    scene = document.getElementById('net-scene');
+    scene.innerHTML = '';
+
+    if (currentView === 'cni') {
+      drawCNI();
+      return;
+    }
+    if (currentView === 'ingress') {
+      drawIngress();
+      return;
+    }
+
+    var svcType = SVC_TYPES[currentView];
+
+    /* Client */
+    if (currentView !== 'externalname') {
+      var clientY = currentView === 'loadbalancer' ? 20 : 40;
+      scene.appendChild(svgRect(420, clientY, 120, 36, { stroke: '#51cf66', fill: '#12121a' }));
+      scene.appendChild(svgText(480, clientY + 22, 'Client', { fill: '#51cf66', 'font-size': '12', 'font-weight': '700' }));
+    }
+
+    /* External LB for LoadBalancer type */
+    if (currentView === 'loadbalancer') {
+      scene.appendChild(svgRect(380, 75, 200, 40, { stroke: '#cc5de8', fill: '#12121a' }));
+      scene.appendChild(svgText(480, 100, 'Cloud Load Balancer', { fill: '#cc5de8', 'font-size': '11', 'font-weight': '700' }));
+      drawArrow(scene, 480, 56, 480, 75, '#cc5de8', 'net-arrow');
+    }
+
+    /* Service box */
+    var svcY = currentView === 'loadbalancer' ? 135 : (currentView === 'externalname' ? 80 : 100);
+    if (currentView === 'externalname') {
+      scene.appendChild(svgRect(340, svcY, 280, 50, { stroke: svcType.color, fill: '#12121a' }));
+      scene.appendChild(svgText(480, svcY + 20, 'Service (ExternalName)', { fill: svcType.color, 'font-size': '11', 'font-weight': '700' }));
+      scene.appendChild(svgText(480, svcY + 38, 'CNAME -> mydb.example.com', { fill: '#888', 'font-size': '10' }));
+
+      /* DNS arrow */
+      scene.appendChild(svgRect(340, svcY + 70, 280, 36, { stroke: '#888', fill: '#12121a' }));
+      scene.appendChild(svgText(480, svcY + 92, 'kube-dns returns CNAME', { fill: '#888', 'font-size': '10' }));
+      drawArrow(scene, 480, svcY + 50, 480, svcY + 70, '#888', 'net-arrow');
+
+      scene.appendChild(svgRect(340, svcY + 126, 280, 36, { stroke: '#ffa94d', fill: '#12121a' }));
+      scene.appendChild(svgText(480, svcY + 148, 'mydb.example.com (external)', { fill: '#ffa94d', 'font-size': '10' }));
+      drawArrow(scene, 480, svcY + 106, 480, svcY + 126, '#ffa94d', 'net-arrow');
+      return;
+    }
+
+    scene.appendChild(svgRect(350, svcY, 260, 40, { stroke: svcType.color, fill: '#12121a' }));
+    var svcLabel = currentView === 'nodeport' ? 'Service (NodePort :31234)' :
+                   currentView === 'loadbalancer' ? 'Service (ClusterIP)' :
+                   'Service (ClusterIP: 10.96.0.42)';
+    scene.appendChild(svgText(480, svcY + 15, svcLabel, { fill: svcType.color, 'font-size': '11', 'font-weight': '700' }));
+    scene.appendChild(svgText(480, svcY + 33, 'kube-proxy iptables/IPVS rules', { fill: '#888', 'font-size': '9' }));
+
+    /* Connection from client/LB to service */
+    if (currentView === 'clusterip') {
+      drawArrow(scene, 480, 76, 480, svcY, svcType.color, 'net-arrow');
+    } else if (currentView === 'nodeport') {
+      drawArrow(scene, 480, 76, 480, svcY, svcType.color, 'net-arrow');
+      scene.appendChild(svgText(490, 88, 'NodeIP:31234', { fill: '#ffa94d', 'font-size': '9', 'text-anchor': 'start' }));
+    } else if (currentView === 'loadbalancer') {
+      drawArrow(scene, 480, 115, 480, svcY, svcType.color, 'net-arrow');
+    }
+
+    /* Worker nodes */
+    [NODE_A, NODE_B].forEach(function(nodeBox, ni) {
+      scene.appendChild(svgRect(nodeBox.x, nodeBox.y, nodeBox.w, nodeBox.h, { stroke: '#8be9fd33', fill: '#12121a' }));
+      scene.appendChild(svgText(nodeBox.x + nodeBox.w / 2, nodeBox.y + 20, 'Node ' + (ni + 1), { fill: '#8be9fd', 'font-size': '12', 'font-weight': '700' }));
+
+      /* kube-proxy */
+      scene.appendChild(svgRect(nodeBox.x + 20, nodeBox.y + 35, nodeBox.w - 40, 28, { fill: '#0f0f15', stroke: '#ffa94d44' }));
+      scene.appendChild(svgText(nodeBox.x + nodeBox.w / 2, nodeBox.y + 53, 'kube-proxy (iptables rules)', { fill: '#ffa94d', 'font-size': '9' }));
+
+      /* NodePort indicator */
+      if (currentView === 'nodeport' || currentView === 'loadbalancer') {
+        scene.appendChild(svgRect(nodeBox.x + nodeBox.w - 50, nodeBox.y - 8, 50, 18, { fill: '#1a1520', stroke: '#ffa94d', rx: 3 }));
+        scene.appendChild(svgText(nodeBox.x + nodeBox.w - 25, nodeBox.y + 6, ':31234', { fill: '#ffa94d', 'font-size': '8', 'font-weight': '600' }));
+      }
+
+      /* Pods */
+      for (var pi = 0; pi < 2; pi++) {
+        var pp = podPos(nodeBox, pi);
+        scene.appendChild(svgRect(pp.x, pp.y, pp.w, pp.h, { fill: '#0f0f15', stroke: '#51cf6666' }));
+        var podIP = '10.244.' + ni + '.' + (pi + 2);
+        scene.appendChild(svgText(pp.x + pp.w / 2, pp.y + 18, 'Pod ' + (ni * 2 + pi + 1), { fill: '#51cf66', 'font-size': '10', 'font-weight': '600' }));
+        scene.appendChild(svgText(pp.x + pp.w / 2, pp.y + 34, podIP, { fill: '#888', 'font-size': '9' }));
+      }
+    });
+
+    /* Service -> Pod arrows */
+    drawDashed(scene, 480, svcY + 40, podPos(NODE_A, 0).x + 55, podPos(NODE_A, 0).y, svcType.color + '44');
+    drawDashed(scene, 480, svcY + 40, podPos(NODE_A, 1).x + 55, podPos(NODE_A, 1).y, svcType.color + '44');
+    drawDashed(scene, 480, svcY + 40, podPos(NODE_B, 0).x + 55, podPos(NODE_B, 0).y, svcType.color + '44');
+    drawDashed(scene, 480, svcY + 40, podPos(NODE_B, 1).x + 55, podPos(NODE_B, 1).y, svcType.color + '44');
+
+    /* DNS resolution note */
+    scene.appendChild(svgRect(50, svcY - 5, 240, 48, { fill: '#0f0f15', stroke: '#339af044' }));
+    scene.appendChild(svgText(170, svcY + 12, 'DNS: my-svc.ns.svc.cluster.local', { fill: '#339af0', 'font-size': '9' }));
+    scene.appendChild(svgText(170, svcY + 30, '-> resolves to ClusterIP 10.96.0.42', { fill: '#888', 'font-size': '9' }));
+  }
+
+  function drawIngress() {
+    /* Client */
+    scene.appendChild(svgRect(420, 15, 120, 36, { stroke: '#51cf66', fill: '#12121a' }));
+    scene.appendChild(svgText(480, 37, 'Client (HTTPS)', { fill: '#51cf66', 'font-size': '11', 'font-weight': '700' }));
+
+    /* Cloud LB */
+    scene.appendChild(svgRect(380, 70, 200, 36, { stroke: '#cc5de8', fill: '#12121a' }));
+    scene.appendChild(svgText(480, 92, 'Cloud Load Balancer', { fill: '#cc5de8', 'font-size': '11', 'font-weight': '700' }));
+    drawArrow(scene, 480, 51, 480, 70, '#cc5de8', 'net-arrow');
+
+    /* Ingress controller pod */
+    scene.appendChild(svgRect(330, 130, 300, 60, { stroke: '#ffd43b', fill: '#12121a' }));
+    scene.appendChild(svgText(480, 150, 'Ingress Controller Pod (nginx/Traefik)', { fill: '#ffd43b', 'font-size': '11', 'font-weight': '700' }));
+    scene.appendChild(svgText(480, 168, 'L7 routing: Host header + path matching', { fill: '#888', 'font-size': '9' }));
+    drawArrow(scene, 480, 106, 480, 130, '#ffd43b', 'net-arrow');
+
+    /* Routing rules */
+    scene.appendChild(svgRect(80, 215, 380, 36, { fill: '#0f0f15', stroke: '#ffd43b44' }));
+    scene.appendChild(svgText(270, 237, 'api.example.com/users -> svc-users | /orders -> svc-orders', { fill: '#ffd43b', 'font-size': '9' }));
+
+    /* Two services */
+    scene.appendChild(svgRect(80, 275, 180, 40, { stroke: '#339af0', fill: '#12121a' }));
+    scene.appendChild(svgText(170, 300, 'svc-users (ClusterIP)', { fill: '#339af0', 'font-size': '10', 'font-weight': '600' }));
+
+    scene.appendChild(svgRect(700, 275, 180, 40, { stroke: '#339af0', fill: '#12121a' }));
+    scene.appendChild(svgText(790, 300, 'svc-orders (ClusterIP)', { fill: '#339af0', 'font-size': '10', 'font-weight': '600' }));
+
+    drawArrow(scene, 380, 190, 170, 275, '#ffd43b55', 'net-arrow');
+    drawArrow(scene, 580, 190, 790, 275, '#ffd43b55', 'net-arrow');
+    scene.appendChild(svgText(240, 240, '/users', { fill: '#ffd43b88', 'font-size': '9' }));
+    scene.appendChild(svgText(720, 240, '/orders', { fill: '#ffd43b88', 'font-size': '9' }));
+
+    /* Pods behind each service */
+    [{ sx: 80, label: 'user' }, { sx: 700, label: 'order' }].forEach(function(svc) {
+      for (var pi = 0; pi < 2; pi++) {
+        var px = svc.sx + 10 + pi * 90;
+        scene.appendChild(svgRect(px, 340, 80, 40, { fill: '#0f0f15', stroke: '#51cf6644' }));
+        scene.appendChild(svgText(px + 40, 355, svc.label + '-' + (pi + 1), { fill: '#51cf66', 'font-size': '9' }));
+        scene.appendChild(svgText(px + 40, 370, '10.244.x.' + (pi + 2), { fill: '#666', 'font-size': '8' }));
+      }
+      drawDashed(scene, svc.sx + 90, 315, svc.sx + 50, 340, '#339af044');
+      drawDashed(scene, svc.sx + 90, 315, svc.sx + 140, 340, '#339af044');
+    });
+
+    /* NetworkPolicy note */
+    scene.appendChild(svgRect(300, 420, 360, 50, { fill: '#0f0f15', stroke: '#ff6b6b44' }));
+    scene.appendChild(svgText(480, 440, 'NetworkPolicy: allow ingress only from same namespace', { fill: '#ff6b6b', 'font-size': '9', 'font-weight': '600' }));
+    scene.appendChild(svgText(480, 456, 'Enforced by CNI plugin (Calico/Cilium), not kube-proxy', { fill: '#888', 'font-size': '9' }));
+  }
+
+  function drawCNI() {
+    scene.appendChild(svgText(480, 30, 'Pod-to-Pod Communication (across nodes via CNI)', { fill: '#8be9fd', 'font-size': '13', 'font-weight': '700' }));
+
+    /* Node A */
+    scene.appendChild(svgRect(40, 60, 400, 240, { stroke: '#8be9fd33', fill: '#12121a' }));
+    scene.appendChild(svgText(240, 82, 'Node A', { fill: '#8be9fd', 'font-size': '12', 'font-weight': '700' }));
+
+    /* Pod 1 on Node A */
+    scene.appendChild(svgRect(80, 100, 120, 50, { fill: '#0f0f15', stroke: '#51cf66' }));
+    scene.appendChild(svgText(140, 120, 'Pod 1', { fill: '#51cf66', 'font-size': '11', 'font-weight': '600' }));
+    scene.appendChild(svgText(140, 138, '10.244.0.2', { fill: '#888', 'font-size': '9' }));
+
+    /* veth pair */
+    scene.appendChild(svgRect(80, 160, 120, 24, { fill: '#0f0f15', stroke: '#ffa94d44' }));
+    scene.appendChild(svgText(140, 176, 'veth pair', { fill: '#ffa94d', 'font-size': '9' }));
+    drawArrow(scene, 140, 150, 140, 160, '#ffa94d', 'net-arrow');
+
+    /* Bridge */
+    scene.appendChild(svgRect(60, 200, 160, 28, { fill: '#0f0f15', stroke: '#ffa94d44' }));
+    scene.appendChild(svgText(140, 218, 'cbr0 (bridge)', { fill: '#ffa94d', 'font-size': '9' }));
+    drawArrow(scene, 140, 184, 140, 200, '#ffa94d', 'net-arrow');
+
+    /* CNI plugin */
+    scene.appendChild(svgRect(60, 244, 360, 40, { fill: '#0f0f15', stroke: '#8be9fd' }));
+    scene.appendChild(svgText(240, 262, 'CNI plugin (Calico BGP / Cilium eBPF / Flannel VXLAN)', { fill: '#8be9fd', 'font-size': '9', 'font-weight': '600' }));
+    scene.appendChild(svgText(240, 276, 'encapsulate/route', { fill: '#888', 'font-size': '8' }));
+    drawArrow(scene, 140, 228, 140, 244, '#8be9fd', 'net-arrow');
+
+    /* Physical network */
+    scene.appendChild(svgRect(200, 320, 560, 36, { fill: '#1a1520', stroke: '#cc5de8' }));
+    scene.appendChild(svgText(480, 342, 'Physical Network / Underlay', { fill: '#cc5de8', 'font-size': '11', 'font-weight': '700' }));
+    drawArrow(scene, 240, 284, 400, 320, '#cc5de8', 'net-arrow');
+
+    /* Node B */
+    scene.appendChild(svgRect(520, 60, 400, 240, { stroke: '#8be9fd33', fill: '#12121a' }));
+    scene.appendChild(svgText(720, 82, 'Node B', { fill: '#8be9fd', 'font-size': '12', 'font-weight': '700' }));
+
+    /* CNI on Node B */
+    scene.appendChild(svgRect(540, 244, 360, 40, { fill: '#0f0f15', stroke: '#8be9fd' }));
+    scene.appendChild(svgText(720, 262, 'CNI plugin (decapsulate/route)', { fill: '#8be9fd', 'font-size': '9', 'font-weight': '600' }));
+    drawArrow(scene, 560, 320, 720, 284, '#cc5de8', 'net-arrow');
+
+    /* Bridge Node B */
+    scene.appendChild(svgRect(740, 200, 160, 28, { fill: '#0f0f15', stroke: '#ffa94d44' }));
+    scene.appendChild(svgText(820, 218, 'cbr0 (bridge)', { fill: '#ffa94d', 'font-size': '9' }));
+    drawArrow(scene, 820, 244, 820, 228, '#ffa94d', 'net-arrow');
+
+    /* veth pair Node B */
+    scene.appendChild(svgRect(760, 160, 120, 24, { fill: '#0f0f15', stroke: '#ffa94d44' }));
+    scene.appendChild(svgText(820, 176, 'veth pair', { fill: '#ffa94d', 'font-size': '9' }));
+    drawArrow(scene, 820, 200, 820, 184, '#ffa94d', 'net-arrow');
+
+    /* Pod 2 on Node B */
+    scene.appendChild(svgRect(760, 100, 120, 50, { fill: '#0f0f15', stroke: '#51cf66' }));
+    scene.appendChild(svgText(820, 120, 'Pod 2', { fill: '#51cf66', 'font-size': '11', 'font-weight': '600' }));
+    scene.appendChild(svgText(820, 138, '10.244.1.3', { fill: '#888', 'font-size': '9' }));
+    drawArrow(scene, 820, 160, 820, 150, '#51cf66', 'net-arrow');
+
+    /* CNI comparison table */
+    var tableY = 380;
+    scene.appendChild(svgRect(100, tableY, 760, 120, { fill: '#0f0f15', stroke: '#8be9fd44' }));
+    scene.appendChild(svgText(480, tableY + 18, 'CNI Plugin Comparison', { fill: '#8be9fd', 'font-size': '11', 'font-weight': '700' }));
+
+    var plugins = [
+      { name: 'Calico', method: 'BGP routing', perf: 'High (native)', policy: 'Yes' },
+      { name: 'Cilium', method: 'eBPF (kernel)', perf: 'Highest', policy: 'Yes (L3-L7)' },
+      { name: 'Flannel', method: 'VXLAN overlay', perf: 'Lower (encap)', policy: 'No (needs Calico)' }
+    ];
+    /* Header */
+    scene.appendChild(svgText(180, tableY + 40, 'Plugin', { fill: '#888', 'font-size': '9', 'font-weight': '600' }));
+    scene.appendChild(svgText(350, tableY + 40, 'Method', { fill: '#888', 'font-size': '9', 'font-weight': '600' }));
+    scene.appendChild(svgText(540, tableY + 40, 'Performance', { fill: '#888', 'font-size': '9', 'font-weight': '600' }));
+    scene.appendChild(svgText(730, tableY + 40, 'NetworkPolicy', { fill: '#888', 'font-size': '9', 'font-weight': '600' }));
+
+    plugins.forEach(function(p, i) {
+      var y = tableY + 60 + i * 20;
+      scene.appendChild(svgText(180, y, p.name, { fill: '#8be9fd', 'font-size': '10', 'font-weight': '600' }));
+      scene.appendChild(svgText(350, y, p.method, { fill: '#ccc', 'font-size': '9' }));
+      scene.appendChild(svgText(540, y, p.perf, { fill: '#ccc', 'font-size': '9' }));
+      scene.appendChild(svgText(730, y, p.policy, { fill: '#ccc', 'font-size': '9' }));
+    });
+  }
+
+  function commentary(text) {
+    document.getElementById('net-commentary').textContent = text;
+  }
+
+  draw();
+
+  function showServiceType(type) {
+    currentView = type;
+    ['net-btn-cip', 'net-btn-np', 'net-btn-lb', 'net-btn-en', 'net-btn-ingress', 'net-btn-cni'].forEach(function(id) {
+      document.getElementById(id).classList.remove('active-btn');
+    });
+    var btnMap = { clusterip: 'net-btn-cip', nodeport: 'net-btn-np', loadbalancer: 'net-btn-lb', externalname: 'net-btn-en' };
+    if (btnMap[type]) document.getElementById(btnMap[type]).classList.add('active-btn');
+    draw();
+    commentary(SVC_TYPES[type].desc);
+  }
+
+  function showIngress() {
+    currentView = 'ingress';
+    ['net-btn-cip', 'net-btn-np', 'net-btn-lb', 'net-btn-en', 'net-btn-ingress', 'net-btn-cni'].forEach(function(id) {
+      document.getElementById(id).classList.remove('active-btn');
+    });
+    document.getElementById('net-btn-ingress').classList.add('active-btn');
+    draw();
+    commentary(SVC_TYPES.ingress.desc);
+  }
+
+  function showCNI() {
+    currentView = 'cni';
+    ['net-btn-cip', 'net-btn-np', 'net-btn-lb', 'net-btn-en', 'net-btn-ingress', 'net-btn-cni'].forEach(function(id) {
+      document.getElementById(id).classList.remove('active-btn');
+    });
+    document.getElementById('net-btn-cni').classList.add('active-btn');
+    draw();
+    commentary(SVC_TYPES.cni.desc);
+  }
+
+  async function animateRequest() {
+    if (currentView === 'externalname') {
+      commentary('ExternalName has no proxying -- kube-dns simply returns a CNAME record. The client\'s DNS resolver follows the CNAME to the external address.');
+      return;
+    }
+    if (currentView === 'cni') {
+      commentary('Animating pod-to-pod: Pod 1 (10.244.0.2) -> veth -> bridge -> CNI encapsulates -> physical network -> Node B -> CNI decapsulates -> bridge -> veth -> Pod 2 (10.244.1.3). Each pod has a globally unique IP -- no NAT between pods.');
+      await animPkt(scene, 140, 125, 140, 172, '#51cf66', 'packet', 300);
+      await animPkt(scene, 140, 172, 140, 214, '#ffa94d', '', 300);
+      await animPkt(scene, 140, 228, 240, 262, '#8be9fd', 'encap', 400);
+      await animPkt(scene, 240, 284, 480, 338, '#cc5de8', 'transit', 500);
+      await animPkt(scene, 560, 338, 720, 262, '#cc5de8', '', 400);
+      await animPkt(scene, 820, 262, 820, 214, '#8be9fd', 'decap', 300);
+      await animPkt(scene, 820, 200, 820, 176, '#ffa94d', '', 300);
+      await animPkt(scene, 820, 160, 820, 138, '#51cf66', 'delivered', 300);
+      commentary('Packet delivered: Pod 1 -> Pod 2 across nodes. The CNI plugin made the routing transparent -- pods communicate as if on a flat L2 network.');
+      return;
+    }
+    if (currentView === 'ingress') {
+      commentary('Animating: Client -> Cloud LB -> Ingress Controller -> routes by Host/path -> svc-users -> pod. The Ingress controller is the L7 brain -- it terminates TLS, inspects headers, and forwards to the right backend Service.');
+      await animPkt(scene, 480, 51, 480, 92, '#51cf66', 'HTTPS', 400);
+      await animPkt(scene, 480, 106, 480, 150, '#ffd43b', 'Host: api.example.com', 400);
+      await animPkt(scene, 380, 190, 170, 290, '#ffd43b', '/users', 500);
+      await animPkt(scene, 170, 315, 130, 340, '#339af0', 'forward', 300);
+      commentary('Request routed: Client -> LB -> Ingress Controller (L7 match: Host + /users) -> svc-users -> user-1 pod. TLS terminated at the Ingress controller.');
+      return;
+    }
+
+    /* Service type animations */
+    var svcY = currentView === 'loadbalancer' ? 155 : 120;
+    if (currentView === 'loadbalancer') {
+      commentary('Animating: Client -> Cloud LB -> NodePort -> ClusterIP -> kube-proxy iptables DNAT -> Pod. Four hops, but the abstractions hide them.');
+      await animPkt(scene, 480, 56, 480, 92, '#cc5de8', 'external', 400);
+      await animPkt(scene, 480, 115, 480, 135, '#cc5de8', 'NP:31234', 300);
+    } else if (currentView === 'nodeport') {
+      commentary('Animating: Client -> NodeIP:31234 -> kube-proxy -> ClusterIP -> Pod. NodePort is accessible from outside the cluster on any node\'s IP.');
+      await animPkt(scene, 480, 76, 480, 100, '#ffa94d', 'NodePort', 400);
+    } else {
+      commentary('Animating: curl svc.ns.svc.cluster.local -> DNS resolves to ClusterIP -> kube-proxy iptables DNAT -> random Pod. All inside the cluster.');
+      await animPkt(scene, 480, 76, 480, 100, '#339af0', 'ClusterIP', 400);
+    }
+
+    /* Service to random pod */
+    var targets = [
+      { x: podPos(NODE_A, 0).x + 55, y: podPos(NODE_A, 0).y + 25 },
+      { x: podPos(NODE_A, 1).x + 55, y: podPos(NODE_A, 1).y + 25 },
+      { x: podPos(NODE_B, 0).x + 55, y: podPos(NODE_B, 0).y + 25 },
+      { x: podPos(NODE_B, 1).x + 55, y: podPos(NODE_B, 1).y + 25 }
+    ];
+    var pick = targets[Math.floor(Math.random() * targets.length)];
+    await animPkt(scene, 480, svcY + 40, pick.x, pick.y, '#51cf66', 'DNAT', 600);
+    commentary('Request delivered to pod at ' + pick.x + '. kube-proxy chose this pod via iptables probability rules (statistically random distribution across endpoints).');
+  }
+
+  return { showServiceType: showServiceType, showIngress: showIngress, showCNI: showCNI, animateRequest: animateRequest };
+})();
+
+
+/* ================================================================
+   TAB 4 -- STORAGE
+   ================================================================ */
+var ST = (function() {
+  var scene;
+  var currentView = 'default';
+  var running = false;
+
+  function draw() {
+    scene = document.getElementById('st-scene');
+    scene.innerHTML = '';
+
+    if (currentView === 'statefulset') {
+      drawStatefulSet();
+      return;
+    }
+    if (currentView === 'accessmodes') {
+      drawAccessModes();
+      return;
+    }
+
+    /* Default: dynamic provisioning flow */
+
+    /* Pod */
+    scene.appendChild(svgRect(60, 40, 160, 80, { stroke: '#51cf66', fill: '#12121a' }));
+    scene.appendChild(svgText(140, 62, 'Pod', { fill: '#51cf66', 'font-size': '13', 'font-weight': '700' }));
+    scene.appendChild(svgText(140, 82, 'volumeMounts:', { fill: '#888', 'font-size': '10' }));
+    scene.appendChild(svgText(140, 96, '- /data -> my-vol', { fill: '#8be9fd', 'font-size': '9' }));
+
+    /* PVC */
+    scene.appendChild(svgRect(300, 40, 180, 80, { stroke: '#339af0', fill: '#12121a' }));
+    scene.appendChild(svgText(390, 62, 'PVC: my-data-claim', { fill: '#339af0', 'font-size': '11', 'font-weight': '700' }));
+    scene.appendChild(svgText(390, 80, 'size: 50Gi', { fill: '#888', 'font-size': '10' }));
+    scene.appendChild(svgText(390, 96, 'storageClassName: gp3', { fill: '#ffa94d', 'font-size': '9' }));
+
+    drawArrow(scene, 220, 80, 300, 80, '#339af055', 'st-arrow');
+    scene.appendChild(svgText(260, 72, 'uses', { fill: '#339af055', 'font-size': '9' }));
+
+    /* StorageClass */
+    scene.appendChild(svgRect(560, 40, 180, 80, { stroke: '#ffa94d', fill: '#12121a' }));
+    scene.appendChild(svgText(650, 62, 'StorageClass: gp3', { fill: '#ffa94d', 'font-size': '11', 'font-weight': '700' }));
+    scene.appendChild(svgText(650, 80, 'provisioner: ebs.csi', { fill: '#888', 'font-size': '10' }));
+    scene.appendChild(svgText(650, 96, 'reclaimPolicy: Delete', { fill: '#888', 'font-size': '9' }));
+
+    drawArrow(scene, 480, 80, 560, 80, '#ffa94d55', 'st-arrow');
+    scene.appendChild(svgText(520, 72, 'class', { fill: '#ffa94d55', 'font-size': '9' }));
+
+    /* PV Controller */
+    scene.appendChild(svgRect(330, 170, 120, 40, { stroke: '#cc5de8', fill: '#12121a' }));
+    scene.appendChild(svgText(390, 195, 'PV Controller', { fill: '#cc5de8', 'font-size': '10', 'font-weight': '600' }));
+
+    drawArrow(scene, 390, 120, 390, 170, '#cc5de844', 'st-arrow');
+    scene.appendChild(svgText(400, 148, 'watches PVCs', { fill: '#cc5de844', 'font-size': '8', 'text-anchor': 'start' }));
+
+    /* CSI Driver */
+    scene.appendChild(svgRect(540, 170, 160, 40, { stroke: '#8be9fd', fill: '#12121a' }));
+    scene.appendChild(svgText(620, 195, 'CSI Driver (ebs.csi)', { fill: '#8be9fd', 'font-size': '10', 'font-weight': '600' }));
+
+    drawArrow(scene, 450, 190, 540, 190, '#8be9fd44', 'st-arrow');
+    scene.appendChild(svgText(495, 183, 'provision', { fill: '#8be9fd44', 'font-size': '8' }));
+
+    /* Underlying storage */
+    scene.appendChild(svgRect(520, 260, 200, 60, { stroke: '#ffd43b', fill: '#12121a' }));
+    scene.appendChild(svgText(620, 282, 'AWS EBS Volume', { fill: '#ffd43b', 'font-size': '12', 'font-weight': '700' }));
+    scene.appendChild(svgText(620, 300, 'vol-0abc1234 (50Gi, gp3)', { fill: '#888', 'font-size': '9' }));
+
+    drawArrow(scene, 620, 210, 620, 260, '#ffd43b44', 'st-arrow');
+    scene.appendChild(svgText(630, 240, 'create volume', { fill: '#ffd43b44', 'font-size': '8', 'text-anchor': 'start' }));
+
+    /* PV (created by CSI) */
+    scene.appendChild(svgRect(240, 260, 200, 60, { stroke: '#339af0', fill: '#12121a' }));
+    scene.appendChild(svgText(340, 282, 'PV: pvc-abc-123', { fill: '#339af0', 'font-size': '11', 'font-weight': '700' }));
+    scene.appendChild(svgText(340, 300, 'capacity: 50Gi, RWO', { fill: '#888', 'font-size': '9' }));
+
+    drawArrow(scene, 520, 290, 440, 290, '#339af044', 'st-arrow');
+    scene.appendChild(svgText(480, 282, 'creates PV', { fill: '#339af044', 'font-size': '8' }));
+
+    /* Bind line: PVC <-> PV */
+    scene.appendChild(svgEl('line', {
+      x1: 390, y1: 120, x2: 340, y2: 260,
+      stroke: '#51cf6644', 'stroke-width': 2, 'stroke-dasharray': '6,4'
+    }));
+    scene.appendChild(svgText(350, 195, 'bind', { fill: '#51cf6644', 'font-size': '9' }));
+
+    /* Kubelet mount flow */
+    scene.appendChild(svgRect(60, 170, 160, 40, { stroke: '#8be9fd', fill: '#12121a' }));
+    scene.appendChild(svgText(140, 195, 'Kubelet on Node', { fill: '#8be9fd', 'font-size': '10', 'font-weight': '600' }));
+
+    drawArrow(scene, 140, 120, 140, 170, '#8be9fd44', 'st-arrow');
+    scene.appendChild(svgText(148, 148, 'pod scheduled', { fill: '#8be9fd44', 'font-size': '8', 'text-anchor': 'start' }));
+
+    scene.appendChild(svgEl('line', {
+      x1: 140, y1: 210, x2: 340, y2: 260,
+      stroke: '#8be9fd22', 'stroke-width': 1, 'stroke-dasharray': '4,4'
+    }));
+    scene.appendChild(svgText(220, 240, 'CSI attach + mount', { fill: '#8be9fd44', 'font-size': '8' }));
+
+    /* Flow description */
+    scene.appendChild(svgRect(60, 350, 660, 100, { fill: '#0f0f15', stroke: '#339af044' }));
+    scene.appendChild(svgText(390, 372, 'Dynamic Provisioning Flow', { fill: '#339af0', 'font-size': '11', 'font-weight': '700' }));
+    scene.appendChild(svgText(390, 392, '1. User creates PVC with storageClassName: gp3', { fill: '#ccc', 'font-size': '10' }));
+    scene.appendChild(svgText(390, 408, '2. PV controller sees no matching PV -> calls CSI provisioner', { fill: '#ccc', 'font-size': '10' }));
+    scene.appendChild(svgText(390, 424, '3. CSI driver creates EBS volume -> creates PV -> binds PVC <-> PV', { fill: '#ccc', 'font-size': '10' }));
+    scene.appendChild(svgText(390, 440, '4. Pod scheduled -> kubelet attaches volume via CSI -> mounts in container', { fill: '#ccc', 'font-size': '10' }));
+  }
+
+  function drawStatefulSet() {
+    scene.appendChild(svgText(480, 30, 'StatefulSet: Per-Replica Persistent Storage', { fill: '#cc5de8', 'font-size': '13', 'font-weight': '700' }));
+
+    /* StatefulSet controller */
+    scene.appendChild(svgRect(340, 50, 280, 40, { stroke: '#cc5de8', fill: '#12121a' }));
+    scene.appendChild(svgText(480, 75, 'StatefulSet: db (replicas: 3)', { fill: '#cc5de8', 'font-size': '11', 'font-weight': '700' }));
+
+    /* volumeClaimTemplate note */
+    scene.appendChild(svgRect(340, 100, 280, 30, { fill: '#0f0f15', stroke: '#ffa94d44' }));
+    scene.appendChild(svgText(480, 120, 'volumeClaimTemplates: [{size: 100Gi, class: gp3}]', { fill: '#ffa94d', 'font-size': '9' }));
+
+    /* 3 replicas with individual PVCs */
+    for (var i = 0; i < 3; i++) {
+      var x = 100 + i * 280;
+
+      /* Pod */
+      scene.appendChild(svgRect(x, 170, 200, 55, { stroke: '#51cf66', fill: '#12121a' }));
+      scene.appendChild(svgText(x + 100, 190, 'db-' + i, { fill: '#51cf66', 'font-size': '12', 'font-weight': '700' }));
+      scene.appendChild(svgText(x + 100, 210, 'ordinal: ' + i + (i === 0 ? ' (primary)' : ' (replica)'), { fill: '#888', 'font-size': '9' }));
+
+      drawArrow(scene, 480, 130, x + 100, 170, '#cc5de822', 'st-arrow');
+
+      /* PVC */
+      scene.appendChild(svgRect(x, 250, 200, 45, { stroke: '#339af0', fill: '#12121a' }));
+      scene.appendChild(svgText(x + 100, 270, 'PVC: data-db-' + i, { fill: '#339af0', 'font-size': '10', 'font-weight': '600' }));
+      scene.appendChild(svgText(x + 100, 286, '100Gi, Bound', { fill: '#888', 'font-size': '9' }));
+
+      drawArrow(scene, x + 100, 225, x + 100, 250, '#339af044', 'st-arrow');
+
+      /* PV */
+      scene.appendChild(svgRect(x, 320, 200, 45, { stroke: '#ffd43b', fill: '#12121a' }));
+      scene.appendChild(svgText(x + 100, 340, 'PV: pvc-db-' + i, { fill: '#ffd43b', 'font-size': '10', 'font-weight': '600' }));
+      scene.appendChild(svgText(x + 100, 356, 'EBS vol-' + i + 'abc', { fill: '#888', 'font-size': '9' }));
+
+      drawArrow(scene, x + 100, 295, x + 100, 320, '#ffd43b44', 'st-arrow');
+    }
+
+    /* Key insight box */
+    scene.appendChild(svgRect(100, 390, 760, 60, { fill: '#0f0f15', stroke: '#51cf6644' }));
+    scene.appendChild(svgText(480, 412, 'Key: Each replica gets its OWN PVC. On delete + recreate, db-0 rebinds to data-db-0.', { fill: '#51cf66', 'font-size': '10', 'font-weight': '600' }));
+    scene.appendChild(svgText(480, 430, 'Data persists across pod restarts. Stable network identity (db-0.db-headless.ns.svc.cluster.local).', { fill: '#888', 'font-size': '10' }));
+    scene.appendChild(svgText(480, 446, 'Ordered startup: db-0 starts first, then db-1, then db-2. Critical for leader election in databases.', { fill: '#888', 'font-size': '10' }));
+  }
+
+  function drawAccessModes() {
+    scene.appendChild(svgText(480, 30, 'Volume Access Modes + Binding Modes', { fill: '#ffa94d', 'font-size': '13', 'font-weight': '700' }));
+
+    /* Access modes table */
+    scene.appendChild(svgRect(60, 55, 840, 180, { fill: '#0f0f15', stroke: '#ffa94d44' }));
+    scene.appendChild(svgText(480, 75, 'Access Modes', { fill: '#ffa94d', 'font-size': '12', 'font-weight': '700' }));
+
+    var headers = ['Mode', 'Abbreviation', 'Description', 'Typical Backend', 'Use Case'];
+    var cols = [120, 240, 440, 660, 820];
+    headers.forEach(function(h, i) {
+      scene.appendChild(svgText(cols[i], 95, h, { fill: '#888', 'font-size': '9', 'font-weight': '600' }));
+    });
+
+    var modes = [
+      ['ReadWriteOnce', 'RWO', 'Single node read-write', 'EBS, GCE PD', 'Databases'],
+      ['ReadOnlyMany', 'ROX', 'Many nodes read-only', 'NFS, GlusterFS', 'Shared config'],
+      ['ReadWriteMany', 'RWX', 'Many nodes read-write', 'NFS, EFS, CephFS', 'Shared uploads'],
+      ['ReadWriteOncePod', 'RWOP', 'Single pod read-write', 'CSI only', 'Strict exclusion']
+    ];
+
+    modes.forEach(function(row, ri) {
+      var y = 118 + ri * 24;
+      var rowColor = ri === 0 ? '#51cf66' : '#ccc';
+      row.forEach(function(cell, ci) {
+        scene.appendChild(svgText(cols[ci], y, cell, { fill: rowColor, 'font-size': '10' }));
+      });
+    });
+
+    /* RWO highlight */
+    scene.appendChild(svgRect(70, 105, 820, 20, { fill: '#51cf6608', stroke: 'none' }));
+
+    /* Binding modes */
+    scene.appendChild(svgRect(60, 260, 840, 180, { fill: '#0f0f15', stroke: '#339af044' }));
+    scene.appendChild(svgText(480, 280, 'Volume Binding Modes', { fill: '#339af0', 'font-size': '12', 'font-weight': '700' }));
+
+    /* Immediate */
+    scene.appendChild(svgRect(80, 300, 380, 60, { fill: '#12121a', stroke: '#ff6b6b44' }));
+    scene.appendChild(svgText(270, 318, 'Immediate (default)', { fill: '#ff6b6b', 'font-size': '11', 'font-weight': '700' }));
+    scene.appendChild(svgText(270, 336, 'PV created + bound as soon as PVC is created.', { fill: '#ccc', 'font-size': '9' }));
+    scene.appendChild(svgText(270, 352, 'Problem: EBS in us-east-1a, pod in us-east-1b = stuck.', { fill: '#ff6b6b', 'font-size': '9' }));
+
+    /* WaitForFirstConsumer */
+    scene.appendChild(svgRect(500, 300, 380, 60, { fill: '#12121a', stroke: '#51cf66' }));
+    scene.appendChild(svgText(690, 318, 'WaitForFirstConsumer', { fill: '#51cf66', 'font-size': '11', 'font-weight': '700' }));
+    scene.appendChild(svgText(690, 336, 'PV created only when pod is scheduled to a node.', { fill: '#ccc', 'font-size': '9' }));
+    scene.appendChild(svgText(690, 352, 'Correct for AZ-bound volumes (EBS, GCE PD).', { fill: '#51cf66', 'font-size': '9' }));
+
+    /* Key insight */
+    scene.appendChild(svgRect(100, 390, 760, 60, { fill: '#0f0f15', stroke: '#ffd43b44' }));
+    scene.appendChild(svgText(480, 412, 'Interview signal: "I would set WaitForFirstConsumer because EBS is AZ-bound --', { fill: '#ffd43b', 'font-size': '10' }));
+    scene.appendChild(svgText(480, 430, 'Immediate binding can create a volume in the wrong AZ before the scheduler picks a node."', { fill: '#ffd43b', 'font-size': '10' }));
+    scene.appendChild(svgText(480, 446, 'This one sentence demonstrates you understand the PV lifecycle beyond YAML copy-paste.', { fill: '#888', 'font-size': '9' }));
+  }
+
+  function commentary(text) {
+    document.getElementById('st-commentary').textContent = text;
+  }
+
+  draw();
+
+  async function animateProvision() {
+    if (running) return;
+    running = true;
+    document.getElementById('st-btn-provision').disabled = true;
+    currentView = 'default';
+    draw();
+
+    commentary('Step 1: User creates PVC with storageClassName: gp3. The PVC requests 50Gi of storage with ReadWriteOnce access mode.');
+    await delay(1200);
+
+    commentary('Step 2: PV controller sees no matching PV exists. It calls the CSI provisioner registered for the "gp3" StorageClass.');
+    await animPkt(scene, 390, 120, 390, 170, '#cc5de8', 'no matching PV', 500);
+    await animPkt(scene, 450, 190, 540, 190, '#8be9fd', 'provision!', 500);
+    await delay(800);
+
+    commentary('Step 3: CSI driver creates the actual EBS volume in AWS (vol-0abc1234, 50Gi, gp3). Then creates a PV resource in Kubernetes and binds it to the PVC.');
+    await animPkt(scene, 620, 210, 620, 260, '#ffd43b', 'CreateVolume', 600);
+    await delay(400);
+    await animPkt(scene, 520, 290, 440, 290, '#339af0', 'PV created', 500);
+    await delay(800);
+
+    commentary('Step 4: Pod is scheduled to a node. Kubelet calls CSI ControllerPublishVolume (attach) then NodeStageVolume + NodePublishVolume (mount). The volume is now available at /data inside the container.');
+    await animPkt(scene, 140, 120, 140, 170, '#8be9fd', 'scheduled', 500);
+    await animPkt(scene, 140, 210, 340, 260, '#8be9fd', 'attach+mount', 600);
+    await delay(800);
+
+    commentary('Dynamic provisioning complete. Pod has a 50Gi EBS volume mounted at /data. The entire flow -- PVC creation through mount -- is fully automated by the PV controller and CSI driver.');
+    running = false;
+    document.getElementById('st-btn-provision').disabled = false;
+  }
+
+  function showStatefulSet() {
+    currentView = 'statefulset';
+    draw();
+    commentary('StatefulSet creates one PVC per replica from volumeClaimTemplates. Each pod (db-0, db-1, db-2) gets its own persistent volume. On delete and recreate, db-0 rebinds to data-db-0 -- data survives pod restarts. Pods start in order (0, then 1, then 2) and have stable DNS names.');
+  }
+
+  function showAccessModes() {
+    currentView = 'accessmodes';
+    draw();
+    commentary('RWO (ReadWriteOnce) is the most common mode -- single node mount. EBS, GCE PD, and most block storage are RWO. RWX (ReadWriteMany) requires a shared filesystem like NFS or EFS. WaitForFirstConsumer binding mode is critical for AZ-bound volumes to avoid cross-AZ scheduling failures.');
+  }
+
+  function reset() {
+    currentView = 'default';
+    running = false;
+    document.getElementById('st-btn-provision').disabled = false;
+    draw();
+    commentary('A Pod declares a volumeMount. A PVC (PersistentVolumeClaim) requests storage by size and access mode. If no matching PV exists, the StorageClass triggers dynamic provisioning via the CSI driver, which creates the actual cloud volume.');
+  }
+
+  return { animateProvision: animateProvision, showStatefulSet: showStatefulSet, showAccessModes: showAccessModes, reset: reset };
+})();
+
+
+/* ================================================================
+   TAB 5 -- HA + MULTI-CLUSTER CONTROL PLANE
+   ================================================================ */
+var HA = (function() {
+  var scene;
+  var nodes = [
+    { alive: true, label: 'CP Node 1', isLeader: true },
+    { alive: true, label: 'CP Node 2', isLeader: false },
+    { alive: true, label: 'CP Node 3', isLeader: false }
+  ];
+  var running = false;
+
+  function nodeX(idx) { return 80 + idx * 300; }
+  var NODE_Y = 50;
+  var NODE_W = 240;
+  var NODE_H = 250;
+
+  function draw() {
+    scene = document.getElementById('ha-scene');
+    scene.innerHTML = '';
+
+    /* LB in front of apiservers */
+    scene.appendChild(svgRect(340, 10, 280, 30, { stroke: '#cc5de8', fill: '#12121a' }));
+    scene.appendChild(svgText(480, 30, 'Load Balancer (apiserver endpoint)', { fill: '#cc5de8', 'font-size': '10', 'font-weight': '600' }));
+
+    nodes.forEach(function(node, idx) {
+      var x = nodeX(idx);
+      var outerStroke = node.alive ? '#339af0' : '#ff6b6b';
+      var outerFill = node.alive ? '#12121a' : '#1f1015';
+
+      scene.appendChild(svgRect(x, NODE_Y, NODE_W, NODE_H, { stroke: outerStroke, fill: outerFill }));
+      scene.appendChild(svgText(x + NODE_W / 2, NODE_Y + 20, node.label, { fill: outerStroke, 'font-size': '12', 'font-weight': '700' }));
+
+      /* Components */
+      var comps = [
+        { label: 'apiserver', y: NODE_Y + 35, color: '#339af0' },
+        { label: 'etcd', y: NODE_Y + 70, color: '#ffd43b' },
+        { label: 'scheduler', y: NODE_Y + 105, color: '#51cf66' },
+        { label: 'ctrl-manager', y: NODE_Y + 140, color: '#cc5de8' }
+      ];
+
+      comps.forEach(function(comp) {
+        var fillC = node.alive ? '#0f0f15' : '#1f1015';
+        var strokeC = node.alive ? comp.color + '66' : '#ff6b6b33';
+        scene.appendChild(svgRect(x + 15, comp.y, NODE_W - 30, 28, { fill: fillC, stroke: strokeC }));
+
+        var textColor = node.alive ? comp.color : '#ff6b6b44';
+        var lbl = comp.label;
+        if (comp.label === 'etcd') {
+          lbl = node.isLeader ? 'etcd (LEADER)' : 'etcd (follower)';
+        }
+        if ((comp.label === 'scheduler' || comp.label === 'ctrl-manager') && node.alive) {
+          var isActive = nodes.filter(function(n) { return n.alive; })[0] === node;
+          lbl = comp.label + (isActive ? ' (active)' : ' (standby)');
+        }
+        scene.appendChild(svgText(x + NODE_W / 2, comp.y + 18, lbl, {
+          fill: textColor, 'font-size': '9', 'font-weight': '600'
+        }));
+
+        if (!node.alive) {
+          scene.appendChild(svgEl('line', { x1: x + 20, y1: comp.y + 5, x2: x + NODE_W - 20, y2: comp.y + 23, stroke: '#ff6b6b55', 'stroke-width': 1.5 }));
+        }
+      });
+
+      /* Dead X */
+      if (!node.alive) {
+        scene.appendChild(svgEl('line', { x1: x + 20, y1: NODE_Y + 10, x2: x + NODE_W - 20, y2: NODE_Y + NODE_H - 10, stroke: '#ff6b6b44', 'stroke-width': 2 }));
+        scene.appendChild(svgEl('line', { x1: x + NODE_W - 20, y1: NODE_Y + 10, x2: x + 20, y2: NODE_Y + NODE_H - 10, stroke: '#ff6b6b44', 'stroke-width': 2 }));
+      }
+
+      /* Raft status below etcd */
+      if (node.alive) {
+        scene.appendChild(svgText(x + NODE_W / 2, NODE_Y + 190, node.isLeader ? 'raft: LEADER' : 'raft: follower', {
+          fill: node.isLeader ? '#ffd43b' : '#ffd43b66', 'font-size': '9', 'font-weight': '600'
+        }));
+      }
+
+      /* LB connection */
+      if (node.alive) {
+        drawDashed(scene, x + NODE_W / 2, NODE_Y, 480, 40, '#cc5de822');
+      }
+    });
+
+    /* etcd raft lines between alive nodes */
+    for (var i = 0; i < nodes.length; i++) {
+      for (var j = i + 1; j < nodes.length; j++) {
+        if (nodes[i].alive && nodes[j].alive) {
+          var yi = NODE_Y + 84;
+          drawDashed(scene, nodeX(i) + NODE_W, yi, nodeX(j), yi, '#ffd43b22');
+        }
+      }
+    }
+
+    /* Quorum status */
+    var aliveCount = nodes.filter(function(n) { return n.alive; }).length;
+    var quorumMet = aliveCount >= 2;
+    var qColor = quorumMet ? '#51cf66' : '#ff6b6b';
+    scene.appendChild(svgRect(320, 330, 320, 50, { fill: '#0f0f15', stroke: qColor + '66' }));
+    scene.appendChild(svgText(480, 350, 'etcd quorum: ' + aliveCount + '/3 nodes alive', { fill: qColor, 'font-size': '11', 'font-weight': '700' }));
+    scene.appendChild(svgText(480, 370, quorumMet ? 'Quorum met -- reads and writes operational' : 'QUORUM LOST -- cluster cannot write!', {
+      fill: qColor, 'font-size': '10'
+    }));
+
+    /* Lease-based leader election note */
+    scene.appendChild(svgRect(320, 400, 320, 60, { fill: '#0f0f15', stroke: '#cc5de844' }));
+    scene.appendChild(svgText(480, 418, 'Lease-based leader election:', { fill: '#cc5de8', 'font-size': '10', 'font-weight': '600' }));
+    scene.appendChild(svgText(480, 436, 'scheduler + ctrl-manager: one active, rest standby.', { fill: '#888', 'font-size': '9' }));
+    scene.appendChild(svgText(480, 452, 'On leader death, standby acquires lease in ~15s.', { fill: '#888', 'font-size': '9' }));
+
+    /* Worker nodes below */
+    for (var wi = 0; wi < 2; wi++) {
+      var wx = 200 + wi * 360;
+      scene.appendChild(svgRect(wx, 480, 180, 30, { fill: '#12121a', stroke: '#8be9fd33' }));
+      scene.appendChild(svgText(wx + 90, 500, 'Worker ' + (wi + 1) + ' (kubelet)', { fill: '#8be9fd', 'font-size': '10' }));
+      if (aliveCount > 0) {
+        drawDashed(scene, wx + 90, 480, 480, 380, '#8be9fd11');
+      }
+    }
+  }
+
+  function commentary(text) {
+    document.getElementById('ha-commentary').textContent = text;
+  }
+
+  draw();
+
+  function killNode(idx) {
+    if (running) return;
+    var aliveCount = nodes.filter(function(n) { return n.alive; }).length;
+    if (!nodes[idx].alive) {
+      /* Restore */
+      nodes[idx].alive = true;
+      document.getElementById('ha-btn-kill' + idx).textContent = 'Kill CP node ' + (idx + 1);
+      document.getElementById('ha-btn-kill' + idx).classList.remove('active-btn');
+
+      /* If restored node was leader, keep leadership where it is */
+      draw();
+      commentary('CP node ' + (idx + 1) + ' restored. etcd raft catches it up from the current leader. Scheduler/ctrl-manager on this node enter standby mode.');
+      return;
+    }
+
+    nodes[idx].alive = false;
+    var wasLeader = nodes[idx].isLeader;
+    nodes[idx].isLeader = false;
+
+    document.getElementById('ha-btn-kill' + idx).textContent = 'Restore CP node ' + (idx + 1);
+    document.getElementById('ha-btn-kill' + idx).classList.add('active-btn');
+
+    /* Elect new etcd leader if needed */
+    if (wasLeader) {
+      var newLeader = nodes.findIndex(function(n) { return n.alive; });
+      if (newLeader >= 0) nodes[newLeader].isLeader = true;
+    }
+
+    draw();
+    var newAlive = nodes.filter(function(n) { return n.alive; }).length;
+    if (newAlive >= 2) {
+      commentary('CP node ' + (idx + 1) + ' is dead. etcd raft quorum is ' + newAlive + '/3 -- still meets majority. ' +
+        (wasLeader ? 'etcd elects a new leader (Raft protocol). ' : '') +
+        'apiserver traffic routes to remaining nodes via load balancer. Scheduler/ctrl-manager failover via lease. Cluster is fully operational with ' + newAlive + ' nodes.');
+    } else if (newAlive === 1) {
+      commentary('Only 1 of 3 control-plane nodes alive -- QUORUM LOST. etcd cannot accept writes (needs 2/3 majority). Existing pods on workers keep running (kubelet is autonomous), but no new scheduling, no API writes. This is why 3 is the minimum for HA -- losing 2 nodes is fatal for the control plane.');
+    } else {
+      commentary('All control-plane nodes are dead. Workers continue running existing pods (kubelet cached state), but no new operations are possible.');
+    }
+  }
+
+  async function sendWrite() {
+    if (running) return;
+    running = true;
+
+    var leaderIdx = nodes.findIndex(function(n) { return n.alive && n.isLeader; });
+    if (leaderIdx < 0) {
+      commentary('No etcd leader available. Write is rejected. Quorum lost.');
+      running = false;
+      return;
+    }
+
+    var aliveCount = nodes.filter(function(n) { return n.alive; }).length;
+    if (aliveCount < 2) {
+      commentary('Quorum lost (need 2 of 3). etcd rejects the write even though a node is alive. This is the Raft safety guarantee -- no writes without majority consensus.');
+      running = false;
+      return;
+    }
+
+    var lx = nodeX(leaderIdx) + NODE_W / 2;
+    var ly = NODE_Y + 84;
+
+    commentary('Write goes to etcd leader (CP node ' + (leaderIdx + 1) + '). Leader appends to log, replicates to followers, waits for majority ack, then commits.');
+
+    /* LB to leader */
+    await animPkt(scene, 480, 40, lx, NODE_Y + 49, '#339af0', 'write', 500);
+
+    /* Leader to followers */
+    var followers = [];
+    nodes.forEach(function(n, i) {
+      if (i !== leaderIdx && n.alive) followers.push(i);
+    });
+
+    var replicatePromises = followers.map(function(fi) {
+      return animPkt(scene, lx, ly, nodeX(fi) + NODE_W / 2, ly, '#ffd43b', 'AppendEntries', 600);
+    });
+    await Promise.all(replicatePromises);
+
+    /* Acks back */
+    var ackPromises = followers.map(function(fi) {
+      return animPkt(scene, nodeX(fi) + NODE_W / 2, ly, lx, ly, '#51cf66', 'ACK', 400);
+    });
+    await Promise.all(ackPromises);
+
+    commentary('Write committed. Leader received majority acks (' + (followers.length + 1) + '/' + aliveCount + '). Entry is now durable -- it survives the loss of any single node. This is the Raft consensus guarantee.');
+    running = false;
+  }
+
+  async function triggerElection() {
+    if (running) return;
+    running = true;
+
+    var currentLeader = nodes.findIndex(function(n) { return n.isLeader; });
+    if (currentLeader < 0) {
+      commentary('No leader to depose. Restore a node first.');
+      running = false;
+      return;
+    }
+
+    commentary('Simulating leader election: current etcd leader (CP node ' + (currentLeader + 1) + ') steps down. Followers detect missed heartbeats and start an election.');
+    nodes[currentLeader].isLeader = false;
+    draw();
+    await delay(1000);
+
+    /* Find a new leader among alive nodes */
+    var candidates = [];
+    nodes.forEach(function(n, i) { if (n.alive && i !== currentLeader) candidates.push(i); });
+
+    if (candidates.length === 0) {
+      commentary('No other alive nodes to become leader. Cluster has lost quorum.');
+      running = false;
+      return;
+    }
+
+    var newLeader = candidates[0];
+    commentary('CP node ' + (newLeader + 1) + ' increments term, requests votes from peers.');
+
+    /* Vote requests */
+    for (var ci = 0; ci < candidates.length; ci++) {
+      if (candidates[ci] !== newLeader && nodes[candidates[ci]].alive) {
+        await animPkt(scene, nodeX(newLeader) + NODE_W / 2, NODE_Y + 84,
+          nodeX(candidates[ci]) + NODE_W / 2, NODE_Y + 84, '#ffd43b', 'RequestVote', 400);
+        await animPkt(scene, nodeX(candidates[ci]) + NODE_W / 2, NODE_Y + 84,
+          nodeX(newLeader) + NODE_W / 2, NODE_Y + 84, '#51cf66', 'VoteGranted', 400);
+      }
+    }
+
+    nodes[newLeader].isLeader = true;
+    draw();
+    commentary('CP node ' + (newLeader + 1) + ' elected as new etcd leader. It begins sending heartbeats to maintain leadership. The election took ~150ms (Raft election timeout). In production, etcd elections are nearly invisible to clients.');
+    running = false;
+  }
+
+  function reset() {
+    nodes = [
+      { alive: true, label: 'CP Node 1', isLeader: true },
+      { alive: true, label: 'CP Node 2', isLeader: false },
+      { alive: true, label: 'CP Node 3', isLeader: false }
+    ];
+    running = false;
+    [0, 1].forEach(function(i) {
+      document.getElementById('ha-btn-kill' + i).textContent = 'Kill CP node ' + (i + 1);
+      document.getElementById('ha-btn-kill' + i).classList.remove('active-btn');
+    });
+    draw();
+    commentary('3 control-plane nodes, each running apiserver + etcd + scheduler + controller-manager. etcd uses Raft consensus: writes go to the leader, replicate to followers. apiserver instances are stateless -- any can serve reads/writes (they all talk to etcd). Scheduler and controller-manager use lease objects for leader election -- only one active instance at a time.');
+  }
+
+  return { killNode: killNode, sendWrite: sendWrite, triggerElection: triggerElection, reset: reset };
+})();
+</script>
+</body>
+</html>

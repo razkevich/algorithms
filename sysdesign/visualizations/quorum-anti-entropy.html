@@ -1,0 +1,1419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quorum + Anti-Entropy -- Interactive Visualization</title>
+<style>
+:root {
+  --bg: #0f0f15;
+  --surface: #181820;
+  --surface-2: #20202a;
+  --border: #2a2a35;
+  --text: #e6e6ea;
+  --text-2: #cfcfd6;
+  --text-3: #888;
+  --accent-red: #ff6b6b;
+  --accent-green: #51cf66;
+  --accent-blue: #339af0;
+  --accent-yellow: #ffd43b;
+  --accent-purple: #cc5de8;
+  --accent-cyan: #8be9fd;
+  --accent-orange: #ffa94d;
+}
+*, *::before, *::after { box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  padding: 32px 24px;
+  max-width: 1100px;
+  margin: 0 auto;
+  line-height: 1.55;
+}
+h1 { color: #fff; margin-bottom: 4px; }
+h1 + p.sub { color: var(--text-3); font-style: italic; margin-top: 0; margin-bottom: 24px; }
+h2 { color: #fff; margin-top: 32px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+h3 { color: var(--text-2); margin-top: 20px; }
+code {
+  background: var(--surface-2);
+  padding: 2px 6px;
+  border-radius: 3px;
+  color: var(--accent-cyan);
+  font-size: 13px;
+}
+svg {
+  background: var(--surface);
+  border-radius: 8px;
+  display: block;
+  margin: 14px auto;
+  width: 100%;
+  height: auto;
+}
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0;
+  align-items: center;
+}
+.controls button, .btn {
+  padding: 10px 16px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  border-radius: 6px;
+  cursor: pointer;
+  min-height: 44px;
+  font-size: 14px;
+  transition: background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+.controls button:hover, .btn:hover { background: var(--surface); }
+.controls button:disabled, .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.controls button.active-btn { border-color: var(--accent-blue); color: var(--accent-blue); }
+.slider-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-3);
+  min-width: 180px;
+}
+.slider-group label {
+  min-width: 20px;
+  text-align: right;
+}
+.slider-group input[type="range"] {
+  flex: 1;
+  min-width: 80px;
+  accent-color: var(--accent-blue);
+}
+.slider-group .val {
+  min-width: 24px;
+  color: var(--text);
+  font-weight: 600;
+}
+.commentary {
+  background: var(--surface-2);
+  padding: 14px;
+  border-radius: 6px;
+  font-size: 14px;
+  color: var(--text-2);
+  margin: 12px 0;
+  min-height: 44px;
+  line-height: 1.5;
+}
+.takeaway {
+  background: #1a1a22;
+  border-left: 3px solid var(--accent-green);
+  padding: 12px 16px;
+  margin: 14px 0;
+  font-size: 14px;
+}
+.takeaway strong { color: var(--accent-green); }
+.takeaway ul { margin: 6px 0 0 0; padding-left: 18px; }
+.takeaway li { margin-bottom: 6px; }
+.verdict {
+  font-size: 18px;
+  font-weight: 700;
+  padding: 12px 18px;
+  border-radius: 6px;
+  text-align: center;
+  margin: 12px 0;
+}
+.verdict.strong {
+  background: rgba(81, 207, 102, 0.12);
+  border: 1px solid var(--accent-green);
+  color: var(--accent-green);
+}
+.verdict.weak {
+  background: rgba(255, 107, 107, 0.12);
+  border: 1px solid var(--accent-red);
+  color: var(--accent-red);
+}
+.preset-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 10px 0;
+}
+.preset-row button {
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-2);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  min-height: 32px;
+  transition: background 0.15s, border-color 0.15s;
+}
+.preset-row button:hover { background: var(--surface); border-color: var(--text-3); }
+.preset-row button.active { border-color: var(--accent-blue); color: var(--accent-blue); }
+.math-line {
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+  font-size: 15px;
+  color: var(--text);
+  padding: 8px 0;
+}
+.math-line .op { color: var(--accent-yellow); }
+.math-line .num { color: var(--accent-cyan); font-weight: 600; }
+table.model-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 14px 0;
+  font-size: 14px;
+}
+table.model-table th {
+  background: var(--surface-2);
+  color: var(--text-2);
+  padding: 10px 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+table.model-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+table.model-table tr:hover { background: var(--surface-2); }
+.step-log {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 12px 14px;
+  font-size: 13px;
+  color: var(--text-2);
+  margin: 10px 0;
+  max-height: 200px;
+  overflow-y: auto;
+  line-height: 1.6;
+}
+.step-log .step-entry { margin-bottom: 4px; }
+.step-log .step-entry.active { color: var(--accent-blue); font-weight: 600; }
+.step-log .step-entry.done { color: var(--text-3); }
+.step-log .step-entry .ts-tag {
+  display: inline-block;
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 600;
+  margin-left: 4px;
+}
+.step-log .step-entry .ts-tag.fresh { background: rgba(81,207,102,0.2); color: var(--accent-green); }
+.step-log .step-entry .ts-tag.stale { background: rgba(255,107,107,0.2); color: var(--accent-red); }
+.cdf-legend {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  font-size: 13px;
+  color: var(--text-2);
+  margin: 8px 0;
+}
+.cdf-legend span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.cdf-legend .swatch {
+  display: inline-block;
+  width: 16px;
+  height: 3px;
+  border-radius: 1px;
+}
+@media (max-width: 720px) {
+  body { padding: 20px 14px; }
+}
+@media (max-width: 480px) {
+  .controls { flex-direction: column; }
+  .controls button { width: 100%; }
+  .slider-group { width: 100%; min-width: auto; }
+  .preset-row { flex-direction: column; }
+  .preset-row button { width: 100%; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Quorum + Anti-Entropy</h1>
+  <p class="sub">R+W>N math, read repair, hinted handoff, Merkle-tree reconciliation. The Dynamo-paper foundations underlying Cassandra, DynamoDB, Riak, and most distributed-store consistency.</p>
+</header>
+
+<!-- ============================================================ -->
+<!-- SECTION 1: R+W>N STRICT CONSISTENCY MATH                      -->
+<!-- ============================================================ -->
+<section id="sec-quorum">
+<h2>1. R+W>N -- Quorum Consistency Math</h2>
+
+<p>Replication factor <code>N</code> copies each write to N replicas. A read contacts <code>R</code> replicas and picks the latest. A write waits for <code>W</code> replicas to acknowledge. The Dynamo paper's central theorem: if <code>R + W > N</code>, at least one replica in the read set must hold the latest write.</p>
+
+<div class="controls" style="flex-wrap: wrap;">
+  <div class="slider-group">
+    <label>N</label>
+    <input type="range" id="sl-n" min="1" max="7" value="3">
+    <span class="val" id="val-n">3</span>
+  </div>
+  <div class="slider-group">
+    <label>R</label>
+    <input type="range" id="sl-r" min="1" max="7" value="2">
+    <span class="val" id="val-r">2</span>
+  </div>
+  <div class="slider-group">
+    <label>W</label>
+    <input type="range" id="sl-w" min="1" max="7" value="2">
+    <span class="val" id="val-w">2</span>
+  </div>
+</div>
+
+<div class="preset-row" id="presets"></div>
+
+<div class="math-line" id="math-line"></div>
+<div id="verdict-box" class="verdict strong"></div>
+
+<svg id="venn-svg" viewBox="0 0 600 280"></svg>
+
+<div class="commentary" id="quorum-commentary"></div>
+
+<h3>Common Quorum Settings (N=3)</h3>
+<table class="model-table">
+  <thead>
+    <tr><th>Setting</th><th>R</th><th>W</th><th>R+W</th><th>Consistent?</th><th>Trade-off</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>QUORUM+QUORUM</td><td>2</td><td>2</td><td>4 > 3</td><td style="color:var(--accent-green)">Yes</td><td>Balanced latency for reads and writes. Production default.</td></tr>
+    <tr><td>ONE+ALL</td><td>1</td><td>3</td><td>4 > 3</td><td style="color:var(--accent-green)">Yes</td><td>Fast reads, slow writes. Write must wait for slowest replica.</td></tr>
+    <tr><td>ALL+ONE</td><td>3</td><td>1</td><td>4 > 3</td><td style="color:var(--accent-green)">Yes</td><td>Fast writes, slow reads. Read must wait for slowest replica.</td></tr>
+    <tr><td>ONE+ONE</td><td>1</td><td>1</td><td>2 &le; 3</td><td style="color:var(--accent-red)">No</td><td>Fast but may read stale. Eventual consistency only.</td></tr>
+  </tbody>
+</table>
+
+<h3>Latency Implications</h3>
+<p><code>W=QUORUM</code> waits for ceil(N/2)+1 acks, tolerating floor(N/2) slow replicas. <code>W=ALL</code> waits for the slowest replica, causing high tail latency. The sweet spot is QUORUM on both sides: strong consistency without worst-case tail.</p>
+
+<div class="takeaway">
+  <strong>Takeaway:</strong> R+W>N is the Dynamo paper's central theorem. QUORUM+QUORUM is the production default -- balanced fast read + fast write + strong consistency.
+</div>
+</section>
+
+<!-- ============================================================ -->
+<!-- SECTION 2: READ REPAIR                                        -->
+<!-- ============================================================ -->
+<section id="sec-read-repair">
+<h2>2. Read Repair (Synchronous on Read)</h2>
+
+<p>Every read is an opportunity to detect and repair replica drift. When the coordinator reads from R replicas and detects a timestamp mismatch, it reconciles to the latest value and sends a background repair write to stale replicas.</p>
+
+<svg id="rr-svg" viewBox="0 0 800 380"></svg>
+
+<div class="controls">
+  <button id="rr-play" onclick="rrAnimate()">Play Animation</button>
+  <button id="rr-reset" onclick="rrReset()">Reset</button>
+  <div class="slider-group" style="margin-left: auto;">
+    <label style="min-width:auto;">read_repair_chance</label>
+    <input type="range" id="sl-rr-chance" min="0" max="100" value="100">
+    <span class="val" id="val-rr-chance">100%</span>
+  </div>
+</div>
+
+<div class="step-log" id="rr-log"></div>
+
+<div class="commentary" id="rr-commentary">Click "Play Animation" to walk through a read-repair cycle: client reads at QUORUM, coordinator detects a stale replica, reconciles, and repairs in the background.</div>
+
+<div class="takeaway">
+  <strong>Takeaway:</strong> Read repair fixes lag <em>opportunistically</em> -- every read is a chance to detect and repair drift. Cheap, but only repairs keys that are actually read. Unread keys stay stale until anti-entropy repair.
+</div>
+</section>
+
+<!-- ============================================================ -->
+<!-- SECTION 3: HINTED HANDOFF                                     -->
+<!-- ============================================================ -->
+<section id="sec-hinted-handoff">
+<h2>3. Hinted Handoff (Write-Side Healing)</h2>
+
+<p>When a write's target replica is unreachable, the coordinator stores a "hint" -- the failed write, tagged with the intended target. When the target recovers, hints are replayed. Best-effort durability for transient failures.</p>
+
+<svg id="hh-svg" viewBox="0 0 800 400"></svg>
+
+<div class="controls">
+  <button id="hh-play" onclick="hhAnimate()">Play Animation</button>
+  <button id="hh-reset" onclick="hhReset()">Reset</button>
+</div>
+
+<div class="step-log" id="hh-log"></div>
+
+<div class="commentary" id="hh-commentary">Click "Play Animation" to see a write during a replica outage: coordinator stores hints, drains them on recovery.</div>
+
+<h3>Caveats</h3>
+<table class="model-table">
+  <thead><tr><th>Limitation</th><th>Impact</th></tr></thead>
+  <tbody>
+    <tr><td>Hints have TTL (default 3h in Cassandra)</td><td>If the target stays down longer than TTL, hints are dropped. Data diverges.</td></tr>
+    <tr><td>Coordinator dies = hints lost</td><td>Hints are stored locally on the coordinator's disk. No replication of hints themselves.</td></tr>
+    <tr><td>Not a substitute for full repair</td><td>Covers transient failures. Long outages or partition events require Merkle-tree anti-entropy.</td></tr>
+  </tbody>
+</table>
+
+<div class="takeaway">
+  <strong>Takeaway:</strong> Hinted handoff = best-effort durability for writes during transient failures. Time-bounded (TTL); not a substitute for full anti-entropy repair.
+</div>
+</section>
+
+<!-- ============================================================ -->
+<!-- SECTION 4: ANTI-ENTROPY VIA MERKLE TREES                      -->
+<!-- ============================================================ -->
+<section id="sec-merkle">
+<h2>4. Anti-Entropy via Merkle Trees</h2>
+
+<p>When replicas have drifted apart (hint TTL expired, long outage, bit rot), comparing every row is O(N) and expensive. A Merkle tree -- a binary tree of hashes -- lets two replicas find their differences in O(log N) comparisons. Leaves hash row groups; internal nodes hash their children.</p>
+
+<svg id="mt-svg" viewBox="0 0 800 520"></svg>
+
+<div class="controls">
+  <button id="mt-play" onclick="mtAnimate()">Play Diff Protocol</button>
+  <button id="mt-reset" onclick="mtReset()">Reset</button>
+</div>
+
+<div class="step-log" id="mt-log"></div>
+
+<div class="commentary" id="mt-commentary">Click "Play Diff Protocol" to watch two replicas compare Merkle trees: root mismatch, descend into differing subtrees, find the divergent leaf, reconcile.</div>
+
+<h3>Why O(log N)</h3>
+<p>At each tree level, compare hashes. Equal hashes mean the entire subtree is identical -- skip it. Only descend into mismatching subtrees. With 1M rows and 1024 rows per leaf, the tree has ~10 levels. A single-leaf difference requires ~10 hash comparisons, not 1M row comparisons.</p>
+
+<p>Used by: Cassandra (<code>nodetool repair</code>), DynamoDB, Riak. Same structure powers Bitcoin block verification and IPFS content-addressing.</p>
+
+<div class="takeaway">
+  <strong>Takeaway:</strong> Merkle trees = log-cost diff. The standard for replica reconciliation at scale. Same structure used in Bitcoin/IPFS for content-addressing.
+</div>
+</section>
+
+<!-- ============================================================ -->
+<!-- SECTION 5: LATENCY MATH -- QUORUM AT SCALE                    -->
+<!-- ============================================================ -->
+<section id="sec-latency">
+<h2>5. Latency Math -- Quorum Reads at Scale</h2>
+
+<p>Counterintuitive result: quorum reads (wait for 2-of-3) have <em>better</em> tail latency than reading from a single specific replica. You're waiting for the 2nd order statistic of 3 samples -- tolerating the slowest one.</p>
+
+<svg id="cdf-svg" viewBox="0 0 800 400"></svg>
+
+<div class="cdf-legend">
+  <span><span class="swatch" style="background:var(--accent-red)"></span>Single replica</span>
+  <span><span class="swatch" style="background:var(--accent-blue)"></span>Quorum (2-of-3)</span>
+  <span><span class="swatch" style="background:var(--accent-purple)"></span>ALL (3-of-3)</span>
+</div>
+
+<div class="controls">
+  <div class="slider-group">
+    <label style="min-width:auto;">p99 (ms)</label>
+    <input type="range" id="sl-p99" min="20" max="500" value="100" step="10">
+    <span class="val" id="val-p99">100</span>
+  </div>
+  <button onclick="drawCDF()">Redraw</button>
+</div>
+
+<div class="commentary" id="cdf-commentary"></div>
+
+<h3>The Math</h3>
+<p>If each replica independently completes within time <em>t</em> with probability <code>F(t)</code>:</p>
+<ul style="font-size:14px;">
+  <li><strong>Single replica:</strong> P(done by t) = F(t)</li>
+  <li><strong>ALL (3-of-3):</strong> P(done by t) = F(t)<sup>3</sup> -- wait for slowest, <em>worse</em> tail</li>
+  <li><strong>Quorum (2-of-3):</strong> P(done by t) = 3F(t)<sup>2</sup> - 2F(t)<sup>3</sup> -- at least 2 of 3 finish</li>
+</ul>
+<p>At p99: F(t)=0.99. Single: 0.99. Quorum 2-of-3: 3(0.99)<sup>2</sup> - 2(0.99)<sup>3</sup> = 0.999702. ALL: (0.99)<sup>3</sup> = 0.9703. Quorum p99 is <em>better</em> than single replica.</p>
+
+<div class="takeaway">
+  <strong>Takeaway:</strong> Quorum reads = better tail latency than reading from a specific replica. Count it as a feature, not just a consistency story. ALL reads have the worst tail because you wait for the slowest.
+</div>
+</section>
+
+<!-- ============================================================ -->
+<!-- SECTION 6: CONSISTENCY MODELS                                 -->
+<!-- ============================================================ -->
+<section id="sec-models">
+<h2>6. Consistency Models Spectrum</h2>
+
+<p>R+W>N gives you strong eventual consistency -- specifically "read-your-writes" and "monotonic reads" within a session. But it does <em>not</em> give linearizability, which requires additional coordination (clocks, a single leader, or consensus).</p>
+
+<table class="model-table">
+  <thead><tr><th>Model</th><th>Guarantee</th><th>Example Systems</th><th>Cost</th></tr></thead>
+  <tbody>
+    <tr>
+      <td style="color:var(--accent-red)">Eventual</td>
+      <td>Reads may return stale values; replicas converge eventually</td>
+      <td>Cassandra (default CL=ONE), DynamoDB (eventually consistent reads)</td>
+      <td>Lowest latency, highest availability</td>
+    </tr>
+    <tr>
+      <td style="color:var(--accent-orange)">Read-your-writes</td>
+      <td>Client always sees its own writes (others may lag)</td>
+      <td>Cassandra with QUORUM R+W, sticky sessions</td>
+      <td>Moderate -- quorum coordination</td>
+    </tr>
+    <tr>
+      <td style="color:var(--accent-yellow)">Sequential</td>
+      <td>All clients see same order (may not match wall-clock time)</td>
+      <td>ZooKeeper (within a session)</td>
+      <td>Single-leader or total-order broadcast</td>
+    </tr>
+    <tr>
+      <td style="color:var(--accent-blue)">Linearizable</td>
+      <td>Sequential + respects real-time ordering (every op appears atomic at one instant)</td>
+      <td>Spanner (TrueTime), etcd/Raft consensus</td>
+      <td>High -- clock sync or consensus per op</td>
+    </tr>
+    <tr>
+      <td style="color:var(--accent-purple)">Strict Serializable</td>
+      <td>Linearizable + serializable transactions (strongest)</td>
+      <td>Spanner, CockroachDB, FoundationDB</td>
+      <td>Highest -- 2PC + synchronized clocks</td>
+    </tr>
+  </tbody>
+</table>
+
+<svg id="spectrum-svg" viewBox="0 0 800 120"></svg>
+
+<div class="takeaway">
+  <strong>Takeaway:</strong> Quorum gives strong eventual consistency, not linearizability. Linearizability needs additional ordering primitives (synchronized clocks, a coordinator, or consensus). Know where your system sits on this spectrum.
+</div>
+</section>
+
+<!-- ============================================================ -->
+<!-- SENIOR TELL                                                   -->
+<!-- ============================================================ -->
+<div class="takeaway" style="margin-top:32px; border-left-color: var(--accent-blue);">
+  <strong style="color:var(--accent-blue);">The senior tell.</strong> "I'd use QUORUM read + QUORUM write -- R+W>N gives strong consistency. Read repair handles routine drift; hinted handoff handles transient failures; nodetool repair handles partitions. Tail latency is actually better than per-replica because N-of-M tolerates a slow replica."
+</div>
+
+<script>
+/* ============================================================
+   SECTION 1: R+W>N QUORUM MATH
+   ============================================================ */
+(function() {
+  const slN = document.getElementById('sl-n');
+  const slR = document.getElementById('sl-r');
+  const slW = document.getElementById('sl-w');
+  const valN = document.getElementById('val-n');
+  const valR = document.getElementById('val-r');
+  const valW = document.getElementById('val-w');
+  const mathLine = document.getElementById('math-line');
+  const verdictBox = document.getElementById('verdict-box');
+  const commentary = document.getElementById('quorum-commentary');
+  const presetsDiv = document.getElementById('presets');
+  const svg = document.getElementById('venn-svg');
+
+  const presets = [
+    { label: 'QUORUM+QUORUM', n:3, r:2, w:2 },
+    { label: 'ONE+ALL', n:3, r:1, w:3 },
+    { label: 'ALL+ONE', n:3, r:3, w:1 },
+    { label: 'ONE+ONE', n:3, r:1, w:1 },
+    { label: 'N=5 QUORUM', n:5, r:3, w:3 },
+    { label: 'N=7 QUORUM', n:7, r:4, w:4 },
+  ];
+
+  presets.forEach(p => {
+    const btn = document.createElement('button');
+    btn.textContent = p.label;
+    btn.onclick = () => {
+      slN.value = p.n; slR.value = Math.min(p.r, p.n); slW.value = Math.min(p.w, p.n);
+      clampAndUpdate();
+    };
+    presetsDiv.appendChild(btn);
+  });
+
+  function clampAndUpdate() {
+    const n = parseInt(slN.value);
+    slR.max = n; slW.max = n;
+    if (parseInt(slR.value) > n) slR.value = n;
+    if (parseInt(slW.value) > n) slW.value = n;
+    update();
+  }
+
+  function update() {
+    const n = parseInt(slN.value);
+    const r = parseInt(slR.value);
+    const w = parseInt(slW.value);
+    valN.textContent = n;
+    valR.textContent = r;
+    valW.textContent = w;
+    const sum = r + w;
+    const strong = sum > n;
+    const overlap = Math.max(0, sum - n);
+
+    mathLine.innerHTML = `R(<span class="num">${r}</span>) <span class="op">+</span> W(<span class="num">${w}</span>) <span class="op">=</span> <span class="num">${sum}</span> &nbsp; ${strong ? '<span class="op">&gt;</span>' : '<span class="op">&le;</span>'} &nbsp; N(<span class="num">${n}</span>) &nbsp; | &nbsp; Overlap: <span class="num">${overlap}</span> node${overlap !== 1 ? 's' : ''}`;
+
+    if (strong) {
+      verdictBox.textContent = 'STRONG CONSISTENT -- guaranteed to read latest write';
+      verdictBox.className = 'verdict strong';
+    } else {
+      verdictBox.textContent = 'MAY READ STALE -- read set can miss all write replicas';
+      verdictBox.className = 'verdict weak';
+    }
+
+    // Latency commentary
+    const quorum = Math.ceil(n / 2) + 1;
+    let cText = '';
+    if (w === n) cText += 'W=ALL: write waits for slowest replica (high tail latency). ';
+    else if (w >= quorum) cText += `W=QUORUM (${w}): write tolerates ${n - w} slow replica${n-w!==1?'s':''}. `;
+    else cText += `W=${w}: fast writes, but fewer durability guarantees. `;
+
+    if (r === n) cText += 'R=ALL: read waits for slowest replica (high tail latency).';
+    else if (r >= quorum) cText += `R=QUORUM (${r}): read tolerates ${n - r} slow replica${n-r!==1?'s':''}.`;
+    else cText += `R=${r}: fast reads.`;
+
+    commentary.textContent = cText;
+
+    // Update preset buttons active state
+    presetsDiv.querySelectorAll('button').forEach(btn => {
+      const p = presets.find(x => x.label === btn.textContent);
+      btn.classList.toggle('active', p && p.n === n && p.r === r && p.w === w);
+    });
+
+    drawVenn(n, r, w, overlap, strong);
+  }
+
+  function drawVenn(n, r, w, overlap, strong) {
+    const cx = 300, cy = 150;
+    // Draw N replicas as circles, highlight R-set, W-set, overlap
+    let html = '';
+
+    // Background labels
+    const rSetColor = 'rgba(51,154,240,0.15)';
+    const wSetColor = 'rgba(255,107,107,0.15)';
+    const overlapColor = strong ? 'rgba(81,207,102,0.25)' : 'rgba(255,212,59,0.15)';
+
+    // Position replicas in a row
+    const spacing = Math.min(70, 400 / n);
+    const startX = cx - (n - 1) * spacing / 2;
+
+    // R-set: first R replicas (for visualization). W-set: last W replicas.
+    // Overlap: the intersection.
+    // Actually, let's arrange: W-set = replicas [0..W-1], R-set = replicas [N-W..N-1]
+    // Overlap = [N-W..W-1] if W+R > N
+    // Better: W writes to first W, R reads last R. Overlap = middle nodes.
+    const wSet = new Set();
+    const rSet = new Set();
+    for (let i = 0; i < w; i++) wSet.add(i);
+    for (let i = n - r; i < n; i++) rSet.add(i);
+
+    // Draw background regions
+    // W region
+    if (w > 0) {
+      const wx1 = startX + 0 * spacing - 28;
+      const wx2 = startX + (w - 1) * spacing + 28;
+      html += `<rect x="${wx1}" y="${cy - 40}" width="${wx2 - wx1}" height="80" rx="8" fill="${wSetColor}" stroke="var(--accent-red)" stroke-width="1" stroke-dasharray="4,3" opacity="0.7"/>`;
+      html += `<text x="${wx1 + 4}" y="${cy - 46}" fill="var(--accent-red)" font-size="11" font-weight="600">W-set (${w})</text>`;
+    }
+    // R region
+    if (r > 0) {
+      const rx1 = startX + (n - r) * spacing - 28;
+      const rx2 = startX + (n - 1) * spacing + 28;
+      html += `<rect x="${rx1}" y="${cy - 36}" width="${rx2 - rx1}" height="72" rx="8" fill="${rSetColor}" stroke="var(--accent-blue)" stroke-width="1" stroke-dasharray="4,3" opacity="0.7"/>`;
+      html += `<text x="${rx1 + 4}" y="${cy + 50}" fill="var(--accent-blue)" font-size="11" font-weight="600">R-set (${r})</text>`;
+    }
+
+    // Overlap highlight
+    if (overlap > 0) {
+      const overlapStart = n - r;
+      const overlapEnd = w - 1;
+      const ox1 = startX + overlapStart * spacing - 24;
+      const ox2 = startX + overlapEnd * spacing + 24;
+      html += `<rect x="${ox1}" y="${cy - 32}" width="${ox2 - ox1}" height="64" rx="6" fill="${overlapColor}" stroke="${strong ? 'var(--accent-green)' : 'var(--accent-yellow)'}" stroke-width="2" opacity="0.9"/>`;
+      html += `<text x="${(ox1 + ox2) / 2}" y="${cy + 52}" fill="${strong ? 'var(--accent-green)' : 'var(--accent-yellow)'}" font-size="11" font-weight="700" text-anchor="middle">Overlap (${overlap})</text>`;
+    }
+
+    // Draw replica nodes
+    for (let i = 0; i < n; i++) {
+      const x = startX + i * spacing;
+      const inW = wSet.has(i);
+      const inR = rSet.has(i);
+      const inOverlap = inW && inR;
+      let fill = 'var(--surface-2)';
+      let stroke = 'var(--border)';
+      if (inOverlap) { fill = strong ? 'rgba(81,207,102,0.3)' : 'rgba(255,212,59,0.3)'; stroke = strong ? 'var(--accent-green)' : 'var(--accent-yellow)'; }
+      else if (inW) { fill = 'rgba(255,107,107,0.2)'; stroke = 'var(--accent-red)'; }
+      else if (inR) { fill = 'rgba(51,154,240,0.2)'; stroke = 'var(--accent-blue)'; }
+
+      html += `<circle cx="${x}" cy="${cy}" r="22" fill="${fill}" stroke="${stroke}" stroke-width="2"/>`;
+      html += `<text x="${x}" y="${cy + 5}" text-anchor="middle" fill="var(--text)" font-size="12" font-weight="600">R${i + 1}</text>`;
+    }
+
+    // Title
+    html += `<text x="${cx}" y="30" text-anchor="middle" fill="var(--text-3)" font-size="12">N=${n} replicas | W writes to first ${w} | R reads from last ${r}</text>`;
+
+    // Legend at bottom
+    const ly = 230;
+    html += `<rect x="120" y="${ly}" width="12" height="12" rx="2" fill="rgba(255,107,107,0.3)" stroke="var(--accent-red)" stroke-width="1"/>`;
+    html += `<text x="138" y="${ly + 10}" fill="var(--text-3)" font-size="11">Write set</text>`;
+    html += `<rect x="230" y="${ly}" width="12" height="12" rx="2" fill="rgba(51,154,240,0.3)" stroke="var(--accent-blue)" stroke-width="1"/>`;
+    html += `<text x="248" y="${ly + 10}" fill="var(--text-3)" font-size="11">Read set</text>`;
+    html += `<rect x="330" y="${ly}" width="12" height="12" rx="2" fill="${strong ? 'rgba(81,207,102,0.3)' : 'rgba(255,212,59,0.3)'}" stroke="${strong ? 'var(--accent-green)' : 'var(--accent-yellow)'}" stroke-width="1"/>`;
+    html += `<text x="348" y="${ly + 10}" fill="var(--text-3)" font-size="11">${strong ? 'Guaranteed overlap' : 'No guaranteed overlap'}</text>`;
+
+    svg.innerHTML = html;
+  }
+
+  slN.addEventListener('input', clampAndUpdate);
+  slR.addEventListener('input', () => update());
+  slW.addEventListener('input', () => update());
+
+  clampAndUpdate();
+})();
+
+
+/* ============================================================
+   SECTION 2: READ REPAIR ANIMATION
+   ============================================================ */
+var rrTimer = null;
+function rrReset() {
+  if (rrTimer) { clearTimeout(rrTimer); rrTimer = null; }
+  document.getElementById('rr-play').disabled = false;
+  document.getElementById('rr-log').innerHTML = '';
+  document.getElementById('rr-commentary').textContent = 'Click "Play Animation" to walk through a read-repair cycle.';
+  drawRRScene('idle', {});
+}
+
+function drawRRScene(phase, data) {
+  const svg = document.getElementById('rr-svg');
+  let html = '';
+
+  // Positions
+  const clientX = 80, clientY = 80;
+  const coordX = 300, coordY = 80;
+  const r1x = 550, r1y = 50;
+  const r2x = 550, r2y = 150;
+  const r3x = 550, r3y = 250;
+
+  // Client
+  html += `<rect x="${clientX - 35}" y="${clientY - 20}" width="70" height="40" rx="6" fill="var(--surface-2)" stroke="var(--accent-blue)" stroke-width="1.5"/>`;
+  html += `<text x="${clientX}" y="${clientY + 5}" text-anchor="middle" fill="var(--text)" font-size="12" font-weight="600">Client</text>`;
+
+  // Coordinator
+  const coordStroke = phase === 'detect' || phase === 'reconcile' ? 'var(--accent-yellow)' : 'var(--accent-cyan)';
+  html += `<rect x="${coordX - 45}" y="${coordY - 20}" width="90" height="40" rx="6" fill="var(--surface-2)" stroke="${coordStroke}" stroke-width="1.5"/>`;
+  html += `<text x="${coordX}" y="${coordY + 5}" text-anchor="middle" fill="var(--text)" font-size="12" font-weight="600">Coordinator</text>`;
+
+  // Replicas
+  const replicas = [
+    { x: r1x, y: r1y, label: 'R1', val: 'A', ts: 100, fresh: true },
+    { x: r2x, y: r2y, label: 'R2', val: 'A', ts: 100, fresh: true },
+    { x: r3x, y: r3y, label: 'R3', val: 'B', ts: 50, fresh: false },
+  ];
+
+  replicas.forEach((r, i) => {
+    const isStale = !r.fresh;
+    const repaired = phase === 'repair-done' && i === 2;
+    const stroke = repaired ? 'var(--accent-green)' : (isStale && phase !== 'idle' ? 'var(--accent-red)' : 'var(--accent-green)');
+    const tsVal = repaired ? 100 : r.ts;
+    const valStr = repaired ? 'A' : r.val;
+
+    html += `<rect x="${r.x - 40}" y="${r.y - 22}" width="80" height="55" rx="6" fill="var(--surface-2)" stroke="${stroke}" stroke-width="1.5"/>`;
+    html += `<text x="${r.x}" y="${r.y}" text-anchor="middle" fill="var(--text)" font-size="12" font-weight="600">${r.label}</text>`;
+    html += `<text x="${r.x}" y="${r.y + 18}" text-anchor="middle" fill="${isStale && !repaired ? 'var(--accent-red)' : 'var(--accent-green)'}" font-size="10">val=${valStr} ts=${tsVal}</text>`;
+  });
+
+  // Arrows based on phase
+  const arrowColor = 'var(--accent-blue)';
+  const repairArrowColor = 'var(--accent-orange)';
+
+  if (phase === 'query') {
+    // Client -> Coordinator
+    html += drawArrow(clientX + 35, clientY, coordX - 45, coordY, arrowColor, 'READ');
+    // Coordinator -> R1, R2 (quorum=2)
+    html += drawArrow(coordX + 45, coordY - 5, r1x - 40, r1y, arrowColor, 'full data');
+    html += drawArrow(coordX + 45, coordY + 5, r2x - 40, r2y, arrowColor, 'digest');
+  }
+  if (phase === 'respond') {
+    html += drawArrow(r1x - 40, r1y, coordX + 45, coordY - 5, 'var(--accent-green)', 'ts=100');
+    html += drawArrow(r2x - 40, r2y, coordX + 45, coordY + 5, 'var(--accent-green)', 'ts=100');
+  }
+  if (phase === 'detect') {
+    // Coordinator queries R3 for full data
+    html += drawArrow(coordX + 45, coordY + 15, r3x - 40, r3y, 'var(--accent-yellow)', 'full read');
+    html += drawArrow(r3x - 40, r3y - 5, coordX + 45, coordY + 10, 'var(--accent-red)', 'ts=50 STALE');
+    // Mismatch indicator
+    html += `<text x="${coordX}" y="${coordY + 55}" text-anchor="middle" fill="var(--accent-yellow)" font-size="11" font-weight="600">Mismatch detected!</text>`;
+  }
+  if (phase === 'reconcile') {
+    html += drawArrow(coordX - 45, coordY, clientX + 35, clientY, 'var(--accent-green)', 'val=A ts=100');
+    html += `<text x="${(clientX + coordX) / 2}" y="${clientY - 25}" text-anchor="middle" fill="var(--accent-green)" font-size="11">Returns latest to client</text>`;
+  }
+  if (phase === 'repair') {
+    html += drawArrow(coordX + 45, coordY + 15, r3x - 40, r3y, repairArrowColor, 'REPAIR val=A ts=100');
+    html += `<text x="${coordX + 120}" y="${coordY + 60}" fill="var(--accent-orange)" font-size="11" font-weight="600">Background repair write</text>`;
+  }
+  if (phase === 'repair-done') {
+    html += `<text x="400" y="340" text-anchor="middle" fill="var(--accent-green)" font-size="13" font-weight="600">All replicas consistent</text>`;
+  }
+
+  svg.innerHTML = html;
+}
+
+function drawArrow(x1, y1, x2, y2, color, label) {
+  const angle = Math.atan2(y2 - y1, x2 - x1);
+  const headLen = 8;
+  const ax = x2 - headLen * Math.cos(angle - 0.4);
+  const ay = y2 - headLen * Math.sin(angle - 0.4);
+  const bx = x2 - headLen * Math.cos(angle + 0.4);
+  const by = y2 - headLen * Math.sin(angle + 0.4);
+  let s = `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${color}" stroke-width="1.5" opacity="0.8"/>`;
+  s += `<polygon points="${x2},${y2} ${ax},${ay} ${bx},${by}" fill="${color}" opacity="0.8"/>`;
+  if (label) {
+    const mx = (x1 + x2) / 2, my = (y1 + y2) / 2 - 8;
+    s += `<text x="${mx}" y="${my}" text-anchor="middle" fill="${color}" font-size="10" font-weight="600">${label}</text>`;
+  }
+  return s;
+}
+
+function rrAnimate() {
+  document.getElementById('rr-play').disabled = true;
+  const log = document.getElementById('rr-log');
+  const comm = document.getElementById('rr-commentary');
+  const steps = [
+    { phase: 'query', logMsg: '1. Client sends READ to coordinator. Coordinator queries R=QUORUM (2 replicas): R1 for full data, R2 for digest.', commMsg: 'Coordinator contacts 2 of 3 replicas (QUORUM). One gets a full data request, the other a lightweight digest request.', delay: 1500 },
+    { phase: 'respond', logMsg: '2. R1 responds val=A ts=100. R2 responds digest matching ts=100. Both agree.', commMsg: 'Both contacted replicas agree on timestamp 100. But there is a third replica...', delay: 1500 },
+    { phase: 'detect', logMsg: '3. Coordinator also contacts R3 (read_repair_chance check). R3 responds val=B ts=50 -- STALE! Mismatch detected.', commMsg: 'Based on read_repair_chance, coordinator probes R3 as well. R3 has an older version (ts=50). The coordinator detects the mismatch.', delay: 2000 },
+    { phase: 'reconcile', logMsg: '4. Coordinator reconciles: latest value is val=A ts=100. Returns latest to client immediately.', commMsg: 'Client gets the correct, latest value. The read is not delayed by the stale replica -- coordinator already had the answer from QUORUM.', delay: 1500 },
+    { phase: 'repair', logMsg: '5. BACKGROUND: Coordinator sends repair write to R3: val=A ts=100.', commMsg: 'Repair happens asynchronously after the client response. R3 receives the latest value to catch up.', delay: 1500 },
+    { phase: 'repair-done', logMsg: '6. R3 updated. All 3 replicas now consistent at val=A ts=100.', commMsg: 'Read repair complete. All replicas converged. This repair was free -- piggy-backed on a normal read.', delay: 0 },
+  ];
+
+  let i = 0;
+  function next() {
+    if (i >= steps.length) return;
+    const step = steps[i];
+    drawRRScene(step.phase, {});
+    const entry = document.createElement('div');
+    entry.className = 'step-entry active';
+    entry.textContent = step.logMsg;
+    // Mark previous as done
+    log.querySelectorAll('.step-entry.active').forEach(e => { e.className = 'step-entry done'; });
+    log.appendChild(entry);
+    log.scrollTop = log.scrollHeight;
+    comm.textContent = step.commMsg;
+    i++;
+    if (i < steps.length) {
+      rrTimer = setTimeout(next, step.delay);
+    } else {
+      document.getElementById('rr-play').disabled = false;
+    }
+  }
+  log.innerHTML = '';
+  next();
+}
+
+// Slider update for read_repair_chance display
+document.getElementById('sl-rr-chance').addEventListener('input', function() {
+  document.getElementById('val-rr-chance').textContent = this.value + '%';
+});
+
+drawRRScene('idle', {});
+
+
+/* ============================================================
+   SECTION 3: HINTED HANDOFF ANIMATION
+   ============================================================ */
+var hhTimer = null;
+function hhReset() {
+  if (hhTimer) { clearTimeout(hhTimer); hhTimer = null; }
+  document.getElementById('hh-play').disabled = false;
+  document.getElementById('hh-log').innerHTML = '';
+  document.getElementById('hh-commentary').textContent = 'Click "Play Animation" to see a write during a replica outage.';
+  drawHHScene('idle', {});
+}
+
+function drawHHScene(phase, data) {
+  const svg = document.getElementById('hh-svg');
+  let html = '';
+
+  const clientX = 80, clientY = 80;
+  const coordX = 300, coordY = 80;
+  const r1x = 560, r1y = 50;
+  const r2x = 560, r2y = 150;
+  const r3x = 560, r3y = 260;
+  const hintX = 300, hintY = 260;
+
+  // Client
+  html += `<rect x="${clientX - 35}" y="${clientY - 20}" width="70" height="40" rx="6" fill="var(--surface-2)" stroke="var(--accent-blue)" stroke-width="1.5"/>`;
+  html += `<text x="${clientX}" y="${clientY + 5}" text-anchor="middle" fill="var(--text)" font-size="12" font-weight="600">Client</text>`;
+
+  // Coordinator
+  html += `<rect x="${coordX - 45}" y="${coordY - 20}" width="90" height="40" rx="6" fill="var(--surface-2)" stroke="var(--accent-cyan)" stroke-width="1.5"/>`;
+  html += `<text x="${coordX}" y="${coordY + 5}" text-anchor="middle" fill="var(--text)" font-size="12" font-weight="600">Coordinator</text>`;
+
+  // R1 and R2 -- always up
+  html += `<rect x="${r1x - 35}" y="${r1y - 20}" width="70" height="40" rx="6" fill="var(--surface-2)" stroke="var(--accent-green)" stroke-width="1.5"/>`;
+  html += `<text x="${r1x}" y="${r1y + 5}" text-anchor="middle" fill="var(--text)" font-size="12" font-weight="600">R1</text>`;
+  html += `<rect x="${r2x - 35}" y="${r2y - 20}" width="70" height="40" rx="6" fill="var(--surface-2)" stroke="var(--accent-green)" stroke-width="1.5"/>`;
+  html += `<text x="${r2x}" y="${r2y + 5}" text-anchor="middle" fill="var(--text)" font-size="12" font-weight="600">R2</text>`;
+
+  // R3 -- down in some phases
+  const r3Down = ['write', 'ack', 'hint-store', 'hint-wait', 'drain'].includes(phase);
+  const r3Recovered = ['recover', 'drain-done'].includes(phase);
+  const r3Stroke = r3Down ? 'var(--accent-red)' : (r3Recovered ? 'var(--accent-green)' : 'var(--border)');
+  const r3Fill = r3Down ? 'rgba(255,107,107,0.1)' : 'var(--surface-2)';
+
+  html += `<rect x="${r3x - 35}" y="${r3y - 20}" width="70" height="40" rx="6" fill="${r3Fill}" stroke="${r3Stroke}" stroke-width="1.5" ${r3Down ? 'stroke-dasharray="4,3"' : ''}/>`;
+  html += `<text x="${r3x}" y="${r3y + 5}" text-anchor="middle" fill="${r3Down ? 'var(--accent-red)' : 'var(--text)'}" font-size="12" font-weight="600">R3 ${r3Down ? '(DOWN)' : ''}</text>`;
+
+  // Hint queue on coordinator
+  const hintCount = data.hintCount || 0;
+  if (phase !== 'idle' && phase !== 'write') {
+    const hqFill = hintCount > 0 ? 'rgba(255,169,77,0.15)' : 'var(--surface-2)';
+    const hqStroke = hintCount > 0 ? 'var(--accent-orange)' : 'var(--border)';
+    html += `<rect x="${hintX - 55}" y="${hintY - 22}" width="110" height="50" rx="6" fill="${hqFill}" stroke="${hqStroke}" stroke-width="1.5"/>`;
+    html += `<text x="${hintX}" y="${hintY - 3}" text-anchor="middle" fill="var(--accent-orange)" font-size="11" font-weight="600">Hint Queue</text>`;
+    html += `<text x="${hintX}" y="${hintY + 16}" text-anchor="middle" fill="var(--text-2)" font-size="12">${hintCount} hint${hintCount !== 1 ? 's' : ''}</text>`;
+  }
+
+  // Arrows per phase
+  if (phase === 'write') {
+    html += drawArrow(clientX + 35, clientY, coordX - 45, coordY, 'var(--accent-blue)', 'WRITE val=X');
+    html += drawArrow(coordX + 45, coordY - 5, r1x - 35, r1y, 'var(--accent-blue)', '');
+    html += drawArrow(coordX + 45, coordY + 5, r2x - 35, r2y, 'var(--accent-blue)', '');
+    html += drawArrow(coordX + 45, coordY + 15, r3x - 35, r3y, 'var(--accent-red)', 'TIMEOUT');
+    // X mark on R3 arrow
+    html += `<text x="${(coordX + r3x) / 2 + 20}" y="${(coordY + r3y) / 2 + 5}" fill="var(--accent-red)" font-size="18" font-weight="700">X</text>`;
+  }
+  if (phase === 'ack') {
+    html += drawArrow(r1x - 35, r1y, coordX + 45, coordY - 5, 'var(--accent-green)', 'ACK');
+    html += drawArrow(r2x - 35, r2y, coordX + 45, coordY + 5, 'var(--accent-green)', 'ACK');
+    html += drawArrow(coordX - 45, coordY, clientX + 35, clientY, 'var(--accent-green)', 'ACK (W=2 met)');
+  }
+  if (phase === 'hint-store') {
+    // Arrow from coordinator to hint queue
+    html += drawArrow(coordX, coordY + 20, hintX, hintY - 22, 'var(--accent-orange)', 'store hint for R3');
+  }
+  if (phase === 'hint-wait') {
+    // Coordinator pinging R3
+    html += `<line x1="${coordX + 45}" y1="${coordY + 15}" x2="${r3x - 35}" y2="${r3y}" stroke="var(--accent-red)" stroke-width="1" stroke-dasharray="5,5" opacity="0.5"/>`;
+    html += `<text x="${(coordX + r3x) / 2 + 30}" y="${(coordY + r3y) / 2 - 5}" fill="var(--accent-red)" font-size="10" opacity="0.7">periodic ping...</text>`;
+  }
+  if (phase === 'recover') {
+    html += `<text x="${r3x}" y="${r3y + 30}" text-anchor="middle" fill="var(--accent-green)" font-size="11" font-weight="600">RECOVERED</text>`;
+    html += `<line x1="${coordX + 45}" y1="${coordY + 15}" x2="${r3x - 35}" y2="${r3y}" stroke="var(--accent-green)" stroke-width="1" stroke-dasharray="5,5" opacity="0.7"/>`;
+    html += `<text x="${(coordX + r3x) / 2 + 30}" y="${(coordY + r3y) / 2 - 5}" fill="var(--accent-green)" font-size="10">ping OK!</text>`;
+  }
+  if (phase === 'drain') {
+    html += drawArrow(hintX + 55, hintY, r3x - 35, r3y, 'var(--accent-orange)', 'REPLAY val=X');
+    html += `<text x="${(hintX + r3x) / 2 + 10}" y="${hintY - 10}" fill="var(--accent-orange)" font-size="11" font-weight="600">Draining hints</text>`;
+  }
+  if (phase === 'drain-done') {
+    html += `<text x="400" y="360" text-anchor="middle" fill="var(--accent-green)" font-size="13" font-weight="600">All replicas consistent -- hints drained</text>`;
+  }
+
+  svg.innerHTML = html;
+}
+
+function hhAnimate() {
+  document.getElementById('hh-play').disabled = true;
+  const log = document.getElementById('hh-log');
+  const comm = document.getElementById('hh-commentary');
+
+  const steps = [
+    { phase: 'write', data: {}, logMsg: '1. Client sends WRITE val=X. Coordinator fans out to R1, R2, R3. R3 is unreachable.', commMsg: 'Write targets all 3 replicas, but R3 is down. The write to R3 times out.', delay: 1800 },
+    { phase: 'ack', data: {}, logMsg: '2. R1 and R2 acknowledge. W=QUORUM=2 met. Coordinator ACKs to client.', commMsg: 'With W=QUORUM=2, two ACKs are sufficient. Client gets success. But R3 missed the write.', delay: 1500 },
+    { phase: 'hint-store', data: { hintCount: 1 }, logMsg: '3. Coordinator stores a HINT: "write val=X was intended for R3." Hint saved to local disk.', commMsg: 'The coordinator remembers the failed write in its hint queue. Tagged with R3 as the intended target.', delay: 1500 },
+    { phase: 'hint-wait', data: { hintCount: 1 }, logMsg: '4. R3 still down. Coordinator periodically pings R3, waiting for recovery.', commMsg: 'Hints have a TTL (default 3 hours in Cassandra). If R3 stays down longer, hints are dropped and data diverges.', delay: 2000 },
+    { phase: 'recover', data: { hintCount: 1 }, logMsg: '5. R3 comes back online! Coordinator detects R3 recovery via health check.', commMsg: 'R3 has recovered. The coordinator can now drain its hint queue.', delay: 1500 },
+    { phase: 'drain', data: { hintCount: 0 }, logMsg: '6. Coordinator replays hint: sends val=X to R3. R3 writes it. Hint removed from queue.', commMsg: 'The stored hint is replayed to R3. R3 applies the write it missed. Hint queue empty.', delay: 1500 },
+    { phase: 'drain-done', data: { hintCount: 0 }, logMsg: '7. All 3 replicas now have val=X. Consistency restored via hinted handoff.', commMsg: 'Hinted handoff healed the transient failure. No data loss, no manual repair needed (within TTL window).', delay: 0 },
+  ];
+
+  let i = 0;
+  function next() {
+    if (i >= steps.length) return;
+    const step = steps[i];
+    drawHHScene(step.phase, step.data);
+    const entry = document.createElement('div');
+    entry.className = 'step-entry active';
+    entry.textContent = step.logMsg;
+    log.querySelectorAll('.step-entry.active').forEach(e => { e.className = 'step-entry done'; });
+    log.appendChild(entry);
+    log.scrollTop = log.scrollHeight;
+    comm.textContent = step.commMsg;
+    i++;
+    if (i < steps.length) {
+      hhTimer = setTimeout(next, step.delay);
+    } else {
+      document.getElementById('hh-play').disabled = false;
+    }
+  }
+  log.innerHTML = '';
+  next();
+}
+
+drawHHScene('idle', {});
+
+
+/* ============================================================
+   SECTION 4: MERKLE TREE ANIMATION
+   ============================================================ */
+var mtTimer = null;
+
+function buildMerkleData() {
+  // 16 leaves, each side. One leaf differs (index 5 = row range 5*1024..6*1024-1)
+  const diffLeaf = 5;
+  const leavesA = [];
+  const leavesB = [];
+  for (let i = 0; i < 16; i++) {
+    const hash = 'h' + (i * 7 + 3).toString(16).padStart(3, '0');
+    leavesA.push(hash);
+    leavesB.push(i === diffLeaf ? 'h' + ((i * 7 + 3 + 42) & 0xfff).toString(16).padStart(3, '0') : hash);
+  }
+
+  function buildTree(leaves) {
+    const nodes = new Array(31); // complete binary tree with 16 leaves = 31 nodes
+    // Leaves at indices 15..30
+    for (let i = 0; i < 16; i++) nodes[15 + i] = leaves[i];
+    // Build upward
+    for (let i = 14; i >= 0; i--) {
+      const l = nodes[2 * i + 1];
+      const r = nodes[2 * i + 2];
+      // Simulated hash: concat first chars
+      nodes[i] = (l[0] === r[0] && l === r) ? l : l.substring(0, 2) + r.substring(0, 2);
+    }
+    return nodes;
+  }
+
+  return { treeA: buildTree(leavesA), treeB: buildTree(leavesB), diffLeaf };
+}
+
+function drawMTScene(phase, data) {
+  const svg = document.getElementById('mt-svg');
+  const { treeA, treeB, diffLeaf } = buildMerkleData();
+  const highlighted = data.highlighted || [];
+  const matchStatus = data.matchStatus || {}; // nodeIndex -> 'match' | 'mismatch' | 'checking'
+
+  let html = '';
+
+  // Draw two trees side by side
+  // Tree layout: 4 levels. Level 0 = root (1 node), Level 1 (2 nodes), Level 2 (4 nodes), Level 3 (8 leaves only shown), Level 4 (16 leaves)
+  // We'll show a simplified 4-level tree: root, 2 children, 4 grandchildren, 16 leaves
+
+  const treeW = 360;
+  const leftTreeX = 30;
+  const rightTreeX = 430;
+  const topY = 50;
+  const levelH = 90;
+
+  // Labels
+  html += `<text x="${leftTreeX + treeW / 2}" y="25" text-anchor="middle" fill="var(--accent-blue)" font-size="13" font-weight="600">Replica A</text>`;
+  html += `<text x="${rightTreeX + treeW / 2}" y="25" text-anchor="middle" fill="var(--accent-orange)" font-size="13" font-weight="600">Replica B</text>`;
+
+  function getNodeColor(treeIdx, nodeIdx) {
+    const status = matchStatus[nodeIdx];
+    if (status === 'checking') return 'var(--accent-yellow)';
+    if (status === 'mismatch') return 'var(--accent-red)';
+    if (status === 'match') return 'var(--accent-green)';
+    return 'var(--border)';
+  }
+
+  function drawTree(tree, baseX, treeIdx) {
+    // Level 0: root (index 0)
+    // Level 1: indices 1,2
+    // Level 2: indices 3,4,5,6
+    // Level 3: indices 7..14 (8 internal nodes, skip for visual clarity)
+    // Level 4: indices 15..30 (16 leaves)
+    // For clarity: show levels 0,1,2 as internal, then level 4 as leaves (skip level 3)
+
+    const levels = [
+      [0],
+      [1, 2],
+      [3, 4, 5, 6],
+      [15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30],
+    ];
+
+    const nodeR = [16, 14, 11, 7];
+
+    levels.forEach((level, li) => {
+      const y = topY + li * levelH;
+      const count = level.length;
+      const spacing = treeW / (count + 1);
+
+      level.forEach((nodeIdx, ni) => {
+        const x = baseX + spacing * (ni + 1);
+        const r = nodeR[li];
+        const color = getNodeColor(treeIdx, nodeIdx);
+        const fill = matchStatus[nodeIdx] ? (matchStatus[nodeIdx] === 'match' ? 'rgba(81,207,102,0.15)' : matchStatus[nodeIdx] === 'mismatch' ? 'rgba(255,107,107,0.15)' : 'rgba(255,212,59,0.15)') : 'var(--surface-2)';
+
+        // Draw edge to parent (if not root)
+        if (li > 0) {
+          const parentLevel = levels[li - 1];
+          let parentLocalIdx, parentNodeIdx;
+          if (li === 3) {
+            // Leaf level connects to level 2
+            // Leaf indices 15..30. Parent of leaf i (in node array) is floor((i-1)/2)
+            // But we skip level 3 visually. So parent of leaf 15 is node 7, which is child of node 3 (level 2, index 0)
+            // Level 2 has nodes 3,4,5,6. Each covers 4 leaves.
+            parentLocalIdx = Math.floor(ni / 4);
+            parentNodeIdx = levels[li - 1][parentLocalIdx];
+          } else {
+            parentLocalIdx = Math.floor(ni / 2);
+            parentNodeIdx = parentLevel[parentLocalIdx];
+          }
+          const parentCount = parentLevel.length;
+          const parentSpacing = treeW / (parentCount + 1);
+          const px = baseX + parentSpacing * (parentLocalIdx + 1);
+          const py = topY + (li - 1) * levelH;
+          html += `<line x1="${px}" y1="${py + nodeR[li-1]}" x2="${x}" y2="${y - r}" stroke="${color !== 'var(--border)' ? color : 'var(--border)'}" stroke-width="1" opacity="0.5"/>`;
+        }
+
+        html += `<circle cx="${x}" cy="${y}" r="${r}" fill="${fill}" stroke="${color}" stroke-width="1.5"/>`;
+
+        // Show hash text for non-leaf
+        if (li < 3) {
+          const hashTxt = tree[nodeIdx].substring(0, 4);
+          html += `<text x="${x}" y="${y + 4}" text-anchor="middle" fill="var(--text-2)" font-size="8">${hashTxt}</text>`;
+        } else {
+          // Leaf: show leaf index
+          const leafIdx = nodeIdx - 15;
+          const isDiffLeaf = leafIdx === diffLeaf;
+          if (isDiffLeaf && treeIdx === 1 && (matchStatus[nodeIdx] === 'mismatch')) {
+            html += `<text x="${x}" y="${y + 3}" text-anchor="middle" fill="var(--accent-red)" font-size="7" font-weight="700">DIFF</text>`;
+          } else {
+            html += `<text x="${x}" y="${y + 3}" text-anchor="middle" fill="var(--text-3)" font-size="7">L${leafIdx}</text>`;
+          }
+        }
+      });
+    });
+  }
+
+  drawTree(treeA, leftTreeX, 0);
+  drawTree(treeB, rightTreeX, 1);
+
+  // Comparison arrows between the two trees at highlighted level
+  if (phase === 'compare-roots') {
+    const lx = leftTreeX + treeW / 2, rx = rightTreeX + treeW / 2;
+    html += `<line x1="${lx + 16}" y1="${topY}" x2="${rx - 16}" y2="${topY}" stroke="var(--accent-yellow)" stroke-width="2" stroke-dasharray="5,4"/>`;
+    html += `<text x="${(lx + rx) / 2}" y="${topY - 8}" text-anchor="middle" fill="var(--accent-yellow)" font-size="11" font-weight="600">Compare roots</text>`;
+  }
+  if (phase === 'compare-level1') {
+    // Arrows at level 1 for mismatching child
+    const lSpacing = treeW / 3;
+    const rSpacing = treeW / 3;
+    // Node 1 (left child) is the mismatch path for diffLeaf=5 (leaves 0-7 under node 1)
+    const idx = 1; // left child
+    const lx = leftTreeX + lSpacing * (idx) + lSpacing;
+    const rx = rightTreeX + rSpacing * (idx) + rSpacing;
+    const y = topY + levelH;
+    // Actually diffLeaf=5 is under node 2 (right child of root: covers leaves 8-15? No.)
+    // Node 0's children: node 1 (covers leaves 0-7) and node 2 (covers leaves 8-15).
+    // diffLeaf=5 is under node 1.
+    // Node 1's children: node 3 (leaves 0-3) and node 4 (leaves 4-7). diffLeaf=5 is under node 4.
+    const ni = 0; // first child in level 1 = node 1
+    const lx2 = leftTreeX + lSpacing * (ni + 1);
+    const rx2 = rightTreeX + rSpacing * (ni + 1);
+    html += `<line x1="${lx2 + 14}" y1="${y}" x2="${rx2 - 14}" y2="${y}" stroke="var(--accent-yellow)" stroke-width="2" stroke-dasharray="5,4"/>`;
+    html += `<text x="${(lx2 + rx2) / 2}" y="${y - 8}" text-anchor="middle" fill="var(--accent-yellow)" font-size="11" font-weight="600">Descend into mismatch</text>`;
+  }
+  if (phase === 'compare-level2') {
+    // Level 2, node 4 (index 1 in level-2 array [3,4,5,6])
+    const lSpacing = treeW / 5;
+    const ni = 1; // node 4 is index 1 in level
+    const y = topY + 2 * levelH;
+    const lx = leftTreeX + lSpacing * (ni + 1);
+    const rx = rightTreeX + lSpacing * (ni + 1);
+    html += `<line x1="${lx + 11}" y1="${y}" x2="${rx - 11}" y2="${y}" stroke="var(--accent-yellow)" stroke-width="2" stroke-dasharray="5,4"/>`;
+    html += `<text x="${(lx + rx) / 2}" y="${y - 8}" text-anchor="middle" fill="var(--accent-yellow)" font-size="11" font-weight="600">Narrowing down</text>`;
+  }
+  if (phase === 'found-leaf') {
+    // Point at leaf 5 (index 20 in node array, index 5 in leaf level)
+    const lSpacing = treeW / 17;
+    const ni = 5;
+    const y = topY + 3 * levelH;
+    const lx = leftTreeX + lSpacing * (ni + 1);
+    const rx = rightTreeX + lSpacing * (ni + 1);
+    html += `<line x1="${lx + 7}" y1="${y}" x2="${rx - 7}" y2="${y}" stroke="var(--accent-red)" stroke-width="2"/>`;
+    html += `<text x="${(lx + rx) / 2}" y="${y + 20}" text-anchor="middle" fill="var(--accent-red)" font-size="11" font-weight="700">Divergent leaf found! Fetch + reconcile rows.</text>`;
+  }
+  if (phase === 'reconciled') {
+    html += `<text x="400" y="${topY + 3 * levelH + 50}" text-anchor="middle" fill="var(--accent-green)" font-size="13" font-weight="600">Leaf reconciled -- only ~1024 rows transferred, not 1M</text>`;
+  }
+
+  // Legend
+  const ly = 500;
+  html += `<text x="20" y="${ly}" fill="var(--text-3)" font-size="10">16-leaf Merkle tree per replica. 1 leaf differs (L5). O(log 16) = 4 hash comparisons to find it.</text>`;
+
+  svg.innerHTML = html;
+}
+
+function mtAnimate() {
+  document.getElementById('mt-play').disabled = true;
+  const log = document.getElementById('mt-log');
+  const comm = document.getElementById('mt-commentary');
+  const diffLeaf = 5;
+  // Node index of diffLeaf: 15 + 5 = 20. Parent: 9 -> 4 -> 1 -> 0
+  // Level path: root(0) -> node1 -> node4 -> (skip to leaf) -> leaf 20
+
+  const steps = [
+    {
+      phase: 'compare-roots',
+      matchStatus: { 0: 'mismatch' },
+      logMsg: '1. Compare root hashes. MISMATCH -- the partitions have diverged somewhere.',
+      commMsg: 'Root hashes differ: the replicas are not identical. Instead of comparing all 16K rows, we descend the tree.',
+      delay: 1800
+    },
+    {
+      phase: 'compare-level1',
+      matchStatus: { 0: 'mismatch', 1: 'mismatch', 2: 'match' },
+      logMsg: '2. Descend to level 1. Left child: MISMATCH. Right child: MATCH (skip entire right half).',
+      commMsg: 'Right subtree (leaves 8-15) is identical. 8 leaves skipped instantly. Descend left.',
+      delay: 1800
+    },
+    {
+      phase: 'compare-level2',
+      matchStatus: { 0: 'mismatch', 1: 'mismatch', 2: 'match', 3: 'match', 4: 'mismatch', 5: 'match', 6: 'match' },
+      logMsg: '3. Descend to level 2. Node 3 (L0-L3): MATCH. Node 4 (L4-L7): MISMATCH.',
+      commMsg: 'Another 4 leaves skipped (L0-L3 match). The difference is in the L4-L7 range.',
+      delay: 1800
+    },
+    {
+      phase: 'found-leaf',
+      matchStatus: {
+        0: 'mismatch', 1: 'mismatch', 2: 'match', 3: 'match', 4: 'mismatch', 5: 'match', 6: 'match',
+        19: 'match', 20: 'mismatch', 21: 'match', 22: 'match',
+        15: 'match', 16: 'match', 17: 'match', 18: 'match',
+        23: 'match', 24: 'match', 25: 'match', 26: 'match', 27: 'match', 28: 'match', 29: 'match', 30: 'match',
+      },
+      logMsg: '4. Reach leaf level. Leaf 5 (rows 5120-6143): MISMATCH. All other leaves: MATCH.',
+      commMsg: 'Found the divergent leaf in 4 comparisons. Only ~1024 rows in this leaf range need to be fetched and reconciled.',
+      delay: 1800
+    },
+    {
+      phase: 'reconciled',
+      matchStatus: {
+        0: 'match', 1: 'match', 2: 'match', 3: 'match', 4: 'match', 5: 'match', 6: 'match',
+        15: 'match', 16: 'match', 17: 'match', 18: 'match', 19: 'match', 20: 'match', 21: 'match', 22: 'match',
+        23: 'match', 24: 'match', 25: 'match', 26: 'match', 27: 'match', 28: 'match', 29: 'match', 30: 'match',
+      },
+      logMsg: '5. Fetch rows in leaf 5 range from both replicas. Reconcile by timestamp (latest wins). Replicas now consistent.',
+      commMsg: 'Anti-entropy complete. 4 hash comparisons + 1024 row transfers instead of 16K full-scan. O(log N) vs O(N).',
+      delay: 0
+    },
+  ];
+
+  let i = 0;
+  function next() {
+    if (i >= steps.length) return;
+    const step = steps[i];
+    drawMTScene(step.phase, { matchStatus: step.matchStatus });
+    const entry = document.createElement('div');
+    entry.className = 'step-entry active';
+    entry.textContent = step.logMsg;
+    log.querySelectorAll('.step-entry.active').forEach(e => { e.className = 'step-entry done'; });
+    log.appendChild(entry);
+    log.scrollTop = log.scrollHeight;
+    comm.textContent = step.commMsg;
+    i++;
+    if (i < steps.length) {
+      mtTimer = setTimeout(next, step.delay);
+    } else {
+      document.getElementById('mt-play').disabled = false;
+    }
+  }
+  log.innerHTML = '';
+  next();
+}
+
+function mtReset() {
+  if (mtTimer) { clearTimeout(mtTimer); mtTimer = null; }
+  document.getElementById('mt-play').disabled = false;
+  document.getElementById('mt-log').innerHTML = '';
+  document.getElementById('mt-commentary').textContent = 'Click "Play Diff Protocol" to watch two replicas compare Merkle trees.';
+  drawMTScene('idle', {});
+}
+
+drawMTScene('idle', {});
+
+
+/* ============================================================
+   SECTION 5: LATENCY CDF
+   ============================================================ */
+function drawCDF() {
+  const svg = document.getElementById('cdf-svg');
+  const p99ms = parseInt(document.getElementById('sl-p99').value);
+  document.getElementById('val-p99').textContent = p99ms;
+
+  // We model latency as a log-normal distribution
+  // We want P(X <= p99ms) = 0.99
+  // LogNormal: X = e^(mu + sigma*Z) where Z ~ N(0,1)
+  // Let median = p99ms * 0.3 (typical: median ~30% of p99)
+  // mu = ln(median), sigma chosen so that P(X <= p99ms) = 0.99
+  // Phi^-1(0.99) = 2.326
+  // p99ms = e^(mu + sigma * 2.326) => sigma = (ln(p99ms) - mu) / 2.326
+
+  const median = p99ms * 0.3;
+  const mu = Math.log(median);
+  const sigma = (Math.log(p99ms) - mu) / 2.326;
+
+  // CDF of lognormal: F(t) = Phi((ln(t) - mu) / sigma)
+  function phi(x) {
+    // Standard normal CDF approximation
+    const a1 = 0.254829592, a2 = -0.284496736, a3 = 1.421413741, a4 = -1.453152027, a5 = 1.061405429;
+    const p = 0.3275911;
+    const sign = x < 0 ? -1 : 1;
+    x = Math.abs(x) / Math.sqrt(2);
+    const t = 1.0 / (1.0 + p * x);
+    const y = 1.0 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * Math.exp(-x * x);
+    return 0.5 * (1.0 + sign * y);
+  }
+
+  function singleCDF(t) {
+    if (t <= 0) return 0;
+    return phi((Math.log(t) - mu) / sigma);
+  }
+
+  function quorumCDF(t) {
+    // P(at least 2 of 3 done) = 3F^2 - 2F^3
+    const f = singleCDF(t);
+    return 3 * f * f - 2 * f * f * f;
+  }
+
+  function allCDF(t) {
+    const f = singleCDF(t);
+    return f * f * f;
+  }
+
+  // Chart dimensions
+  const padL = 70, padR = 30, padT = 30, padB = 50;
+  const w = 800 - padL - padR;
+  const h = 400 - padT - padB;
+
+  // X axis: 0 to p99ms * 2.5
+  const maxT = p99ms * 2.5;
+  const numPoints = 200;
+
+  let html = '';
+
+  // Grid
+  for (let i = 0; i <= 5; i++) {
+    const y = padT + h - (i / 5) * h;
+    html += `<line x1="${padL}" y1="${y}" x2="${padL + w}" y2="${y}" stroke="var(--border)" stroke-width="0.5"/>`;
+    html += `<text x="${padL - 8}" y="${y + 4}" text-anchor="end" fill="var(--text-3)" font-size="10">${(i * 20)}%</text>`;
+  }
+  // X gridlines
+  for (let i = 0; i <= 5; i++) {
+    const tVal = (i / 5) * maxT;
+    const x = padL + (i / 5) * w;
+    html += `<line x1="${x}" y1="${padT}" x2="${x}" y2="${padT + h}" stroke="var(--border)" stroke-width="0.5"/>`;
+    html += `<text x="${x}" y="${padT + h + 18}" text-anchor="middle" fill="var(--text-3)" font-size="10">${Math.round(tVal)}ms</text>`;
+  }
+
+  // Axes labels
+  html += `<text x="${padL + w / 2}" y="${padT + h + 40}" text-anchor="middle" fill="var(--text-3)" font-size="11">Latency (ms)</text>`;
+  html += `<text x="15" y="${padT + h / 2}" text-anchor="middle" fill="var(--text-3)" font-size="11" transform="rotate(-90, 15, ${padT + h / 2})">CDF (probability)</text>`;
+
+  // Draw curves
+  function drawCurve(cdfFn, color, dasharray) {
+    let path = '';
+    for (let i = 0; i <= numPoints; i++) {
+      const t = (i / numPoints) * maxT;
+      const f = Math.min(1, cdfFn(t));
+      const x = padL + (t / maxT) * w;
+      const y = padT + h - f * h;
+      path += (i === 0 ? 'M' : 'L') + `${x.toFixed(1)},${y.toFixed(1)} `;
+    }
+    html += `<path d="${path}" fill="none" stroke="${color}" stroke-width="2.5" ${dasharray ? `stroke-dasharray="${dasharray}"` : ''} opacity="0.9"/>`;
+  }
+
+  drawCurve(singleCDF, 'var(--accent-red)', '');
+  drawCurve(quorumCDF, 'var(--accent-blue)', '');
+  drawCurve(allCDF, 'var(--accent-purple)', '6,3');
+
+  // p99 reference line
+  const p99x = padL + (p99ms / maxT) * w;
+  html += `<line x1="${p99x}" y1="${padT}" x2="${p99x}" y2="${padT + h}" stroke="var(--accent-yellow)" stroke-width="1" stroke-dasharray="4,4" opacity="0.6"/>`;
+  html += `<text x="${p99x + 4}" y="${padT + 12}" fill="var(--accent-yellow)" font-size="10">p99=${p99ms}ms</text>`;
+
+  // 99% horizontal line
+  const p99y = padT + h - 0.99 * h;
+  html += `<line x1="${padL}" y1="${p99y}" x2="${padL + w}" y2="${p99y}" stroke="var(--text-3)" stroke-width="0.5" stroke-dasharray="2,3"/>`;
+  html += `<text x="${padL + w + 2}" y="${p99y + 4}" fill="var(--text-3)" font-size="9">99%</text>`;
+
+  // Calculate actual p99 for each strategy (find t where CDF >= 0.99)
+  function findPercentile(cdfFn, target) {
+    let lo = 0, hi = maxT;
+    for (let iter = 0; iter < 50; iter++) {
+      const mid = (lo + hi) / 2;
+      if (cdfFn(mid) < target) lo = mid; else hi = mid;
+    }
+    return (lo + hi) / 2;
+  }
+
+  const singleP99 = findPercentile(singleCDF, 0.99);
+  const quorumP99 = findPercentile(quorumCDF, 0.99);
+  const allP99 = findPercentile(allCDF, 0.99);
+
+  // Commentary
+  const comm = document.getElementById('cdf-commentary');
+  comm.innerHTML = `Per-replica p99 = <strong>${p99ms}ms</strong>. ` +
+    `Single replica p99: <span style="color:var(--accent-red)">${Math.round(singleP99)}ms</span>. ` +
+    `Quorum (2-of-3) p99: <span style="color:var(--accent-blue)">${Math.round(quorumP99)}ms</span>. ` +
+    `ALL (3-of-3) p99: <span style="color:var(--accent-purple)">${Math.round(allP99)}ms</span>. ` +
+    `Quorum p99 is ${Math.round(singleP99 - quorumP99)}ms <em>better</em> than single-replica because it tolerates 1 slow replica.`;
+
+  svg.innerHTML = html;
+}
+
+document.getElementById('sl-p99').addEventListener('input', drawCDF);
+drawCDF();
+
+
+/* ============================================================
+   SECTION 6: CONSISTENCY SPECTRUM VISUALIZATION
+   ============================================================ */
+(function() {
+  const svg = document.getElementById('spectrum-svg');
+  const models = [
+    { label: 'Eventual', color: 'var(--accent-red)', x: 0.05 },
+    { label: 'Read-your-writes', color: 'var(--accent-orange)', x: 0.25 },
+    { label: 'Sequential', color: 'var(--accent-yellow)', x: 0.50 },
+    { label: 'Linearizable', color: 'var(--accent-blue)', x: 0.75 },
+    { label: 'Strict Serial.', color: 'var(--accent-purple)', x: 0.95 },
+  ];
+
+  const padL = 60, padR = 60;
+  const barY = 55, barH = 12;
+  const w = 800 - padL - padR;
+
+  let html = '';
+
+  // Gradient bar
+  html += `<defs><linearGradient id="spec-grad" x1="0" y1="0" x2="1" y2="0">`;
+  html += `<stop offset="0%" stop-color="#ff6b6b"/>`;
+  html += `<stop offset="25%" stop-color="#ffa94d"/>`;
+  html += `<stop offset="50%" stop-color="#ffd43b"/>`;
+  html += `<stop offset="75%" stop-color="#339af0"/>`;
+  html += `<stop offset="100%" stop-color="#cc5de8"/>`;
+  html += `</linearGradient></defs>`;
+
+  html += `<rect x="${padL}" y="${barY}" width="${w}" height="${barH}" rx="6" fill="url(#spec-grad)" opacity="0.6"/>`;
+
+  // Labels
+  html += `<text x="${padL - 5}" y="${barY + barH + 18}" text-anchor="end" fill="var(--text-3)" font-size="10">Weaker</text>`;
+  html += `<text x="${padL + w + 5}" y="${barY + barH + 18}" text-anchor="start" fill="var(--text-3)" font-size="10">Stronger</text>`;
+
+  // R+W>N bracket
+  const rwStart = padL + 0.15 * w;
+  const rwEnd = padL + 0.35 * w;
+  html += `<line x1="${rwStart}" y1="${barY + barH + 24}" x2="${rwEnd}" y2="${barY + barH + 24}" stroke="var(--accent-cyan)" stroke-width="2"/>`;
+  html += `<line x1="${rwStart}" y1="${barY + barH + 20}" x2="${rwStart}" y2="${barY + barH + 28}" stroke="var(--accent-cyan)" stroke-width="2"/>`;
+  html += `<line x1="${rwEnd}" y1="${barY + barH + 20}" x2="${rwEnd}" y2="${barY + barH + 28}" stroke="var(--accent-cyan)" stroke-width="2"/>`;
+  html += `<text x="${(rwStart + rwEnd) / 2}" y="${barY + barH + 40}" text-anchor="middle" fill="var(--accent-cyan)" font-size="10" font-weight="600">R+W>N range</text>`;
+
+  models.forEach(m => {
+    const x = padL + m.x * w;
+    html += `<circle cx="${x}" cy="${barY + barH / 2}" r="6" fill="${m.color}" stroke="var(--bg)" stroke-width="2"/>`;
+    html += `<text x="${x}" y="${barY - 10}" text-anchor="middle" fill="${m.color}" font-size="10" font-weight="600">${m.label}</text>`;
+  });
+
+  svg.innerHTML = html;
+})();
+</script>
+
+</body>
+</html>
