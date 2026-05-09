@@ -14,22 +14,27 @@ Mock-driven prep for staff/tech-lead loops at first/second-tier companies (distr
 
 Hard pace: 1 mock/day Mon–Sat, calibration mocks on Days 9–10. Tier 1 problems first; Tier 2 fills in. Daily shape: 60 min cheat-sheet write OR course revisit → 5 min pre-mock review → 45 min mock → 15-20 min critique → commit. (No algo warm-up — this workspace is purely system design.)
 
-| Day | Mock | New cheat sheet / pattern | Course revisit |
-|-----|------|---------------------------|----------------|
-| 1 | URL Shortener (calibration) ✅ | ✅ `back-of-envelope.html` | ✅ RU case study reviewed |
-| 2 | News Feed / Twitter ✅ | ✅ `feed-fanout.md` (push/pull/hybrid + celeb cache + classification) | — |
-| 3 | **Live Streaming Chat (Twitch / YouTube Live)** _(swapped — Messenger covered in RU course)_ | `realtime-fanout.md` (WebSocket connection mgmt, hot-channel sharding, read-fanout patterns) | — |
-| 4 | Uber / ride-sharing | `geohashing.md` + visualization | — |
-| 5 | Distributed Cache (Redis-like) | `consistent-hashing.md` + visualization | — |
-| 6 | Rate Limiter (distributed) | `rate-limiting-algorithms.md` (token vs leaky vs sliding) | EN/RU Mod 6 — circuit breakers + bulkheads |
-| 7 | **Webhook Delivery Service** _(swapped — Notification covered in RU course)_ | `idempotency.md` (at-least-once + idempotent consumers, retry/backoff/dead-letter) | — |
-| 8 | Dropbox / Google Drive | `cdc.md` (chunking + sync exposes it) | — |
-| 9 | **Cold re-mock** of worst Day 1–8 problem | _(no notes, full 45-min timer — calibration)_ | — |
+| Day | Mock | New cheat sheet / pattern | Notes |
+|-----|------|---------------------------|-------|
+| 1 | URL Shortener (calibration) ✅ | ✅ `back-of-envelope.html` | Champion #1 — done 2026-04-28 |
+| 2 | News Feed / Twitter ✅ | ✅ `feed-fanout.md` (push/pull/hybrid + celeb cache + classification) | Champion #2 — done 2026-05-08 |
+| — | Real-time Chat / Messenger ✅ | _(RU course case study)_ | Champion #3 — covered out of band |
+| — | Notification / Webhook Delivery ✅ | _(RU course case study)_ | Champion #4 — covered out of band |
+| 3 | **Distributed Cache (Redis-like)** | `consistent-hashing.md` + visualization | Champion #5 — TODAY 2026-05-09 |
+| 4 | Ride-Sharing Match (Uber) | `geohashing.md` + visualization | Champion #6 |
+| 5 | Payment / Wallet System | `idempotency.md` (idempotency keys, sagas, double-spend, audit log) | Champion #7 |
+| 6 | Distributed Rate Limiter | `rate-limiting-algorithms.md` (token / sliding / leaky bucket) | Champion #8 |
+| — | Job Scheduler / Cron ✅ | _(covered out of band)_ | Stretch #9 — covered |
+| 7 | **Video Streaming Platform** _(if media target — else swap with Day 8)_ | `cdn-adaptive-bitrate.md` (HLS/DASH, ingestion pipeline, transcoding) | Stretch #10 |
+| 8 | **Search Typeahead** _(if search target — else replay weakest Champion as second cold re-mock)_ | `inverted-index.md` (trie, prefix sharding, popularity ranking) | Stretch #11 |
+| 9 | **Cold re-mock** of worst Day 1–8 problem | _(no notes, full timer — calibration)_ | — |
 | 10 | **Final mock under realistic pressure** | Behavioral/leveling prep | — |
 
-**Schedule swap rationale (Day 3, Day 7):** user already covered Messenger + Notification Service in the Russian course case studies; re-mocking them risks pattern-matching against memory rather than driving the framework cold. Replacements preserve the same concept areas:
-- **Day 3 — Live Streaming Chat (Twitch-style)** preserves Messenger's core concepts (real-time delivery, per-channel ordering, presence, connection management at scale) and adds extreme-fanout depth (1 streamer → 100K–1M viewers per channel). Pure systems design, no algorithm trap (avoids the CRDT/OT specialization a collaborative-editor problem would force).
-- **Day 7 — Webhook Delivery** preserves Notification's core concepts (1:N reliable delivery, retry with backoff, dedup, per-consumer rate-limit) and centers on the at-least-once + idempotency-key pattern that powers every modern SaaS integration (Stripe / GitHub / etc.).
+**Schedule rationale — Champion 8 + Stretch 3 (in order of importance):** problems chosen on dual criteria of (a) interview frequency at staff/tech-lead loops and (b) concept-leverage to other problems. See [Problem queue](#-problem-queue--priority-ordered-for-stafftech-lead-loops) for ranking justification.
+
+**Covered out of band (5 of 11):** Champion #1-2 via mocks (Days 1-2); Champion #3-4 (Messenger / Notification) via RU course case studies; Stretch #9 (Job Scheduler) via prior knowledge. Re-mocking the out-of-band ones risks pattern-matching memory rather than driving the framework cold; better signal to drill the Champion #5-8 + Stretch #10-11 (the 6 not-yet-mocked) under live conditions.
+
+**Day 7-8 stretch ordering:** Video Streaming first (Day 7), Search Typeahead second (Day 8). Both are company-specific signals; swap if Search-target loops (Google) are imminent. If neither target applies, replay weakest Champion as a second cold re-mock — calibration is the highest-leverage use of those days.
 
 **Foundations (already written, reference daily):**
 - ✅ `concepts/interview-framework.md` — the 5-stage flow (binding for every mock)
@@ -49,35 +54,32 @@ Hard pace: 1 mock/day Mon–Sat, calibration mocks on Days 9–10. Tier 1 proble
 
 ## 🔥 Problem queue — priority-ordered for staff/tech-lead loops
 
-Tier 1 covers ~70% of distributed/SaaS/backend rounds. Tier 2 adds ~20%. Tier 3 is breadth.
+**Champion 8** — must-master before any real loop. Each one anchors a concept area no other problem covers as cleanly. **Stretch 3** — drill if time / target company permits.
 
-### Tier 1 — must-do (drill before any real loop)
-- [x] **URL Shortener** — base "DB + cache + ID gen" template. _(✅ Day 1 calibration mock complete — see `problems/url-shortener.md`.)_
-- [x] **News Feed / Twitter** — fanout-on-write vs read, hot-key handling, hybrid. _(✅ Day 2 mock complete — see `problems/news-feed.md`. Cheat sheet: `patterns/feed-fanout.md`.)_
-- [ ] **Live Streaming Chat (Twitch / YouTube Live)** _(replaces Messenger in 10-day schedule)_ — real-time fanout at extreme scale (1 streamer → 100K–1M viewers per channel), per-channel ordering, presence, hot-channel sharding, WebSocket connection mgmt, moderation pipeline. _(Concept gap: realtime-fanout cheat sheet.)_
-- [ ] **Uber / ride-sharing** — geohashing, dispatch matching, surge pricing. _(Concept gap: spatial indexing cheat sheet.)_
-- [ ] **Distributed Cache (Redis-like)** — consistent hashing, eviction, replication. _(Concept gap: consistent-hashing visualization.)_
-- [ ] **Distributed Rate Limiter** — token bucket / sliding window in shared store, edge vs central enforcement.
-- [ ] **Webhook Delivery Service** _(replaces Notification System in 10-day schedule)_ — 1:N reliable delivery, retry/backoff/dead-letter, idempotency keys, per-consumer rate-limit, replay, subscriber management.
+### Champion 8 (in order of importance)
+1. [x] **URL Shortener** — base template (KV scaling, ID gen, sharding, cache). Calibration round; every loop opens with a variant. _(✅ Day 1 mock — see `problems/url-shortener.md`.)_
+2. [x] **News Feed / Twitter** — read-heavy + fanout-on-write/read + hot-key (celeb). Most-asked FAANG-tier round; concepts transfer to Chat / Notification / Video. _(✅ Day 2 mock — see `problems/news-feed.md`; cheat sheet `patterns/feed-fanout.md`.)_
+3. [x] **Real-time Chat / Messenger** — stateful long-lived connections (WebSocket/SSE), presence, connection affinity, per-channel ordering. Asked at every consumer-tech loop. _(✅ Covered via RU course case study.)_
+4. [x] **Notification / Webhook Delivery** — async 1:N reliable fanout, retry/backoff/dead-letter, idempotent consumers, dedup, per-consumer throttling. Every SaaS has one. _(✅ Covered via RU course case study.)_
+5. [ ] **Distributed Cache (Redis-like)** — consistent hashing, eviction, replication, hot-key. The consistent-hashing concept transfers everywhere — must be reflexive. _(Concept gap: `patterns/consistent-hashing.md` + visualization.)_
+6. [ ] **Ride-Sharing Match (Uber)** — geospatial indexing (geohash/quadtree), realtime dispatch matching, surge pricing. Tests coordination under realtime constraints — distinct concept area. _(Concept gap: `patterns/geohashing.md` + visualization.)_
+7. [ ] **Payment / Wallet System** — strict consistency, idempotency keys, sagas, double-spend prevention, audit log. The single problem where eventual consistency is the wrong default. _(Concept gap: `patterns/idempotency.md`.)_
+8. [ ] **Distributed Rate Limiter** — token bucket / sliding window in shared store, edge vs central enforcement. Quick problem; common screening signal at staff loops. _(Concept gap: `concepts/rate-limiting-algorithms.md`.)_
 
-**Already covered (Russian course case studies, dropped from active queue):**
-- ~~WhatsApp / Messenger~~ — real-time, message ordering, presence, delivery guarantees. Concept areas covered by Live Streaming Chat swap.
-- ~~Notification System~~ — fanout reliability, channel abstraction, retry/dedup. Concept areas covered by Webhook Delivery swap.
+### Stretch 3 (drill based on target company / time budget)
+9. [x] **Job Scheduler / Cron** — leader election, lease-based execution, missed-fire/overlap handling, time-zone correctness, idempotent jobs, fan-out to workers. Closes the leader-election gap left by the Champion 8. Universally applicable. _(✅ Covered out of band.)_
+10. [ ] **Video Streaming Platform** — CDN-dominated, adaptive bitrate (HLS/DASH), ingestion pipeline, transcoding. Drill if interviewing at Netflix / YouTube / Twitch / Disney+. _(Concept gap: `concepts/cdn-adaptive-bitrate.md`.)_
+11. [ ] **Search Typeahead** — inverted index, trie, prefix sharding, popularity ranking, freshness. Drill if interviewing at Google or search-product targets. _(Concept gap: `concepts/inverted-index.md`.)_
 
-### Tier 2 — high-value
-- [ ] **Airbnb / booking** — concurrency, double-booking prevention, search + filtering. _(Russian course has case study — compare after.)_
-- [ ] **Web Crawler** — distributed scheduling, dedup, politeness, freshness budget.
-- [ ] **Dropbox / Google Drive** — chunking, dedup, conflict resolution, sync protocol.
-- [ ] **Video Streaming (Netflix-style)** — CDN, adaptive bitrate (DASH/HLS), ingestion pipeline.
-- [ ] **Search Autocomplete** — trie, popularity ranking, freshness, prefix sharding.
-- [ ] **Distributed ID Generator (Snowflake-style)** — clock skew, monotonicity, collision avoidance.
-
-### Tier 3 — breadth (round out coverage)
-- [ ] **Payment System** — idempotency keys, sagas, double-spend prevention, audit log.
-- [ ] **Distributed Log / Kafka clone** — partitioning, retention, ISR, exactly-once.
-- [ ] **Recommender System** — feature store, online vs batch scoring, A/B test infra.
-- [ ] **Real-Time Analytics** — Lambda/Kappa architecture, watermarks, exactly-once.
-- [ ] **Distributed File System (GFS-like)** — chunk servers, master, fault tolerance.
+### Defensibly dropped (not on the champion list — see brainstorm 2026-05-09)
+- ~~Web Crawler~~ — classic, but rare in modern loops; politeness/freshness budgets a niche signal.
+- ~~Dropbox / Google Drive~~ — only if file-storage role; chunking/CRDT/conflict-res transfers little to other rounds.
+- ~~Distributed File System (GFS-like)~~ — infra-deep specialist; rare in product loops.
+- ~~Kafka-clone / Distributed Log~~ — interviewers want you to *use* a broker, not design one.
+- ~~Recommender System~~ — ML-flavored; off the distributed-systems main path.
+- ~~Distributed ID Generator (Snowflake)~~ — sub-pattern of URL Shortener; doesn't deserve a standalone mock.
+- ~~Airbnb / Booking~~ — covered by RU course case study; concurrency / double-booking concepts subsumed by Payment.
+- ~~Realtime Analytics (Lambda / Kappa)~~ — specialist; off the main path for product loops.
 
 ---
 
@@ -115,21 +117,33 @@ Tick when a problem walkthrough has *actively exercised* it (not just mentioned)
 - [ ] **Multi-tenancy strategies** — [EN/RU Mod 2]
 
 ### Gap-fill (cheat-sheet candidates — fill as problems expose them)
-- [x] **Database toolbox decision tree** — `concepts/db-toolbox.md` _(starter — written first because it underpins every problem)_
-- [x] **Interview framework (5-stage hardcoded flow)** — `concepts/interview-framework.md` _(the canonical protocol both sides follow during every mock)_
-- [x] **Back-of-envelope estimation cheat sheet** — `concepts/back-of-envelope.html` _(QPS / storage / bandwidth math + latency ladder; visual HTML format)_
+
+**Foundations (already written):**
+- [x] **Database toolbox decision tree** — `concepts/db-toolbox.md` _(underpins every problem)_
+- [x] **Interview framework (5-stage hardcoded flow)** — `concepts/interview-framework.md` _(canonical mock protocol)_
+- [x] **Back-of-envelope estimation cheat sheet** — `concepts/back-of-envelope.html` _(QPS / storage / bandwidth + latency ladder)_
+- [x] **Fanout-on-write vs fanout-on-read for feeds** — `patterns/feed-fanout.md` _(✅ Day 2 — hybrid push/pull, celeb cache)_
+
+**Active sprint (each tied to a scheduled mock):**
+- [ ] **Consistent hashing** + visualization — `patterns/consistent-hashing.md` _(Day 3 — Distributed Cache)_
+- [ ] **Geohashing / spatial indexing** + visualization — `patterns/geohashing.md` _(Day 4 — Ride-Sharing)_
+- [ ] **Idempotency keys, sagas, double-spend, audit log** — `patterns/idempotency.md` _(Day 5 — Payment)_
+- [ ] **Rate-limiting algorithms** (token / sliding / leaky bucket) — `concepts/rate-limiting-algorithms.md` _(Day 6 — Rate Limiter)_
+- [ ] **CDN + adaptive bitrate** (HLS/DASH, transcoding pipeline) — `concepts/cdn-adaptive-bitrate.md` _(Day 7 — Video Streaming, if media target)_
+- [ ] **Inverted index + trie ranking** (prefix sharding, popularity scoring) — `concepts/inverted-index.md` _(Day 8 — Search Typeahead, if search target)_
+
+**Low-priority (gap-fill if a mock exposes weakness):**
 - [ ] **Messaging decision matrix** (Kafka / Kinesis / SQS / RabbitMQ / SNS) — `concepts/messaging-toolbox.md`
 - [ ] **Cache decision matrix** (Redis / Memcached / in-process / CDN edge) — `concepts/cache-toolbox.md`
-- [ ] **Consistency cheat sheet** (linearizable / sequential / causal / eventual / read-your-writes / monotonic) — `concepts/consistency-cheatsheet.md`
-- [ ] **Consistent hashing** + visualization — `patterns/consistent-hashing.md`
-- [ ] **Geohashing / spatial indexing** — `patterns/geohashing.md`
-- [ ] **Snowflake-style ID generation** — `patterns/snowflake-id.md`
-- [x] **Fanout-on-write vs fanout-on-read for feeds** — `patterns/feed-fanout.md` _(✅ Day 2 — hybrid push/pull, celeb cache, classification on follow edge, latency budget)_
-- [ ] **Idempotency keys, request hedging, retries with backoff/jitter** — `patterns/idempotency.md`
-- [ ] **CDC (Change Data Capture) patterns** — `patterns/cdc.md`
-- [ ] **Real-time fanout patterns** (WebSocket vs SSE vs long-polling, connection affinity, hot-channel sharding, pub-sub broker shape) — `concepts/realtime-fanout.md` _(Day 3 live streaming chat)_
-- [ ] **Multi-region / DR (RPO/RTO, active-active vs active-passive)** — `concepts/multi-region.md`
+- [ ] **Consistency cheat sheet** (linearizable / sequential / causal / eventual / read-your-writes / monotonic) — `concepts/consistency-cheatsheet.md` _(touched by Day 5 Payment)_
+- [ ] **Multi-region / DR** (RPO/RTO, active-active vs active-passive) — `concepts/multi-region.md`
 - [ ] **Bloom filters + count-min sketch in storage paths** — `patterns/probabilistic-structures.md`
+
+**Deprioritized (sched changed — concept areas covered out of band or dropped):**
+- ~~`concepts/realtime-fanout.md`~~ — was for Live Streaming Chat; Champion #3 (Messenger) covered via RU course
+- ~~`patterns/cdc.md`~~ — was for Dropbox; Dropbox dropped from queue
+- ~~`patterns/snowflake-id.md`~~ — sub-pattern of URL Shortener; covered inline rather than standalone
+- ~~`patterns/leader-election.md`~~ — was for Job Scheduler; Stretch #9 covered out of band
 
 ---
 
