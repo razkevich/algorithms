@@ -1,0 +1,1840 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Java Concurrency Patterns — Interactive Reference</title>
+<style>
+:root {
+  --bg: #0f0f15;
+  --surface: #181820;
+  --surface-2: #20202a;
+  --border: #2a2a35;
+  --text: #e6e6ea;
+  --text-2: #cfcfd6;
+  --text-3: #888;
+  --accent-red: #e06c75;
+  --accent-green: #98c379;
+  --accent-blue: #61afef;
+  --accent-yellow: #e5c07b;
+  --accent-purple: #c678dd;
+  --accent-cyan: #56b6c2;
+  --accent-orange: #d19a66;
+}
+*, *::before, *::after { box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  padding: 32px 24px;
+  max-width: 1100px;
+  margin: 0 auto;
+  line-height: 1.55;
+}
+h1 { color: #fff; margin-bottom: 4px; }
+h1 + p.sub { color: var(--text-3); font-style: italic; margin-top: 0; margin-bottom: 24px; }
+h2 { color: #fff; margin-top: 32px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+h3 { color: var(--text-2); margin-top: 20px; }
+p { color: var(--text-2); }
+code {
+  background: var(--surface-2);
+  padding: 2px 6px;
+  border-radius: 3px;
+  color: var(--accent-cyan);
+  font-size: 13px;
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+}
+pre {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 14px 16px;
+  overflow-x: auto;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-2);
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+  margin: 12px 0;
+}
+pre .kw  { color: var(--accent-purple); }
+pre .ty  { color: var(--accent-yellow); }
+pre .cm  { color: var(--text-3); font-style: italic; }
+pre .st  { color: var(--accent-green); }
+pre .nm  { color: var(--accent-orange); }
+svg {
+  background: var(--surface);
+  border-radius: 8px;
+  display: block;
+  margin: 14px auto;
+  width: 100%;
+  height: auto;
+}
+.tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+.tabs button {
+  padding: 10px 16px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-2);
+  border-radius: 6px;
+  cursor: pointer;
+  min-height: 44px;
+  font-size: 13px;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+.tabs button:hover { background: var(--surface); }
+.tabs button.active {
+  border-color: var(--accent-blue);
+  border-bottom: 2px solid var(--accent-blue);
+  color: #fff;
+}
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0;
+  align-items: center;
+}
+.controls button, .btn {
+  padding: 10px 16px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  border-radius: 6px;
+  cursor: pointer;
+  min-height: 44px;
+  font-size: 14px;
+  transition: background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+.controls button:hover, .btn:hover { background: var(--surface); }
+.controls button:disabled, .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.controls button.active-btn { border-color: var(--accent-blue); color: var(--accent-blue); }
+.slider-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-3);
+  min-width: 180px;
+}
+.slider-group input[type="range"] {
+  flex: 1;
+  min-width: 80px;
+  accent-color: var(--accent-blue);
+}
+.commentary {
+  background: var(--surface-2);
+  padding: 14px;
+  border-radius: 6px;
+  font-size: 14px;
+  color: var(--text-2);
+  margin: 12px 0;
+  min-height: 44px;
+  line-height: 1.5;
+}
+.takeaway {
+  background: #1a1a22;
+  border-left: 3px solid var(--accent-green);
+  padding: 12px 16px;
+  margin: 14px 0;
+  font-size: 14px;
+}
+.takeaway strong { color: var(--accent-green); }
+.takeaway ul { margin: 6px 0 0 0; padding-left: 18px; }
+.takeaway li { margin-bottom: 6px; color: var(--text-2); }
+.warn-box {
+  background: #1f1510;
+  border-left: 3px solid var(--accent-red);
+  padding: 12px 16px;
+  margin: 14px 0;
+  font-size: 14px;
+  color: var(--text-2);
+}
+.warn-box strong { color: var(--accent-red); }
+section[hidden] { display: none !important; }
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  margin: 14px 0;
+}
+th {
+  background: var(--surface-2);
+  color: var(--text-2);
+  text-align: left;
+  padding: 10px 12px;
+  border-bottom: 2px solid var(--border);
+  font-weight: 600;
+}
+td {
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-2);
+  vertical-align: top;
+}
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: var(--surface-2); }
+.tag {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.tag-green { background: #1a2a1a; color: var(--accent-green); }
+.tag-red   { background: #2a1515; color: var(--accent-red); }
+.tag-blue  { background: #142030; color: var(--accent-blue); }
+.tag-yellow{ background: #2a2010; color: var(--accent-yellow); }
+.tag-purple{ background: #201a2a; color: var(--accent-purple); }
+.tag-cyan  { background: #102020; color: var(--accent-cyan); }
+.two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin: 14px 0;
+}
+@media (max-width: 720px) {
+  body { padding: 20px 14px; }
+  .two-col { grid-template-columns: 1fr; }
+}
+@media (max-width: 600px) {
+  .tabs { gap: 4px; }
+  .tabs button { padding: 10px 10px; font-size: 12px; flex: 1; min-width: 80px; text-align: center; }
+}
+@media (max-width: 480px) {
+  .controls { flex-direction: column; }
+  .controls button { width: 100%; }
+  .slider-group { width: 100%; min-width: auto; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Java Concurrency Patterns</h1>
+  <p class="sub">ExecutorService, CompletableFuture, BlockingQueues, pitfalls, and virtual threads — the concurrency toolkit every senior interview expects you to own cold.</p>
+</header>
+
+<nav class="tabs">
+  <button class="active" onclick="setTab('t1')">1. ExecutorService</button>
+  <button onclick="setTab('t2')">2. CompletableFuture</button>
+  <button onclick="setTab('t3')">3. Producer-Consumer</button>
+  <button onclick="setTab('t4')">4. Pitfalls</button>
+  <button onclick="setTab('t5')">5. Virtual Threads</button>
+</nav>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- TAB 1: ExecutorService & Thread Pools                          -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<section data-tab="t1">
+  <h2>ExecutorService &amp; Thread Pools</h2>
+  <p>A thread pool recycles threads rather than creating/destroying them per-task. Three components determine behavior: the <strong>core pool</strong>, the <strong>work queue</strong>, and the <strong>max pool</strong>.</p>
+
+  <h3>Pool Anatomy</h3>
+  <svg id="pool-svg" viewBox="0 0 820 260" preserveAspectRatio="xMidYMid meet">
+    <!-- Task submission arrow -->
+    <text x="20" y="50" fill="var(--accent-blue)" font-size="12" font-weight="700">Task submitted</text>
+    <line x1="20" y1="60" x2="20" y2="100" stroke="var(--accent-blue)" stroke-width="2" marker-end="url(#arr-blue)"/>
+    <defs>
+      <marker id="arr-blue" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="var(--accent-blue)"/>
+      </marker>
+      <marker id="arr-green" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="var(--accent-green)"/>
+      </marker>
+      <marker id="arr-red" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="var(--accent-red)"/>
+      </marker>
+      <marker id="arr-yellow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="var(--accent-yellow)"/>
+      </marker>
+    </defs>
+
+    <!-- Decision boxes -->
+    <!-- Step 1 -->
+    <rect x="60" y="100" width="160" height="50" rx="6" fill="var(--surface-2)" stroke="var(--accent-blue)" stroke-width="1.5"/>
+    <text x="140" y="120" text-anchor="middle" fill="var(--accent-blue)" font-size="11" font-weight="700">corePoolSize</text>
+    <text x="140" y="137" text-anchor="middle" fill="var(--text-3)" font-size="10">threads running?</text>
+    <!-- No branch: yes -->
+    <text x="154" y="99" fill="var(--accent-green)" font-size="10">no</text>
+    <line x1="140" y1="100" x2="140" y2="70" stroke="var(--accent-green)" stroke-width="1.5" marker-end="url(#arr-green)"/>
+    <rect x="85" y="50" width="110" height="28" rx="4" fill="#1a2a1a" stroke="var(--accent-green)" stroke-width="1"/>
+    <text x="140" y="68" text-anchor="middle" fill="var(--accent-green)" font-size="11">New core thread</text>
+
+    <!-- yes -> queue -->
+    <text x="224" y="122" fill="var(--accent-yellow)" font-size="10">yes</text>
+    <line x1="220" y1="125" x2="290" y2="125" stroke="var(--accent-yellow)" stroke-width="1.5" marker-end="url(#arr-yellow)"/>
+
+    <!-- Queue box -->
+    <rect x="290" y="100" width="140" height="50" rx="6" fill="var(--surface-2)" stroke="var(--accent-yellow)" stroke-width="1.5"/>
+    <text x="360" y="120" text-anchor="middle" fill="var(--accent-yellow)" font-size="11" font-weight="700">Work Queue</text>
+    <text x="360" y="137" text-anchor="middle" fill="var(--text-3)" font-size="10">capacity?</text>
+
+    <!-- queue not full -->
+    <text x="365" y="99" fill="var(--accent-green)" font-size="10">space</text>
+    <line x1="360" y1="100" x2="360" y2="70" stroke="var(--accent-green)" stroke-width="1.5" marker-end="url(#arr-green)"/>
+    <rect x="305" y="50" width="110" height="28" rx="4" fill="#1a2a1a" stroke="var(--accent-green)" stroke-width="1"/>
+    <text x="360" y="68" text-anchor="middle" fill="var(--accent-green)" font-size="11">Enqueued</text>
+
+    <!-- queue full -> max pool -->
+    <text x="434" y="122" fill="var(--accent-red)" font-size="10">full</text>
+    <line x1="430" y1="125" x2="500" y2="125" stroke="var(--accent-red)" stroke-width="1.5" marker-end="url(#arr-red)"/>
+
+    <!-- Max pool box -->
+    <rect x="500" y="100" width="150" height="50" rx="6" fill="var(--surface-2)" stroke="var(--accent-purple)" stroke-width="1.5"/>
+    <text x="575" y="120" text-anchor="middle" fill="var(--accent-purple)" font-size="11" font-weight="700">maximumPoolSize</text>
+    <text x="575" y="137" text-anchor="middle" fill="var(--text-3)" font-size="10">reached?</text>
+
+    <!-- max pool not reached -->
+    <text x="580" y="99" fill="var(--accent-green)" font-size="10">no</text>
+    <line x1="575" y1="100" x2="575" y2="70" stroke="var(--accent-green)" stroke-width="1.5" marker-end="url(#arr-green)"/>
+    <rect x="515" y="50" width="120" height="28" rx="4" fill="#1a2a1a" stroke="var(--accent-green)" stroke-width="1"/>
+    <text x="575" y="68" text-anchor="middle" fill="var(--accent-green)" font-size="11">New extra thread</text>
+
+    <!-- max pool reached -> reject -->
+    <text x="654" y="122" fill="var(--accent-red)" font-size="10">yes</text>
+    <line x1="650" y1="125" x2="720" y2="125" stroke="var(--accent-red)" stroke-width="1.5" marker-end="url(#arr-red)"/>
+
+    <rect x="720" y="100" width="80" height="50" rx="6" fill="#2a1515" stroke="var(--accent-red)" stroke-width="1.5"/>
+    <text x="760" y="122" text-anchor="middle" fill="var(--accent-red)" font-size="11" font-weight="700">Reject</text>
+    <text x="760" y="137" text-anchor="middle" fill="var(--text-3)" font-size="10">Policy fires</text>
+
+    <!-- keep-alive label -->
+    <text x="500" y="175" fill="var(--text-3)" font-size="11">Extra threads idle &gt; keepAliveTime</text>
+    <line x1="575" y1="150" x2="575" y2="185" stroke="var(--text-3)" stroke-width="1" stroke-dasharray="3,3"/>
+    <text x="575" y="200" text-anchor="middle" fill="var(--text-3)" font-size="10">→ terminated (core threads kept)</text>
+
+    <!-- Workers row -->
+    <rect x="60" y="205" width="680" height="45" rx="6" fill="var(--surface)" stroke="var(--border)" stroke-width="1"/>
+    <text x="400" y="222" text-anchor="middle" fill="var(--text-3)" font-size="11">Worker Threads (execute tasks from queue)</text>
+    <rect x="75"  y="213" width="60" height="28" rx="3" fill="#142030" stroke="var(--accent-blue)" stroke-width="1"/>
+    <text x="105" y="231" text-anchor="middle" fill="var(--accent-blue)" font-size="10">W-1</text>
+    <rect x="145" y="213" width="60" height="28" rx="3" fill="#142030" stroke="var(--accent-blue)" stroke-width="1"/>
+    <text x="175" y="231" text-anchor="middle" fill="var(--accent-blue)" font-size="10">W-2</text>
+    <rect x="215" y="213" width="60" height="28" rx="3" fill="#142030" stroke="var(--accent-blue)" stroke-width="1"/>
+    <text x="245" y="231" text-anchor="middle" fill="var(--accent-blue)" font-size="10">W-3</text>
+    <text x="310" y="231" fill="var(--text-3)" font-size="10">... core threads</text>
+    <rect x="570" y="213" width="60" height="28" rx="3" fill="#201a2a" stroke="var(--accent-purple)" stroke-width="1" stroke-dasharray="3,2"/>
+    <text x="600" y="231" text-anchor="middle" fill="var(--accent-purple)" font-size="10">W-N</text>
+    <text x="640" y="231" fill="var(--text-3)" font-size="10">extra</text>
+  </svg>
+
+  <h3>Pool Types Comparison</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>Factory method</th>
+        <th>Core</th>
+        <th>Max</th>
+        <th>Queue</th>
+        <th>When to use</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>newFixedThreadPool(n)</code></td>
+        <td>n</td>
+        <td>n</td>
+        <td>Unbounded <code>LinkedBlockingQueue</code></td>
+        <td>Steady, predictable workload; limits resource consumption</td>
+      </tr>
+      <tr>
+        <td><code>newCachedThreadPool()</code></td>
+        <td>0</td>
+        <td>Integer.MAX</td>
+        <td><code>SynchronousQueue</code> (0 capacity)</td>
+        <td>Burst short-lived tasks; threads die after 60 s idle. <span class="tag tag-red">OOM risk</span> under sustained load</td>
+      </tr>
+      <tr>
+        <td><code>newScheduledThreadPool(n)</code></td>
+        <td>n</td>
+        <td>Integer.MAX</td>
+        <td><code>DelayQueue</code></td>
+        <td>Delayed / recurring tasks; cron-style scheduling</td>
+      </tr>
+      <tr>
+        <td><code>newSingleThreadExecutor()</code></td>
+        <td>1</td>
+        <td>1</td>
+        <td>Unbounded <code>LinkedBlockingQueue</code></td>
+        <td>Ordered sequential execution; event loop pattern</td>
+      </tr>
+      <tr>
+        <td><code>newWorkStealingPool()</code></td>
+        <td colspan="3">ForkJoinPool, parallelism = CPU count</td>
+        <td>Divide-and-conquer, recursive tasks, parallel streams</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="warn-box">
+    <strong>OOM trap:</strong> <code>newFixedThreadPool</code> uses an <em>unbounded</em> queue. Under overload, the queue grows without limit. Always construct <code>ThreadPoolExecutor</code> directly with a bounded queue in production.
+  </div>
+
+  <h3>Task Submission Flow — Animation</h3>
+  <div class="controls">
+    <button id="btn-submit-task" onclick="Pool.submitTask()">Submit Task</button>
+    <button id="btn-complete-task" onclick="Pool.completeTask()">Complete Task</button>
+    <button onclick="Pool.reset()">Reset</button>
+    <span class="slider-group">
+      Queue capacity:
+      <input type="range" id="pool-qcap" min="2" max="6" value="4" oninput="Pool.setQCap(this.value)">
+      <span id="pool-qcap-label">4</span>
+    </span>
+  </div>
+  <svg id="pool-anim-svg" viewBox="0 0 820 200" preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <marker id="pa-arr" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="#444"/>
+      </marker>
+    </defs>
+    <!-- Submit side -->
+    <rect x="10" y="70" width="80" height="60" rx="6" fill="var(--surface-2)" stroke="var(--accent-blue)" stroke-width="1.5"/>
+    <text x="50" y="96" text-anchor="middle" fill="var(--accent-blue)" font-size="12" font-weight="700">submit()</text>
+    <text x="50" y="115" text-anchor="middle" fill="var(--text-3)" font-size="10">caller</text>
+
+    <line x1="90" y1="100" x2="150" y2="100" stroke="#444" stroke-width="1.5" marker-end="url(#pa-arr)"/>
+
+    <!-- Queue -->
+    <rect x="150" y="60" width="300" height="80" rx="6" fill="var(--surface)" stroke="var(--accent-yellow)" stroke-width="1.5"/>
+    <text x="300" y="82" text-anchor="middle" fill="var(--accent-yellow)" font-size="12" font-weight="700">Work Queue</text>
+    <!-- Queue slots drawn by JS -->
+    <g id="pa-queue-slots"></g>
+
+    <!-- Arrow to workers -->
+    <line x1="450" y1="100" x2="510" y2="100" stroke="#444" stroke-width="1.5" marker-end="url(#pa-arr)"/>
+
+    <!-- Workers -->
+    <rect x="510" y="20" width="280" height="160" rx="6" fill="var(--surface)" stroke="var(--border)" stroke-width="1"/>
+    <text x="650" y="42" text-anchor="middle" fill="var(--text-3)" font-size="11">Worker Threads</text>
+    <!-- Worker slots drawn by JS -->
+    <g id="pa-worker-slots"></g>
+  </svg>
+  <div class="commentary" id="pool-commentary">Press "Submit Task" to add tasks, "Complete Task" to finish one.</div>
+
+  <h3>Rejection Policies</h3>
+  <table>
+    <thead><tr><th>Policy</th><th>Behavior when queue full &amp; pool at max</th><th>Best for</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><code>AbortPolicy</code> <span class="tag tag-red">default</span></td>
+        <td>Throws <code>RejectedExecutionException</code></td>
+        <td>Fail-fast; caller must handle</td>
+      </tr>
+      <tr>
+        <td><code>CallerRunsPolicy</code></td>
+        <td>Caller thread executes the task directly</td>
+        <td>Soft backpressure — slows producer automatically</td>
+      </tr>
+      <tr>
+        <td><code>DiscardPolicy</code></td>
+        <td>Task silently dropped</td>
+        <td>Best-effort metrics/logging; loss acceptable</td>
+      </tr>
+      <tr>
+        <td><code>DiscardOldestPolicy</code></td>
+        <td>Head of queue evicted, new task enqueued</td>
+        <td>Latest data matters most (sensor streams)</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Thread Pool Sizing Formula</h3>
+  <div class="two-col">
+    <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:16px;">
+      <div style="color:var(--accent-green);font-weight:700;margin-bottom:8px;">CPU-bound</div>
+      <div style="font-size:22px;font-family:monospace;color:#fff;margin-bottom:8px;">N<sub style="font-size:14px;">threads</sub> = N<sub style="font-size:14px;">cpu</sub> + 1</div>
+      <div style="color:var(--text-3);font-size:13px;">The +1 covers the occasional page fault / GC pause without over-subscribing cores.</div>
+    </div>
+    <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:16px;">
+      <div style="color:var(--accent-blue);font-weight:700;margin-bottom:8px;">IO-bound</div>
+      <div style="font-size:20px;font-family:monospace;color:#fff;margin-bottom:8px;">N * (1 + W/C)</div>
+      <div style="color:var(--text-3);font-size:13px;"><code>W</code> = avg wait time, <code>C</code> = avg compute time. If W/C = 9 → 10x threads per core.</div>
+    </div>
+  </div>
+  <div class="controls" style="margin-top:8px;">
+    <span class="slider-group">Cores: <input type="range" id="sz-cores" min="1" max="16" value="4" oninput="Sizing.update()"><span id="sz-cores-lbl">4</span></span>
+    <span class="slider-group">W/C ratio: <input type="range" id="sz-ratio" min="0" max="20" value="9" oninput="Sizing.update()"><span id="sz-ratio-lbl">9</span></span>
+  </div>
+  <div class="commentary" id="sz-result">CPU-bound: 5 threads. IO-bound: 40 threads.</div>
+
+  <h3>shutdown() vs shutdownNow()</h3>
+  <table>
+    <thead><tr><th>Method</th><th>Queued tasks</th><th>Running tasks</th><th>Returns</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><code>shutdown()</code></td>
+        <td>Allowed to finish</td>
+        <td>Complete normally</td>
+        <td><code>void</code>; use <code>awaitTermination()</code></td>
+      </tr>
+      <tr>
+        <td><code>shutdownNow()</code></td>
+        <td>Removed, returned as <code>List&lt;Runnable&gt;</code></td>
+        <td>Interrupted (best-effort)</td>
+        <td><code>List&lt;Runnable&gt;</code> of unstarted tasks</td>
+      </tr>
+    </tbody>
+  </table>
+  <div class="takeaway">
+    <strong>Takeaway</strong>
+    <ul>
+      <li>Never use <code>Executors.newFixedThreadPool</code> in production without bounding the queue — OOM guaranteed under sustained overload.</li>
+      <li><code>CallerRunsPolicy</code> is the idiomatic backpressure valve: it slows the producer proportionally.</li>
+      <li>Sizing: IO-bound services often run 50–200 threads per node; CPU-bound keeps it N+1.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- TAB 2: CompletableFuture                                       -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<section data-tab="t2" hidden>
+  <h2>CompletableFuture Pipelines</h2>
+  <p><code>CompletableFuture</code> chains asynchronous stages without blocking threads between steps. Each stage may run on a different thread from the common fork-join pool (or a custom executor).</p>
+
+  <h3>Core Operators</h3>
+  <table>
+    <thead><tr><th>Operator</th><th>Input → Output</th><th>Blocks?</th><th>Use case</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><code>thenApply(fn)</code></td>
+        <td>T → U (sync transform)</td>
+        <td>No</td>
+        <td>Map result; runs on completing thread</td>
+      </tr>
+      <tr>
+        <td><code>thenApplyAsync(fn)</code></td>
+        <td>T → U</td>
+        <td>No</td>
+        <td>Same but scheduled on FJ pool (or custom executor)</td>
+      </tr>
+      <tr>
+        <td><code>thenCompose(fn)</code></td>
+        <td>T → CompletableFuture&lt;U&gt;</td>
+        <td>No</td>
+        <td>Flat-map / async chain; avoids nested futures</td>
+      </tr>
+      <tr>
+        <td><code>thenCombine(other, fn)</code></td>
+        <td>(T, U) → V</td>
+        <td>No</td>
+        <td>Zip two futures; both must complete first</td>
+      </tr>
+      <tr>
+        <td><code>allOf(futures...)</code></td>
+        <td>→ CF&lt;Void&gt;</td>
+        <td>No</td>
+        <td>Fan-out; completes when <em>all</em> complete</td>
+      </tr>
+      <tr>
+        <td><code>anyOf(futures...)</code></td>
+        <td>→ CF&lt;Object&gt;</td>
+        <td>No</td>
+        <td>First to complete wins; race pattern</td>
+      </tr>
+      <tr>
+        <td><code>exceptionally(fn)</code></td>
+        <td>Throwable → T</td>
+        <td>No</td>
+        <td>Error recovery; skipped on success</td>
+      </tr>
+      <tr>
+        <td><code>handle(fn)</code></td>
+        <td>(T, Throwable) → U</td>
+        <td>No</td>
+        <td>Always called; inspect both value and exception</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Pipeline Animation</h3>
+  <p>A realistic pipeline: fetch user (IO) → enrich profile (IO, parallel) + resolve permissions (IO, parallel) → combine → serialize (CPU) → return.</p>
+  <div class="controls">
+    <button id="cf-run-btn" onclick="CF.run()">Run Pipeline</button>
+    <button onclick="CF.reset()">Reset</button>
+    <button id="cf-fail-btn" onclick="CF.runFail()">Run with Error</button>
+  </div>
+  <svg id="cf-svg" viewBox="0 0 820 300" preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <marker id="cf-arr" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="#555"/>
+      </marker>
+    </defs>
+    <!-- Stage boxes, wired by JS -->
+    <!-- Row 1: fetchUser -->
+    <rect id="cf-s1" x="30" y="110" width="130" height="60" rx="6" fill="var(--surface-2)" stroke="var(--border)" stroke-width="1.5"/>
+    <text x="95" y="136" text-anchor="middle" fill="var(--text-2)" font-size="11" font-weight="700">fetchUser()</text>
+    <text x="95" y="153" text-anchor="middle" fill="var(--text-3)" font-size="10">supplyAsync · IO</text>
+
+    <!-- Fork arrows -->
+    <line id="cf-l12a" x1="160" y1="130" x2="230" y2="100" stroke="#555" stroke-width="1.5" marker-end="url(#cf-arr)" stroke-dasharray="0"/>
+    <line id="cf-l12b" x1="160" y1="150" x2="230" y2="185" stroke="#555" stroke-width="1.5" marker-end="url(#cf-arr)"/>
+
+    <!-- Stage 2a: enrichProfile -->
+    <rect id="cf-s2a" x="230" y="70" width="140" height="60" rx="6" fill="var(--surface-2)" stroke="var(--border)" stroke-width="1.5"/>
+    <text x="300" y="96" text-anchor="middle" fill="var(--text-2)" font-size="11" font-weight="700">enrichProfile()</text>
+    <text x="300" y="113" text-anchor="middle" fill="var(--text-3)" font-size="10">thenComposeAsync · IO</text>
+
+    <!-- Stage 2b: resolvePermissions -->
+    <rect id="cf-s2b" x="230" y="160" width="140" height="60" rx="6" fill="var(--surface-2)" stroke="var(--border)" stroke-width="1.5"/>
+    <text x="300" y="186" text-anchor="middle" fill="var(--text-2)" font-size="11" font-weight="700">resolvePerms()</text>
+    <text x="300" y="203" text-anchor="middle" fill="var(--text-3)" font-size="10">thenComposeAsync · IO</text>
+
+    <!-- Combine arrows -->
+    <line id="cf-l23a" x1="370" y1="100" x2="440" y2="140" stroke="#555" stroke-width="1.5" marker-end="url(#cf-arr)"/>
+    <line id="cf-l23b" x1="370" y1="190" x2="440" y2="160" stroke="#555" stroke-width="1.5" marker-end="url(#cf-arr)"/>
+
+    <!-- Stage 3: combine -->
+    <rect id="cf-s3" x="440" y="110" width="130" height="60" rx="6" fill="var(--surface-2)" stroke="var(--border)" stroke-width="1.5"/>
+    <text x="505" y="136" text-anchor="middle" fill="var(--text-2)" font-size="11" font-weight="700">thenCombine()</text>
+    <text x="505" y="153" text-anchor="middle" fill="var(--text-3)" font-size="10">zip · waits for both</text>
+
+    <line id="cf-l34" x1="570" y1="140" x2="630" y2="140" stroke="#555" stroke-width="1.5" marker-end="url(#cf-arr)"/>
+
+    <!-- Stage 4: serialize -->
+    <rect id="cf-s4" x="630" y="110" width="130" height="60" rx="6" fill="var(--surface-2)" stroke="var(--border)" stroke-width="1.5"/>
+    <text x="695" y="136" text-anchor="middle" fill="var(--text-2)" font-size="11" font-weight="700">serialize()</text>
+    <text x="695" y="153" text-anchor="middle" fill="var(--text-3)" font-size="10">thenApply · CPU</text>
+
+    <!-- Error path (hidden by default) -->
+    <line id="cf-err-line" x1="300" y1="70" x2="300" y2="40" stroke="var(--accent-red)" stroke-width="1.5" marker-end="url(#cf-arr)" visibility="hidden"/>
+    <rect id="cf-err-box" x="220" y="15" width="160" height="28" rx="4" fill="#2a1515" stroke="var(--accent-red)" stroke-width="1" visibility="hidden"/>
+    <text id="cf-err-txt" x="300" y="33" text-anchor="middle" fill="var(--accent-red)" font-size="11" visibility="hidden">exceptionally → fallback</text>
+
+    <!-- Thread labels -->
+    <text x="95" y="185" text-anchor="middle" fill="var(--text-3)" font-size="9">FJ-worker-1</text>
+    <text x="300" y="145" text-anchor="middle" fill="var(--text-3)" font-size="9">FJ-worker-2</text>
+    <text x="300" y="235" text-anchor="middle" fill="var(--text-3)" font-size="9">FJ-worker-3</text>
+    <text x="505" y="185" text-anchor="middle" fill="var(--text-3)" font-size="9">FJ-worker-2</text>
+    <text x="695" y="185" text-anchor="middle" fill="var(--text-3)" font-size="9">FJ-worker-1</text>
+
+    <!-- Progress dot -->
+    <circle id="cf-dot" cx="95" cy="140" r="7" fill="var(--accent-blue)" opacity="0"/>
+  </svg>
+  <div class="commentary" id="cf-commentary">Press "Run Pipeline" to animate the async stage flow.</div>
+
+  <h3>allOf — Fan-out Pattern</h3>
+  <pre><span class="kw">var</span> futures = ids.stream()
+    .map(id -&gt; <span class="ty">CompletableFuture</span>.supplyAsync(() -&gt; fetchItem(id), ioExecutor))
+    .toList();
+
+<span class="ty">CompletableFuture</span>.allOf(futures.toArray(<span class="kw">new</span> <span class="ty">CompletableFuture</span>[0]))
+    .thenApply(v -&gt; futures.stream().map(<span class="ty">CompletableFuture</span>::join).toList())
+    .thenAccept(results -&gt; process(results));</pre>
+
+  <h3>Custom Executors for CPU vs IO Stages</h3>
+  <pre><span class="cm">// IO executor: large pool, park threads while waiting</span>
+<span class="ty">ExecutorService</span> ioExec = <span class="ty">Executors</span>.newFixedThreadPool(100);
+
+<span class="cm">// CPU executor: N+1 threads, no context-switch waste</span>
+<span class="ty">ExecutorService</span> cpuExec = <span class="ty">Executors</span>.newFixedThreadPool(
+    <span class="ty">Runtime</span>.getRuntime().availableProcessors() + 1);
+
+<span class="ty">CompletableFuture</span>
+    .supplyAsync(() -&gt; fetchFromDb(id), ioExec)       <span class="cm">// IO stage</span>
+    .thenApplyAsync(data -&gt; transform(data), cpuExec) <span class="cm">// CPU stage</span>
+    .thenAcceptAsync(result -&gt; writeToDb(result), ioExec); <span class="cm">// IO stage</span></pre>
+
+  <div class="warn-box">
+    <strong>Deadlock trap — blocking get() inside a pipeline:</strong>
+    <pre style="margin:8px 0 0 0;"><span class="cm">// WRONG: FJ pool exhausted, inner get() waits for outer, deadlock</span>
+<span class="ty">CompletableFuture</span>.supplyAsync(() -&gt; {
+    <span class="kw">return</span> innerFuture.get(); <span class="cm">// blocks FJ thread!</span>
+});</pre>
+    Always use <code>thenCompose</code> instead of nesting <code>get()</code> calls inside async stages. If you must block, use a <em>separate</em> IO thread pool.
+  </div>
+
+  <div class="takeaway">
+    <strong>Takeaway</strong>
+    <ul>
+      <li><code>thenApply</code> = sync map; <code>thenCompose</code> = async flatMap (avoids <code>CompletableFuture&lt;CompletableFuture&lt;T&gt;&gt;</code>).</li>
+      <li>Use different executors for IO vs CPU stages — mixing them on the FJ pool causes interference.</li>
+      <li>Never call <code>.get()</code> inside a CF stage — it parks the worker and can deadlock the FJ pool.</li>
+      <li><code>handle()</code> is preferred over <code>exceptionally()</code> when you need access to both the value and the error.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- TAB 3: Producer-Consumer & Blocking Queues                     -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<section data-tab="t3" hidden>
+  <h2>Producer-Consumer &amp; Blocking Queues</h2>
+  <p>The canonical concurrency pattern: producers enqueue work, consumers dequeue and process. <code>BlockingQueue</code> is the thread-safe handoff point with built-in backpressure.</p>
+
+  <h3>BlockingQueue Implementations</h3>
+  <table>
+    <thead><tr><th>Class</th><th>Bounded?</th><th>Order</th><th>Key trait</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><code>ArrayBlockingQueue</code></td>
+        <td><span class="tag tag-green">yes</span></td>
+        <td>FIFO</td>
+        <td>Fixed array backing; single lock for put &amp; take (simpler, slightly lower throughput)</td>
+      </tr>
+      <tr>
+        <td><code>LinkedBlockingQueue</code></td>
+        <td>Optional (defaults unbounded)</td>
+        <td>FIFO</td>
+        <td>Two separate locks for head/tail → higher throughput; default in <code>newFixedThreadPool</code></td>
+      </tr>
+      <tr>
+        <td><code>PriorityBlockingQueue</code></td>
+        <td><span class="tag tag-red">no</span></td>
+        <td>Priority heap</td>
+        <td>Elements must implement <code>Comparable</code>; no <code>peek</code> ordering guarantee across threads</td>
+      </tr>
+      <tr>
+        <td><code>SynchronousQueue</code></td>
+        <td>Capacity = 0</td>
+        <td>Direct hand-off</td>
+        <td>Every put blocks until a take is waiting; used in <code>newCachedThreadPool</code></td>
+      </tr>
+      <tr>
+        <td><code>DelayQueue</code></td>
+        <td><span class="tag tag-red">no</span></td>
+        <td>Delay expiry</td>
+        <td>Elements only visible after their delay expires; used in <code>ScheduledThreadPoolExecutor</code></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>put/take vs offer/poll</h3>
+  <table>
+    <thead><tr><th>Method</th><th>Behavior when full/empty</th></tr></thead>
+    <tbody>
+      <tr><td><code>put(e)</code></td><td>Blocks indefinitely until space available</td></tr>
+      <tr><td><code>take()</code></td><td>Blocks indefinitely until element available</td></tr>
+      <tr><td><code>offer(e)</code></td><td>Returns <code>false</code> immediately if full</td></tr>
+      <tr><td><code>poll()</code></td><td>Returns <code>null</code> immediately if empty</td></tr>
+      <tr><td><code>offer(e, timeout, unit)</code></td><td>Waits up to timeout; returns <code>false</code> on timeout</td></tr>
+      <tr><td><code>poll(timeout, unit)</code></td><td>Waits up to timeout; returns <code>null</code> on timeout</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Bounded Queue Animation — Backpressure</h3>
+  <div class="controls">
+    <button onclick="BQ.addProducer()">+ Producer</button>
+    <button onclick="BQ.addConsumer()">+ Consumer</button>
+    <button onclick="BQ.removeProducer()">- Producer</button>
+    <button onclick="BQ.removeConsumer()">- Consumer</button>
+    <button onclick="BQ.reset()">Reset</button>
+    <span class="slider-group">Queue cap:
+      <input type="range" id="bq-cap" min="2" max="8" value="4" oninput="BQ.setCap(this.value)">
+      <span id="bq-cap-lbl">4</span>
+    </span>
+  </div>
+  <svg id="bq-svg" viewBox="0 0 820 240" preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <marker id="bq-arr" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="#555"/>
+      </marker>
+    </defs>
+    <g id="bq-producers"></g>
+    <g id="bq-queue-group"></g>
+    <g id="bq-consumers"></g>
+  </svg>
+  <div class="commentary" id="bq-commentary">1 producer, 1 consumer, queue capacity 4. Producers block (red) when queue is full — backpressure in action.</div>
+
+  <h3>Disruptor Pattern — Why 100x Faster</h3>
+  <p>The LMAX Disruptor replaces <code>BlockingQueue</code> with a pre-allocated ring buffer. Producers and consumers coordinate via sequence numbers with no locking.</p>
+  <svg viewBox="0 0 820 200" preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <marker id="dis-arr" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="#c678dd"/>
+      </marker>
+    </defs>
+    <!-- Ring buffer circle -->
+    <circle cx="400" cy="110" r="75" fill="none" stroke="var(--accent-purple)" stroke-width="2"/>
+    <text x="400" y="106" text-anchor="middle" fill="var(--accent-purple)" font-size="13" font-weight="700">Ring Buffer</text>
+    <text x="400" y="122" text-anchor="middle" fill="var(--text-3)" font-size="11">pre-allocated slots</text>
+    <!-- Slots on ring -->
+    <circle cx="400" cy="35"  r="14" fill="var(--surface-2)" stroke="var(--accent-yellow)" stroke-width="1.5"/>
+    <text x="400" y="40"  text-anchor="middle" fill="var(--accent-yellow)" font-size="10">seq 5</text>
+    <circle cx="466" cy="55"  r="14" fill="var(--surface-2)" stroke="var(--accent-green)" stroke-width="1.5"/>
+    <text x="466" y="60"  text-anchor="middle" fill="var(--accent-green)" font-size="10">seq 6</text>
+    <circle cx="475" cy="130" r="14" fill="var(--surface-2)" stroke="var(--border)" stroke-width="1.5"/>
+    <text x="475" y="135" text-anchor="middle" fill="var(--text-3)" font-size="10">seq 7</text>
+    <circle cx="400" cy="185" r="14" fill="var(--surface-2)" stroke="var(--border)" stroke-width="1.5"/>
+    <text x="400" y="190" text-anchor="middle" fill="var(--text-3)" font-size="10">seq 0</text>
+    <circle cx="325" cy="130" r="14" fill="var(--surface-2)" stroke="var(--border)" stroke-width="1.5"/>
+    <text x="325" y="135" text-anchor="middle" fill="var(--text-3)" font-size="10">seq 1</text>
+    <circle cx="334" cy="55"  r="14" fill="var(--surface-2)" stroke="var(--accent-blue)" stroke-width="1.5"/>
+    <text x="334" y="60"  text-anchor="middle" fill="var(--accent-blue)" font-size="10">seq 4</text>
+
+    <!-- Producer -->
+    <rect x="30" y="85" width="100" height="50" rx="6" fill="var(--surface-2)" stroke="var(--accent-green)" stroke-width="1.5"/>
+    <text x="80" y="108" text-anchor="middle" fill="var(--accent-green)" font-size="12" font-weight="700">Producer</text>
+    <text x="80" y="124" text-anchor="middle" fill="var(--text-3)" font-size="10">claims next seq</text>
+    <line x1="130" y1="110" x2="330" y2="62" stroke="var(--accent-green)" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#dis-arr)"/>
+
+    <!-- Consumer -->
+    <rect x="690" y="85" width="110" height="50" rx="6" fill="var(--surface-2)" stroke="var(--accent-blue)" stroke-width="1.5"/>
+    <text x="745" y="108" text-anchor="middle" fill="var(--accent-blue)" font-size="12" font-weight="700">Consumer</text>
+    <text x="745" y="124" text-anchor="middle" fill="var(--text-3)" font-size="10">reads published seq</text>
+    <line x1="690" y1="105" x2="480" y2="62" stroke="var(--accent-blue)" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#dis-arr)"/>
+
+    <!-- Key differences -->
+    <text x="400" y="15" text-anchor="middle" fill="var(--text-3)" font-size="10">Seq# pointer (no lock) →</text>
+  </svg>
+  <div class="commentary">
+    <strong>Why Disruptor is faster:</strong>
+    (1) Ring buffer is pre-allocated — zero GC pressure from object creation.
+    (2) Coordination via CAS on sequence numbers — no lock contention.
+    (3) Cache-friendly: slots are contiguous in memory; false sharing eliminated by padding.
+    (4) No blocking park/unpark syscalls — producers/consumers busy-spin or yield.
+    <br><br>
+    <strong>Trade-off:</strong> Fixed size (must fit in memory), complexity, overkill for &lt;1M events/sec. Use <code>ArrayBlockingQueue</code> until profiling shows you need it.
+  </div>
+
+  <div class="takeaway">
+    <strong>Takeaway</strong>
+    <ul>
+      <li>Use <code>ArrayBlockingQueue(n)</code> for bounded producer-consumer — backpressure is automatic via <code>put()</code>.</li>
+      <li>Use <code>offer(e, timeout, unit)</code> when producers should time out rather than block indefinitely.</li>
+      <li>The work queue inside <code>ThreadPoolExecutor</code> is itself a <code>BlockingQueue</code> — same API.</li>
+      <li>Disruptor: reach for it when you're at 1M+ events/sec and profiling shows lock contention in the queue.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- TAB 4: Common Pitfalls & Debugging                             -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<section data-tab="t4" hidden>
+  <h2>Common Pitfalls &amp; Debugging</h2>
+
+  <h3>Deadlock — Lock Ordering Violation</h3>
+  <p>Thread A holds L1 and waits for L2. Thread B holds L2 and waits for L1. Neither can proceed.</p>
+  <div class="controls">
+    <button id="dl-start-btn" onclick="DL.run()">Animate Deadlock</button>
+    <button onclick="DL.showFix()">Show Fix</button>
+    <button onclick="DL.reset()">Reset</button>
+  </div>
+  <svg id="dl-svg" viewBox="0 0 820 240" preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <marker id="dl-arr" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="#888"/>
+      </marker>
+      <marker id="dl-arr-red" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="var(--accent-red)"/>
+      </marker>
+      <marker id="dl-arr-grn" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="var(--accent-green)"/>
+      </marker>
+    </defs>
+
+    <!-- Thread A -->
+    <rect id="dl-ta" x="30" y="80" width="130" height="80" rx="6" fill="var(--surface-2)" stroke="var(--accent-blue)" stroke-width="2"/>
+    <text x="95" y="108" text-anchor="middle" fill="var(--accent-blue)" font-size="13" font-weight="700">Thread A</text>
+    <text id="dl-ta-state" x="95" y="128" text-anchor="middle" fill="var(--text-3)" font-size="11">idle</text>
+    <text id="dl-ta-hold"  x="95" y="148" text-anchor="middle" fill="var(--text-3)" font-size="10"></text>
+
+    <!-- Lock 1 -->
+    <rect id="dl-l1" x="230" y="70" width="110" height="50" rx="6" fill="var(--surface-2)" stroke="var(--accent-yellow)" stroke-width="1.5"/>
+    <text x="285" y="93" text-anchor="middle" fill="var(--accent-yellow)" font-size="12" font-weight="700">Lock 1</text>
+    <text id="dl-l1-owner" x="285" y="110" text-anchor="middle" fill="var(--text-3)" font-size="10">free</text>
+
+    <!-- Lock 2 -->
+    <rect id="dl-l2" x="230" y="160" width="110" height="50" rx="6" fill="var(--surface-2)" stroke="var(--accent-purple)" stroke-width="1.5"/>
+    <text x="285" y="183" text-anchor="middle" fill="var(--accent-purple)" font-size="12" font-weight="700">Lock 2</text>
+    <text id="dl-l2-owner" x="285" y="200" text-anchor="middle" fill="var(--text-3)" font-size="10">free</text>
+
+    <!-- Thread B -->
+    <rect id="dl-tb" x="430" y="80" width="130" height="80" rx="6" fill="var(--surface-2)" stroke="var(--accent-green)" stroke-width="2"/>
+    <text x="495" y="108" text-anchor="middle" fill="var(--accent-green)" font-size="13" font-weight="700">Thread B</text>
+    <text id="dl-tb-state" x="495" y="128" text-anchor="middle" fill="var(--text-3)" font-size="11">idle</text>
+    <text id="dl-tb-hold"  x="495" y="148" text-anchor="middle" fill="var(--text-3)" font-size="10"></text>
+
+    <!-- Arrows (drawn/updated by JS) -->
+    <line id="dl-ta-l1" x1="160" y1="100" x2="230" y2="95"  stroke="var(--accent-blue)"   stroke-width="1.5" opacity="0" marker-end="url(#dl-arr)"/>
+    <line id="dl-ta-l2" x1="160" y1="140" x2="230" y2="185" stroke="var(--accent-blue)"   stroke-width="1.5" opacity="0" marker-end="url(#dl-arr)"/>
+    <line id="dl-tb-l2" x1="430" y1="140" x2="340" y2="185" stroke="var(--accent-green)"  stroke-width="1.5" opacity="0" marker-end="url(#dl-arr)"/>
+    <line id="dl-tb-l1" x1="430" y1="100" x2="340" y2="95"  stroke="var(--accent-green)"  stroke-width="1.5" opacity="0" marker-end="url(#dl-arr)"/>
+
+    <!-- Fix box -->
+    <rect id="dl-fix-box" x="600" y="60" width="200" height="140" rx="6" fill="var(--surface-2)" stroke="var(--accent-green)" stroke-width="1.5" visibility="hidden"/>
+    <text id="dl-fix-t1" x="700" y="82" text-anchor="middle" fill="var(--accent-green)" font-size="12" font-weight="700" visibility="hidden">Fix: Consistent Order</text>
+    <text id="dl-fix-t2" x="700" y="102" text-anchor="middle" fill="var(--text-2)" font-size="11" visibility="hidden">Both threads: lock L1 first</text>
+    <text id="dl-fix-t3" x="700" y="118" text-anchor="middle" fill="var(--text-2)" font-size="11" visibility="hidden">then L2. Never reverse.</text>
+    <text id="dl-fix-t4" x="700" y="140" text-anchor="middle" fill="var(--text-3)" font-size="10" visibility="hidden">Or: use tryLock(timeout)</text>
+    <text id="dl-fix-t5" x="700" y="156" text-anchor="middle" fill="var(--text-3)" font-size="10" visibility="hidden">to detect + back off.</text>
+    <text id="dl-fix-t6" x="700" y="178" text-anchor="middle" fill="var(--text-3)" font-size="10" visibility="hidden">Or: acquire via sorted ID.</text>
+  </svg>
+  <div class="commentary" id="dl-commentary">Press "Animate Deadlock" to watch lock acquisition and the circular wait form.</div>
+
+  <h3>Livelock vs Starvation</h3>
+  <div class="two-col">
+    <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:14px;">
+      <div style="color:var(--accent-yellow);font-weight:700;margin-bottom:6px;">Livelock</div>
+      <div style="color:var(--text-2);font-size:13px;">Both threads keep retrying and yielding in response to each other. CPU is busy, no progress is made. Common in polite retry loops: "after you" → "no, after you" → forever.</div>
+      <pre style="font-size:12px;margin:8px 0 0 0;"><span class="cm">// Classic livelock</span>
+<span class="kw">while</span> (!lock1.tryLock()) {
+    lock2.unlock(); <span class="cm">// yield</span>
+    Thread.yield();
+    lock2.lock();   <span class="cm">// re-acquire, retry</span>
+}</pre>
+    </div>
+    <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:14px;">
+      <div style="color:var(--accent-red);font-weight:700;margin-bottom:6px;">Starvation</div>
+      <div style="color:var(--text-2);font-size:13px;">A thread is perpetually denied CPU time because higher-priority threads always preempt it. Common with unfair locks and <code>PriorityBlockingQueue</code> under sustained high-priority load.</div>
+      <pre style="font-size:12px;margin:8px 0 0 0;"><span class="cm">// Fix: use fair lock</span>
+<span class="ty">ReentrantLock</span> lock =
+  <span class="kw">new</span> <span class="ty">ReentrantLock</span>(<span class="kw">true</span>); <span class="cm">// fair</span>
+<span class="cm">// FIFO ordering prevents starvation</span></pre>
+    </div>
+  </div>
+
+  <h3>Thread-Safe Collection Gotchas</h3>
+
+  <div class="warn-box">
+    <strong>synchronizedList + iterator = NOT thread-safe</strong>
+    <pre style="margin:8px 0 0 0;"><span class="ty">List</span>&lt;<span class="ty">String</span>&gt; list = <span class="ty">Collections</span>.synchronizedList(<span class="kw">new</span> <span class="ty">ArrayList</span>&lt;&gt;());
+
+<span class="cm">// WRONG: lock released between hasNext() and next()</span>
+<span class="kw">for</span> (<span class="ty">String</span> s : list) { ... }
+
+<span class="cm">// CORRECT: external sync on the list itself</span>
+<span class="kw">synchronized</span>(list) {
+    <span class="kw">for</span> (<span class="ty">String</span> s : list) { ... }
+}
+
+<span class="cm">// BETTER for read-heavy: snapshot-on-write</span>
+<span class="ty">List</span>&lt;<span class="ty">String</span>&gt; list = <span class="kw">new</span> <span class="ty">CopyOnWriteArrayList</span>&lt;&gt;();</pre>
+  </div>
+
+  <div class="warn-box">
+    <strong>ConcurrentHashMap check-then-act is NOT atomic</strong>
+    <pre style="margin:8px 0 0 0;"><span class="cm">// WRONG: two separate atomic ops, race window between them</span>
+<span class="kw">if</span> (!map.containsKey(key)) {
+    map.put(key, <span class="kw">new</span> <span class="ty">Value</span>());
+}
+
+<span class="cm">// CORRECT: single atomic operation</span>
+map.computeIfAbsent(key, k -&gt; <span class="kw">new</span> <span class="ty">Value</span>());
+
+<span class="cm">// Also atomic: putIfAbsent, compute, merge, replace</span></pre>
+  </div>
+
+  <h3>CopyOnWriteArrayList — When to Use</h3>
+  <table>
+    <thead><tr><th></th><th><code>synchronizedList</code></th><th><code>CopyOnWriteArrayList</code></th></tr></thead>
+    <tbody>
+      <tr><td>Read concurrency</td><td>Blocks all reads/writes</td><td>Lock-free reads (snapshot)</td></tr>
+      <tr><td>Write cost</td><td>O(1) amortized</td><td>O(n) — full array copy</td></tr>
+      <tr><td>Iteration safety</td><td>Requires external sync</td><td>Always safe (stale snapshot)</td></tr>
+      <tr><td>Best fit</td><td>Balanced read/write</td><td>Few writes, many readers (listeners, handlers)</td></tr>
+    </tbody>
+  </table>
+
+  <h3>ThreadLocal Memory Leak</h3>
+  <div class="warn-box">
+    <strong>Thread pool threads are reused — ThreadLocal values persist across tasks</strong>
+    <pre style="margin:8px 0 0 0;"><span class="cm">// Pattern: RequestContext via ThreadLocal</span>
+<span class="kw">static final</span> <span class="ty">ThreadLocal</span>&lt;<span class="ty">RequestContext</span>&gt; ctx = <span class="kw">new</span> <span class="ty">ThreadLocal</span>&lt;&gt;();
+
+<span class="cm">// Task 1 sets it, forgets to remove</span>
+ctx.set(userContext);
+doWork();
+<span class="cm">// ctx.remove(); ← forgot this!</span>
+
+<span class="cm">// Task 2, on the SAME thread later, sees Task 1's context</span>
+ctx.get(); <span class="cm">// returns old RequestContext — SECURITY BUG</span></pre>
+    <br>
+    <strong>Fix:</strong> Always <code>ctx.remove()</code> in a <code>finally</code> block. Or use a framework (Spring, Quarkus) that handles cleanup automatically. In virtual threads (Java 21+), prefer <code>ScopedValue</code> over <code>ThreadLocal</code>.
+  </div>
+
+  <h3>Quick Debugging Reference</h3>
+  <table>
+    <thead><tr><th>Symptom</th><th>Likely cause</th><th>Diagnostic</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>App hangs, CPU at 0%</td>
+        <td>Deadlock</td>
+        <td><code>jstack &lt;pid&gt;</code> → look for "deadlock" section</td>
+      </tr>
+      <tr>
+        <td>App spinning, CPU at 100%, no progress</td>
+        <td>Livelock or busy-spin without progress</td>
+        <td><code>jstack &lt;pid&gt;</code> → threads in RUNNABLE, same frames in repeated samples</td>
+      </tr>
+      <tr>
+        <td>Thread stuck in WAITING/BLOCKED</td>
+        <td>Lock contention, starved thread</td>
+        <td><code>jstack</code> → "waiting to lock &lt;0x...&gt;"</td>
+      </tr>
+      <tr>
+        <td>Memory leak in web app</td>
+        <td>ThreadLocal not cleaned up</td>
+        <td>Heap dump → look for large <code>ThreadLocalMap.Entry[]</code></td>
+      </tr>
+      <tr>
+        <td>Stale data across requests</td>
+        <td>ThreadLocal not removed between tasks</td>
+        <td>Add logging in filter/interceptor to check <code>ctx.get()</code> before set</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="takeaway">
+    <strong>Takeaway</strong>
+    <ul>
+      <li>Deadlock: enforce consistent lock ordering across all code paths. Use <code>tryLock(timeout)</code> as a safety net.</li>
+      <li><code>Collections.synchronizedList</code>: safe for individual calls; external <code>synchronized(list)</code> required for iteration.</li>
+      <li><code>ConcurrentHashMap</code>: compound actions (<code>if absent → put</code>) require <code>computeIfAbsent</code>/<code>compute</code>, not separate calls.</li>
+      <li>ThreadLocal in thread pools: always <code>remove()</code> in <code>finally</code>. Forgetting causes data leaks and security bugs.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- TAB 5: Virtual Threads & Structured Concurrency                -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<section data-tab="t5" hidden>
+  <h2>Virtual Threads &amp; Structured Concurrency (Java 21)</h2>
+  <p>Virtual threads decouple concurrency from OS threads. A JVM can run <strong>millions</strong> of virtual threads on a handful of carrier (OS) threads by unmounting blocked threads from the carrier.</p>
+
+  <h3>Platform Thread vs Virtual Thread</h3>
+  <svg viewBox="0 0 820 260" preserveAspectRatio="xMidYMid meet">
+    <!-- Platform side -->
+    <rect x="10" y="10" width="380" height="240" rx="8" fill="var(--surface)" stroke="var(--border)" stroke-width="1"/>
+    <text x="200" y="35" text-anchor="middle" fill="var(--text-2)" font-size="13" font-weight="700">Platform Thread (before Java 21)</text>
+
+    <!-- OS thread stack -->
+    <rect x="30" y="50" width="120" height="180" rx="4" fill="var(--surface-2)" stroke="var(--accent-yellow)" stroke-width="1.5"/>
+    <text x="90" y="72" text-anchor="middle" fill="var(--accent-yellow)" font-size="11" font-weight="700">OS Thread</text>
+    <text x="90" y="88" text-anchor="middle" fill="var(--text-3)" font-size="10">stack ~1MB fixed</text>
+    <!-- blocked section -->
+    <rect x="40" y="100" width="100" height="60" rx="3" fill="#2a1515"/>
+    <text x="90" y="125" text-anchor="middle" fill="var(--accent-red)" font-size="11">BLOCKED</text>
+    <text x="90" y="142" text-anchor="middle" fill="var(--text-3)" font-size="9">waiting for I/O</text>
+    <text x="90" y="157" text-anchor="middle" fill="var(--text-3)" font-size="9">OS thread parked</text>
+    <!-- CPU gauge -->
+    <rect x="40" y="170" width="100" height="20" rx="3" fill="#111" stroke="var(--border)" stroke-width="1"/>
+    <rect x="40" y="170" width="15"  height="20" rx="3" fill="var(--accent-red)"/>
+    <text x="90" y="215" text-anchor="middle" fill="var(--text-3)" font-size="9">~1MB stack · 1:1 mapping</text>
+
+    <!-- 1000 threads warning -->
+    <text x="200" y="220" text-anchor="middle" fill="var(--accent-red)" font-size="11">~1000 threads → 1 GB stack memory</text>
+    <text x="200" y="238" text-anchor="middle" fill="var(--text-3)" font-size="10">+ context-switch overhead</text>
+
+    <!-- Virtual side -->
+    <rect x="430" y="10" width="380" height="240" rx="8" fill="var(--surface)" stroke="var(--border)" stroke-width="1"/>
+    <text x="620" y="35" text-anchor="middle" fill="var(--text-2)" font-size="13" font-weight="700">Virtual Thread (Java 21+)</text>
+
+    <!-- Carrier threads -->
+    <rect x="450" y="50" width="80" height="180" rx="4" fill="var(--surface-2)" stroke="var(--accent-blue)" stroke-width="1.5"/>
+    <text x="490" y="68" text-anchor="middle" fill="var(--accent-blue)" font-size="10" font-weight="700">Carrier</text>
+    <text x="490" y="82" text-anchor="middle" fill="var(--text-3)" font-size="9">OS thread</text>
+    <!-- Running VT on carrier -->
+    <rect x="460" y="90" width="60" height="30" rx="3" fill="#142030" stroke="var(--accent-blue)" stroke-width="1"/>
+    <text x="490" y="110" text-anchor="middle" fill="var(--accent-blue)" font-size="9">VT-1 ▶</text>
+    <!-- parked VTs queued -->
+    <rect x="460" y="128" width="60" height="22" rx="2" fill="var(--surface)" stroke="var(--border)" stroke-width="1"/>
+    <text x="490" y="143" text-anchor="middle" fill="var(--text-3)" font-size="9">VT-2 wait</text>
+    <rect x="460" y="155" width="60" height="22" rx="2" fill="var(--surface)" stroke="var(--border)" stroke-width="1"/>
+    <text x="490" y="170" text-anchor="middle" fill="var(--text-3)" font-size="9">VT-3 wait</text>
+    <text x="490" y="215" text-anchor="middle" fill="var(--accent-green)" font-size="9">unmounts on I/O block</text>
+
+    <!-- 1M threads benefit -->
+    <text x="620" y="220" text-anchor="middle" fill="var(--accent-green)" font-size="11">1 000 000 VTs — heap only, few KB each</text>
+    <text x="620" y="238" text-anchor="middle" fill="var(--text-3)" font-size="10">carrier threads = CPU count</text>
+
+    <!-- VT pool -->
+    <rect x="550" y="50" width="240" height="160" rx="4" fill="var(--surface-2)" stroke="var(--border)" stroke-width="1"/>
+    <text x="670" y="72" text-anchor="middle" fill="var(--text-3)" font-size="10">Virtual Thread pool (heap)</text>
+    <!-- VT items -->
+    <rect x="560" y="80"  width="65" height="22" rx="2" fill="#142030" stroke="var(--accent-blue)" stroke-width="1"/>
+    <text x="592" y="95"  text-anchor="middle" fill="var(--accent-blue)" font-size="9">VT-1 ▶</text>
+    <rect x="635" y="80"  width="65" height="22" rx="2" fill="#1a1515" stroke="var(--border)" stroke-width="1"/>
+    <text x="667" y="95"  text-anchor="middle" fill="var(--text-3)" font-size="9">VT-2 io</text>
+    <rect x="710" y="80"  width="65" height="22" rx="2" fill="#1a1515" stroke="var(--border)" stroke-width="1"/>
+    <text x="742" y="95"  text-anchor="middle" fill="var(--text-3)" font-size="9">VT-3 io</text>
+    <rect x="560" y="110" width="65" height="22" rx="2" fill="#1a1515" stroke="var(--border)" stroke-width="1"/>
+    <text x="592" y="125" text-anchor="middle" fill="var(--text-3)" font-size="9">VT-4 io</text>
+    <rect x="635" y="110" width="65" height="22" rx="2" fill="#142030" stroke="var(--accent-blue)" stroke-width="1"/>
+    <text x="667" y="125" text-anchor="middle" fill="var(--accent-blue)" font-size="9">VT-5 ▶</text>
+    <text x="670" y="155" text-anchor="middle" fill="var(--text-3)" font-size="9">... up to millions</text>
+  </svg>
+
+  <h3>Creating Virtual Threads</h3>
+  <pre><span class="cm">// Option 1: Thread.ofVirtual() builder</span>
+<span class="ty">Thread</span> vt = <span class="ty">Thread</span>.ofVirtual().name(<span class="st">"vt-1"</span>).start(() -&gt; {
+    doBlockingIO(); <span class="cm">// carrier unmounts here, no OS thread parked</span>
+});
+
+<span class="cm">// Option 2: VirtualThreadPerTaskExecutor — drop-in for thread pool</span>
+<span class="kw">try</span> (<span class="ty">ExecutorService</span> exec = <span class="ty">Executors</span>.newVirtualThreadPerTaskExecutor()) {
+    <span class="kw">for</span> (<span class="ty">Request</span> req : requests) {
+        exec.submit(() -&gt; handle(req)); <span class="cm">// each task gets its own VT</span>
+    }
+} <span class="cm">// try-with-resources calls shutdown() + awaitTermination()</span>
+
+<span class="cm">// Option 3: Structured concurrency (Java 21+)</span>
+<span class="kw">try</span> (<span class="kw">var</span> scope = <span class="kw">new</span> <span class="ty">StructuredTaskScope</span>.ShutdownOnFailure()) {
+    <span class="ty">Subtask</span>&lt;<span class="ty">User</span>&gt;  user  = scope.fork(() -&gt; fetchUser(id));
+    <span class="ty">Subtask</span>&lt;<span class="ty">Order</span>&gt; order = scope.fork(() -&gt; fetchOrder(id));
+    scope.join().throwIfFailed();
+    <span class="kw">return</span> <span class="kw">new</span> <span class="ty">Response</span>(user.get(), order.get());
+}</pre>
+
+  <h3>Structured Concurrency — StructuredTaskScope</h3>
+  <svg viewBox="0 0 820 200" preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <marker id="sc-arr" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="#56b6c2"/>
+      </marker>
+    </defs>
+    <!-- Parent -->
+    <rect x="330" y="10" width="160" height="50" rx="6" fill="var(--surface-2)" stroke="var(--accent-cyan)" stroke-width="2"/>
+    <text x="410" y="32" text-anchor="middle" fill="var(--accent-cyan)" font-size="12" font-weight="700">Parent Task</text>
+    <text x="410" y="50" text-anchor="middle" fill="var(--text-3)" font-size="10">try (scope = new STS) {</text>
+
+    <!-- Fork lines -->
+    <line x1="340" y1="60" x2="200" y2="110" stroke="var(--accent-cyan)" stroke-width="1.5" marker-end="url(#sc-arr)"/>
+    <line x1="410" y1="60" x2="410" y2="110" stroke="var(--accent-cyan)" stroke-width="1.5" marker-end="url(#sc-arr)"/>
+    <line x1="480" y1="60" x2="620" y2="110" stroke="var(--accent-cyan)" stroke-width="1.5" marker-end="url(#sc-arr)"/>
+
+    <!-- Child tasks -->
+    <rect x="130" y="110" width="140" height="55" rx="6" fill="var(--surface-2)" stroke="var(--accent-blue)" stroke-width="1.5"/>
+    <text x="200" y="133" text-anchor="middle" fill="var(--accent-blue)" font-size="11" font-weight="700">fetchUser()</text>
+    <text x="200" y="151" text-anchor="middle" fill="var(--text-3)" font-size="10">virtual thread</text>
+
+    <rect x="340" y="110" width="140" height="55" rx="6" fill="var(--surface-2)" stroke="var(--accent-blue)" stroke-width="1.5"/>
+    <text x="410" y="133" text-anchor="middle" fill="var(--accent-blue)" font-size="11" font-weight="700">fetchOrder()</text>
+    <text x="410" y="151" text-anchor="middle" fill="var(--text-3)" font-size="10">virtual thread</text>
+
+    <rect x="550" y="110" width="140" height="55" rx="6" fill="var(--surface-2)" stroke="var(--accent-red)" stroke-width="1.5"/>
+    <text x="620" y="133" text-anchor="middle" fill="var(--accent-red)" font-size="11" font-weight="700">fetchReco()</text>
+    <text x="620" y="151" text-anchor="middle" fill="var(--text-3)" font-size="10">fails → scope.cancel()</text>
+
+    <!-- Join line -->
+    <line x1="200" y1="165" x2="350" y2="190" stroke="var(--accent-cyan)" stroke-width="1" stroke-dasharray="3,3"/>
+    <line x1="410" y1="165" x2="410" y2="190" stroke="var(--accent-cyan)" stroke-width="1" stroke-dasharray="3,3"/>
+    <line x1="620" y1="165" x2="470" y2="190" stroke="var(--accent-red)" stroke-width="1" stroke-dasharray="3,3"/>
+
+    <text x="410" y="198" text-anchor="middle" fill="var(--accent-cyan)" font-size="11">scope.join() — blocks until all complete (or any fails → ShutdownOnFailure cancels siblings)</text>
+  </svg>
+
+  <h3>When Virtual Threads Help vs Don't</h3>
+  <table>
+    <thead><tr><th>Scenario</th><th>Virtual threads</th><th>Why</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>High-concurrency IO (DB, HTTP, file)</td>
+        <td><span class="tag tag-green">Excellent</span></td>
+        <td>Each blocking call unmounts; millions of requests on few OS threads</td>
+      </tr>
+      <tr>
+        <td>Thread-per-request HTTP servers (Tomcat, Jetty)</td>
+        <td><span class="tag tag-green">Drop-in win</span></td>
+        <td>Replace thread pool with <code>newVirtualThreadPerTaskExecutor()</code></td>
+      </tr>
+      <tr>
+        <td>CPU-bound computation</td>
+        <td><span class="tag tag-yellow">No benefit</span></td>
+        <td>VTs don't create extra CPU. Use <code>ForkJoinPool</code> / parallel streams</td>
+      </tr>
+      <tr>
+        <td>Pinned threads (synchronized block + IO)</td>
+        <td><span class="tag tag-red">Carrier pinned</span></td>
+        <td><code>synchronized</code> + blocking IO pins the carrier OS thread — negates benefit. Use <code>ReentrantLock</code> instead.</td>
+      </tr>
+      <tr>
+        <td>ThreadLocal state propagation</td>
+        <td><span class="tag tag-yellow">Caution</span></td>
+        <td>VTs are cheap but still carry ThreadLocals. Prefer <code>ScopedValue</code> (JDK 21 preview) for propagation.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Migration Guidance</h3>
+  <div class="two-col">
+    <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:14px;">
+      <div style="color:var(--accent-green);font-weight:700;margin-bottom:8px;">IO-bound services: drop thread pools</div>
+      <pre style="font-size:12px;margin:0;"><span class="cm">// Before</span>
+<span class="ty">ExecutorService</span> exec =
+  <span class="ty">Executors</span>.newFixedThreadPool(<span class="nm">200</span>);
+
+<span class="cm">// After — simpler, scales better</span>
+<span class="ty">ExecutorService</span> exec =
+  <span class="ty">Executors</span>.newVirtualThreadPerTaskExecutor();</pre>
+    </div>
+    <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:14px;">
+      <div style="color:var(--accent-yellow);font-weight:700;margin-bottom:8px;">CPU-bound: keep pools</div>
+      <pre style="font-size:12px;margin:0;"><span class="cm">// Keep ForkJoinPool / fixed pool</span>
+<span class="cm">// for CPU-bound work</span>
+<span class="ty">ExecutorService</span> cpu =
+  <span class="ty">Executors</span>.newFixedThreadPool(
+    N_CPU + <span class="nm">1</span>);
+
+<span class="cm">// Avoid: one VT per CPU task still</span>
+<span class="cm">// competes for the same N cores</span></pre>
+    </div>
+  </div>
+
+  <div class="warn-box">
+    <strong>Pinning trap:</strong> A <code>synchronized</code> method that calls blocking IO pins the carrier OS thread, limiting you to ~200 carriers. Replace with <code>ReentrantLock</code> where IO is performed inside critical sections.
+  </div>
+
+  <div class="takeaway">
+    <strong>Takeaway</strong>
+    <ul>
+      <li>Virtual threads are cheap to create (heap, not OS). Use one per IO task freely.</li>
+      <li>Structured concurrency (<code>StructuredTaskScope</code>) ties subtask lifetimes to parent scope — automatic cancellation on failure, no leak.</li>
+      <li>Watch for <strong>pinning</strong>: <code>synchronized</code> + blocking IO parks the carrier. Migrate to <code>ReentrantLock</code>.</li>
+      <li>CPU-bound work: keep <code>ForkJoinPool</code>. VTs don't conjure extra CPU cores.</li>
+    </ul>
+  </div>
+</section>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+// Tab routing
+// ═══════════════════════════════════════════════════════════
+function setTab(id) {
+  document.querySelectorAll('section[data-tab]').forEach(s => {
+    s.hidden = s.dataset.tab !== id;
+  });
+  document.querySelectorAll('.tabs button').forEach((btn, i) => {
+    const tabs = ['t1','t2','t3','t4','t5'];
+    btn.classList.toggle('active', tabs[i] === id);
+  });
+  if (id === 't1') Pool.initAnim();
+  if (id === 't3') BQ.init();
+}
+
+// ═══════════════════════════════════════════════════════════
+// TAB 1 — Thread Pool Animation
+// ═══════════════════════════════════════════════════════════
+(function() {
+  const state = {
+    qcap: 4,
+    qSize: 0,
+    workers: [
+      { busy: false, label: 'W-1' },
+      { busy: false, label: 'W-2' },
+      { busy: false, label: 'W-3' },
+    ],
+    rejected: 0,
+  };
+
+  function render() {
+    const svg = document.getElementById('pool-anim-svg');
+    const qGroup = document.getElementById('pa-queue-slots');
+    const wGroup = document.getElementById('pa-worker-slots');
+    if (!qGroup || !wGroup) return;
+
+    qGroup.innerHTML = '';
+    wGroup.innerHTML = '';
+
+    const slotW = Math.floor(290 / state.qcap);
+    for (let i = 0; i < state.qcap; i++) {
+      const filled = i < state.qSize;
+      const ns = 'http://www.w3.org/2000/svg';
+      const r = document.createElementNS(ns, 'rect');
+      r.setAttribute('x', 158 + i * slotW);
+      r.setAttribute('y', 85);
+      r.setAttribute('width', slotW - 3);
+      r.setAttribute('height', 28);
+      r.setAttribute('rx', '3');
+      r.setAttribute('fill', filled ? '#1a2810' : 'var(--surface-2)');
+      r.setAttribute('stroke', filled ? 'var(--accent-green)' : 'var(--border)');
+      r.setAttribute('stroke-width', '1');
+      qGroup.appendChild(r);
+      if (filled) {
+        const t = document.createElementNS(ns, 'text');
+        t.setAttribute('x', 158 + i * slotW + Math.floor(slotW/2));
+        t.setAttribute('y', 103);
+        t.setAttribute('text-anchor', 'middle');
+        t.setAttribute('fill', 'var(--accent-green)');
+        t.setAttribute('font-size', '9');
+        t.textContent = 'T';
+        qGroup.appendChild(t);
+      }
+    }
+
+    const colors = ['var(--accent-blue)', 'var(--accent-cyan)', 'var(--accent-purple)'];
+    state.workers.forEach((w, i) => {
+      const ns = 'http://www.w3.org/2000/svg';
+      const x = 520 + i * 85;
+      const r = document.createElementNS(ns, 'rect');
+      r.setAttribute('x', x);
+      r.setAttribute('y', 50);
+      r.setAttribute('width', 72);
+      r.setAttribute('height', 100);
+      r.setAttribute('rx', '5');
+      r.setAttribute('fill', w.busy ? '#142030' : 'var(--surface-2)');
+      r.setAttribute('stroke', w.busy ? colors[i] : 'var(--border)');
+      r.setAttribute('stroke-width', w.busy ? '2' : '1');
+      wGroup.appendChild(r);
+
+      const tl = document.createElementNS(ns, 'text');
+      tl.setAttribute('x', x + 36);
+      tl.setAttribute('y', 72);
+      tl.setAttribute('text-anchor', 'middle');
+      tl.setAttribute('fill', w.busy ? colors[i] : 'var(--text-3)');
+      tl.setAttribute('font-size', '11');
+      tl.setAttribute('font-weight', '700');
+      tl.textContent = w.label;
+      wGroup.appendChild(tl);
+
+      const ts = document.createElementNS(ns, 'text');
+      ts.setAttribute('x', x + 36);
+      ts.setAttribute('y', 92);
+      ts.setAttribute('text-anchor', 'middle');
+      ts.setAttribute('fill', w.busy ? 'var(--accent-green)' : 'var(--text-3)');
+      ts.setAttribute('font-size', '10');
+      ts.textContent = w.busy ? 'running' : 'idle';
+      wGroup.appendChild(ts);
+    });
+
+    const commentary = document.getElementById('pool-commentary');
+    if (commentary) {
+      const freeWorker = state.workers.findIndex(w => !w.busy);
+      if (state.qSize >= state.qcap && freeWorker === -1) {
+        commentary.textContent = `Queue full (${state.qcap}/${state.qcap}) and all workers busy — next submit will be REJECTED.`;
+        commentary.style.borderLeft = '3px solid var(--accent-red)';
+      } else if (state.qSize > 0) {
+        commentary.textContent = `Queue has ${state.qSize}/${state.qcap} tasks. Workers will drain it.`;
+        commentary.style.borderLeft = '';
+      } else {
+        commentary.textContent = `Queue empty. ${state.workers.filter(w=>w.busy).length} worker(s) busy, ${state.workers.filter(w=>!w.busy).length} idle.`;
+        commentary.style.borderLeft = '';
+      }
+    }
+  }
+
+  window.Pool = {
+    initAnim() { render(); },
+    setQCap(v) {
+      state.qcap = +v;
+      state.qSize = Math.min(state.qSize, state.qcap);
+      document.getElementById('pool-qcap-label').textContent = v;
+      render();
+    },
+    submitTask() {
+      const freeWorker = state.workers.findIndex(w => !w.busy);
+      if (freeWorker !== -1) {
+        state.workers[freeWorker].busy = true;
+        render();
+      } else if (state.qSize < state.qcap) {
+        state.qSize++;
+        render();
+      } else {
+        const c = document.getElementById('pool-commentary');
+        if (c) {
+          c.textContent = 'REJECTED: queue full and all workers busy. RejectedExecutionException thrown (AbortPolicy).';
+          c.style.borderLeft = '3px solid var(--accent-red)';
+        }
+      }
+    },
+    completeTask() {
+      const busyWorker = state.workers.findIndex(w => w.busy);
+      if (busyWorker === -1) return;
+      state.workers[busyWorker].busy = false;
+      if (state.qSize > 0) {
+        state.qSize--;
+        state.workers[busyWorker].busy = true;
+      }
+      render();
+    },
+    reset() {
+      state.qSize = 0;
+      state.workers.forEach(w => w.busy = false);
+      render();
+    }
+  };
+
+  // Sizing slider
+  window.Sizing = {
+    update() {
+      const cores = +document.getElementById('sz-cores').value;
+      const ratio = +document.getElementById('sz-ratio').value;
+      document.getElementById('sz-cores-lbl').textContent = cores;
+      document.getElementById('sz-ratio-lbl').textContent = ratio;
+      const cpuBound = cores + 1;
+      const ioBound = Math.round(cores * (1 + ratio));
+      document.getElementById('sz-result').textContent =
+        `CPU-bound (N+1): ${cpuBound} threads.  IO-bound N*(1+W/C) = ${cores}*(1+${ratio}): ${ioBound} threads.`;
+    }
+  };
+
+  document.addEventListener('DOMContentLoaded', () => {
+    Pool.initAnim();
+    Sizing.update();
+  });
+})();
+
+// ═══════════════════════════════════════════════════════════
+// TAB 2 — CompletableFuture Pipeline Animation
+// ═══════════════════════════════════════════════════════════
+(function() {
+  const stages = ['cf-s1','cf-s2a','cf-s2b','cf-s3','cf-s4'];
+  const lines = ['cf-l12a','cf-l12b','cf-l23a','cf-l23b','cf-l34'];
+  const stageColors = {
+    idle: 'var(--border)',
+    running: 'var(--accent-blue)',
+    done: 'var(--accent-green)',
+    failed: 'var(--accent-red)',
+  };
+
+  function setStageColor(id, state) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.setAttribute('stroke', stageColors[state]);
+    el.setAttribute('stroke-width', state === 'running' ? '2.5' : '1.5');
+    const texts = el.parentNode.querySelectorAll ? null : null;
+  }
+
+  function setLineActive(id, active) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.setAttribute('stroke', active ? 'var(--accent-blue)' : '#555');
+    el.setAttribute('stroke-width', active ? '2.5' : '1.5');
+  }
+
+  function reset() {
+    stages.forEach(s => setStageColor(s, 'idle'));
+    lines.forEach(l => setLineActive(l, false));
+    const dot = document.getElementById('cf-dot');
+    if (dot) dot.setAttribute('opacity', '0');
+    ['cf-err-line','cf-err-box','cf-err-txt'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.setAttribute('visibility', 'hidden');
+    });
+    const c = document.getElementById('cf-commentary');
+    if (c) c.textContent = 'Press "Run Pipeline" to animate the async stage flow.';
+  }
+
+  async function delay(ms) {
+    return new Promise(r => setTimeout(r, ms));
+  }
+
+  async function runPipeline(withError) {
+    reset();
+    const c = document.getElementById('cf-commentary');
+    const setBtnDisabled = (v) => {
+      ['cf-run-btn','cf-fail-btn'].forEach(id => {
+        const btn = document.getElementById(id);
+        if (btn) btn.disabled = v;
+      });
+    };
+    setBtnDisabled(true);
+
+    // Stage 1: fetchUser
+    setStageColor('cf-s1', 'running');
+    if (c) c.textContent = 'Stage 1: fetchUser() running on FJ-worker-1 (IO — network call to DB)';
+    await delay(900);
+    setStageColor('cf-s1', 'done');
+    setLineActive('cf-l12a', true);
+    setLineActive('cf-l12b', true);
+
+    // Stage 2: parallel fork
+    setStageColor('cf-s2a', 'running');
+    setStageColor('cf-s2b', 'running');
+    if (c) c.textContent = 'Stages 2a & 2b: enrichProfile() and resolvePerms() running in PARALLEL on separate FJ workers';
+    await delay(1200);
+
+    if (withError) {
+      setStageColor('cf-s2a', 'failed');
+      ['cf-err-line','cf-err-box','cf-err-txt'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.setAttribute('visibility', 'visible');
+      });
+      if (c) c.textContent = 'Stage 2a FAILED — exceptionally() handler fires, returns fallback value. Pipeline continues.';
+      await delay(1000);
+      setStageColor('cf-s2a', 'done');
+    } else {
+      setStageColor('cf-s2a', 'done');
+    }
+    setStageColor('cf-s2b', 'done');
+    setLineActive('cf-l23a', true);
+    setLineActive('cf-l23b', true);
+
+    // Stage 3: combine
+    setStageColor('cf-s3', 'running');
+    if (c) c.textContent = 'Stage 3: thenCombine() — waits for BOTH 2a and 2b to complete before proceeding';
+    await delay(700);
+    setStageColor('cf-s3', 'done');
+    setLineActive('cf-l34', true);
+
+    // Stage 4: serialize
+    setStageColor('cf-s4', 'running');
+    if (c) c.textContent = 'Stage 4: serialize() — CPU work, could run on dedicated cpuExecutor';
+    await delay(600);
+    setStageColor('cf-s4', 'done');
+    if (c) c.textContent = withError
+      ? 'Pipeline complete with recovered error. exceptionally() provided fallback for Stage 2a failure.'
+      : 'Pipeline complete. All stages ran on different threads — no blocking between stages.';
+
+    setBtnDisabled(false);
+  }
+
+  window.CF = {
+    run: () => runPipeline(false),
+    runFail: () => runPipeline(true),
+    reset,
+  };
+})();
+
+// ═══════════════════════════════════════════════════════════
+// TAB 3 — Blocking Queue Animation
+// ═══════════════════════════════════════════════════════════
+(function() {
+  let state = {
+    cap: 4,
+    queue: [],
+    producers: 1,
+    consumers: 1,
+    timer: null,
+    blocked: { producers: [], consumers: [] },
+  };
+
+  function init() {
+    state.queue = [];
+    state.blocked = { producers: [], consumers: [] };
+    render();
+    startSim();
+  }
+
+  function setCap(v) {
+    state.cap = +v;
+    document.getElementById('bq-cap-lbl').textContent = v;
+    if (state.queue.length > state.cap) state.queue = state.queue.slice(0, state.cap);
+    render();
+  }
+
+  function addProducer() { if (state.producers < 4) { state.producers++; render(); } }
+  function addConsumer() { if (state.consumers < 4) { state.consumers++; render(); } }
+  function removeProducer() { if (state.producers > 0) { state.producers--; render(); } }
+  function removeConsumer() { if (state.consumers > 0) { state.consumers--; render(); } }
+
+  function reset() {
+    if (state.timer) clearInterval(state.timer);
+    state = { cap: state.cap, queue: [], producers: 1, consumers: 1, timer: null, blocked: {producers:[], consumers:[]} };
+    render();
+    startSim();
+  }
+
+  function tick() {
+    // Producers try to add
+    const canProduce = state.queue.length < state.cap;
+    const activeProducers = [];
+    for (let i = 0; i < state.producers; i++) {
+      if (canProduce && Math.random() < 0.35) {
+        state.queue.push({ id: Math.random().toString(36).slice(2,5) });
+        activeProducers.push(i);
+        break; // one add per tick
+      }
+    }
+
+    // Consumers try to remove
+    const canConsume = state.queue.length > 0;
+    if (canConsume && Math.random() < 0.35) {
+      state.queue.shift();
+    }
+
+    // Determine blocked state
+    state.blocked.producers = [];
+    state.blocked.consumers = [];
+    if (state.queue.length >= state.cap) {
+      for (let i = 0; i < state.producers; i++) state.blocked.producers.push(i);
+    }
+    if (state.queue.length === 0) {
+      for (let i = 0; i < state.consumers; i++) state.blocked.consumers.push(i);
+    }
+
+    render();
+  }
+
+  function startSim() {
+    if (state.timer) clearInterval(state.timer);
+    state.timer = setInterval(tick, 600);
+  }
+
+  function render() {
+    const svg = document.getElementById('bq-svg');
+    const pg = document.getElementById('bq-producers');
+    const qg = document.getElementById('bq-queue-group');
+    const cg = document.getElementById('bq-consumers');
+    if (!pg || !qg || !cg) return;
+
+    const ns = 'http://www.w3.org/2000/svg';
+    pg.innerHTML = '';
+    qg.innerHTML = '';
+    cg.innerHTML = '';
+
+    // Producers
+    for (let i = 0; i < state.producers; i++) {
+      const y = 40 + i * 55;
+      const blocked = state.blocked.producers.includes(i);
+      const r = document.createElementNS(ns, 'rect');
+      r.setAttribute('x', '20'); r.setAttribute('y', y);
+      r.setAttribute('width', '110'); r.setAttribute('height', '44');
+      r.setAttribute('rx', '5');
+      r.setAttribute('fill', blocked ? '#2a1515' : 'var(--surface-2)');
+      r.setAttribute('stroke', blocked ? 'var(--accent-red)' : 'var(--accent-green)');
+      r.setAttribute('stroke-width', '1.5');
+      pg.appendChild(r);
+      const t1 = document.createElementNS(ns, 'text');
+      t1.setAttribute('x', '75'); t1.setAttribute('y', y + 18);
+      t1.setAttribute('text-anchor', 'middle');
+      t1.setAttribute('fill', blocked ? 'var(--accent-red)' : 'var(--accent-green)');
+      t1.setAttribute('font-size', '12'); t1.setAttribute('font-weight', '700');
+      t1.textContent = `Producer ${i+1}`;
+      pg.appendChild(t1);
+      const t2 = document.createElementNS(ns, 'text');
+      t2.setAttribute('x', '75'); t2.setAttribute('y', y + 34);
+      t2.setAttribute('text-anchor', 'middle');
+      t2.setAttribute('fill', 'var(--text-3)');
+      t2.setAttribute('font-size', '10');
+      t2.textContent = blocked ? 'BLOCKED (full)' : 'put()';
+      pg.appendChild(t2);
+
+      const arr = document.createElementNS(ns, 'line');
+      arr.setAttribute('x1', '130'); arr.setAttribute('y1', String(y + 22));
+      arr.setAttribute('x2', '240'); arr.setAttribute('y2', '120');
+      arr.setAttribute('stroke', blocked ? 'var(--accent-red)' : '#444');
+      arr.setAttribute('stroke-width', '1.2');
+      arr.setAttribute('stroke-dasharray', blocked ? '4,3' : '2,3');
+      pg.appendChild(arr);
+    }
+
+    // Queue
+    const qx = 240, qy = 70, qw = 320, qh = 100;
+    const qbg = document.createElementNS(ns, 'rect');
+    qbg.setAttribute('x', qx); qbg.setAttribute('y', qy);
+    qbg.setAttribute('width', qw); qbg.setAttribute('height', qh);
+    qbg.setAttribute('rx', '6');
+    qbg.setAttribute('fill', 'var(--surface)');
+    qbg.setAttribute('stroke', 'var(--accent-yellow)');
+    qbg.setAttribute('stroke-width', '1.5');
+    qg.appendChild(qbg);
+
+    const qtitle = document.createElementNS(ns, 'text');
+    qtitle.setAttribute('x', qx + qw/2); qtitle.setAttribute('y', qy + 20);
+    qtitle.setAttribute('text-anchor', 'middle');
+    qtitle.setAttribute('fill', 'var(--accent-yellow)');
+    qtitle.setAttribute('font-size', '11');
+    qtitle.setAttribute('font-weight', '700');
+    qtitle.textContent = `ArrayBlockingQueue (${state.queue.length}/${state.cap})`;
+    qg.appendChild(qtitle);
+
+    const slotW = Math.floor((qw - 20) / state.cap);
+    for (let i = 0; i < state.cap; i++) {
+      const filled = i < state.queue.length;
+      const sx = qx + 10 + i * slotW;
+      const sr = document.createElementNS(ns, 'rect');
+      sr.setAttribute('x', sx); sr.setAttribute('y', qy + 30);
+      sr.setAttribute('width', slotW - 4); sr.setAttribute('height', 50);
+      sr.setAttribute('rx', '3');
+      sr.setAttribute('fill', filled ? '#1a2810' : 'var(--surface-2)');
+      sr.setAttribute('stroke', filled ? 'var(--accent-green)' : 'var(--border)');
+      sr.setAttribute('stroke-width', '1');
+      qg.appendChild(sr);
+      if (filled) {
+        const st = document.createElementNS(ns, 'text');
+        st.setAttribute('x', sx + Math.floor(slotW/2));
+        st.setAttribute('y', qy + 60);
+        st.setAttribute('text-anchor', 'middle');
+        st.setAttribute('fill', 'var(--accent-green)');
+        st.setAttribute('font-size', '9');
+        st.textContent = state.queue[i].id;
+        qg.appendChild(st);
+      }
+    }
+
+    // Consumers
+    for (let i = 0; i < state.consumers; i++) {
+      const y = 40 + i * 55;
+      const blocked = state.blocked.consumers.includes(i);
+      const cx2 = 680;
+      const r = document.createElementNS(ns, 'rect');
+      r.setAttribute('x', cx2); r.setAttribute('y', y);
+      r.setAttribute('width', '110'); r.setAttribute('height', '44');
+      r.setAttribute('rx', '5');
+      r.setAttribute('fill', blocked ? '#2a1515' : 'var(--surface-2)');
+      r.setAttribute('stroke', blocked ? 'var(--accent-red)' : 'var(--accent-blue)');
+      r.setAttribute('stroke-width', '1.5');
+      cg.appendChild(r);
+      const t1 = document.createElementNS(ns, 'text');
+      t1.setAttribute('x', cx2 + 55); t1.setAttribute('y', y + 18);
+      t1.setAttribute('text-anchor', 'middle');
+      t1.setAttribute('fill', blocked ? 'var(--accent-red)' : 'var(--accent-blue)');
+      t1.setAttribute('font-size', '12'); t1.setAttribute('font-weight', '700');
+      t1.textContent = `Consumer ${i+1}`;
+      cg.appendChild(t1);
+      const t2 = document.createElementNS(ns, 'text');
+      t2.setAttribute('x', cx2 + 55); t2.setAttribute('y', y + 34);
+      t2.setAttribute('text-anchor', 'middle');
+      t2.setAttribute('fill', 'var(--text-3)');
+      t2.setAttribute('font-size', '10');
+      t2.textContent = blocked ? 'BLOCKED (empty)' : 'take()';
+      cg.appendChild(t2);
+
+      const arr = document.createElementNS(ns, 'line');
+      arr.setAttribute('x1', cx2); arr.setAttribute('y1', String(y + 22));
+      arr.setAttribute('x2', '560'); arr.setAttribute('y2', '120');
+      arr.setAttribute('stroke', blocked ? 'var(--accent-red)' : '#444');
+      arr.setAttribute('stroke-width', '1.2');
+      arr.setAttribute('stroke-dasharray', blocked ? '4,3' : '2,3');
+      cg.appendChild(arr);
+    }
+
+    // Update commentary
+    const c = document.getElementById('bq-commentary');
+    if (c) {
+      const pBlocked = state.blocked.producers.length;
+      const cBlocked = state.blocked.consumers.length;
+      if (pBlocked > 0) {
+        c.textContent = `Queue FULL (${state.cap}/${state.cap}): ${pBlocked} producer(s) blocked on put() — backpressure active.`;
+        c.style.borderLeft = '3px solid var(--accent-red)';
+      } else if (cBlocked > 0) {
+        c.textContent = `Queue EMPTY: ${cBlocked} consumer(s) blocked on take() — waiting for producers.`;
+        c.style.borderLeft = '3px solid var(--accent-yellow)';
+      } else {
+        c.textContent = `${state.producers} producer(s) putting, ${state.consumers} consumer(s) taking. Queue: ${state.queue.length}/${state.cap}.`;
+        c.style.borderLeft = '';
+      }
+    }
+  }
+
+  window.BQ = { init, setCap, addProducer, addConsumer, removeProducer, removeConsumer, reset };
+})();
+
+// ═══════════════════════════════════════════════════════════
+// TAB 4 — Deadlock Animation
+// ═══════════════════════════════════════════════════════════
+(function() {
+  let step = 0;
+
+  const steps = [
+    {
+      taState: 'acquiring Lock 1', taHold: '',
+      tbState: 'acquiring Lock 2', tbHold: '',
+      l1Owner: 'free', l2Owner: 'free',
+      taL1: 0, taL2: 0, tbL1: 0, tbL2: 0,
+      commentary: 'Thread A will lock L1 then L2. Thread B will lock L2 then L1 (wrong order).',
+    },
+    {
+      taState: 'holds Lock 1', taHold: 'waiting for Lock 2',
+      tbState: 'holds Lock 2', tbHold: 'waiting for Lock 1',
+      l1Owner: 'Thread A', l2Owner: 'Thread B',
+      taL1: 1, taL2: 0, tbL1: 0, tbL2: 1,
+      commentary: 'Thread A acquired Lock 1. Thread B acquired Lock 2. Each now waits for the other lock.',
+    },
+    {
+      taState: 'BLOCKED', taHold: 'waiting Lock 2 — held by B',
+      tbState: 'BLOCKED', tbHold: 'waiting Lock 1 — held by A',
+      l1Owner: 'Thread A', l2Owner: 'Thread B',
+      taL1: 1, taL2: 1, tbL1: 1, tbL2: 1,
+      commentary: 'DEADLOCK: circular wait. Neither thread can proceed. jstack will show "Found one Java-level deadlock".',
+    },
+  ];
+
+  function applyStep(s) {
+    const ids = {
+      taState: 'dl-ta-state', taHold: 'dl-ta-hold',
+      tbState: 'dl-tb-state', tbHold: 'dl-tb-hold',
+      l1Owner: 'dl-l1-owner', l2Owner: 'dl-l2-owner',
+    };
+    Object.keys(ids).forEach(k => {
+      const el = document.getElementById(ids[k]);
+      if (el) el.textContent = s[k] || '';
+    });
+
+    const isDeadlock = s.taState === 'BLOCKED';
+    const taEl = document.getElementById('dl-ta');
+    const tbEl = document.getElementById('dl-tb');
+    if (taEl) taEl.setAttribute('stroke', isDeadlock ? 'var(--accent-red)' : 'var(--accent-blue)');
+    if (tbEl) tbEl.setAttribute('stroke', isDeadlock ? 'var(--accent-red)' : 'var(--accent-green)');
+
+    [['dl-ta-l1', s.taL1],['dl-ta-l2', s.taL2],['dl-tb-l1', s.tbL1],['dl-tb-l2', s.tbL2]].forEach(([id, vis]) => {
+      const el = document.getElementById(id);
+      if (el) el.setAttribute('opacity', vis ? '1' : '0');
+    });
+
+    // Red arrows for blocked state
+    if (isDeadlock) {
+      ['dl-ta-l2','dl-tb-l1'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+          el.setAttribute('stroke', 'var(--accent-red)');
+          el.setAttribute('stroke-dasharray', '4,3');
+        }
+      });
+    }
+
+    const c = document.getElementById('dl-commentary');
+    if (c) c.textContent = s.commentary;
+  }
+
+  async function run() {
+    step = 0;
+    showFix(false);
+    applyStep(steps[0]);
+    await new Promise(r => setTimeout(r, 800));
+    step = 1;
+    applyStep(steps[1]);
+    await new Promise(r => setTimeout(r, 1200));
+    step = 2;
+    applyStep(steps[2]);
+  }
+
+  function showFix(show = true) {
+    const ids = ['dl-fix-box','dl-fix-t1','dl-fix-t2','dl-fix-t3','dl-fix-t4','dl-fix-t5','dl-fix-t6'];
+    ids.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.setAttribute('visibility', show ? 'visible' : 'hidden');
+    });
+  }
+
+  function reset() {
+    step = 0;
+    showFix(false);
+    const initial = {
+      taState: 'idle', taHold: '',
+      tbState: 'idle', tbHold: '',
+      l1Owner: 'free', l2Owner: 'free',
+      taL1: 0, taL2: 0, tbL1: 0, tbL2: 0,
+      commentary: 'Press "Animate Deadlock" to watch lock acquisition and the circular wait form.',
+    };
+    applyStep(initial);
+    const taEl = document.getElementById('dl-ta');
+    const tbEl = document.getElementById('dl-tb');
+    if (taEl) taEl.setAttribute('stroke', 'var(--accent-blue)');
+    if (tbEl) tbEl.setAttribute('stroke', 'var(--accent-green)');
+    ['dl-ta-l2','dl-tb-l1'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.setAttribute('stroke', 'var(--accent-blue)');
+        el.removeAttribute('stroke-dasharray');
+      }
+    });
+    document.getElementById('dl-tb-l1')?.setAttribute('stroke', 'var(--accent-green)');
+  }
+
+  window.DL = { run, showFix: () => showFix(true), reset };
+})();
+
+// ═══════════════════════════════════════════════════════════
+// Init on load
+// ═══════════════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', () => {
+  Pool.initAnim();
+  Sizing.update();
+  BQ.init();
+});
+</script>
+</body>
+</html>

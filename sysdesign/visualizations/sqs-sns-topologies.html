@@ -1,0 +1,1506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SQS / SNS Topologies — Interactive Visualization</title>
+<style>
+:root {
+  --bg: #0f0f15;
+  --surface: #181820;
+  --surface-2: #20202a;
+  --border: #2a2a35;
+  --text: #e6e6ea;
+  --text-2: #cfcfd6;
+  --text-3: #888;
+  --accent-red: #e06c75;
+  --accent-green: #98c379;
+  --accent-blue: #61afef;
+  --accent-yellow: #e5c07b;
+  --accent-purple: #c678dd;
+  --accent-cyan: #56b6c2;
+  --accent-orange: #d19a66;
+}
+*, *::before, *::after { box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  padding: 32px 24px;
+  max-width: 1100px;
+  margin: 0 auto;
+  line-height: 1.55;
+}
+h1 { color: #fff; margin-bottom: 4px; }
+h1 + p.sub { color: var(--text-3); font-style: italic; margin-top: 0; margin-bottom: 24px; }
+h2 { color: #fff; margin-top: 32px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+h3 { color: var(--text-2); margin-top: 20px; }
+code {
+  background: var(--surface-2);
+  padding: 2px 6px;
+  border-radius: 3px;
+  color: var(--accent-cyan);
+  font-size: 13px;
+}
+svg {
+  background: var(--surface);
+  border-radius: 8px;
+  display: block;
+  margin: 14px auto;
+  width: 100%;
+  height: auto;
+}
+.tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+.tabs button {
+  padding: 10px 20px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-2);
+  border-radius: 6px;
+  cursor: pointer;
+  min-height: 44px;
+  font-size: 14px;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.tabs button:hover { background: var(--surface); }
+.tabs button.active {
+  border-color: var(--accent-blue);
+  border-bottom: 2px solid var(--accent-blue);
+  color: #fff;
+}
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0;
+  align-items: center;
+}
+.controls button, .btn {
+  padding: 10px 16px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  border-radius: 6px;
+  cursor: pointer;
+  min-height: 44px;
+  font-size: 14px;
+  transition: background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+.controls button:hover, .btn:hover { background: var(--surface); }
+.controls button:disabled, .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.controls button.active-btn { border-color: var(--accent-blue); color: var(--accent-blue); }
+.controls button.danger { border-color: var(--accent-red); color: var(--accent-red); }
+.controls button.danger:hover { background: #2a1520; }
+.slider-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-3);
+  min-width: 180px;
+}
+.slider-group input[type="range"] {
+  flex: 1;
+  min-width: 80px;
+  accent-color: var(--accent-blue);
+}
+.commentary {
+  background: var(--surface-2);
+  padding: 14px;
+  border-radius: 6px;
+  font-size: 14px;
+  color: var(--text-2);
+  margin: 12px 0;
+  min-height: 44px;
+  line-height: 1.5;
+}
+.takeaway {
+  background: #1a1a22;
+  border-left: 3px solid var(--accent-green);
+  padding: 12px 16px;
+  margin: 14px 0;
+  font-size: 14px;
+}
+.takeaway strong { color: var(--accent-green); }
+.takeaway ul { margin: 6px 0 0 0; padding-left: 18px; }
+.takeaway li { margin-bottom: 6px; }
+section[hidden] { display: none !important; }
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  margin: 14px 0;
+}
+th {
+  background: var(--surface-2);
+  color: var(--text-2);
+  padding: 10px 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  font-weight: 600;
+}
+td {
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  vertical-align: top;
+}
+tr:hover td { background: var(--surface-2); }
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+.badge-green { background: #1a2e1a; color: var(--accent-green); }
+.badge-red { background: #2a1520; color: var(--accent-red); }
+.badge-blue { background: #1a2030; color: var(--accent-blue); }
+.badge-yellow { background: #2a2010; color: var(--accent-yellow); }
+.badge-purple { background: #221a28; color: var(--accent-purple); }
+.two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin: 14px 0;
+}
+.card {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px;
+}
+.card h4 { margin: 0 0 8px 0; color: var(--text-2); font-size: 14px; }
+.card ul { margin: 0; padding-left: 18px; font-size: 13px; color: var(--text-2); }
+.card li { margin-bottom: 5px; }
+@media (max-width: 720px) {
+  body { padding: 20px 14px; }
+  .two-col { grid-template-columns: 1fr; }
+  table { font-size: 12px; }
+  th, td { padding: 7px 8px; }
+}
+@media (max-width: 600px) {
+  .tabs { gap: 4px; }
+  .tabs button { padding: 10px 10px; font-size: 12px; flex: 1; min-width: 80px; text-align: center; }
+}
+@media (max-width: 480px) {
+  .controls { flex-direction: column; }
+  .controls button { width: 100%; }
+  .slider-group { width: 100%; min-width: auto; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>SQS / SNS Topologies</h1>
+  <p class="sub">Watch visibility timeouts expire, DLQ routing trigger, SNS fanout fan out. Build the intuition that survives interview pressure.</p>
+</header>
+
+<nav class="tabs">
+  <button class="active" onclick="setActiveTab('standard')">SQS Standard</button>
+  <button onclick="setActiveTab('fifo')">SQS FIFO</button>
+  <button onclick="setActiveTab('dlq')">Dead Letter Queue</button>
+  <button onclick="setActiveTab('sns')">SNS Fanout</button>
+  <button onclick="setActiveTab('compare')">SQS vs Kafka</button>
+</nav>
+
+<!-- ============================================================ -->
+<!-- TAB 1: SQS STANDARD                                           -->
+<!-- ============================================================ -->
+<section data-tab="standard">
+  <h2>SQS Standard Queue</h2>
+  <p>Standard queues deliver messages <strong>at least once</strong>, with best-effort ordering. Consumers must be idempotent because the same message can be delivered more than once. Visibility timeout makes a message temporarily invisible while being processed — preventing double-processing under normal conditions.</p>
+
+  <svg id="std-svg" viewBox="0 0 860 400" preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <marker id="std-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="#555"/>
+      </marker>
+    </defs>
+    <!-- Producers -->
+    <rect x="10" y="60" width="110" height="44" rx="6" fill="#181820" stroke="#e06c75" stroke-width="1.5"/>
+    <text x="65" y="87" text-anchor="middle" fill="#e06c75" font-size="12" font-weight="600">Producer A</text>
+    <rect x="10" y="170" width="110" height="44" rx="6" fill="#181820" stroke="#e06c75" stroke-width="1.5"/>
+    <text x="65" y="197" text-anchor="middle" fill="#e06c75" font-size="12" font-weight="600">Producer B</text>
+
+    <!-- Producer arrows to queue -->
+    <line x1="120" y1="82" x2="240" y2="140" stroke="#444" stroke-width="1.5" marker-end="url(#std-arrow)"/>
+    <line x1="120" y1="192" x2="240" y2="178" stroke="#444" stroke-width="1.5" marker-end="url(#std-arrow)"/>
+
+    <!-- Queue body -->
+    <rect x="240" y="110" width="360" height="110" rx="8" fill="#0f0f15" stroke="#61afef" stroke-width="2"/>
+    <text x="420" y="135" text-anchor="middle" fill="#61afef" font-size="13" font-weight="700">SQS Standard Queue</text>
+    <!-- Slot dividers -->
+    <line x1="300" y1="145" x2="300" y2="210" stroke="#2a2a35" stroke-width="1"/>
+    <line x1="360" y1="145" x2="360" y2="210" stroke="#2a2a35" stroke-width="1"/>
+    <line x1="420" y1="145" x2="420" y2="210" stroke="#2a2a35" stroke-width="1"/>
+    <line x1="480" y1="145" x2="480" y2="210" stroke="#2a2a35" stroke-width="1"/>
+    <line x1="540" y1="145" x2="540" y2="210" stroke="#2a2a35" stroke-width="1"/>
+    <rect x="248" y="145" width="344" height="60" rx="3" fill="none"/>
+    <!-- Static message labels updated by JS -->
+    <g id="std-msg-layer"></g>
+
+    <!-- Queue depth stat -->
+    <text x="260" y="232" fill="#888" font-size="11">Depth: </text>
+    <text x="305" y="232" fill="#e5c07b" font-size="12" font-weight="700" id="std-depth">0</text>
+    <text x="380" y="232" fill="#888" font-size="11">Processed: </text>
+    <text x="442" y="232" fill="#98c379" font-size="12" font-weight="700" id="std-processed">0</text>
+    <text x="510" y="232" fill="#888" font-size="11">Duplicates: </text>
+    <text x="578" y="232" fill="#e06c75" font-size="12" font-weight="700" id="std-dups">0</text>
+
+    <!-- Consumer arrows -->
+    <line x1="600" y1="160" x2="720" y2="90" stroke="#444" stroke-width="1.5" marker-end="url(#std-arrow)"/>
+    <line x1="600" y1="175" x2="720" y2="195" stroke="#444" stroke-width="1.5" marker-end="url(#std-arrow)"/>
+
+    <!-- Consumers -->
+    <rect x="720" y="60" width="120" height="44" rx="6" fill="#181820" stroke="#98c379" stroke-width="1.5"/>
+    <text x="780" y="79" text-anchor="middle" fill="#98c379" font-size="12" font-weight="600">Consumer 1</text>
+    <text x="780" y="95" text-anchor="middle" fill="#888" font-size="10" id="std-c1-state">idle</text>
+    <rect x="720" y="170" width="120" height="44" rx="6" fill="#181820" stroke="#98c379" stroke-width="1.5"/>
+    <text x="780" y="189" text-anchor="middle" fill="#98c379" font-size="12" font-weight="600">Consumer 2</text>
+    <text x="780" y="205" text-anchor="middle" fill="#888" font-size="10" id="std-c2-state">idle</text>
+
+    <!-- Visibility timeout bar -->
+    <rect x="10" y="310" width="840" height="70" rx="8" fill="#0f0f15" stroke="#2a2a35" stroke-width="1"/>
+    <text x="30" y="332" fill="#888" font-size="11" font-weight="600">VISIBILITY TIMEOUT</text>
+    <rect x="30" y="340" width="800" height="20" rx="3" fill="#20202a"/>
+    <rect x="30" y="340" width="0" height="20" rx="3" fill="#61afef" id="std-vis-bar"/>
+    <text x="30" y="372" fill="#888" font-size="10" id="std-vis-label">No message in-flight</text>
+
+    <!-- Animated packet layer -->
+    <g id="std-anim-layer"></g>
+  </svg>
+
+  <div class="controls">
+    <button onclick="STD.sendMessage()">Send message</button>
+    <button onclick="STD.burst()">Burst 5 messages</button>
+    <button onclick="STD.simulateTimeout()">Simulate timeout expiry (duplicate)</button>
+    <button onclick="STD.reset()">Reset</button>
+    <div class="slider-group">
+      <span>Vis. timeout</span>
+      <input type="range" min="2" max="15" value="6" id="std-vt-slider" oninput="STD.updateVT()">
+      <span id="std-vt-label">6s</span>
+    </div>
+  </div>
+
+  <div class="commentary" id="std-commentary">SQS Standard: producers send messages into the queue; consumers call ReceiveMessage (long poll). The message becomes invisible (visibility timeout) while one consumer processes it. If the consumer ACKs (DeleteMessage), the message is gone. If the consumer crashes before ACKing, the timeout expires and the message reappears — delivered again to another consumer. This is the source of at-least-once duplicates.</div>
+
+  <h3>Long Polling vs Short Polling</h3>
+  <div class="two-col">
+    <div class="card">
+      <h4 style="color:var(--accent-red)">Short Polling (default WaitTimeSeconds=0)</h4>
+      <ul>
+        <li>Returns immediately — even if queue is empty</li>
+        <li>Each empty response still costs money (per-request pricing)</li>
+        <li>Requires tight loop → wasted CPU + cost</li>
+        <li>Can miss messages across distributed servers (SQS is distributed; short poll hits a subset)</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h4 style="color:var(--accent-green)">Long Polling (WaitTimeSeconds=1–20)</h4>
+      <ul>
+        <li>Request blocks server-side until a message arrives or timeout</li>
+        <li>Reduces empty responses → lower cost, lower CPU</li>
+        <li>Queries <em>all</em> distributed SQS servers — fewer missed messages</li>
+        <li>AWS recommendation: always use <code>WaitTimeSeconds=20</code></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="takeaway">
+    <strong>Takeaways</strong>
+    <ul>
+      <li>Visibility timeout (default 30s, max 12h): must be longer than your processing time or you get duplicates. Set it 2x your P99 processing latency.</li>
+      <li>At-least-once + best-effort ordering: consumers MUST be idempotent. Use a DB upsert or a set-based dedup in Redis keyed on MessageId.</li>
+      <li>Long polling (WaitTimeSeconds=20) is almost always correct. Short polling wastes money and can miss messages.</li>
+      <li>Max 256KB per message. Larger payloads: store in S3, put the S3 key in the SQS message (Extended Client Library pattern).</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- TAB 2: SQS FIFO                                               -->
+<!-- ============================================================ -->
+<section data-tab="fifo" hidden>
+  <h2>SQS FIFO Queue</h2>
+  <p>FIFO queues guarantee <strong>exactly-once processing</strong> and <strong>strict ordering per MessageGroupId</strong>. Groups are independent — messages in different groups can be processed in parallel while each group preserves its internal order.</p>
+
+  <svg id="fifo-svg" viewBox="0 0 860 420" preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <marker id="fifo-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="#555"/>
+      </marker>
+    </defs>
+
+    <!-- Queue border -->
+    <rect x="200" y="30" width="440" height="340" rx="8" fill="#0f0f15" stroke="#c678dd" stroke-width="2"/>
+    <text x="420" y="58" text-anchor="middle" fill="#c678dd" font-size="13" font-weight="700">SQS FIFO Queue (.fifo)</text>
+
+    <!-- Group A lane -->
+    <rect x="215" y="70" width="410" height="110" rx="5" fill="#181820" stroke="#61afef" stroke-width="1"/>
+    <text x="230" y="92" fill="#61afef" font-size="11" font-weight="600">Group A (order:payment)</text>
+    <g id="fifo-group-a"></g>
+
+    <!-- Group B lane -->
+    <rect x="215" y="200" width="410" height="110" rx="5" fill="#181820" stroke="#e5c07b" stroke-width="1"/>
+    <text x="230" y="222" fill="#e5c07b" font-size="11" font-weight="600">Group B (order:inventory)</text>
+    <g id="fifo-group-b"></g>
+
+    <!-- Throughput badge -->
+    <rect x="215" y="325" width="410" height="35" rx="4" fill="#20202a"/>
+    <text x="235" y="347" fill="#888" font-size="11">Throughput: </text>
+    <text x="310" y="347" fill="#98c379" font-size="12" font-weight="700">300 msg/s</text>
+    <text x="400" y="347" fill="#888" font-size="11">  Batched (10): </text>
+    <text x="502" y="347" fill="#98c379" font-size="12" font-weight="700">3,000 msg/s</text>
+    <text x="590" y="347" fill="#888" font-size="10">per API action</text>
+
+    <!-- Producers left side -->
+    <rect x="20" y="100" width="130" height="44" rx="6" fill="#181820" stroke="#61afef" stroke-width="1.5"/>
+    <text x="85" y="119" text-anchor="middle" fill="#61afef" font-size="11" font-weight="600">Producer</text>
+    <text x="85" y="134" text-anchor="middle" fill="#888" font-size="10">GroupId: A</text>
+    <rect x="20" y="230" width="130" height="44" rx="6" fill="#181820" stroke="#e5c07b" stroke-width="1.5"/>
+    <text x="85" y="249" text-anchor="middle" fill="#e5c07b" font-size="11" font-weight="600">Producer</text>
+    <text x="85" y="264" text-anchor="middle" fill="#888" font-size="10">GroupId: B</text>
+
+    <line x1="150" y1="122" x2="200" y2="120" stroke="#444" stroke-width="1.5" marker-end="url(#fifo-arrow)"/>
+    <line x1="150" y1="252" x2="200" y2="250" stroke="#444" stroke-width="1.5" marker-end="url(#fifo-arrow)"/>
+
+    <!-- Consumers right side -->
+    <rect x="690" y="100" width="130" height="44" rx="6" fill="#181820" stroke="#61afef" stroke-width="1.5"/>
+    <text x="755" y="119" text-anchor="middle" fill="#61afef" font-size="11" font-weight="600">Consumer A</text>
+    <text x="755" y="134" text-anchor="middle" fill="#888" font-size="10" id="fifo-ca-state">idle</text>
+    <rect x="690" y="230" width="130" height="44" rx="6" fill="#181820" stroke="#e5c07b" stroke-width="1.5"/>
+    <text x="755" y="249" text-anchor="middle" fill="#e5c07b" font-size="11" font-weight="600">Consumer B</text>
+    <text x="755" y="264" text-anchor="middle" fill="#888" font-size="10" id="fifo-cb-state">idle</text>
+
+    <line x1="640" y1="120" x2="690" y2="122" stroke="#444" stroke-width="1.5" marker-end="url(#fifo-arrow)"/>
+    <line x1="640" y1="250" x2="690" y2="252" stroke="#444" stroke-width="1.5" marker-end="url(#fifo-arrow)"/>
+
+    <!-- Dedup window indicator -->
+    <rect x="20" y="380" width="820" height="30" rx="5" fill="#20202a" stroke="#2a2a35"/>
+    <text x="40" y="399" fill="#888" font-size="11">Dedup window: </text>
+    <text x="120" y="399" fill="#c678dd" font-size="12" font-weight="700">5 minutes</text>
+    <text x="200" y="399" fill="#888" font-size="11"> — duplicate MessageDeduplicationId within window is silently discarded (exactly-once)</text>
+
+    <g id="fifo-anim"></g>
+  </svg>
+
+  <div class="controls">
+    <button onclick="FIFO.sendA()">Send to Group A</button>
+    <button onclick="FIFO.sendB()">Send to Group B</button>
+    <button onclick="FIFO.interleaved()">Interleaved burst (A+B)</button>
+    <button onclick="FIFO.sendDup()">Send duplicate (dedup test)</button>
+    <button onclick="FIFO.reset()">Reset</button>
+  </div>
+
+  <div class="commentary" id="fifo-commentary">FIFO queues maintain strict per-group order. Producers tag each message with a MessageGroupId (e.g. "order:user-123"). All messages in that group are processed in the exact order sent. Different groups are independent — Group A and Group B are processed concurrently by separate consumers.</div>
+
+  <h3>FIFO vs Standard — Decision Matrix</h3>
+  <table>
+    <thead><tr><th>Criterion</th><th>Standard</th><th>FIFO</th></tr></thead>
+    <tbody>
+      <tr><td>Ordering</td><td><span class="badge badge-red">Best-effort</span></td><td><span class="badge badge-green">Strict per group</span></td></tr>
+      <tr><td>Delivery</td><td><span class="badge badge-yellow">At-least-once</span></td><td><span class="badge badge-green">Exactly-once</span></td></tr>
+      <tr><td>Throughput</td><td><span class="badge badge-green">Nearly unlimited</span></td><td><span class="badge badge-yellow">300/s (3000 batched)</span></td></tr>
+      <tr><td>Idempotency required</td><td><span class="badge badge-red">Yes — always</span></td><td><span class="badge badge-green">No (if using dedup ID)</span></td></tr>
+      <tr><td>Use case</td><td>Email, notifications, log ingestion</td><td>Payment events, order state machine, audit trail</td></tr>
+      <tr><td>Cost</td><td>Lower per-message</td><td>Slightly higher</td></tr>
+    </tbody>
+  </table>
+
+  <div class="takeaway">
+    <strong>Takeaways</strong>
+    <ul>
+      <li>MessageGroupId controls the unit of ordering — use it as the entity ID (user ID, order ID). One in-flight message per group at a time.</li>
+      <li>MessageDeduplicationId deduplicates within a 5-min sliding window. If you don't provide one, enable content-based deduplication (SHA-256 of body).</li>
+      <li>Throughput cap (300/s per action) is per-queue, not per-group. If you hit it, use multiple FIFO queues + routing by shard key at producer.</li>
+      <li>FIFO queues require queue name to end in <code>.fifo</code>. SNS FIFO → SQS FIFO = ordered fanout (covered in Tab 4).</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- TAB 3: DEAD LETTER QUEUE                                      -->
+<!-- ============================================================ -->
+<section data-tab="dlq" hidden>
+  <h2>Dead Letter Queue (DLQ)</h2>
+  <p>When a message exceeds <code>maxReceiveCount</code> without being deleted, SQS routes it to the configured Dead Letter Queue. DLQs isolate poison pills and processing bugs, preventing queue stalls. Use CloudWatch alarms on DLQ depth as your primary alerting signal.</p>
+
+  <svg id="dlq-svg" viewBox="0 0 860 400" preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <marker id="dlq-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="#555"/>
+      </marker>
+      <marker id="dlq-arrow-red" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="#e06c75"/>
+      </marker>
+      <marker id="dlq-arrow-green" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="#98c379"/>
+      </marker>
+    </defs>
+
+    <!-- Source Queue -->
+    <rect x="60" y="60" width="260" height="100" rx="8" fill="#0f0f15" stroke="#61afef" stroke-width="2"/>
+    <text x="190" y="88" text-anchor="middle" fill="#61afef" font-size="13" font-weight="700">Source Queue</text>
+    <text x="80" y="112" fill="#888" font-size="11">maxReceiveCount: </text>
+    <text x="200" y="112" fill="#e5c07b" font-size="12" font-weight="700" id="dlq-mrc-label">3</text>
+    <text x="80" y="130" fill="#888" font-size="11">Current message receives: </text>
+    <text x="245" y="130" fill="#e06c75" font-size="13" font-weight="700" id="dlq-recv-count">0</text>
+    <text x="258" y="130" fill="#888" font-size="11"> / </text>
+    <text x="270" y="130" fill="#e5c07b" font-size="12" id="dlq-mrc-denom">3</text>
+    <text x="80" y="148" fill="#888" font-size="11">Queue depth: </text>
+    <text x="162" y="148" fill="#98c379" font-size="12" font-weight="700" id="dlq-src-depth">1</text>
+
+    <!-- Consumer -->
+    <rect x="390" y="70" width="140" height="80" rx="6" fill="#181820" stroke="#98c379" stroke-width="1.5"/>
+    <text x="460" y="100" text-anchor="middle" fill="#98c379" font-size="12" font-weight="600">Consumer</text>
+    <text x="460" y="118" text-anchor="middle" fill="#888" font-size="10" id="dlq-c-state">idle</text>
+    <text x="460" y="136" text-anchor="middle" fill="#888" font-size="9" id="dlq-c-detail"></text>
+
+    <!-- Source → Consumer arrow -->
+    <line x1="320" y1="110" x2="388" y2="110" stroke="#444" stroke-width="1.5" marker-end="url(#dlq-arrow)"/>
+    <!-- Consumer → Source (NAK / timeout) arrow -->
+    <path d="M390,125 Q355,160 322,125" stroke="#e06c75" stroke-width="1.5" fill="none" stroke-dasharray="4,3" marker-end="url(#dlq-arrow-red)"/>
+    <text x="355" y="168" text-anchor="middle" fill="#e06c75" font-size="10">NAK / timeout</text>
+
+    <!-- DLQ arrow (downward) -->
+    <line x1="190" y1="160" x2="190" y2="250" stroke="#e06c75" stroke-width="2" stroke-dasharray="5,3" marker-end="url(#dlq-arrow-red)" id="dlq-route-line" opacity="0.3"/>
+    <text x="205" y="215" fill="#e06c75" font-size="10" id="dlq-route-label" opacity="0.3">→ DLQ after maxReceiveCount</text>
+
+    <!-- DLQ box -->
+    <rect x="60" y="260" width="260" height="100" rx="8" fill="#0f0f15" stroke="#e06c75" stroke-width="2"/>
+    <text x="190" y="288" text-anchor="middle" fill="#e06c75" font-size="13" font-weight="700">Dead Letter Queue</text>
+    <text x="80" y="310" fill="#888" font-size="11">DLQ depth: </text>
+    <text x="148" y="310" fill="#e06c75" font-size="13" font-weight="700" id="dlq-depth">0</text>
+    <text x="80" y="330" fill="#888" font-size="11">CloudWatch alarm: </text>
+    <rect x="178" y="316" width="100" height="20" rx="3" fill="#20202a" stroke="#2a2a35"/>
+    <text x="228" y="330" text-anchor="middle" fill="#888" font-size="11" id="dlq-alarm-state">OK (depth=0)</text>
+    <text x="80" y="350" fill="#888" font-size="11">Redrive: </text>
+    <text x="130" y="350" fill="#56b6c2" font-size="11" id="dlq-redrive-state">not started</text>
+
+    <!-- Redrive arrow (DLQ → Source) -->
+    <path d="M320,300 Q440,300 440,200 Q440,155 530,155" stroke="#98c379" stroke-width="1.5" fill="none" stroke-dasharray="5,3" marker-end="url(#dlq-arrow-green)" id="dlq-redrive-arrow" opacity="0"/>
+
+    <!-- CloudWatch alarm panel -->
+    <rect x="580" y="60" width="260" height="170" rx="8" fill="#0f0f15" stroke="#e5c07b" stroke-width="1.5"/>
+    <text x="710" y="88" text-anchor="middle" fill="#e5c07b" font-size="12" font-weight="700">CloudWatch Alarm</text>
+    <text x="600" y="112" fill="#888" font-size="11">Metric: ApproximateNumberOfMessagesNotVisible</text>
+    <text x="600" y="130" fill="#888" font-size="10">Threshold: depth &gt; 0 for 1 minute</text>
+    <text x="600" y="148" fill="#888" font-size="10">Action: → SNS → PagerDuty / Slack</text>
+    <rect x="600" y="158" width="220" height="26" rx="4" fill="#20202a"/>
+    <text x="710" y="175" text-anchor="middle" fill="#888" font-size="12" id="dlq-cw-state">ALARM: OK</text>
+
+    <!-- Failure patterns panel -->
+    <rect x="580" y="250" width="260" height="130" rx="8" fill="#0f0f15" stroke="#c678dd" stroke-width="1.5"/>
+    <text x="710" y="276" text-anchor="middle" fill="#c678dd" font-size="12" font-weight="700">Common Failure Patterns</text>
+    <text x="598" y="296" fill="#888" font-size="10">• Poison pill — malformed payload, always fails parse</text>
+    <text x="598" y="312" fill="#888" font-size="10">• Processing bug — code throws on specific shape</text>
+    <text x="598" y="328" fill="#888" font-size="10">• Downstream timeout — DB/API unavailable</text>
+    <text x="598" y="344" fill="#888" font-size="10">• Visibility timeout too short — msg re-queued mid-work</text>
+    <text x="598" y="360" fill="#888" font-size="10">• Missing permission — consumer can't write output</text>
+
+    <g id="dlq-anim"></g>
+  </svg>
+
+  <div class="controls">
+    <button onclick="DLQ.failOnce()">Consumer fails (receive 1)</button>
+    <button onclick="DLQ.failToMax()">Fail to maxReceiveCount → DLQ</button>
+    <button onclick="DLQ.startRedrive()">DLQ Redrive (re-process)</button>
+    <button onclick="DLQ.reset()">Reset</button>
+    <div class="slider-group">
+      <span>maxReceiveCount</span>
+      <input type="range" min="1" max="5" value="3" id="dlq-mrc-slider" oninput="DLQ.updateMRC()">
+      <span id="dlq-mrc-display">3</span>
+    </div>
+  </div>
+
+  <div class="commentary" id="dlq-commentary">Each time a consumer receives a message and doesn't delete it (either returns it via ChangeMessageVisibility or lets the visibility timeout expire), the ReceiveCount increments. When ReceiveCount exceeds maxReceiveCount, SQS moves the message to the DLQ automatically. DLQ Redrive lets you replay those messages back to the source queue after fixing the root cause.</div>
+
+  <div class="takeaway">
+    <strong>Takeaways</strong>
+    <ul>
+      <li>Always configure a DLQ. Without it, poison pills loop forever, consuming capacity and delaying all other messages.</li>
+      <li>Set <code>maxReceiveCount=3–5</code>. Lower = faster DLQ routing (good for poison pills); higher = more retry attempts (good for transient errors).</li>
+      <li>DLQ alarm on depth &gt; 0 is your canary. A clean queue should always have DLQ depth = 0. Any non-zero value means a consumer is broken or a payload is malformed.</li>
+      <li>DLQ Redrive (StartMessageMoveTask API) replays messages back to the source queue at a controlled rate after you fix the bug.</li>
+      <li>DLQ retention period must be ≥ source queue retention. If source keeps messages for 4 days and DLQ only 1 day, messages can expire in DLQ before you redrive.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- TAB 4: SNS FANOUT + FILTER                                    -->
+<!-- ============================================================ -->
+<section data-tab="sns" hidden>
+  <h2>SNS Fanout + Filter Policies</h2>
+  <p>SNS pushes a message to all subscribed endpoints simultaneously. Combined with SQS subscriptions and filter policies, you get selective fanout: each downstream team gets only the events they care about — without producers knowing about consumers.</p>
+
+  <svg id="sns-svg" viewBox="0 0 860 460" preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <marker id="sns-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="#555"/>
+      </marker>
+      <marker id="sns-arrow-green" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="#98c379"/>
+      </marker>
+      <marker id="sns-arrow-red" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="#e06c75"/>
+      </marker>
+    </defs>
+
+    <!-- Producer -->
+    <rect x="10" y="170" width="120" height="80" rx="6" fill="#181820" stroke="#e06c75" stroke-width="1.5"/>
+    <text x="70" y="200" text-anchor="middle" fill="#e06c75" font-size="12" font-weight="600">Publisher</text>
+    <text x="70" y="220" text-anchor="middle" fill="#888" font-size="9">event-type:</text>
+    <text x="70" y="232" text-anchor="middle" fill="#e5c07b" font-size="9" id="sns-pub-attr">order.created</text>
+    <text x="70" y="244" text-anchor="middle" fill="#888" font-size="9">region: us-east-1</text>
+
+    <!-- SNS Topic -->
+    <ellipse cx="260" cy="210" rx="80" ry="40" fill="#0f0f15" stroke="#c678dd" stroke-width="2"/>
+    <text x="260" y="206" text-anchor="middle" fill="#c678dd" font-size="13" font-weight="700">SNS Topic</text>
+    <text x="260" y="222" text-anchor="middle" fill="#888" font-size="10">orders-events</text>
+    <text x="260" y="234" text-anchor="middle" fill="#888" font-size="9" id="sns-msg-count">published: 0</text>
+
+    <line x1="130" y1="210" x2="178" y2="210" stroke="#c678dd" stroke-width="2" marker-end="url(#sns-arrow)"/>
+
+    <!-- Sub 1: Billing — no filter -->
+    <line x1="340" y1="200" x2="470" y2="120" stroke="#444" stroke-width="1.5" id="sns-line-1" marker-end="url(#sns-arrow)"/>
+    <rect x="470" y="70" width="175" height="90" rx="6" fill="#0f0f15" stroke="#61afef" stroke-width="1.5"/>
+    <text x="558" y="96" text-anchor="middle" fill="#61afef" font-size="11" font-weight="600">SQS: billing-queue</text>
+    <text x="558" y="112" text-anchor="middle" fill="#888" font-size="10">Filter: none (all events)</text>
+    <text x="558" y="126" text-anchor="middle" fill="#888" font-size="9" id="sns-q1-depth">depth: 0</text>
+    <text x="558" y="140" text-anchor="middle" fill="#888" font-size="9" id="sns-q1-received">received: 0</text>
+
+    <!-- Sub 2: Inventory — filter order.created only -->
+    <line x1="340" y1="210" x2="470" y2="210" stroke="#444" stroke-width="1.5" id="sns-line-2" marker-end="url(#sns-arrow)"/>
+    <rect x="470" y="165" width="175" height="90" rx="6" fill="#0f0f15" stroke="#98c379" stroke-width="1.5"/>
+    <text x="558" y="191" text-anchor="middle" fill="#98c379" font-size="11" font-weight="600">SQS: inventory-queue</text>
+    <text x="558" y="207" text-anchor="middle" fill="#888" font-size="10">Filter: event-type=order.created</text>
+    <text x="558" y="221" text-anchor="middle" fill="#888" font-size="9" id="sns-q2-depth">depth: 0</text>
+    <text x="558" y="235" text-anchor="middle" fill="#888" font-size="9" id="sns-q2-received">received: 0</text>
+
+    <!-- Sub 3: Analytics — filter order.shipped only -->
+    <line x1="340" y1="220" x2="470" y2="310" stroke="#444" stroke-width="1.5" id="sns-line-3" marker-end="url(#sns-arrow)"/>
+    <rect x="470" y="265" width="175" height="90" rx="6" fill="#0f0f15" stroke="#e5c07b" stroke-width="1.5"/>
+    <text x="558" y="291" text-anchor="middle" fill="#e5c07b" font-size="11" font-weight="600">SQS: analytics-queue</text>
+    <text x="558" y="307" text-anchor="middle" fill="#888" font-size="10">Filter: event-type=order.shipped</text>
+    <text x="558" y="321" text-anchor="middle" fill="#888" font-size="9" id="sns-q3-depth">depth: 0</text>
+    <text x="558" y="335" text-anchor="middle" fill="#888" font-size="9" id="sns-q3-received">received: 0</text>
+
+    <!-- Consumers -->
+    <rect x="700" y="82" width="110" height="38" rx="5" fill="#181820" stroke="#61afef" stroke-width="1"/>
+    <text x="755" y="105" text-anchor="middle" fill="#61afef" font-size="11">Billing Service</text>
+    <line x1="645" y1="115" x2="700" y2="101" stroke="#444" stroke-width="1" marker-end="url(#sns-arrow)"/>
+
+    <rect x="700" y="195" width="110" height="38" rx="5" fill="#181820" stroke="#98c379" stroke-width="1"/>
+    <text x="755" y="218" text-anchor="middle" fill="#98c379" font-size="11">Inventory Svc</text>
+    <line x1="645" y1="210" x2="700" y2="214" stroke="#444" stroke-width="1" marker-end="url(#sns-arrow)"/>
+
+    <rect x="700" y="290" width="110" height="38" rx="5" fill="#181820" stroke="#e5c07b" stroke-width="1"/>
+    <text x="755" y="313" text-anchor="middle" fill="#e5c07b" font-size="11">Analytics Svc</text>
+    <line x1="645" y1="310" x2="700" y2="309" stroke="#444" stroke-width="1" marker-end="url(#sns-arrow)"/>
+
+    <!-- Push vs Pull legend -->
+    <rect x="10" y="380" width="840" height="60" rx="8" fill="#0f0f15" stroke="#2a2a35" stroke-width="1"/>
+    <text x="30" y="403" fill="#888" font-size="11" font-weight="600">SNS PUSH:</text>
+    <text x="100" y="403" fill="#e6e6ea" font-size="11"> SNS calls SQS.SendMessage on each subscription — O(n subscribers) API calls per publish. No polling needed. Order not guaranteed across subs.</text>
+    <text x="30" y="425" fill="#888" font-size="11" font-weight="600">KAFKA PULL:</text>
+    <text x="106" y="425" fill="#e6e6ea" font-size="11"> Consumers poll the broker. Broker is passive. Multiple consumer groups independently replay the same topic. Retention = replay. SNS has no retention.</text>
+
+    <g id="sns-anim"></g>
+  </svg>
+
+  <div class="controls">
+    <button onclick="SNS.publish('order.created')">Publish: order.created</button>
+    <button onclick="SNS.publish('order.shipped')">Publish: order.shipped</button>
+    <button onclick="SNS.publish('order.cancelled')">Publish: order.cancelled</button>
+    <button onclick="SNS.burst()">Burst 5 mixed events</button>
+    <button onclick="SNS.reset()">Reset</button>
+  </div>
+
+  <div class="commentary" id="sns-commentary">Publish "order.created" — billing gets it (no filter), inventory gets it (matches filter), analytics does NOT (filter wants shipped). Publish "order.shipped" — billing gets it, analytics gets it, inventory does NOT. Publish "order.cancelled" — only billing gets it. Filter policies decouple producers from consumers: the publisher never changes when a new subscriber is added.</div>
+
+  <h3>SNS FIFO + SQS FIFO — Ordered Fanout</h3>
+  <div class="two-col">
+    <div class="card">
+      <h4 style="color:var(--accent-purple)">Standard SNS + Standard SQS</h4>
+      <ul>
+        <li>Best-effort ordering across subscribers</li>
+        <li>At-least-once delivery</li>
+        <li>Nearly unlimited throughput</li>
+        <li>Use for: notifications, logs, best-effort workflows</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h4 style="color:var(--accent-blue)">FIFO SNS + FIFO SQS</h4>
+      <ul>
+        <li>Strict ordering preserved end-to-end</li>
+        <li>Exactly-once within dedup window</li>
+        <li>Same 300/3000 msg/s throughput cap</li>
+        <li>Use for: financial events, audit trails that fan out to multiple services</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="takeaway">
+    <strong>Takeaways</strong>
+    <ul>
+      <li>SNS + SQS = push-to-pull buffering. SNS pushes to SQS; consumers pull from SQS at their own pace. This absorbs traffic bursts — the classic "fan out + buffer" pattern.</li>
+      <li>Filter policies are evaluated server-side at SNS before delivery. You're charged for the Publish API call, not for filtered-out deliveries to subscribers.</li>
+      <li>Raw message delivery: by default SNS wraps the payload in a JSON envelope. Enable raw delivery on the SQS subscription when the consumer doesn't know about SNS and just wants the original body.</li>
+      <li>SNS has no message retention (unlike Kafka). If SQS is unavailable when SNS pushes, the message is lost. SNS retries for HTTP endpoints but not SQS delivery failures (SQS is highly durable itself).</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- TAB 5: SQS/SNS VS KAFKA                                       -->
+<!-- ============================================================ -->
+<section data-tab="compare" hidden>
+  <h2>SQS / SNS vs Kafka — Decision Matrix</h2>
+  <p>Both solve async messaging but with fundamentally different models. SQS/SNS is fully managed, serverless, and designed for task queues and event fanout. Kafka is a distributed log — replay, consumer groups, and stream processing are first-class. Pick by workload shape, not familiarity.</p>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Dimension</th>
+        <th>SQS (Standard)</th>
+        <th>SQS FIFO</th>
+        <th>SNS + SQS</th>
+        <th>Kafka (MSK)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Model</strong></td>
+        <td>Task queue (delete on ACK)</td>
+        <td>Task queue (ordered)</td>
+        <td>Pub/sub + buffer</td>
+        <td>Distributed log (immutable)</td>
+      </tr>
+      <tr>
+        <td><strong>Ordering</strong></td>
+        <td><span class="badge badge-red">Best-effort</span></td>
+        <td><span class="badge badge-green">Strict per group</span></td>
+        <td><span class="badge badge-red">Best-effort</span></td>
+        <td><span class="badge badge-green">Strict per partition</span></td>
+      </tr>
+      <tr>
+        <td><strong>Delivery</strong></td>
+        <td><span class="badge badge-yellow">At-least-once</span></td>
+        <td><span class="badge badge-green">Exactly-once</span></td>
+        <td><span class="badge badge-yellow">At-least-once</span></td>
+        <td><span class="badge badge-yellow">At-least-once (default)</span></td>
+      </tr>
+      <tr>
+        <td><strong>Retention</strong></td>
+        <td>14 days max</td>
+        <td>14 days max</td>
+        <td>SNS: none; SQS: 14d</td>
+        <td>Configurable (days → forever)</td>
+      </tr>
+      <tr>
+        <td><strong>Replay</strong></td>
+        <td><span class="badge badge-red">No</span> (deleted on ACK)</td>
+        <td><span class="badge badge-red">No</span></td>
+        <td><span class="badge badge-red">No</span></td>
+        <td><span class="badge badge-green">Yes</span> (reset consumer offset)</td>
+      </tr>
+      <tr>
+        <td><strong>Consumer groups</strong></td>
+        <td>Competing consumers (one msg → one consumer)</td>
+        <td>One consumer per group</td>
+        <td>Each SQS queue = separate consumer</td>
+        <td>Multiple independent groups on same topic</td>
+      </tr>
+      <tr>
+        <td><strong>Throughput</strong></td>
+        <td><span class="badge badge-green">Unlimited (auto-scale)</span></td>
+        <td><span class="badge badge-yellow">300/s (3000 batched)</span></td>
+        <td><span class="badge badge-green">Unlimited</span></td>
+        <td><span class="badge badge-green">Very high (partition count)</span></td>
+      </tr>
+      <tr>
+        <td><strong>Ops burden</strong></td>
+        <td><span class="badge badge-green">Serverless</span></td>
+        <td><span class="badge badge-green">Serverless</span></td>
+        <td><span class="badge badge-green">Serverless</span></td>
+        <td><span class="badge badge-yellow">Manage brokers / MSK</span></td>
+      </tr>
+      <tr>
+        <td><strong>Message size</strong></td>
+        <td>256 KB (S3 extended: 2 GB)</td>
+        <td>256 KB</td>
+        <td>256 KB</td>
+        <td>Default 1 MB (configurable)</td>
+      </tr>
+      <tr>
+        <td><strong>Cost model</strong></td>
+        <td>Per API call</td>
+        <td>Per API call (3× Standard)</td>
+        <td>Per publish + per delivery</td>
+        <td>Hourly broker cost + storage</td>
+      </tr>
+      <tr>
+        <td><strong>Primary use case</strong></td>
+        <td>Async task queue, worker pool, decoupled microservices</td>
+        <td>Ordered workflow, payment events, state machine</td>
+        <td>Event broadcast to N services</td>
+        <td>Stream processing, event sourcing, audit log, CDC</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Interview Decision Tree</h3>
+  <svg id="cmp-svg" viewBox="0 0 860 460" preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <marker id="cmp-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="#555"/>
+      </marker>
+    </defs>
+    <!-- Root question -->
+    <rect x="280" y="20" width="300" height="50" rx="6" fill="#20202a" stroke="#61afef" stroke-width="1.5"/>
+    <text x="430" y="48" text-anchor="middle" fill="#61afef" font-size="13" font-weight="600">Do you need replay / event sourcing?</text>
+
+    <!-- Yes → Kafka -->
+    <line x1="430" y1="70" x2="720" y2="130" stroke="#555" stroke-width="1.5" marker-end="url(#cmp-arrow)"/>
+    <text x="610" y="104" fill="#888" font-size="11">Yes</text>
+    <rect x="660" y="130" width="160" height="50" rx="6" fill="#20202a" stroke="#98c379" stroke-width="1.5"/>
+    <text x="740" y="160" text-anchor="middle" fill="#98c379" font-size="13" font-weight="700">Kafka / MSK</text>
+
+    <!-- No → next question -->
+    <line x1="430" y1="70" x2="430" y2="130" stroke="#555" stroke-width="1.5" marker-end="url(#cmp-arrow)"/>
+    <text x="440" y="104" fill="#888" font-size="11">No</text>
+    <rect x="280" y="130" width="300" height="50" rx="6" fill="#20202a" stroke="#61afef" stroke-width="1.5"/>
+    <text x="430" y="158" text-anchor="middle" fill="#61afef" font-size="13">N subscribers need the same event?</text>
+
+    <!-- Yes → SNS + SQS -->
+    <line x1="430" y1="180" x2="720" y2="240" stroke="#555" stroke-width="1.5" marker-end="url(#cmp-arrow)"/>
+    <text x="610" y="214" fill="#888" font-size="11">Yes (fanout)</text>
+    <rect x="640" y="240" width="200" height="50" rx="6" fill="#20202a" stroke="#c678dd" stroke-width="1.5"/>
+    <text x="740" y="270" text-anchor="middle" fill="#c678dd" font-size="13" font-weight="700">SNS + SQS queues</text>
+
+    <!-- No → next question -->
+    <line x1="430" y1="180" x2="430" y2="240" stroke="#555" stroke-width="1.5" marker-end="url(#cmp-arrow)"/>
+    <text x="440" y="214" fill="#888" font-size="11">No (1:1)</text>
+    <rect x="280" y="240" width="300" height="50" rx="6" fill="#20202a" stroke="#61afef" stroke-width="1.5"/>
+    <text x="430" y="268" text-anchor="middle" fill="#61afef" font-size="13">Strict ordering + exactly-once needed?</text>
+
+    <!-- Yes → SQS FIFO -->
+    <line x1="430" y1="290" x2="720" y2="350" stroke="#555" stroke-width="1.5" marker-end="url(#cmp-arrow)"/>
+    <text x="610" y="322" fill="#888" font-size="11">Yes</text>
+    <rect x="650" y="350" width="180" height="50" rx="6" fill="#20202a" stroke="#e5c07b" stroke-width="1.5"/>
+    <text x="740" y="380" text-anchor="middle" fill="#e5c07b" font-size="13" font-weight="700">SQS FIFO</text>
+
+    <!-- No → SQS Standard -->
+    <line x1="430" y1="290" x2="430" y2="350" stroke="#555" stroke-width="1.5" marker-end="url(#cmp-arrow)"/>
+    <text x="440" y="322" fill="#888" font-size="11">No</text>
+    <rect x="280" y="350" width="300" height="50" rx="6" fill="#20202a" stroke="#56b6c2" stroke-width="1.5"/>
+    <text x="430" y="380" text-anchor="middle" fill="#56b6c2" font-size="13" font-weight="700">SQS Standard</text>
+  </svg>
+
+  <h3>Hybrid Architectures</h3>
+  <div class="two-col">
+    <div class="card">
+      <h4 style="color:var(--accent-blue)">Kafka for streams, SQS for tasks</h4>
+      <ul>
+        <li>Kafka ingests high-volume events (clickstream, CDC)</li>
+        <li>Kafka consumer writes enriched events to SQS for downstream workers</li>
+        <li>SQS workers handle bursty, finite-lifetime tasks (send email, resize image)</li>
+        <li>Best of both: Kafka replay + SQS managed scaling</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h4 style="color:var(--accent-purple)">SNS + SQS + DLQ + Kafka</h4>
+      <ul>
+        <li>SNS → SQS for low-volume operational events</li>
+        <li>Kafka for high-volume data pipeline events</li>
+        <li>DLQ on every SQS queue — non-negotiable</li>
+        <li>Kafka Connect for CDC → Kafka → S3 for data lake</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="takeaway">
+    <strong>Key interview signals — say these unprompted</strong>
+    <ul>
+      <li><strong>SQS = queue (delete on ACK), Kafka = log (immutable, offset-based).</strong> This is the fundamental model difference. Interviewers want to hear you articulate it.</li>
+      <li>If you need multiple independent services to consume the same event stream, use Kafka (consumer groups) or SNS+SQS (separate queues per subscriber). SQS alone only delivers each message to one consumer.</li>
+      <li>If cost is a constraint: SQS is nearly free at moderate volume. Kafka (MSK) has hourly broker cost regardless of traffic — don't choose it for a low-volume use case.</li>
+      <li>If replay is mentioned: Kafka. Period. SQS does not support replay; once deleted, gone.</li>
+      <li>SQS/SNS is serverless and scales to zero — correct choice when throughput is unpredictable or low-baseline (e.g. Lambda-based microservices).</li>
+    </ul>
+  </div>
+</section>
+
+<script>
+// ============================================================
+// Tab navigation
+// ============================================================
+function setActiveTab(name) {
+  document.querySelectorAll('section[data-tab]').forEach(s => {
+    s.hidden = s.dataset.tab !== name;
+  });
+  document.querySelectorAll('.tabs button').forEach((b, i) => {
+    const tabs = ['standard','fifo','dlq','sns','compare'];
+    b.classList.toggle('active', tabs[i] === name);
+  });
+  if (name === 'standard' && !STD._initialized) STD.init();
+  if (name === 'fifo' && !FIFO._initialized) FIFO.init();
+  if (name === 'dlq' && !DLQ._initialized) DLQ.init();
+  if (name === 'sns' && !SNS._initialized) SNS.init();
+}
+
+// ============================================================
+// TAB 1 — SQS STANDARD
+// ============================================================
+const STD = (() => {
+  let _initialized = false;
+  let depth = 0;
+  let processed = 0;
+  let duplicates = 0;
+  let messages = []; // {id, color, seq}
+  let seq = 0;
+  let vtDuration = 6000; // ms
+  let inFlightMsg = null; // {id, startTime, barRaf}
+  let barRaf = null;
+
+  const SLOT_X = [255, 315, 375, 435, 495, 555];
+  const MSG_Y = 157;
+  const MSG_W = 54;
+  const MSG_H = 36;
+  const COLORS = ['#e06c75','#98c379','#61afef','#e5c07b','#c678dd','#56b6c2'];
+
+  function init() {
+    _initialized = true;
+    render();
+  }
+
+  function getDepthEl() { return document.getElementById('std-depth'); }
+  function getProcEl() { return document.getElementById('std-processed'); }
+  function getDupsEl() { return document.getElementById('std-dups'); }
+  function getComm() { return document.getElementById('std-commentary'); }
+  function getC1() { return document.getElementById('std-c1-state'); }
+  function getC2() { return document.getElementById('std-c2-state'); }
+  function getVisBar() { return document.getElementById('std-vis-bar'); }
+  function getVisLabel() { return document.getElementById('std-vis-label'); }
+
+  function render() {
+    const layer = document.getElementById('std-msg-layer');
+    layer.innerHTML = '';
+    messages.slice(0, 6).forEach((m, i) => {
+      const x = SLOT_X[i];
+      const clr = m.inflight ? '#555' : m.color;
+      const ns = 'http://www.w3.org/2000/svg';
+      const rect = document.createElementNS(ns, 'rect');
+      rect.setAttribute('x', x); rect.setAttribute('y', MSG_Y);
+      rect.setAttribute('width', MSG_W); rect.setAttribute('height', MSG_H);
+      rect.setAttribute('rx', '4');
+      rect.setAttribute('fill', m.inflight ? '#20202a' : clr + '22');
+      rect.setAttribute('stroke', clr);
+      rect.setAttribute('stroke-width', '1.5');
+      layer.appendChild(rect);
+      const txt = document.createElementNS(ns, 'text');
+      txt.setAttribute('x', x + MSG_W/2); txt.setAttribute('y', MSG_Y + 22);
+      txt.setAttribute('text-anchor', 'middle');
+      txt.setAttribute('fill', clr); txt.setAttribute('font-size', '10');
+      txt.textContent = m.inflight ? 'hidden' : 'msg-' + m.seq;
+      layer.appendChild(txt);
+    });
+    getDepthEl().textContent = depth;
+    getProcEl().textContent = processed;
+    getDupsEl().textContent = duplicates;
+  }
+
+  function updateVT() {
+    const s = document.getElementById('std-vt-slider');
+    vtDuration = parseInt(s.value) * 1000;
+    document.getElementById('std-vt-label').textContent = s.value + 's';
+  }
+
+  function sendMessage() {
+    if (depth >= 6) { getComm().textContent = 'Queue is full (6 messages). Process some first.'; return; }
+    seq++;
+    const color = COLORS[seq % COLORS.length];
+    messages.push({id: seq, color, seq, inflight: false});
+    depth++;
+    render();
+    getComm().textContent = 'msg-' + seq + ' sent to queue. Depth: ' + depth + '. A consumer will pick it up.';
+    // auto-dispatch to consumer after short delay
+    setTimeout(() => dispatchToConsumer(), 800);
+  }
+
+  function burst() {
+    let count = Math.min(5, 6 - depth);
+    for (let i = 0; i < count; i++) {
+      setTimeout(() => sendMessage(), i * 300);
+    }
+  }
+
+  function dispatchToConsumer() {
+    if (messages.length === 0) return;
+    const m = messages[0];
+    if (m.inflight) return;
+    m.inflight = true;
+    depth = Math.max(0, depth - 1);
+    render();
+    const consumer = Math.random() > 0.5 ? 1 : 2;
+    const stateEl = document.getElementById('std-c' + consumer + '-state');
+    stateEl.textContent = 'processing msg-' + m.seq;
+    stateEl.style.fill = '#e5c07b';
+    getComm().textContent = 'msg-' + m.seq + ' is IN-FLIGHT (hidden from other consumers). Visibility timeout: ' + (vtDuration/1000) + 's. Consumer ' + consumer + ' is processing.';
+    startVisBar(m, consumer);
+    // Normal success path: delete after 40% of VT
+    const ackDelay = vtDuration * 0.4;
+    const timer = setTimeout(() => {
+      ackMessage(m, consumer);
+    }, ackDelay);
+    m._ackTimer = timer;
+  }
+
+  function startVisBar(m, consumer) {
+    const start = performance.now();
+    const bar = getVisBar();
+    const label = getVisLabel();
+    function frame(now) {
+      const elapsed = now - start;
+      const pct = Math.min(elapsed / vtDuration, 1);
+      bar.setAttribute('width', (800 * pct).toFixed(1));
+      const remaining = ((vtDuration - elapsed) / 1000).toFixed(1);
+      if (pct < 1) {
+        bar.setAttribute('fill', '#61afef');
+        label.textContent = 'msg-' + m.seq + ' in-flight | visibility timeout: ' + remaining + 's remaining';
+        barRaf = requestAnimationFrame(frame);
+      } else {
+        bar.setAttribute('fill', '#e06c75');
+        label.textContent = 'TIMEOUT EXPIRED — msg-' + m.seq + ' reappears in queue (potential duplicate!)';
+      }
+    }
+    if (barRaf) cancelAnimationFrame(barRaf);
+    barRaf = requestAnimationFrame(frame);
+  }
+
+  function ackMessage(m, consumer) {
+    if (barRaf) cancelAnimationFrame(barRaf);
+    messages.shift();
+    processed++;
+    render();
+    const stateEl = document.getElementById('std-c' + consumer + '-state');
+    stateEl.textContent = 'idle';
+    stateEl.style.fill = '#888';
+    getVisBar().setAttribute('width', '0');
+    getVisLabel().textContent = 'No message in-flight';
+    getComm().textContent = 'msg-' + m.seq + ' ACKed (DeleteMessage called). Removed from queue permanently. Processed: ' + processed;
+    // chain next
+    if (messages.length > 0 && !messages[0].inflight) {
+      setTimeout(() => dispatchToConsumer(), 500);
+    }
+  }
+
+  function simulateTimeout() {
+    if (messages.length === 0) {
+      sendMessage();
+      setTimeout(() => simulateTimeout(), 1000);
+      return;
+    }
+    const m = messages[0];
+    if (m._ackTimer) clearTimeout(m._ackTimer);
+    if (barRaf) cancelAnimationFrame(barRaf);
+    // let it expire
+    m.inflight = false;
+    depth++;
+    duplicates++;
+    render();
+    getVisBar().setAttribute('fill', '#e06c75');
+    getVisBar().setAttribute('width', '800');
+    getVisLabel().textContent = 'TIMEOUT EXPIRED — msg-' + m.seq + ' reappears in queue!';
+    getComm().textContent = 'DUPLICATE: msg-' + m.seq + ' visibility timeout expired without ACK. Message reappears — any consumer can receive it again. Total duplicates: ' + duplicates + '. This is why consumers must be idempotent.';
+    // reset bar after 2s
+    setTimeout(() => {
+      getVisBar().setAttribute('width', '0');
+      getVisBar().setAttribute('fill', '#61afef');
+      getVisLabel().textContent = 'No message in-flight';
+      document.getElementById('std-c1-state').textContent = 'idle';
+      document.getElementById('std-c1-state').style.fill = '#888';
+      document.getElementById('std-c2-state').textContent = 'idle';
+      document.getElementById('std-c2-state').style.fill = '#888';
+      setTimeout(() => dispatchToConsumer(), 500);
+    }, 2000);
+  }
+
+  function reset() {
+    if (barRaf) cancelAnimationFrame(barRaf);
+    messages.forEach(m => { if (m._ackTimer) clearTimeout(m._ackTimer); });
+    messages = []; depth = 0; processed = 0; duplicates = 0; seq = 0; inFlightMsg = null;
+    render();
+    document.getElementById('std-c1-state').textContent = 'idle';
+    document.getElementById('std-c1-state').style.fill = '#888';
+    document.getElementById('std-c2-state').textContent = 'idle';
+    document.getElementById('std-c2-state').style.fill = '#888';
+    getVisBar().setAttribute('width', '0');
+    getVisBar().setAttribute('fill', '#61afef');
+    getVisLabel().textContent = 'No message in-flight';
+    getComm().textContent = 'Reset. Send messages to observe visibility timeout and at-least-once delivery behavior.';
+  }
+
+  return { init, sendMessage, burst, simulateTimeout, reset, updateVT, _initialized: false };
+})();
+STD._initialized = false;
+STD.init();
+
+// ============================================================
+// TAB 2 — SQS FIFO
+// ============================================================
+const FIFO = (() => {
+  let _initialized = false;
+  let seqA = 0, seqB = 0;
+  let groupA = []; // {seq, color, dedup}
+  let groupB = [];
+  let processedA = 0, processedB = 0;
+  let dedupSet = new Set();
+  let dupBlocked = 0;
+
+  const LANE_A_Y = 100, LANE_B_Y = 230;
+  const LANE_X_START = 230, SLOT_W = 60, MSG_H = 50;
+  const COL_A = '#61afef', COL_B = '#e5c07b';
+
+  function init() { _initialized = true; render(); }
+
+  function getComm() { return document.getElementById('fifo-commentary'); }
+
+  function render() {
+    renderGroup('fifo-group-a', groupA, LANE_A_Y, COL_A);
+    renderGroup('fifo-group-b', groupB, LANE_B_Y, COL_B);
+  }
+
+  function renderGroup(id, grp, baseY, color) {
+    const g = document.getElementById(id);
+    g.innerHTML = '';
+    const ns = 'http://www.w3.org/2000/svg';
+    grp.slice(0, 6).forEach((m, i) => {
+      const x = LANE_X_START + i * SLOT_W + 4;
+      const y = baseY + 30;
+      const rect = document.createElementNS(ns, 'rect');
+      rect.setAttribute('x', x); rect.setAttribute('y', y);
+      rect.setAttribute('width', SLOT_W - 6); rect.setAttribute('height', MSG_H - 10);
+      rect.setAttribute('rx', '4');
+      rect.setAttribute('fill', m.processing ? color + '44' : color + '22');
+      rect.setAttribute('stroke', m.processing ? color : color + '88');
+      rect.setAttribute('stroke-width', m.processing ? '2' : '1');
+      g.appendChild(rect);
+      const txt = document.createElementNS(ns, 'text');
+      txt.setAttribute('x', x + (SLOT_W-6)/2); txt.setAttribute('y', y + 12);
+      txt.setAttribute('text-anchor', 'middle');
+      txt.setAttribute('fill', color); txt.setAttribute('font-size', '9');
+      txt.textContent = 'msg-' + m.seq;
+      g.appendChild(txt);
+      const ord = document.createElementNS(ns, 'text');
+      ord.setAttribute('x', x + (SLOT_W-6)/2); ord.setAttribute('y', y + 26);
+      ord.setAttribute('text-anchor', 'middle');
+      ord.setAttribute('fill', '#888'); ord.setAttribute('font-size', '8');
+      ord.textContent = m.processing ? 'in-flight' : 'seq:' + m.seq;
+      g.appendChild(ord);
+    });
+  }
+
+  function sendA() {
+    if (groupA.length >= 6) { getComm().textContent = 'Group A lane full.'; return; }
+    seqA++;
+    const dedup = 'A-' + seqA;
+    groupA.push({seq: seqA, processing: false, dedup});
+    render();
+    getComm().textContent = 'msg-' + seqA + ' added to Group A. GroupId=order:payment. Order within A is guaranteed.';
+    setTimeout(() => processA(), 600);
+  }
+
+  function sendB() {
+    if (groupB.length >= 6) { getComm().textContent = 'Group B lane full.'; return; }
+    seqB++;
+    const dedup = 'B-' + seqB;
+    groupB.push({seq: seqB, processing: false, dedup});
+    render();
+    getComm().textContent = 'msg-' + seqB + ' added to Group B. GroupId=order:inventory. Groups A and B are processed independently.';
+    setTimeout(() => processB(), 600);
+  }
+
+  function processA() {
+    if (groupA.length === 0 || groupA[0].processing) return;
+    groupA[0].processing = true;
+    render();
+    const el = document.getElementById('fifo-ca-state');
+    el.textContent = 'processing msg-' + groupA[0].seq;
+    setTimeout(() => {
+      processedA++;
+      groupA.shift();
+      render();
+      el.textContent = 'idle';
+      getComm().textContent = 'Consumer A finished msg. Group A processed ' + processedA + ' in order. Next in group will follow.';
+      if (groupA.length > 0) setTimeout(() => processA(), 400);
+    }, 1200);
+  }
+
+  function processB() {
+    if (groupB.length === 0 || groupB[0].processing) return;
+    groupB[0].processing = true;
+    render();
+    const el = document.getElementById('fifo-cb-state');
+    el.textContent = 'processing msg-' + groupB[0].seq;
+    setTimeout(() => {
+      processedB++;
+      groupB.shift();
+      render();
+      el.textContent = 'idle';
+      getComm().textContent = 'Consumer B finished msg. Group B processed ' + processedB + ' in order. Groups run concurrently.';
+      if (groupB.length > 0) setTimeout(() => processB(), 400);
+    }, 1400);
+  }
+
+  function interleaved() {
+    [0,200,400,600,800].forEach((delay, i) => {
+      setTimeout(() => {
+        if (i % 2 === 0) sendA(); else sendB();
+      }, delay);
+    });
+  }
+
+  function sendDup() {
+    // Simulate sending a message with an already-used dedup ID
+    const dupId = 'A-' + seqA; // reuse last A dedup ID
+    if (dedupSet.has(dupId)) {
+      dupBlocked++;
+      getComm().textContent = 'DUPLICATE BLOCKED: MessageDeduplicationId "' + dupId + '" was seen within the 5-minute window. Message silently discarded. Total blocked: ' + dupBlocked + '. This is exactly-once guarantee.';
+      return;
+    }
+    dedupSet.add(dupId);
+    setTimeout(() => dedupSet.delete(dupId), 10000); // simulate 10s window for demo
+    getComm().textContent = 'First send with dedup ID "' + dupId + '". Press again within 5 min to see dedup in action.';
+    sendA();
+  }
+
+  function reset() {
+    seqA = 0; seqB = 0; groupA = []; groupB = []; processedA = 0; processedB = 0;
+    dedupSet.clear(); dupBlocked = 0;
+    render();
+    document.getElementById('fifo-ca-state').textContent = 'idle';
+    document.getElementById('fifo-cb-state').textContent = 'idle';
+    getComm().textContent = 'Reset. Send messages to Group A or B to observe per-group ordering.';
+  }
+
+  return { init, sendA, sendB, interleaved, sendDup, reset, _initialized: false };
+})();
+FIFO._initialized = false;
+
+// ============================================================
+// TAB 3 — DEAD LETTER QUEUE
+// ============================================================
+const DLQ = (() => {
+  let _initialized = false;
+  let mrc = 3;
+  let receiveCount = 0;
+  let dlqDepth = 0;
+  let redriveActive = false;
+  let msgPresent = true;
+
+  function init() { _initialized = true; updateDisplay(); }
+
+  function getComm() { return document.getElementById('dlq-commentary'); }
+  function updateMRC() {
+    const s = document.getElementById('dlq-mrc-slider');
+    mrc = parseInt(s.value);
+    document.getElementById('dlq-mrc-display').textContent = mrc;
+    document.getElementById('dlq-mrc-label').textContent = mrc;
+    document.getElementById('dlq-mrc-denom').textContent = mrc;
+    updateDisplay();
+  }
+
+  function updateDisplay() {
+    document.getElementById('dlq-recv-count').textContent = receiveCount;
+    document.getElementById('dlq-mrc-denom').textContent = mrc;
+    document.getElementById('dlq-depth').textContent = dlqDepth;
+    document.getElementById('dlq-src-depth').textContent = msgPresent ? '1' : '0';
+    // CloudWatch alarm
+    const cw = document.getElementById('dlq-cw-state');
+    if (dlqDepth > 0) {
+      cw.textContent = 'ALARM: DLQ depth=' + dlqDepth + ' > 0 !';
+      cw.setAttribute('fill', '#e06c75');
+      document.getElementById('dlq-alarm-state').textContent = 'ALARM depth=' + dlqDepth;
+      document.getElementById('dlq-alarm-state').setAttribute('fill', '#e06c75');
+    } else {
+      cw.textContent = 'ALARM: OK';
+      cw.setAttribute('fill', '#98c379');
+      document.getElementById('dlq-alarm-state').textContent = 'OK (depth=0)';
+      document.getElementById('dlq-alarm-state').setAttribute('fill', '#888');
+    }
+    // Route line opacity
+    const pct = mrc > 0 ? receiveCount / mrc : 0;
+    document.getElementById('dlq-route-line').setAttribute('opacity', 0.3 + pct * 0.7);
+    document.getElementById('dlq-route-label').setAttribute('opacity', 0.3 + pct * 0.7);
+  }
+
+  function failOnce() {
+    if (!msgPresent && dlqDepth === 0) {
+      getComm().textContent = 'No message to process. Click Reset first.';
+      return;
+    }
+    if (!msgPresent) {
+      getComm().textContent = 'Message is in DLQ. Use DLQ Redrive to replay it.';
+      return;
+    }
+    if (receiveCount >= mrc) {
+      getComm().textContent = 'Message already exceeded maxReceiveCount (' + mrc + '). It should be in DLQ. Click Reset to start fresh.';
+      return;
+    }
+    receiveCount++;
+    const cs = document.getElementById('dlq-c-state');
+    const cd = document.getElementById('dlq-c-detail');
+    cs.textContent = 'processing…';
+    cs.setAttribute('fill', '#e5c07b');
+    getComm().textContent = 'Consumer received message (receive ' + receiveCount + '/' + mrc + '). Processing fails — returning to queue. Receive count increments.';
+    setTimeout(() => {
+      cs.textContent = 'FAILED — returning to queue';
+      cs.setAttribute('fill', '#e06c75');
+      cd.textContent = 'receive ' + receiveCount + '/' + mrc;
+      if (receiveCount >= mrc) {
+        setTimeout(() => routeToDLQ(), 800);
+      } else {
+        setTimeout(() => { cs.textContent = 'idle'; cs.setAttribute('fill', '#888'); cd.textContent = ''; }, 1200);
+      }
+      updateDisplay();
+    }, 1000);
+    updateDisplay();
+  }
+
+  function failToMax() {
+    if (!msgPresent) { getComm().textContent = 'No message. Reset first.'; return; }
+    const remaining = mrc - receiveCount;
+    let delay = 0;
+    for (let i = 0; i < remaining; i++) {
+      setTimeout(() => failOnce(), delay);
+      delay += 1600;
+    }
+  }
+
+  function routeToDLQ() {
+    msgPresent = false;
+    dlqDepth++;
+    receiveCount = 0;
+    const cs = document.getElementById('dlq-c-state');
+    cs.textContent = 'idle';
+    cs.setAttribute('fill', '#888');
+    document.getElementById('dlq-c-detail').textContent = '';
+    document.getElementById('dlq-route-line').setAttribute('stroke', '#e06c75');
+    getComm().textContent = 'maxReceiveCount (' + mrc + ') exceeded! SQS automatically moved message to DLQ. CloudWatch alarm fires. DLQ depth: ' + dlqDepth + '. Fix the bug, then use DLQ Redrive to replay.';
+    updateDisplay();
+  }
+
+  function startRedrive() {
+    if (dlqDepth === 0) { getComm().textContent = 'DLQ is empty. Fail a message first.'; return; }
+    if (redriveActive) return;
+    redriveActive = true;
+    document.getElementById('dlq-redrive-state').textContent = 'in progress…';
+    document.getElementById('dlq-redrive-state').setAttribute('fill', '#98c379');
+    document.getElementById('dlq-redrive-arrow').setAttribute('opacity', '1');
+    getComm().textContent = 'DLQ Redrive started (StartMessageMoveTask API). Messages move from DLQ back to source queue at controlled rate. Fix the root cause BEFORE redrive — otherwise messages just cycle back to DLQ.';
+    setTimeout(() => {
+      dlqDepth = Math.max(0, dlqDepth - 1);
+      msgPresent = true;
+      receiveCount = 0;
+      redriveActive = false;
+      document.getElementById('dlq-redrive-state').textContent = 'complete';
+      document.getElementById('dlq-redrive-arrow').setAttribute('opacity', '0');
+      getComm().textContent = 'Redrive complete. Message back in source queue. Consumer will retry. If fix was deployed, message will now succeed. DLQ depth: ' + dlqDepth;
+      updateDisplay();
+      // auto-succeed the redriven message
+      setTimeout(() => succeedMsg(), 1000);
+    }, 2000);
+    updateDisplay();
+  }
+
+  function succeedMsg() {
+    if (!msgPresent) return;
+    const cs = document.getElementById('dlq-c-state');
+    cs.textContent = 'processing (post-fix)…';
+    cs.setAttribute('fill', '#98c379');
+    setTimeout(() => {
+      msgPresent = false;
+      cs.textContent = 'ACKed — success';
+      cs.setAttribute('fill', '#98c379');
+      getComm().textContent = 'Message processed successfully after redrive. Bug was fixed. DLQ depth remains ' + dlqDepth + '. All clear.';
+      updateDisplay();
+      setTimeout(() => { cs.textContent = 'idle'; cs.setAttribute('fill', '#888'); }, 1500);
+    }, 1200);
+  }
+
+  function reset() {
+    receiveCount = 0; dlqDepth = 0; redriveActive = false; msgPresent = true;
+    document.getElementById('dlq-c-state').textContent = 'idle';
+    document.getElementById('dlq-c-state').setAttribute('fill', '#888');
+    document.getElementById('dlq-c-detail').textContent = '';
+    document.getElementById('dlq-redrive-state').textContent = 'not started';
+    document.getElementById('dlq-redrive-state').setAttribute('fill', '#56b6c2');
+    document.getElementById('dlq-redrive-arrow').setAttribute('opacity', '0');
+    document.getElementById('dlq-route-line').setAttribute('opacity', '0.3');
+    document.getElementById('dlq-route-label').setAttribute('opacity', '0.3');
+    updateDisplay();
+    getComm().textContent = 'Reset. Use "Consumer fails" to simulate processing failures and watch DLQ routing.';
+  }
+
+  return { init, failOnce, failToMax, startRedrive, reset, updateMRC, _initialized: false };
+})();
+DLQ._initialized = false;
+
+// ============================================================
+// TAB 4 — SNS FANOUT
+// ============================================================
+const SNS = (() => {
+  let _initialized = false;
+  let published = 0;
+  let q1 = 0, q2 = 0, q3 = 0;
+  let q1r = 0, q2r = 0, q3r = 0;
+
+  function init() { _initialized = true; updateDisplay(); }
+
+  function getComm() { return document.getElementById('sns-commentary'); }
+
+  function updateDisplay() {
+    document.getElementById('sns-msg-count').textContent = 'published: ' + published;
+    document.getElementById('sns-q1-depth').textContent = 'depth: ' + q1;
+    document.getElementById('sns-q2-depth').textContent = 'depth: ' + q2;
+    document.getElementById('sns-q3-depth').textContent = 'depth: ' + q3;
+    document.getElementById('sns-q1-received').textContent = 'received: ' + q1r;
+    document.getElementById('sns-q2-received').textContent = 'received: ' + q2r;
+    document.getElementById('sns-q3-received').textContent = 'received: ' + q3r;
+  }
+
+  // Filter logic:
+  // billing: no filter (all events)
+  // inventory: only order.created
+  // analytics: only order.shipped
+  function matchFilter(sub, eventType) {
+    if (sub === 'billing') return true;
+    if (sub === 'inventory') return eventType === 'order.created';
+    if (sub === 'analytics') return eventType === 'order.shipped';
+    return false;
+  }
+
+  function publish(eventType) {
+    published++;
+    document.getElementById('sns-pub-attr').textContent = eventType;
+    updateDisplay();
+
+    const hits = { billing: false, inventory: false, analytics: false };
+    ['billing','inventory','analytics'].forEach(sub => {
+      hits[sub] = matchFilter(sub, eventType);
+    });
+
+    animateFanout(eventType, hits);
+
+    const receivers = Object.keys(hits).filter(k => hits[k]);
+    const blocked = Object.keys(hits).filter(k => !hits[k]);
+
+    if (hits.billing) { q1++; q1r++; }
+    if (hits.inventory) { q2++; q2r++; }
+    if (hits.analytics) { q3++; q3r++; }
+
+    getComm().textContent = 'Published "' + eventType + '". Delivered to: ' + receivers.join(', ') + '. '
+      + (blocked.length > 0 ? 'Filtered out for: ' + blocked.join(', ') + ' (filter policy mismatch).' : 'No subscriptions filtered.');
+
+    // Simulate consumers pulling and processing
+    setTimeout(() => {
+      if (hits.billing && q1 > 0) q1--;
+      if (hits.inventory && q2 > 0) q2--;
+      if (hits.analytics && q3 > 0) q3--;
+      updateDisplay();
+    }, 2500);
+
+    updateDisplay();
+  }
+
+  function animateFanout(eventType, hits) {
+    const ns = 'http://www.w3.org/2000/svg';
+    const anim = document.getElementById('sns-anim');
+    anim.innerHTML = '';
+
+    // Center of SNS topic
+    const sx = 260, sy = 210;
+    // Queue centers: billing=558,115, inventory=558,210, analytics=558,310
+    const targets = [
+      {x: 558, y: 115, sub: 'billing', color: '#61afef'},
+      {x: 558, y: 210, sub: 'inventory', color: '#98c379'},
+      {x: 558, y: 310, sub: 'analytics', color: '#e5c07b'},
+    ];
+
+    targets.forEach(t => {
+      if (!hits[t.sub]) {
+        // Draw X
+        const xmark = document.createElementNS(ns, 'text');
+        xmark.setAttribute('x', (sx + t.x) / 2);
+        xmark.setAttribute('y', (sy + t.y) / 2);
+        xmark.setAttribute('text-anchor', 'middle');
+        xmark.setAttribute('fill', '#e06c75');
+        xmark.setAttribute('font-size', '16');
+        xmark.setAttribute('font-weight', '700');
+        xmark.setAttribute('opacity', '0');
+        xmark.textContent = '✗';
+        anim.appendChild(xmark);
+        // fade in/out
+        let op = 0;
+        const interval = setInterval(() => {
+          op += 0.15;
+          xmark.setAttribute('opacity', Math.min(op, 1));
+          if (op > 2) { xmark.setAttribute('opacity', Math.max(0, 2 - op + 1)); }
+          if (op > 3) { anim.removeChild(xmark); clearInterval(interval); }
+        }, 80);
+        return;
+      }
+      // Animate a packet along the line
+      const circ = document.createElementNS(ns, 'circle');
+      circ.setAttribute('r', '7');
+      circ.setAttribute('fill', t.color);
+      circ.setAttribute('cx', sx); circ.setAttribute('cy', sy);
+      anim.appendChild(circ);
+      const startT = performance.now();
+      const dur = 600;
+      function frame(now) {
+        const pct = Math.min((now - startT) / dur, 1);
+        const cx = sx + (t.x - sx) * pct;
+        const cy = sy + (t.y - sy) * pct;
+        circ.setAttribute('cx', cx); circ.setAttribute('cy', cy);
+        if (pct < 1) { requestAnimationFrame(frame); }
+        else {
+          circ.setAttribute('opacity', '0.5');
+          setTimeout(() => { try { anim.removeChild(circ); } catch(e){} }, 300);
+        }
+      }
+      requestAnimationFrame(frame);
+    });
+  }
+
+  function burst() {
+    const types = ['order.created','order.shipped','order.cancelled','order.created','order.shipped'];
+    types.forEach((t, i) => setTimeout(() => publish(t), i * 700));
+  }
+
+  function reset() {
+    published = 0; q1 = 0; q2 = 0; q3 = 0; q1r = 0; q2r = 0; q3r = 0;
+    document.getElementById('sns-pub-attr').textContent = 'order.created';
+    document.getElementById('sns-anim').innerHTML = '';
+    updateDisplay();
+    getComm().textContent = 'Reset. Publish events to watch filter policy routing.';
+  }
+
+  return { init, publish, burst, reset, _initialized: false };
+})();
+SNS._initialized = false;
+</script>
+</body>
+</html>

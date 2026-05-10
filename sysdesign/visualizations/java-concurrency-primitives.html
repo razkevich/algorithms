@@ -1,0 +1,1916 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Java Concurrency Primitives — Interactive Reference</title>
+<style>
+:root {
+  --bg: #0f0f15;
+  --surface: #181820;
+  --surface-2: #20242a;
+  --border: #2a2a35;
+  --text: #e6e6ea;
+  --text-2: #cfcfd6;
+  --text-3: #888;
+  --accent-red: #e06c75;
+  --accent-green: #98c379;
+  --accent-blue: #61afef;
+  --accent-yellow: #e5c07b;
+  --accent-purple: #c678dd;
+  --accent-cyan: #56b6c2;
+  --accent-orange: #d19a66;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  padding: 32px 24px;
+  max-width: 1100px;
+  margin: 0 auto;
+  line-height: 1.55;
+}
+h1 { color: #fff; margin-bottom: 4px; font-size: 1.6rem; }
+h1 + p.sub { color: var(--text-3); font-style: italic; margin-top: 4px; margin-bottom: 24px; }
+h2 { color: #fff; margin-top: 28px; margin-bottom: 12px; border-bottom: 1px solid var(--border); padding-bottom: 8px; font-size: 1.15rem; }
+h3 { color: var(--text-2); margin-top: 18px; margin-bottom: 8px; font-size: 1rem; }
+p { margin-bottom: 10px; color: var(--text-2); font-size: 14px; }
+ul, ol { padding-left: 20px; margin-bottom: 10px; }
+li { margin-bottom: 4px; font-size: 14px; color: var(--text-2); }
+code {
+  background: var(--surface-2);
+  padding: 2px 6px;
+  border-radius: 3px;
+  color: var(--accent-cyan);
+  font-size: 12.5px;
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+}
+pre {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 14px 16px;
+  font-size: 12.5px;
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+  color: var(--text-2);
+  overflow-x: auto;
+  margin: 12px 0;
+  line-height: 1.6;
+}
+pre .kw { color: var(--accent-purple); }
+pre .ty { color: var(--accent-yellow); }
+pre .cm { color: var(--text-3); font-style: italic; }
+pre .str { color: var(--accent-green); }
+pre .num { color: var(--accent-orange); }
+pre .fn { color: var(--accent-blue); }
+pre .ann { color: var(--accent-red); }
+svg {
+  background: var(--surface);
+  border-radius: 8px;
+  display: block;
+  margin: 14px auto;
+  width: 100%;
+  height: auto;
+}
+canvas {
+  background: var(--surface);
+  border-radius: 8px;
+  display: block;
+  margin: 14px auto;
+  width: 100%;
+}
+.tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+.tabs button {
+  padding: 10px 16px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-2);
+  border-radius: 6px;
+  cursor: pointer;
+  min-height: 44px;
+  font-size: 13px;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+.tabs button:hover { background: var(--surface); }
+.tabs button.active {
+  border-color: var(--accent-blue);
+  border-bottom: 2px solid var(--accent-blue);
+  color: #fff;
+}
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0;
+  align-items: center;
+}
+.controls button, .btn {
+  padding: 9px 16px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  border-radius: 6px;
+  cursor: pointer;
+  min-height: 44px;
+  font-size: 13px;
+  transition: background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+.controls button:hover, .btn:hover { background: var(--surface); }
+.controls button:disabled, .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.controls button.active-btn { border-color: var(--accent-blue); color: var(--accent-blue); }
+.commentary {
+  background: var(--surface-2);
+  padding: 12px 16px;
+  border-radius: 6px;
+  font-size: 13.5px;
+  color: var(--text-2);
+  margin: 10px 0;
+  min-height: 42px;
+  line-height: 1.5;
+  border-left: 3px solid var(--border);
+}
+.takeaway {
+  background: #1a221a;
+  border-left: 3px solid var(--accent-green);
+  padding: 12px 16px;
+  margin: 14px 0;
+  font-size: 13.5px;
+  border-radius: 0 6px 6px 0;
+}
+.takeaway strong { color: var(--accent-green); }
+.takeaway ul { margin: 6px 0 0 0; padding-left: 18px; }
+.takeaway li { margin-bottom: 5px; }
+.warn-box {
+  background: #241a1a;
+  border-left: 3px solid var(--accent-red);
+  padding: 12px 16px;
+  margin: 14px 0;
+  font-size: 13.5px;
+  border-radius: 0 6px 6px 0;
+}
+.warn-box strong { color: var(--accent-red); }
+.grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin: 14px 0;
+}
+.card {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px;
+}
+.card h4 { color: var(--text); margin-bottom: 8px; font-size: 13.5px; }
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  margin: 14px 0;
+}
+th {
+  background: var(--surface-2);
+  color: var(--text-2);
+  padding: 8px 12px;
+  text-align: left;
+  border: 1px solid var(--border);
+  font-weight: 600;
+}
+td {
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  color: var(--text-2);
+  vertical-align: top;
+}
+tr:nth-child(even) td { background: #13131a; }
+section[hidden] { display: none !important; }
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  margin-right: 4px;
+}
+.badge-green { background: #1a2e1a; color: var(--accent-green); }
+.badge-red { background: #2e1a1a; color: var(--accent-red); }
+.badge-blue { background: #1a1e2e; color: var(--accent-blue); }
+.badge-yellow { background: #2a2010; color: var(--accent-yellow); }
+.state-box {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+  border: 2px solid;
+  min-width: 80px;
+  cursor: default;
+  user-select: none;
+}
+@media (max-width: 720px) {
+  body { padding: 20px 14px; }
+  .grid-2 { grid-template-columns: 1fr; }
+}
+@media (max-width: 600px) {
+  .tabs button { font-size: 12px; padding: 10px 10px; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Java Concurrency Primitives</h1>
+  <p class="sub">Thread lifecycle, JMM, synchronized, volatile, j.u.c locks, atomics, and synchronizers — with animations. Interview-depth, not textbook-depth.</p>
+</header>
+
+<nav class="tabs">
+  <button class="active" onclick="setTab('lifecycle')">1 · Thread Lifecycle &amp; JMM</button>
+  <button onclick="setTab('sync')">2 · synchronized &amp; volatile</button>
+  <button onclick="setTab('locks')">3 · j.u.c Locks</button>
+  <button onclick="setTab('atomics')">4 · Atomic &amp; CAS</button>
+  <button onclick="setTab('syncs')">5 · Synchronizers</button>
+</nav>
+
+<!-- ============================================================ -->
+<!-- TAB 1: Thread Lifecycle & JMM                                -->
+<!-- ============================================================ -->
+<section data-tab="lifecycle">
+
+<h2>Thread State Machine</h2>
+<p>A Java thread moves through six states defined in <code>Thread.State</code>. The JVM enforces these transitions — you cannot skip states.</p>
+
+<div class="controls">
+  <button id="lc-step-btn" onclick="lcStep()">Step →</button>
+  <button onclick="lcReset()">Reset</button>
+  <span id="lc-state-label" style="color:var(--accent-yellow);font-size:13px;margin-left:8px;"></span>
+</div>
+
+<canvas id="lc-canvas" height="320" style="max-height:320px;"></canvas>
+
+<div class="commentary" id="lc-commentary">Press <strong>Step</strong> to walk through thread state transitions with triggering method calls.</div>
+
+<h3>State definitions</h3>
+<table>
+  <tr><th>State</th><th>Meaning</th><th>How to enter</th></tr>
+  <tr><td><code>NEW</code></td><td>Thread object created, not started</td><td><code>new Thread(...)</code></td></tr>
+  <tr><td><code>RUNNABLE</code></td><td>Eligible to run (may or may not be on CPU)</td><td><code>t.start()</code></td></tr>
+  <tr><td><code>BLOCKED</code></td><td>Waiting to acquire a monitor lock</td><td>Entering a <code>synchronized</code> block held by another thread</td></tr>
+  <tr><td><code>WAITING</code></td><td>Indefinitely waiting for another thread's signal</td><td><code>wait()</code>, <code>join()</code>, <code>LockSupport.park()</code></td></tr>
+  <tr><td><code>TIMED_WAITING</code></td><td>Waiting with a timeout</td><td><code>sleep(ms)</code>, <code>wait(ms)</code>, <code>join(ms)</code></td></tr>
+  <tr><td><code>TERMINATED</code></td><td>run() returned or threw unchecked exception</td><td>Normal/exceptional completion</td></tr>
+</table>
+
+<div class="takeaway">
+  <strong>Key insight:</strong>
+  <ul>
+    <li>BLOCKED vs WAITING: BLOCKED = waiting for a lock; WAITING = voluntarily giving up CPU until notified.</li>
+    <li><code>interrupt()</code> on WAITING/TIMED_WAITING throws <code>InterruptedException</code>; on BLOCKED it just sets the interrupted flag.</li>
+    <li>A thread can only be started once — calling <code>start()</code> again throws <code>IllegalThreadStateException</code>.</li>
+  </ul>
+</div>
+
+<h2>Java Memory Model (JMM)</h2>
+<p>Each CPU core has its own cache. Without synchronization, writes by Thread A may never be visible to Thread B. The JMM defines <strong>happens-before</strong> rules that guarantee visibility.</p>
+
+<div class="controls">
+  <button onclick="jmmAnimate()">Animate Visibility Bug</button>
+  <button onclick="jmmReset()">Reset</button>
+</div>
+
+<canvas id="jmm-canvas" height="300" style="max-height:300px;"></canvas>
+
+<div class="commentary" id="jmm-commentary">Click <strong>Animate Visibility Bug</strong> to see Thread A write a value that Thread B never sees due to CPU cache isolation.</div>
+
+<h3>Happens-before guarantees</h3>
+<table>
+  <tr><th>Relationship</th><th>Guarantee</th></tr>
+  <tr><td>Program order</td><td>Within one thread, statement N happens-before N+1</td></tr>
+  <tr><td>Monitor lock</td><td><code>unlock()</code> of a monitor HB <code>lock()</code> of the same monitor by any thread</td></tr>
+  <tr><td><code>volatile</code> write → read</td><td>Write to a volatile field HB every subsequent read of that field</td></tr>
+  <tr><td>Thread start</td><td><code>t.start()</code> HB any action in thread <em>t</em></td></tr>
+  <tr><td>Thread join</td><td>All actions in thread <em>t</em> HB <code>t.join()</code> returning in the joiner</td></tr>
+  <tr><td>Static initializer</td><td>Class init HB first use of that class by any thread</td></tr>
+  <tr><td>Object construction</td><td>Writes in a constructor HB a <code>final</code> field read via a reference published safely</td></tr>
+</table>
+
+<div class="takeaway">
+  <strong>Interview line:</strong> "The JMM says nothing about memory addresses — it defines a partial order on <em>actions</em>. If action A happens-before B, A's effects are visible to B. Without a HB edge, the JVM and CPU are free to reorder and cache anything."
+</div>
+
+</section>
+
+<!-- ============================================================ -->
+<!-- TAB 2: synchronized & volatile                               -->
+<!-- ============================================================ -->
+<section data-tab="sync" hidden>
+
+<h2>synchronized — Intrinsic Lock (Monitor)</h2>
+<p>Every Java object has an intrinsic lock (monitor). <code>synchronized</code> acquires it on entry and releases it on exit — even if an exception is thrown.</p>
+
+<div class="grid-2">
+  <div class="card">
+    <h4>synchronized method</h4>
+    <pre><span class="kw">public synchronized void</span> <span class="fn">increment</span>() {
+  count++;  <span class="cm">// lock = this</span>
+}</pre>
+    <p style="font-size:12.5px;">Lock object is <code>this</code>. All synchronized methods on the same instance contend on the same lock.</p>
+  </div>
+  <div class="card">
+    <h4>synchronized block</h4>
+    <pre><span class="kw">private final</span> <span class="ty">Object</span> lock = <span class="kw">new</span> <span class="ty">Object</span>();
+<span class="kw">public void</span> <span class="fn">increment</span>() {
+  <span class="kw">synchronized</span> (lock) {
+    count++;
+  }
+}</pre>
+    <p style="font-size:12.5px;">Explicit lock object — finer granularity, avoids contention across unrelated operations.</p>
+  </div>
+</div>
+
+<div class="controls">
+  <button onclick="syncAnimate()">Animate Monitor Enter/Exit</button>
+  <button onclick="syncReset()">Reset</button>
+</div>
+
+<canvas id="sync-canvas" height="300" style="max-height:300px;"></canvas>
+<div class="commentary" id="sync-commentary">Click Animate to see two threads competing for the intrinsic lock, demonstrating mutual exclusion and the BLOCKED state.</div>
+
+<h3>Reentrancy</h3>
+<p>Java's intrinsic lock is <strong>reentrant</strong>: if the thread that already holds the lock tries to acquire it again, it succeeds (with an internal hold count). This lets synchronized methods safely call other synchronized methods on the same object.</p>
+<pre><span class="kw">synchronized void</span> <span class="fn">outer</span>() {
+  <span class="fn">inner</span>();  <span class="cm">// same thread, already holds lock → succeeds</span>
+}
+<span class="kw">synchronized void</span> <span class="fn">inner</span>() { ... }
+</pre>
+
+<h2>volatile</h2>
+<p><code>volatile</code> gives <strong>visibility</strong> (write flushes to main memory, read always fetches from main memory) but <strong>not atomicity</strong>. It is not a lock — no mutual exclusion.</p>
+
+<div class="grid-2">
+  <div class="card">
+    <h4>Where volatile suffices</h4>
+    <ul style="margin-top:6px;">
+      <li>Single-writer, multiple readers</li>
+      <li>Simple boolean flags (<code>volatile boolean running</code>)</li>
+      <li>Publishing an immutable object reference</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h4>Where volatile is NOT enough</h4>
+    <ul style="margin-top:6px;">
+      <li>Read-modify-write: <code>count++</code> (read, increment, write — not atomic)</li>
+      <li>Check-then-act patterns</li>
+      <li>Any compound action requiring atomicity</li>
+    </ul>
+  </div>
+</div>
+
+<h3>Double-Checked Locking — Bug → Fix</h3>
+<div class="warn-box">
+  <strong>BROKEN (pre-Java 5 or missing volatile):</strong>
+  <pre style="margin-top:8px;"><span class="kw">private static</span> <span class="ty">Singleton</span> instance;
+<span class="kw">public static</span> <span class="ty">Singleton</span> <span class="fn">getInstance</span>() {
+  <span class="kw">if</span> (instance == <span class="kw">null</span>) {             <span class="cm">// read stale null</span>
+    <span class="kw">synchronized</span> (<span class="ty">Singleton</span>.class) {
+      <span class="kw">if</span> (instance == <span class="kw">null</span>)
+        instance = <span class="kw">new</span> <span class="ty">Singleton</span>(); <span class="cm">// partially constructed!</span>
+    }
+  }
+  <span class="kw">return</span> instance;
+}</pre>
+  Problem: JVM can reorder constructor writes and the assignment. Thread B sees a non-null but incompletely initialized object.
+</div>
+
+<div class="takeaway">
+  <strong>FIX — add volatile:</strong>
+  <pre style="margin-top:8px;"><span class="kw">private static volatile</span> <span class="ty">Singleton</span> instance;
+<span class="cm">// volatile write creates happens-before with every subsequent volatile read
+// → construction completes before reference is published</span></pre>
+  <ul>
+    <li><code>volatile</code> on the reference prevents reordering of constructor writes past the store.</li>
+    <li>Better alternative: initialization-on-demand holder idiom (classloader guarantees safety).</li>
+  </ul>
+</div>
+
+<h3>When to choose what</h3>
+<table>
+  <tr><th>Need</th><th>Use</th></tr>
+  <tr><td>Mutual exclusion + visibility</td><td><code>synchronized</code></td></tr>
+  <tr><td>Visibility only (single writer)</td><td><code>volatile</code></td></tr>
+  <tr><td>Atomic increment/CAS</td><td><code>AtomicInteger</code> / <code>LongAdder</code></td></tr>
+  <tr><td>Try-lock, timed, interruptible</td><td><code>ReentrantLock</code></td></tr>
+  <tr><td>Concurrent reads, rare writes</td><td><code>ReadWriteLock</code></td></tr>
+</table>
+
+</section>
+
+<!-- ============================================================ -->
+<!-- TAB 3: j.u.c Locks                                          -->
+<!-- ============================================================ -->
+<section data-tab="locks" hidden>
+
+<h2>ReentrantLock</h2>
+<p>Same semantics as <code>synchronized</code> but with more capabilities. Must manually <code>unlock()</code> — always in a <code>finally</code> block.</p>
+
+<div class="grid-2">
+  <div class="card">
+    <h4>Key APIs over synchronized</h4>
+    <ul style="margin-top:6px;">
+      <li><code>tryLock()</code> — non-blocking attempt</li>
+      <li><code>tryLock(time, unit)</code> — timed attempt</li>
+      <li><code>lockInterruptibly()</code> — abortable wait</li>
+      <li><code>newCondition()</code> — multiple condition queues</li>
+      <li>Fair mode: <code>new ReentrantLock(true)</code></li>
+    </ul>
+  </div>
+  <div class="card">
+    <h4>Canonical pattern</h4>
+    <pre><span class="ty">Lock</span> lock = <span class="kw">new</span> <span class="ty">ReentrantLock</span>();
+lock.<span class="fn">lock</span>();
+<span class="kw">try</span> {
+  <span class="cm">// critical section</span>
+} <span class="kw">finally</span> {
+  lock.<span class="fn">unlock</span>(); <span class="cm">// ALWAYS</span>
+}</pre>
+  </div>
+</div>
+
+<h3>Fair vs Unfair</h3>
+<p>Fair (<code>true</code>) = FIFO order → no starvation, lower throughput. Unfair (default) = barging allowed → higher throughput, possible starvation. <strong>Default unfair for most use cases.</strong></p>
+
+<h2>ReadWriteLock</h2>
+<p>Multiple readers can hold the read lock simultaneously. The write lock is exclusive — blocks all readers and other writers.</p>
+
+<div class="controls">
+  <button onclick="rwAnimate()">Animate Reader/Writer</button>
+  <button onclick="rwReset()">Reset</button>
+</div>
+<canvas id="rw-canvas" height="320" style="max-height:320px;"></canvas>
+<div class="commentary" id="rw-commentary">Click to simulate concurrent readers and an exclusive writer contending on a ReadWriteLock.</div>
+
+<pre><span class="ty">ReadWriteLock</span> rwl = <span class="kw">new</span> <span class="ty">ReentrantReadWriteLock</span>();
+<span class="ty">Lock</span> r = rwl.<span class="fn">readLock</span>();
+<span class="ty">Lock</span> w = rwl.<span class="fn">writeLock</span>();
+
+<span class="cm">// reader</span>
+r.<span class="fn">lock</span>(); <span class="kw">try</span> { <span class="kw">return</span> data; } <span class="kw">finally</span> { r.<span class="fn">unlock</span>(); }
+<span class="cm">// writer</span>
+w.<span class="fn">lock</span>(); <span class="kw">try</span> { data = x; } <span class="kw">finally</span> { w.<span class="fn">unlock</span>(); }</pre>
+
+<div class="warn-box">
+  <strong>Pitfall:</strong> You cannot upgrade a read lock to a write lock without releasing the read lock first (deadlock risk). Use StampedLock for optimistic patterns.
+</div>
+
+<h2>StampedLock (Java 8+)</h2>
+<p>Non-reentrant lock with optimistic reads. Returns a stamp (long) on acquire; validate the stamp before using the data.</p>
+
+<pre><span class="ty">StampedLock</span> sl = <span class="kw">new</span> <span class="ty">StampedLock</span>();
+
+<span class="cm">// Optimistic read — no lock acquired</span>
+<span class="kw">long</span> stamp = sl.<span class="fn">tryOptimisticRead</span>();
+<span class="kw">int</span> x = field;
+<span class="kw">if</span> (!sl.<span class="fn">validate</span>(stamp)) {        <span class="cm">// a write happened?</span>
+  stamp = sl.<span class="fn">readLock</span>();          <span class="cm">// fall back to real read lock</span>
+  <span class="kw">try</span> { x = field; }
+  <span class="kw">finally</span> { sl.<span class="fn">unlockRead</span>(stamp); }
+}</pre>
+
+<div class="takeaway">
+  <strong>StampedLock payoff:</strong> Under read-heavy workloads, optimistic reads incur zero contention — just a stamp validation. Good for CPU-bound hot paths. Not reentrant — never call from synchronized context.
+</div>
+
+<h2>Condition Variables</h2>
+<p>Condition objects decouple "condition not met" (await) from "condition changed" (signal). One lock can have multiple conditions — unlike a single <code>wait()</code>/<code>notifyAll()</code> queue.</p>
+
+<pre><span class="ty">Lock</span> lock = <span class="kw">new</span> <span class="ty">ReentrantLock</span>();
+<span class="ty">Condition</span> notFull  = lock.<span class="fn">newCondition</span>();
+<span class="ty">Condition</span> notEmpty = lock.<span class="fn">newCondition</span>();
+
+<span class="cm">// Producer</span>
+lock.<span class="fn">lock</span>(); <span class="kw">try</span> {
+  <span class="kw">while</span> (full()) notFull.<span class="fn">await</span>();
+  enqueue(item);
+  notEmpty.<span class="fn">signal</span>();
+} <span class="kw">finally</span> { lock.<span class="fn">unlock</span>(); }
+
+<span class="cm">// Consumer</span>
+lock.<span class="fn">lock</span>(); <span class="kw">try</span> {
+  <span class="kw">while</span> (empty()) notEmpty.<span class="fn">await</span>();
+  T item = dequeue();
+  notFull.<span class="fn">signal</span>();
+} <span class="kw">finally</span> { lock.<span class="fn">unlock</span>(); }</pre>
+
+<div class="takeaway">
+  <strong>Two-condition trick:</strong> LinkedBlockingQueue uses exactly this — one condition per end of the queue. <code>notifyAll()</code> on a single monitor wakes every waiter (spurious wakeup amplified); two conditions wake only relevant waiters.
+</div>
+
+</section>
+
+<!-- ============================================================ -->
+<!-- TAB 4: Atomic Variables & CAS                                -->
+<!-- ============================================================ -->
+<section data-tab="atomics" hidden>
+
+<h2>Lock-Free Counters — AtomicInteger</h2>
+<p>The <code>java.util.concurrent.atomic</code> package provides lock-free thread-safe variables backed by CPU-level CAS (compare-and-swap) instructions.</p>
+
+<div class="grid-2">
+  <div class="card">
+    <h4>Core operations</h4>
+    <pre><span class="ty">AtomicInteger</span> ai = <span class="kw">new</span> <span class="ty">AtomicInteger</span>(<span class="num">0</span>);
+ai.<span class="fn">incrementAndGet</span>();   <span class="cm">// ++i</span>
+ai.<span class="fn">getAndIncrement</span>();   <span class="cm">// i++</span>
+ai.<span class="fn">addAndGet</span>(<span class="num">5</span>);         <span class="cm">// i+=5</span>
+ai.<span class="fn">compareAndSet</span>(<span class="num">3</span>,<span class="num">4</span>); <span class="cm">// CAS</span>
+ai.<span class="fn">updateAndGet</span>(x->x*<span class="num">2</span>);</pre>
+  </div>
+  <div class="card">
+    <h4>AtomicReference</h4>
+    <pre><span class="ty">AtomicReference</span>&lt;<span class="ty">Node</span>&gt; head =
+  <span class="kw">new</span> <span class="ty">AtomicReference</span>&lt;&gt;(<span class="kw">null</span>);
+<span class="cm">// Lock-free push</span>
+<span class="kw">do</span> {
+  <span class="ty">Node</span> old = head.<span class="fn">get</span>();
+  newNode.next = old;
+} <span class="kw">while</span> (!head.<span class="fn">compareAndSet</span>(old, newNode));</pre>
+  </div>
+</div>
+
+<h2>CAS Loop Animation</h2>
+
+<div class="controls">
+  <button onclick="casStart()">Start CAS Contention</button>
+  <button onclick="casReset()">Reset</button>
+  <span id="cas-counter-label" style="color:var(--accent-yellow);font-size:13px;margin-left:8px;"></span>
+</div>
+<canvas id="cas-canvas" height="280" style="max-height:280px;"></canvas>
+<div class="commentary" id="cas-commentary">Click Start to see multiple threads performing CAS loops — some succeed, others retry on contention.</div>
+
+<h3>How CAS works</h3>
+<p>CAS(addr, expected, desired) is a single atomic CPU instruction: if <code>*addr == expected</code>, write <code>desired</code> and return true; else return false. No lock needed — contention just causes a retry loop.</p>
+
+<h2>ABA Problem</h2>
+<div class="warn-box">
+  <strong>ABA:</strong> Thread 1 reads value A. Thread 2 changes A→B→A. Thread 1 CAS succeeds (sees A) but misses the intermediate change.
+  <pre style="margin-top:8px;"><span class="cm">// Fix: AtomicStampedReference</span>
+<span class="ty">AtomicStampedReference</span>&lt;<span class="ty">Node</span>&gt; ref =
+  <span class="kw">new</span> <span class="ty">AtomicStampedReference</span>&lt;&gt;(node, <span class="num">0</span>);
+<span class="kw">int</span>[] stamp = <span class="kw">new int</span>[<span class="num">1</span>];
+<span class="ty">Node</span> n = ref.<span class="fn">get</span>(stamp);
+ref.<span class="fn">compareAndSet</span>(n, newNode, stamp[<span class="num">0</span>], stamp[<span class="num">0</span>]+<span class="num">1</span>);</pre>
+  The stamp (version counter) increments on every write — ABA becomes A(0)→B(1)→A(2), CAS fails correctly.
+</div>
+
+<h2>LongAdder vs AtomicLong</h2>
+<p>Under high contention, CAS loops on a single cell cause CPU cache-line bouncing. <code>LongAdder</code> uses a striped cell array — threads update different cells; <code>sum()</code> aggregates them.</p>
+
+<div class="controls">
+  <button onclick="ladderAnimate()">Animate Stripe Contention</button>
+  <button onclick="ladderReset()">Reset</button>
+</div>
+<canvas id="ladder-canvas" height="220" style="max-height:220px;"></canvas>
+<div class="commentary" id="ladder-commentary">Click to see AtomicLong (all threads on one cell) vs LongAdder (threads spread across cells).</div>
+
+<table style="margin-top:14px;">
+  <tr><th>Aspect</th><th>AtomicLong</th><th>LongAdder</th></tr>
+  <tr><td>Low contention</td><td>Faster (single cell, no overhead)</td><td>Slight overhead</td></tr>
+  <tr><td>High contention</td><td>CAS spin, cache miss</td><td>Much faster (striped cells)</td></tr>
+  <tr><td>Read value</td><td><code>get()</code> — exact, always</td><td><code>sum()</code> — not atomic snapshot</td></tr>
+  <tr><td>Use case</td><td>Exact atomic value, CAS logic</td><td>Counters/stats under load</td></tr>
+</table>
+
+<h3>VarHandle (Java 9+)</h3>
+<p><code>VarHandle</code> provides CAS and memory-order operations on plain fields without boxing. Used internally by JDK classes. Replaces <code>AtomicReferenceFieldUpdater</code> — same performance, better API.</p>
+<pre><span class="ty">VarHandle</span> VH = <span class="ty">MethodHandles</span>.<span class="fn">lookup</span>()
+    .<span class="fn">findVarHandle</span>(<span class="ty">MyClass</span>.class, <span class="str">"count"</span>, <span class="kw">int</span>.class);
+VH.<span class="fn">compareAndSet</span>(obj, expected, newVal);
+VH.<span class="fn">setVolatile</span>(obj, <span class="num">42</span>);</pre>
+
+<div class="takeaway">
+  <strong>Rule of thumb:</strong>
+  <ul>
+    <li>Simple counters under load → <code>LongAdder</code></li>
+    <li>Need exact value or CAS semantics → <code>AtomicLong</code></li>
+    <li>Lock-free data structures → <code>AtomicReference</code> + CAS loop</li>
+    <li>Memory-efficient field updates → <code>VarHandle</code></li>
+  </ul>
+</div>
+
+</section>
+
+<!-- ============================================================ -->
+<!-- TAB 5: Synchronizers                                          -->
+<!-- ============================================================ -->
+<section data-tab="syncs" hidden>
+
+<h2>Semaphore — Permit Pool</h2>
+<p>A semaphore holds N permits. <code>acquire()</code> blocks until a permit is available; <code>release()</code> returns one. Perfect for connection pools, rate limiting.</p>
+
+<div class="controls">
+  <button onclick="semStart()">Start Simulation</button>
+  <button onclick="semReset()">Reset</button>
+  <span id="sem-permits-label" style="color:var(--accent-yellow);font-size:13px;margin-left:8px;"></span>
+</div>
+<canvas id="sem-canvas" height="260" style="max-height:260px;"></canvas>
+<div class="commentary" id="sem-commentary">Click Start to simulate 6 threads competing for a semaphore with 3 permits (e.g. a connection pool of size 3).</div>
+
+<pre><span class="ty">Semaphore</span> pool = <span class="kw">new</span> <span class="ty">Semaphore</span>(<span class="num">3</span>); <span class="cm">// 3 permits</span>
+pool.<span class="fn">acquire</span>();
+<span class="kw">try</span> { <span class="cm">// use resource</span> }
+<span class="kw">finally</span> { pool.<span class="fn">release</span>(); }</pre>
+
+<h2>CountDownLatch — One-Shot Gate</h2>
+<p>One or more threads wait at a gate until N other threads complete their work. Once count reaches 0, all waiters are released. <strong>Cannot be reset.</strong></p>
+
+<div class="controls">
+  <button onclick="cdlStart()">Start Workers</button>
+  <button onclick="cdlReset()">Reset</button>
+</div>
+<canvas id="cdl-canvas" height="240" style="max-height:240px;"></canvas>
+<div class="commentary" id="cdl-commentary">Click to see 4 worker threads count down a latch — the main thread unblocks when all workers finish.</div>
+
+<pre><span class="ty">CountDownLatch</span> latch = <span class="kw">new</span> <span class="ty">CountDownLatch</span>(<span class="num">4</span>);
+<span class="cm">// In each worker:</span>
+latch.<span class="fn">countDown</span>();
+<span class="cm">// Main thread:</span>
+latch.<span class="fn">await</span>(); <span class="cm">// blocks until count == 0</span></pre>
+
+<h2>CyclicBarrier — Reusable Rendezvous</h2>
+<p>All N parties must reach the barrier before any proceeds. Resets automatically after release — unlike CountDownLatch. Optional barrier action runs once when all parties arrive.</p>
+
+<div class="controls">
+  <button onclick="cbStart()">Start Barrier Simulation</button>
+  <button onclick="cbReset()">Reset</button>
+  <span id="cb-phase-label" style="color:var(--accent-purple);font-size:13px;margin-left:8px;"></span>
+</div>
+<canvas id="cb-canvas" height="260" style="max-height:260px;"></canvas>
+<div class="commentary" id="cb-commentary">Click to simulate 3 threads running 2 phases — each phase requires all threads to reach the barrier before any advances.</div>
+
+<pre><span class="ty">CyclicBarrier</span> barrier = <span class="kw">new</span> <span class="ty">CyclicBarrier</span>(<span class="num">3</span>, () ->
+    <span class="ty">System</span>.out.<span class="fn">println</span>(<span class="str">"Phase complete!"</span>));
+<span class="cm">// In each thread:</span>
+barrier.<span class="fn">await</span>(); <span class="cm">// blocks until all 3 arrive</span></pre>
+
+<h2>Phaser — Dynamic Multi-Phase</h2>
+<p>Phaser = flexible CyclicBarrier. Parties can register/deregister dynamically. Phase number advances after each barrier. Supports hierarchical phasers for large party counts.</p>
+
+<pre><span class="ty">Phaser</span> phaser = <span class="kw">new</span> <span class="ty">Phaser</span>(<span class="num">1</span>); <span class="cm">// 1 registered (main thread)</span>
+phaser.<span class="fn">register</span>();           <span class="cm">// dynamic worker registration</span>
+phaser.<span class="fn">arriveAndAwaitAdvance</span>(); <span class="cm">// wait for phase</span>
+phaser.<span class="fn">arriveAndDeregister</span>(); <span class="cm">// worker done</span>
+phaser.<span class="fn">arrive</span>();              <span class="cm">// don't wait, just signal</span></pre>
+
+<h2>Decision Matrix</h2>
+<table>
+  <tr><th>Problem</th><th>Use</th><th>Why</th></tr>
+  <tr><td>Limit concurrent access (pool, rate limiter)</td><td><code>Semaphore</code></td><td>Permit-based, counting</td></tr>
+  <tr><td>Wait for N tasks to complete (one-shot)</td><td><code>CountDownLatch</code></td><td>Simple, not resettable</td></tr>
+  <tr><td>Synchronize N threads at checkpoint, repeat</td><td><code>CyclicBarrier</code></td><td>Auto-resets, fixed party count</td></tr>
+  <tr><td>Multi-phase with dynamic party count</td><td><code>Phaser</code></td><td>register/deregister, arbitrary phases</td></tr>
+  <tr><td>Producer-consumer, blocking queue</td><td><code>LinkedBlockingQueue</code></td><td>Built-in, condition per end</td></tr>
+  <tr><td>One writer, many readers</td><td><code>ReadWriteLock</code></td><td>Concurrent reads</td></tr>
+  <tr><td>Unblock a thread parked elsewhere</td><td><code>LockSupport.unpark()</code></td><td>Fine-grained, no monitor</td></tr>
+</table>
+
+<div class="takeaway">
+  <strong>Interview heuristic:</strong>
+  <ul>
+    <li>CDL = "fan-in": many threads → one waiter. Barrier = "synchronize": all threads meet and resume together.</li>
+    <li>Phaser is the generalization of both — but reach for CDL/CyclicBarrier first; they communicate intent clearly.</li>
+    <li>Semaphore is the only synchronizer that works across threads that don't know about each other (acquire in one thread, release in another).</li>
+  </ul>
+</div>
+
+</section>
+
+<!-- ============================================================ -->
+<!-- SCRIPTS                                                        -->
+<!-- ============================================================ -->
+<script>
+// ── Tab routing ──────────────────────────────────────────────
+function setTab(id) {
+  document.querySelectorAll('section[data-tab]').forEach(s => {
+    s.hidden = s.dataset.tab !== id;
+  });
+  document.querySelectorAll('.tabs button').forEach((b, i) => {
+    const map = ['lifecycle','sync','locks','atomics','syncs'];
+    b.classList.toggle('active', map[i] === id);
+  });
+}
+</script>
+
+<script>
+// ── TAB 1: Thread Lifecycle Animation ───────────────────────
+(function(){
+  const canvas = document.getElementById('lc-canvas');
+  const ctx = canvas.getContext('2d');
+  const commentary = document.getElementById('lc-commentary');
+  const label = document.getElementById('lc-state-label');
+
+  const STATES = ['NEW','RUNNABLE','TIMED_WAITING','WAITING','BLOCKED','TERMINATED'];
+  const COLORS = {
+    NEW:'#888', RUNNABLE:'#98c379', BLOCKED:'#e06c75',
+    WAITING:'#c678dd', TIMED_WAITING:'#e5c07b', TERMINATED:'#56b6c2'
+  };
+
+  const steps = [
+    { state:'NEW', call:null, note:'Thread object created with <code>new Thread(r)</code>. Not started yet — no OS thread exists.' },
+    { state:'RUNNABLE', call:'t.start()', note:'<code>start()</code> creates the OS thread and makes it eligible for CPU scheduling. May or may not be running right now.' },
+    { state:'TIMED_WAITING', call:'Thread.sleep(500)', note:'<code>sleep(ms)</code> moves thread to TIMED_WAITING. OS removes it from the run queue. Does NOT release locks.' },
+    { state:'RUNNABLE', call:'sleep expires', note:'Sleep timer fires → thread re-enters RUNNABLE. Scheduler will put it on CPU.' },
+    { state:'WAITING', call:'obj.wait()', note:'<code>wait()</code> releases the monitor lock and parks the thread until <code>notify()</code>/<code>notifyAll()</code>. Must be called inside synchronized.' },
+    { state:'RUNNABLE', call:'obj.notify()', note:'Another thread calls <code>notify()</code> → this thread wakes up, re-acquires the lock, continues.' },
+    { state:'BLOCKED', call:'enter synchronized', note:'Thread tries to enter a <code>synchronized</code> block held by another thread → moves to BLOCKED until the lock is released.' },
+    { state:'RUNNABLE', call:'lock released', note:'Monitor lock becomes free → thread acquires it and enters RUNNABLE.' },
+    { state:'TERMINATED', call:'run() returns', note:'<code>run()</code> completes (or throws uncaught exception). Thread is dead — cannot be restarted.' },
+  ];
+
+  let step = -1;
+  const W = 880, H = 320;
+
+  function resize() {
+    const rect = canvas.parentElement.getBoundingClientRect();
+    const w = Math.min(rect.width, 1100);
+    canvas.width = w;
+    canvas.height = 320;
+    draw();
+  }
+
+  function draw() {
+    const w = canvas.width, h = canvas.height;
+    ctx.clearRect(0, 0, w, h);
+
+    const states = [
+      { id:'NEW', x:0.08, y:0.2 },
+      { id:'RUNNABLE', x:0.35, y:0.2 },
+      { id:'TIMED_WAITING', x:0.65, y:0.08 },
+      { id:'WAITING', x:0.65, y:0.38 },
+      { id:'BLOCKED', x:0.65, y:0.68 },
+      { id:'TERMINATED', x:0.88, y:0.2 },
+    ];
+
+    const edges = [
+      { from:'NEW', to:'RUNNABLE', label:'start()' },
+      { from:'RUNNABLE', to:'TIMED_WAITING', label:'sleep(ms)\nwait(ms)\njoin(ms)' },
+      { from:'TIMED_WAITING', to:'RUNNABLE', label:'timeout /\nnotify()' },
+      { from:'RUNNABLE', to:'WAITING', label:'wait()\njoin()\npark()' },
+      { from:'WAITING', to:'RUNNABLE', label:'notify()\ninterrupt()' },
+      { from:'RUNNABLE', to:'BLOCKED', label:'locked\nsync block' },
+      { from:'BLOCKED', to:'RUNNABLE', label:'lock\nreleased' },
+      { from:'RUNNABLE', to:'TERMINATED', label:'run()\nreturns' },
+    ];
+
+    const pos = {};
+    states.forEach(s => { pos[s.id] = { x: s.x * w, y: s.y * h + 40 }; });
+
+    // Draw edges
+    ctx.save();
+    edges.forEach(e => {
+      const a = pos[e.from], b = pos[e.to];
+      const cur = step >= 0 ? steps[step].state : null;
+      const active = cur && (e.from === steps[Math.max(0,step-1)]?.state && e.to === cur);
+      ctx.strokeStyle = active ? '#61afef' : '#3a3a4a';
+      ctx.lineWidth = active ? 2.5 : 1.5;
+      ctx.setLineDash(active ? [] : [4,4]);
+      ctx.beginPath();
+      const mx = (a.x+b.x)/2, my = (a.y+b.y)/2;
+      ctx.moveTo(a.x, a.y);
+      ctx.lineTo(b.x, b.y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      // Arrow
+      const ang = Math.atan2(b.y-a.y, b.x-a.x);
+      const px = b.x - 26*Math.cos(ang), py = b.y - 26*Math.sin(ang);
+      ctx.fillStyle = active ? '#61afef' : '#3a3a4a';
+      ctx.beginPath();
+      ctx.moveTo(px, py);
+      ctx.lineTo(px - 8*Math.cos(ang-0.4), py - 8*Math.sin(ang-0.4));
+      ctx.lineTo(px - 8*Math.cos(ang+0.4), py - 8*Math.sin(ang+0.4));
+      ctx.closePath();
+      ctx.fill();
+      // Label
+      ctx.font = '9.5px monospace';
+      ctx.fillStyle = active ? '#61afef' : '#555';
+      ctx.textAlign = 'center';
+      const lines = e.label.split('\n');
+      lines.forEach((l, i) => ctx.fillText(l, mx + (b.y-a.y)*0.12, my - (b.x-a.x)*0.1 + i*11));
+    });
+
+    // Draw nodes
+    states.forEach(s => {
+      const p = pos[s.id];
+      const cur = step >= 0 ? steps[step].state : null;
+      const active = s.id === cur;
+      const r = 24;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, r, 0, Math.PI*2);
+      ctx.fillStyle = active ? COLORS[s.id] : '#181820';
+      ctx.strokeStyle = COLORS[s.id];
+      ctx.lineWidth = active ? 3 : 1.5;
+      ctx.fill();
+      ctx.stroke();
+      ctx.font = `bold 10px -apple-system, sans-serif`;
+      ctx.fillStyle = active ? '#0f0f15' : COLORS[s.id];
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(s.id, p.x, p.y);
+    });
+    ctx.restore();
+  }
+
+  window.lcStep = function() {
+    step = Math.min(step + 1, steps.length - 1);
+    const s = steps[step];
+    label.textContent = s.state;
+    commentary.innerHTML = (s.call ? `<code>${s.call}</code> → ` : '') + s.note;
+    draw();
+    if (step === steps.length - 1) document.getElementById('lc-step-btn').disabled = true;
+  };
+
+  window.lcReset = function() {
+    step = -1;
+    label.textContent = '';
+    commentary.innerHTML = 'Press <strong>Step</strong> to walk through thread state transitions with triggering method calls.';
+    document.getElementById('lc-step-btn').disabled = false;
+    draw();
+  };
+
+  window.addEventListener('resize', resize);
+  resize();
+})();
+</script>
+
+<script>
+// ── TAB 1: JMM Visibility Animation ─────────────────────────
+(function(){
+  const canvas = document.getElementById('jmm-canvas');
+  const ctx = canvas.getContext('2d');
+  const commentary = document.getElementById('jmm-commentary');
+  let raf = null, phase = 0, t = 0;
+
+  function resize() {
+    canvas.width = Math.min(canvas.parentElement.getBoundingClientRect().width, 1100);
+    canvas.height = 300;
+    draw(0);
+  }
+
+  function draw(phase) {
+    const W = canvas.width, H = 300;
+    ctx.clearRect(0,0,W,H);
+
+    // Layout: Main Memory bottom center, CPU A left, CPU B right
+    const mm = { x: W/2, y: H-60, w: 200, h: 50 };
+    const cpuA = { x: W*0.2, y: 40, w: 160, h: 60 };
+    const cpuB = { x: W*0.7, y: 40, w: 160, h: 60 };
+    const cacheA = { x: W*0.2, y: 130, w: 160, h: 50 };
+    const cacheB = { x: W*0.7, y: 130, w: 160, h: 50 };
+
+    // Main Memory
+    ctx.fillStyle = '#20242a';
+    ctx.strokeStyle = '#e5c07b';
+    ctx.lineWidth = 2;
+    roundRect(ctx, mm.x-mm.w/2, mm.y, mm.w, mm.h, 8);
+    ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#e5c07b'; ctx.font='bold 12px sans-serif'; ctx.textAlign='center';
+    ctx.fillText('Main Memory', mm.x, mm.y+18);
+
+    let mmVal = phase >= 2 ? 'flag = true' : 'flag = false';
+    ctx.fillStyle = phase >= 2 ? '#98c379' : '#888';
+    ctx.font = '13px monospace'; ctx.textAlign = 'center';
+    ctx.fillText(mmVal, mm.x, mm.y+38);
+
+    // CPU A
+    ctx.fillStyle = '#20242a'; ctx.strokeStyle = '#61afef'; ctx.lineWidth=2;
+    roundRect(ctx, cpuA.x-cpuA.w/2, cpuA.y, cpuA.w, cpuA.h, 8);
+    ctx.fill(); ctx.stroke();
+    ctx.fillStyle='#61afef'; ctx.font='bold 12px sans-serif'; ctx.textAlign='center';
+    ctx.fillText('Thread A (CPU 0)', cpuA.x, cpuA.y+18);
+    ctx.fillStyle='#888'; ctx.font='11px sans-serif';
+    ctx.fillText('flag = true  ← writes', cpuA.x, cpuA.y+40);
+
+    // CPU B
+    ctx.fillStyle='#20242a'; ctx.strokeStyle='#c678dd'; ctx.lineWidth=2;
+    roundRect(ctx, cpuB.x-cpuB.w/2, cpuB.y, cpuB.w, cpuB.h, 8);
+    ctx.fill(); ctx.stroke();
+    ctx.fillStyle='#c678dd'; ctx.font='bold 12px sans-serif'; ctx.textAlign='center';
+    ctx.fillText('Thread B (CPU 1)', cpuB.x, cpuB.y+18);
+    let bRead = phase >= 4 ? 'flag = true ✓' : 'flag = false ← STALE';
+    ctx.fillStyle = phase >= 4 ? '#98c379' : '#e06c75';
+    ctx.font='11px sans-serif'; ctx.textAlign='center';
+    ctx.fillText(bRead, cpuB.x, cpuB.y+40);
+
+    // Cache A
+    ctx.fillStyle='#1a1e2a'; ctx.strokeStyle='#3a4050'; ctx.lineWidth=1.5;
+    roundRect(ctx, cacheA.x-cacheA.w/2, cacheA.y, cacheA.w, cacheA.h, 6);
+    ctx.fill(); ctx.stroke();
+    ctx.fillStyle='#888'; ctx.font='11px sans-serif'; ctx.textAlign='center';
+    ctx.fillText('L1 Cache A', cacheA.x, cacheA.y+16);
+    let cacheAVal = phase >= 1 ? 'flag = true' : 'flag = false';
+    ctx.fillStyle = phase >= 1 ? '#98c379' : '#888';
+    ctx.font='12px monospace';
+    ctx.fillText(cacheAVal, cacheA.x, cacheA.y+36);
+
+    // Cache B
+    ctx.fillStyle='#1a1e2a'; ctx.strokeStyle='#3a4050'; ctx.lineWidth=1.5;
+    roundRect(ctx, cacheB.x-cacheB.w/2, cacheB.y, cacheB.w, cacheB.h, 6);
+    ctx.fill(); ctx.stroke();
+    ctx.fillStyle='#888'; ctx.font='11px sans-serif'; ctx.textAlign='center';
+    ctx.fillText('L1 Cache B', cacheB.x, cacheB.y+16);
+    let cacheBVal = phase >= 4 ? 'flag = true' : 'flag = false';
+    ctx.fillStyle = phase >= 4 ? '#98c379' : (phase >= 1 ? '#e06c75' : '#888');
+    ctx.font='12px monospace';
+    ctx.fillText(cacheBVal, cacheB.x, cacheB.y+36);
+
+    // Connecting lines
+    ctx.strokeStyle='#333'; ctx.lineWidth=1.5; ctx.setLineDash([4,4]);
+    ctx.beginPath(); ctx.moveTo(cpuA.x, cpuA.y+cpuA.h); ctx.lineTo(cacheA.x, cacheA.y); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cpuB.x, cpuB.y+cpuB.h); ctx.lineTo(cacheB.x, cacheB.y); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cacheA.x, cacheA.y+cacheA.h); ctx.lineTo(mm.x-40, mm.y); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cacheB.x, cacheB.y+cacheB.h); ctx.lineTo(mm.x+40, mm.y); ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Animated write packet
+    if (phase === 1 || phase === 2 || phase === 3) {
+      const prog = (t % 60) / 60;
+      let sx, sy, ex, ey;
+      if (phase === 1) { sx=cpuA.x; sy=cpuA.y+cpuA.h; ex=cacheA.x; ey=cacheA.y; }
+      else if (phase === 2) { sx=cacheA.x; sy=cacheA.y+cacheA.h; ex=mm.x-40; ey=mm.y; }
+      else { sx=mm.x+40; sy=mm.y; ex=cacheB.x; ey=cacheB.y+cacheB.h; }
+      const px = sx + (ex-sx)*prog, py = sy + (ey-sy)*prog;
+      ctx.beginPath(); ctx.arc(px,py,7,0,Math.PI*2);
+      ctx.fillStyle='#e5c07b'; ctx.fill();
+      ctx.fillStyle='#0f0f15'; ctx.font='bold 9px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText('W', px, py);
+      ctx.textBaseline='alphabetic';
+    }
+  }
+
+  const phases_desc = [
+    'Initial state: both caches have flag=false.',
+    'Thread A writes flag=true to its L1 cache.',
+    'Cache write propagates to Main Memory.',
+    'Without volatile/sync, Thread B\'s cache is NOT invalidated — still reads stale false.',
+    'With volatile: write to main memory triggers cache invalidation → Thread B sees flag=true.',
+  ];
+
+  window.jmmAnimate = function() {
+    if (raf) cancelAnimationFrame(raf);
+    phase = 0; t = 0;
+    const steps = [0, 60, 120, 180, 240];
+    function loop() {
+      t++;
+      const newPhase = steps.findIndex((s,i) => t < (steps[i+1] ?? 9999));
+      if (newPhase !== phase) {
+        phase = newPhase < 0 ? 4 : newPhase;
+        commentary.textContent = phases_desc[phase] || phases_desc[4];
+      }
+      draw(phase);
+      if (t < 300) raf = requestAnimationFrame(loop);
+    }
+    raf = requestAnimationFrame(loop);
+  };
+
+  window.jmmReset = function() {
+    if (raf) cancelAnimationFrame(raf);
+    phase = 0; t = 0;
+    commentary.innerHTML = 'Click <strong>Animate Visibility Bug</strong> to see Thread A write a value that Thread B never sees due to CPU cache isolation.';
+    draw(0);
+  };
+
+  function roundRect(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x+r, y);
+    ctx.lineTo(x+w-r, y); ctx.quadraticCurveTo(x+w, y, x+w, y+r);
+    ctx.lineTo(x+w, y+h-r); ctx.quadraticCurveTo(x+w, y+h, x+w-r, y+h);
+    ctx.lineTo(x+r, y+h); ctx.quadraticCurveTo(x, y+h, x, y+h-r);
+    ctx.lineTo(x, y+r); ctx.quadraticCurveTo(x, y, x+r, y);
+    ctx.closePath();
+  }
+
+  window.addEventListener('resize', resize);
+  resize();
+})();
+</script>
+
+<script>
+// ── TAB 2: synchronized Monitor Animation ────────────────────
+(function(){
+  const canvas = document.getElementById('sync-canvas');
+  const ctx = canvas.getContext('2d');
+  const commentary = document.getElementById('sync-commentary');
+  let raf = null, t = 0;
+
+  function rr(x,y,w,h,r){
+    ctx.beginPath();
+    ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y); ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+    ctx.lineTo(x+w,y+h-r); ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+    ctx.lineTo(x+r,y+h); ctx.quadraticCurveTo(x,y+h,x,y+h-r);
+    ctx.lineTo(x,y+r); ctx.quadraticCurveTo(x,y,x+r,y);
+    ctx.closePath();
+  }
+
+  // Animation: T=0-60 T1 approaches, T=60-120 T1 holds lock, T=120-180 T2 blocked, T=180-240 T1 releases, T=240-300 T2 acquires
+  function draw(t) {
+    const W = canvas.width, H = 300;
+    ctx.clearRect(0,0,W,H);
+
+    // Monitor box center
+    const mx = W/2, my = H/2;
+    const mw=140, mh=80;
+
+    // Lock state
+    let lockHolder = null, t2Blocked = false;
+    if (t >= 60 && t < 180) lockHolder = 'T1';
+    if (t >= 180) lockHolder = 'T2';
+    if (t >= 120 && t < 240) t2Blocked = true;
+    if (t >= 240) t2Blocked = false;
+
+    // Thread 1 position
+    let t1x;
+    if (t < 60) t1x = W*0.1 + (W*0.35-W*0.1)*(t/60);
+    else if (t < 180) t1x = W*0.35;
+    else t1x = W*0.35 + (W*0.8-W*0.35)*((t-180)/120);
+
+    // Thread 2 position
+    let t2x;
+    if (t < 80) t2x = W*0.9 - (W*0.9-W*0.65)*(t/80);
+    else if (t2Blocked) t2x = W*0.65;
+    else if (t >= 240) t2x = W*0.65 - (W*0.65-W*0.37)*((t-240)/60);
+    else t2x = W*0.65;
+
+    // Draw monitor
+    ctx.fillStyle='#181820'; ctx.strokeStyle='#61afef'; ctx.lineWidth=2.5;
+    rr(mx-mw/2, my-mh/2, mw, mh, 8);
+    ctx.fill(); ctx.stroke();
+    ctx.fillStyle='#61afef'; ctx.font='bold 13px sans-serif'; ctx.textAlign='center';
+    ctx.fillText('Monitor', mx, my-mh/2+18);
+    ctx.fillStyle='#888'; ctx.font='11px monospace'; ctx.textAlign='center';
+    if (lockHolder) {
+      ctx.fillStyle='#98c379';
+      ctx.fillText(`locked by ${lockHolder}`, mx, my+8);
+      ctx.fillStyle='#555'; ctx.font='10px monospace';
+      ctx.fillText('count: 1', mx, my+24);
+    } else {
+      ctx.fillText('unlocked', mx, my+8);
+    }
+
+    // Thread 1
+    const t1y = H*0.35;
+    ctx.fillStyle='#1a2a1a'; ctx.strokeStyle='#98c379'; ctx.lineWidth=2;
+    rr(t1x-40, t1y-20, 80, 40, 6); ctx.fill(); ctx.stroke();
+    ctx.fillStyle='#98c379'; ctx.font='bold 11px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText('Thread 1', t1x, t1y);
+    ctx.textBaseline='alphabetic';
+
+    // Thread 2
+    const t2y = H*0.67;
+    let t2color = t2Blocked ? '#e06c75' : '#c678dd';
+    ctx.fillStyle= t2Blocked ? '#2a1a1a' : '#1a1a2a';
+    ctx.strokeStyle=t2color; ctx.lineWidth=2;
+    rr(t2x-40, t2y-20, 80, 40, 6); ctx.fill(); ctx.stroke();
+    ctx.fillStyle=t2color; ctx.font='bold 11px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText('Thread 2', t2x, t2y);
+    ctx.textBaseline='alphabetic';
+
+    // Status labels
+    ctx.font='10px sans-serif'; ctx.textAlign='center';
+    if (t >= 60 && t < 180) { ctx.fillStyle='#98c379'; ctx.fillText('RUNNABLE (in sync)', t1x, t1y-28); }
+    if (t2Blocked) { ctx.fillStyle='#e06c75'; ctx.fillText('BLOCKED', t2x, t2y+28); }
+    if (t >= 240) { ctx.fillStyle='#c678dd'; ctx.fillText('RUNNABLE (in sync)', t2x, t2y+28); }
+
+    // Commentary update
+    let msg;
+    if (t < 60) msg = 'Thread 1 approaching the synchronized block...';
+    else if (t < 120) msg = 'Thread 1 acquired the monitor lock. Executing critical section.';
+    else if (t < 180) msg = 'Thread 2 tries to enter — BLOCKED (cannot acquire lock held by Thread 1).';
+    else if (t < 240) msg = 'Thread 1 exits synchronized block — lock released. Thread 2 unblocks.';
+    else msg = 'Thread 2 acquires the lock and enters the critical section.';
+    commentary.textContent = msg;
+  }
+
+  window.syncAnimate = function() {
+    if (raf) cancelAnimationFrame(raf);
+    t = 0;
+    function loop() {
+      t = Math.min(t+1, 310);
+      draw(t);
+      if (t < 310) raf = requestAnimationFrame(loop);
+    }
+    raf = requestAnimationFrame(loop);
+  };
+  window.syncReset = function() {
+    if (raf) cancelAnimationFrame(raf);
+    t = 0;
+    commentary.textContent = 'Click Animate to see two threads competing for the intrinsic lock.';
+    draw(0);
+  };
+
+  function resize() {
+    canvas.width = Math.min(canvas.parentElement.getBoundingClientRect().width, 1100);
+    canvas.height = 300;
+    draw(t);
+  }
+  window.addEventListener('resize', resize);
+  resize();
+})();
+</script>
+
+<script>
+// ── TAB 3: ReadWriteLock Animation ───────────────────────────
+(function(){
+  const canvas = document.getElementById('rw-canvas');
+  const ctx = canvas.getContext('2d');
+  const commentary = document.getElementById('rw-commentary');
+  let raf = null, t = 0, running = false;
+
+  // 4 readers + 1 writer, phases
+  const PHASES = [
+    { end: 60,  readers:[0,1], writer:false, msg:'Readers R1 and R2 acquire read lock simultaneously — ReadWriteLock allows concurrent reads.' },
+    { end: 120, readers:[0,1,2,3], writer:false, msg:'All 4 readers hold the read lock concurrently. Writer must wait.' },
+    { end: 180, readers:[2,3], writer:false, msg:'R1 and R2 release. Writer is still waiting — any reader holds the lock.' },
+    { end: 240, readers:[], writer:false, msg:'All readers release. Write lock is now acquirable.' },
+    { end: 300, readers:[], writer:true, msg:'Writer acquires exclusive write lock. No readers allowed during write.' },
+    { end: 360, readers:[], writer:false, msg:'Writer releases. Readers can proceed again.' },
+  ];
+
+  function getPhase(t) {
+    return PHASES.find(p => t <= p.end) || PHASES[PHASES.length-1];
+  }
+
+  function rr(x,y,w,h,r){
+    ctx.beginPath();
+    ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y); ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+    ctx.lineTo(x+w,y+h-r); ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+    ctx.lineTo(x+r,y+h); ctx.quadraticCurveTo(x,y+h,x,y+h-r);
+    ctx.lineTo(x,y+r); ctx.quadraticCurveTo(x,y,x+r,y);
+    ctx.closePath();
+  }
+
+  function draw() {
+    const W = canvas.width, H = 320;
+    ctx.clearRect(0,0,W,H);
+    const ph = getPhase(t);
+
+    // Shared resource box
+    const rx = W/2, ry = H/2;
+    ctx.fillStyle='#181820';
+    ctx.strokeStyle = ph.writer ? '#e06c75' : (ph.readers.length > 0 ? '#98c379' : '#61afef');
+    ctx.lineWidth=2.5;
+    rr(rx-60, ry-30, 120, 60, 8); ctx.fill(); ctx.stroke();
+    ctx.fillStyle='#fff'; ctx.font='bold 12px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText('Shared Data', rx, ry-8);
+    ctx.font='10px monospace';
+    ctx.fillStyle = ph.writer ? '#e06c75' : '#98c379';
+    ctx.fillText(ph.writer ? 'WRITE LOCKED' : (ph.readers.length > 0 ? `READ (×${ph.readers.length})` : 'UNLOCKED'), rx, ry+10);
+    ctx.textBaseline='alphabetic';
+
+    // Reader threads (top row)
+    const readerNames = ['R1','R2','R3','R4'];
+    readerNames.forEach((name, i) => {
+      const tx = W*0.1 + i*(W*0.18);
+      const ty = 50;
+      const active = ph.readers.includes(i);
+      ctx.fillStyle = active ? '#1a2a1a' : '#181820';
+      ctx.strokeStyle = active ? '#98c379' : '#3a3a4a';
+      ctx.lineWidth = active ? 2 : 1.5;
+      rr(tx-28, ty-18, 56, 36, 6); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = active ? '#98c379' : '#555';
+      ctx.font='bold 11px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText(name, tx, ty);
+      ctx.textBaseline='alphabetic';
+      if (active) {
+        ctx.strokeStyle='#98c37966'; ctx.lineWidth=1; ctx.setLineDash([3,3]);
+        ctx.beginPath(); ctx.moveTo(tx, ty+18); ctx.lineTo(rx, ry-30); ctx.stroke();
+        ctx.setLineDash([]);
+      }
+      ctx.font='9px sans-serif'; ctx.fillStyle=active?'#98c379':'#555'; ctx.textAlign='center';
+      ctx.fillText(active?'reading':'idle', tx, ty+28);
+    });
+
+    // Writer thread (bottom)
+    const wx = W*0.5, wy = H-50;
+    const wactive = ph.writer;
+    const wwaiting = !ph.writer && ph.readers.length > 0;
+    ctx.fillStyle = wactive ? '#2a1a1a' : '#181820';
+    ctx.strokeStyle = wactive ? '#e06c75' : (wwaiting ? '#e5c07b' : '#3a3a4a');
+    ctx.lineWidth = wactive ? 2.5 : 1.5;
+    rr(wx-35, wy-18, 70, 36, 6); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = wactive ? '#e06c75' : (wwaiting ? '#e5c07b' : '#555');
+    ctx.font='bold 11px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText('Writer', wx, wy);
+    ctx.textBaseline='alphabetic';
+    if (wactive) {
+      ctx.strokeStyle='#e06c7566'; ctx.lineWidth=1; ctx.setLineDash([3,3]);
+      ctx.beginPath(); ctx.moveTo(wx, wy-18); ctx.lineTo(rx, ry+30); ctx.stroke();
+      ctx.setLineDash([]);
+    }
+    ctx.font='9px sans-serif'; ctx.textAlign='center';
+    ctx.fillStyle = wactive ? '#e06c75' : (wwaiting ? '#e5c07b' : '#555');
+    ctx.fillText(wactive ? 'writing' : (wwaiting ? 'WAITING' : 'idle'), wx, wy+22);
+
+    commentary.textContent = ph.msg;
+  }
+
+  window.rwAnimate = function() {
+    if (raf) cancelAnimationFrame(raf);
+    t = 0; running = true;
+    function loop() {
+      t = Math.min(t+1, 370);
+      draw();
+      if (t < 370 && running) raf = requestAnimationFrame(loop);
+    }
+    raf = requestAnimationFrame(loop);
+  };
+  window.rwReset = function() {
+    running = false;
+    if (raf) cancelAnimationFrame(raf);
+    t = 0;
+    commentary.textContent = 'Click to simulate concurrent readers and an exclusive writer.';
+    draw();
+  };
+
+  function resize() {
+    canvas.width = Math.min(canvas.parentElement.getBoundingClientRect().width, 1100);
+    canvas.height = 320;
+    draw();
+  }
+  window.addEventListener('resize', resize);
+  resize();
+})();
+</script>
+
+<script>
+// ── TAB 4: CAS Animation ─────────────────────────────────────
+(function(){
+  const canvas = document.getElementById('cas-canvas');
+  const ctx = canvas.getContext('2d');
+  const commentary = document.getElementById('cas-commentary');
+  const label = document.getElementById('cas-counter-label');
+  let raf = null, t = 0, running = false;
+
+  const THREADS = [
+    { name:'T1', color:'#61afef', x:0.12 },
+    { name:'T2', color:'#98c379', x:0.3 },
+    { name:'T3', color:'#e5c07b', x:0.48 },
+    { name:'T4', color:'#c678dd', x:0.66 },
+  ];
+
+  // Each thread has a phase: idle→read→cas→(success|retry)→done
+  // Simple scripted: T1 succeeds at t=80, T2 retries at t=80, T3 succeeds at t=160, T4 retries
+  let counter = 0;
+
+  function threadState(i, t) {
+    const offsets = [0, 20, 40, 60];
+    const local_t = t - offsets[i];
+    if (local_t < 0) return { phase:'idle', val:null };
+    if (local_t < 30) return { phase:'read', val:counter };
+    if (local_t < 60) return { phase:'cas', val:null };
+    if (local_t < 80) {
+      if (i === 0) return { phase:'success', val:null };
+      return { phase:'retry', val:null };
+    }
+    if (local_t < 110) return { phase:'read2', val:null };
+    if (local_t < 140) return { phase:'cas2', val:null };
+    return { phase:'success', val:null };
+  }
+
+  function rr(x,y,w,h,r){
+    ctx.beginPath();
+    ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y); ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+    ctx.lineTo(x+w,y+h-r); ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+    ctx.lineTo(x+r,y+h); ctx.quadraticCurveTo(x,y+h,x,y+h-r);
+    ctx.lineTo(x,y+r); ctx.quadraticCurveTo(x,y,x+r,y);
+    ctx.closePath();
+  }
+
+  function draw() {
+    const W = canvas.width, H = 280;
+    ctx.clearRect(0,0,W,H);
+
+    // Shared counter box
+    const cx = W*0.83, cy = H/2;
+    ctx.fillStyle='#20242a'; ctx.strokeStyle='#e5c07b'; ctx.lineWidth=2.5;
+    rr(cx-55, cy-35, 110, 70, 8); ctx.fill(); ctx.stroke();
+    ctx.fillStyle='#e5c07b'; ctx.font='bold 12px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText('counter', cx, cy-16);
+    ctx.font='bold 22px monospace'; ctx.fillStyle='#fff';
+    ctx.fillText(counter, cx, cy+12);
+    ctx.textBaseline='alphabetic';
+
+    THREADS.forEach((th, i) => {
+      const tx = th.x * W;
+      const ty = H/2;
+      const st = threadState(i, t);
+
+      let bgColor = '#181820', borderColor = th.color;
+      let statusText = st.phase;
+
+      if (st.phase === 'success') { bgColor='#1a2a1a'; borderColor='#98c379'; statusText='SUCCESS ✓'; }
+      else if (st.phase === 'retry') { bgColor='#2a1a1a'; borderColor='#e06c75'; statusText='RETRY ↺'; }
+      else if (st.phase === 'cas' || st.phase === 'cas2') { borderColor='#e5c07b'; statusText='CAS...'; }
+
+      ctx.fillStyle=bgColor; ctx.strokeStyle=borderColor; ctx.lineWidth=2;
+      rr(tx-38, ty-50, 76, 44, 6); ctx.fill(); ctx.stroke();
+      ctx.fillStyle=th.color; ctx.font='bold 12px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText(th.name, tx, ty-36);
+      ctx.font='10px monospace'; ctx.fillStyle='#aaa';
+      ctx.fillText(statusText, tx, ty-18);
+      ctx.textBaseline='alphabetic';
+
+      // CAS arrow to counter
+      if (st.phase === 'cas' || st.phase === 'cas2') {
+        ctx.strokeStyle=th.color+'99'; ctx.lineWidth=1.5; ctx.setLineDash([4,4]);
+        ctx.beginPath(); ctx.moveTo(tx+38, ty-28); ctx.lineTo(cx-55, cy); ctx.stroke();
+        ctx.setLineDash([]);
+      }
+
+      // Read arrow
+      if (st.phase === 'read' || st.phase === 'read2') {
+        ctx.strokeStyle=th.color+'55'; ctx.lineWidth=1; ctx.setLineDash([3,5]);
+        ctx.beginPath(); ctx.moveTo(tx+38, ty-28); ctx.lineTo(cx-55, cy+10); ctx.stroke();
+        ctx.setLineDash([]);
+      }
+
+      ctx.font='9px sans-serif'; ctx.fillStyle=borderColor; ctx.textAlign='center';
+      ctx.fillText(th.name, tx, ty+18);
+    });
+
+    // Dynamic counter increment
+    if (t === 80) counter = 1;
+    if (t === 160) counter = 2;
+    if (t === 200) counter = 3;
+
+    label.textContent = `counter = ${counter}`;
+
+    const msgs = [
+      [0, 'All threads start: read current value of counter (0).'],
+      [60, 'All threads attempt CAS(0, 1) simultaneously.'],
+      [80, 'T1 CAS succeeds (counter: 0→1). T2/T3/T4 CAS fail — counter changed. They retry.'],
+      [140, 'Retrying threads re-read counter (now 1), attempt CAS(1, 2).'],
+      [160, 'Another thread succeeds. Others retry again. Lock-free: no blocking, just loops.'],
+      [220, 'All threads eventually succeed. Total increments = thread count.'],
+    ];
+    for (let i = msgs.length-1; i >= 0; i--) {
+      if (t >= msgs[i][0]) { commentary.textContent = msgs[i][1]; break; }
+    }
+  }
+
+  window.casStart = function() {
+    if (raf) cancelAnimationFrame(raf);
+    t = 0; counter = 0; running = true;
+    function loop() {
+      t = Math.min(t+1, 260);
+      draw();
+      if (t < 260 && running) raf = requestAnimationFrame(loop);
+    }
+    raf = requestAnimationFrame(loop);
+  };
+  window.casReset = function() {
+    running = false;
+    if (raf) cancelAnimationFrame(raf);
+    t = 0; counter = 0;
+    label.textContent = '';
+    commentary.textContent = 'Click Start to see multiple threads performing CAS loops — some succeed, others retry on contention.';
+    draw();
+  };
+
+  function resize() {
+    canvas.width = Math.min(canvas.parentElement.getBoundingClientRect().width, 1100);
+    canvas.height = 280;
+    draw();
+  }
+  window.addEventListener('resize', resize);
+  resize();
+})();
+</script>
+
+<script>
+// ── TAB 4: LongAdder Stripe Animation ───────────────────────
+(function(){
+  const canvas = document.getElementById('ladder-canvas');
+  const ctx = canvas.getContext('2d');
+  const commentary = document.getElementById('ladder-commentary');
+  let raf = null, t = 0, running = false;
+  let mode = 'atomic'; // 'atomic' or 'adder'
+
+  function rr(x,y,w,h,r){
+    ctx.beginPath();
+    ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y); ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+    ctx.lineTo(x+w,y+h-r); ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+    ctx.lineTo(x+r,y+h); ctx.quadraticCurveTo(x,y+h,x,y+h-r);
+    ctx.lineTo(x,y+r); ctx.quadraticCurveTo(x,y,x+r,y);
+    ctx.closePath();
+  }
+
+  const threads = [
+    { name:'T1', color:'#61afef' },
+    { name:'T2', color:'#98c379' },
+    { name:'T3', color:'#e5c07b' },
+    { name:'T4', color:'#c678dd' },
+  ];
+
+  function draw() {
+    const W = canvas.width, H = 220;
+    ctx.clearRect(0,0,W,H);
+
+    const isAdder = mode === 'adder';
+    const spacing = W / (threads.length + 2);
+
+    // Cells
+    if (isAdder) {
+      // 4 striped cells
+      threads.forEach((th, i) => {
+        const cx = spacing*(i+1.2);
+        const cy = H - 60;
+        ctx.fillStyle='#20242a'; ctx.strokeStyle='#56b6c2'; ctx.lineWidth=1.5;
+        rr(cx-28, cy-20, 56, 40, 6); ctx.fill(); ctx.stroke();
+        ctx.fillStyle='#56b6c2'; ctx.font='10px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+        ctx.fillText(`cell[${i}]`, cx, cy-8);
+        ctx.font='bold 13px monospace'; ctx.fillStyle='#fff';
+        const val = i === 0 ? Math.floor(t/20) : Math.floor(t/24 * (0.8+i*0.05));
+        ctx.fillText(val, cx, cy+10);
+        ctx.textBaseline='alphabetic';
+      });
+      // Sum label
+      ctx.fillStyle='#888'; ctx.font='11px sans-serif'; ctx.textAlign='center';
+      ctx.fillText('sum() aggregates all cells', W/2, H-10);
+    } else {
+      // Single cell
+      const cx = W/2, cy = H-60;
+      ctx.fillStyle='#20242a'; ctx.strokeStyle='#e06c75'; ctx.lineWidth=2;
+      rr(cx-35, cy-22, 70, 44, 6); ctx.fill(); ctx.stroke();
+      ctx.fillStyle='#e06c75'; ctx.font='11px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText('AtomicLong', cx, cy-10);
+      ctx.font='bold 16px monospace'; ctx.fillStyle='#fff';
+      ctx.fillText(Math.floor(t/5), cx, cy+10);
+      ctx.textBaseline='alphabetic';
+    }
+
+    // Threads + contention arrows
+    threads.forEach((th, i) => {
+      const tx = spacing*(i+1.2);
+      const ty = 50;
+
+      // Contention flash for AtomicLong
+      const retry = !isAdder && (t % 20 >= 10) && i > 0;
+      ctx.fillStyle = retry ? '#2a1a1a' : '#181820';
+      ctx.strokeStyle = retry ? '#e06c75' : th.color;
+      ctx.lineWidth = 1.8;
+      rr(tx-28, ty-20, 56, 40, 6); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = retry ? '#e06c75' : th.color;
+      ctx.font='bold 11px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText(th.name, tx, ty-6);
+      ctx.font='9px sans-serif';
+      ctx.fillText(retry ? 'retry' : (isAdder ? `→cell[${i}]` : '→cell'), tx, ty+8);
+      ctx.textBaseline='alphabetic';
+
+      // Arrow to cell
+      const targetX = isAdder ? tx : W/2;
+      const targetY = H - 82;
+      ctx.strokeStyle = retry ? '#e06c7566' : th.color+'55';
+      ctx.lineWidth=1; ctx.setLineDash([3,4]);
+      ctx.beginPath(); ctx.moveTo(tx, ty+20); ctx.lineTo(targetX, targetY); ctx.stroke();
+      ctx.setLineDash([]);
+    });
+
+    // Label
+    ctx.fillStyle='#888'; ctx.font='bold 12px sans-serif'; ctx.textAlign='center';
+    ctx.fillText(isAdder ? 'LongAdder — threads update separate cells' : 'AtomicLong — all threads fight for one cell', W/2, 18);
+  }
+
+  window.ladderAnimate = function() {
+    if (raf) cancelAnimationFrame(raf);
+    running = true;
+    // First show AtomicLong, then switch to LongAdder
+    mode = 'atomic'; t = 0;
+    commentary.textContent = 'AtomicLong: all 4 threads CAS the same cell — constant contention, retries.';
+    function loop() {
+      t++;
+      if (t === 100) { mode = 'adder'; commentary.textContent = 'LongAdder: each thread updates its own stripe — no contention. sum() aggregates at read time.'; }
+      draw();
+      if (t < 200 && running) raf = requestAnimationFrame(loop);
+    }
+    raf = requestAnimationFrame(loop);
+  };
+  window.ladderReset = function() {
+    running = false;
+    if (raf) cancelAnimationFrame(raf);
+    t = 0; mode = 'atomic';
+    commentary.textContent = 'Click to see AtomicLong (all threads on one cell) vs LongAdder (threads spread across cells).';
+    draw();
+  };
+
+  function resize() {
+    canvas.width = Math.min(canvas.parentElement.getBoundingClientRect().width, 1100);
+    canvas.height = 220;
+    draw();
+  }
+  window.addEventListener('resize', resize);
+  resize();
+})();
+</script>
+
+<script>
+// ── TAB 5: Semaphore Animation ───────────────────────────────
+(function(){
+  const canvas = document.getElementById('sem-canvas');
+  const ctx = canvas.getContext('2d');
+  const commentary = document.getElementById('sem-commentary');
+  const permLabel = document.getElementById('sem-permits-label');
+  let raf = null, t = 0, running = false;
+
+  const MAX_PERMITS = 3;
+  const THREAD_COUNT = 6;
+  const colors = ['#61afef','#98c379','#e5c07b','#c678dd','#56b6c2','#e06c75'];
+
+  // Scripted phases per thread [acquire_t, release_t]
+  const schedule = [
+    [0,  80],
+    [10, 120],
+    [20, 90],
+    [20, 999], // blocked until t=90
+    [90, 170],
+    [30, 999], // blocked until 120
+  ];
+
+  function getPermits(t) {
+    let held = 0;
+    schedule.forEach(([aq, rel]) => {
+      const actualAq = aq; // simplified
+      if (t >= actualAq && t < rel) held++;
+    });
+    return Math.max(0, MAX_PERMITS - Math.min(held, MAX_PERMITS));
+  }
+
+  function rr(x,y,w,h,r){
+    ctx.beginPath();
+    ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y); ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+    ctx.lineTo(x+w,y+h-r); ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+    ctx.lineTo(x+r,y+h); ctx.quadraticCurveTo(x,y+h,x,y+h-r);
+    ctx.lineTo(x,y+r); ctx.quadraticCurveTo(x,y,x+r,y);
+    ctx.closePath();
+  }
+
+  function draw() {
+    const W = canvas.width, H = 260;
+    ctx.clearRect(0,0,W,H);
+
+    const permits = getPermits(t);
+    permLabel.textContent = `permits available: ${permits}/${MAX_PERMITS}`;
+
+    // Semaphore pool
+    const sx = W*0.5, sy = 60;
+    ctx.fillStyle='#181820'; ctx.strokeStyle='#e5c07b'; ctx.lineWidth=2;
+    rr(sx-80, sy-24, 160, 48, 8); ctx.fill(); ctx.stroke();
+    ctx.fillStyle='#e5c07b'; ctx.font='bold 11px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText('Semaphore(3)', sx, sy-10);
+    // Draw permit circles
+    for (let i = 0; i < MAX_PERMITS; i++) {
+      const px = sx - 30 + i*30, py = sy+12;
+      ctx.beginPath(); ctx.arc(px, py, 8, 0, Math.PI*2);
+      ctx.fillStyle = i < permits ? '#98c379' : '#3a3a4a';
+      ctx.fill();
+      ctx.fillStyle = i < permits ? '#0f0f15' : '#888';
+      ctx.font='bold 9px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText(i < permits ? '✓' : '✗', px, py);
+    }
+    ctx.textBaseline='alphabetic';
+
+    // Threads
+    const threadW = Math.floor((W - 40) / THREAD_COUNT);
+    schedule.forEach(([aq, rel], i) => {
+      const tx = 20 + i*threadW + threadW/2;
+      const ty = H - 50;
+      const holding = t >= aq && t < rel && i < MAX_PERMITS + (t >= 90 ? 3 : 0);
+      const waiting = t >= aq && !holding && t < rel;
+
+      ctx.fillStyle = holding ? '#1a2a1a' : (waiting ? '#2a1a10' : '#181820');
+      ctx.strokeStyle = holding ? '#98c379' : (waiting ? '#e5c07b' : '#555');
+      ctx.lineWidth = holding ? 2 : 1.5;
+      rr(tx-22, ty-20, 44, 40, 6); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = holding ? '#98c379' : (waiting ? '#e5c07b' : '#888');
+      ctx.font='bold 10px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText(`T${i+1}`, tx, ty-8);
+      ctx.font='8px sans-serif';
+      ctx.fillText(holding ? 'holding' : (waiting ? 'waiting' : 'idle'), tx, ty+8);
+      ctx.textBaseline='alphabetic';
+
+      if (holding) {
+        ctx.strokeStyle='#98c37966'; ctx.lineWidth=1; ctx.setLineDash([3,4]);
+        ctx.beginPath(); ctx.moveTo(tx, ty-20); ctx.lineTo(sx-30+(Math.min(i,2))*30, sy+20); ctx.stroke();
+        ctx.setLineDash([]);
+      }
+    });
+
+    const msgs = [
+      [0,   'Threads start. T1, T2, T3 acquire permits (3 available).'],
+      [20,  'T4, T5 also try — only 3 permits total. Some must wait.'],
+      [80,  'T1 releases permit. A waiting thread can now acquire.'],
+      [120, 'More releases — waiting threads unblock one by one.'],
+      [160, 'All threads eventually complete. Semaphore enforces max concurrency = 3.'],
+    ];
+    for (let i = msgs.length-1; i >= 0; i--) {
+      if (t >= msgs[i][0]) { commentary.textContent = msgs[i][1]; break; }
+    }
+  }
+
+  window.semStart = function() {
+    if (raf) cancelAnimationFrame(raf);
+    t = 0; running = true;
+    function loop() {
+      t = Math.min(t+1, 200);
+      draw();
+      if (t < 200 && running) raf = requestAnimationFrame(loop);
+    }
+    raf = requestAnimationFrame(loop);
+  };
+  window.semReset = function() {
+    running = false;
+    if (raf) cancelAnimationFrame(raf);
+    t = 0;
+    permLabel.textContent = '';
+    commentary.textContent = 'Click Start to simulate 6 threads competing for a semaphore with 3 permits.';
+    draw();
+  };
+
+  function resize() {
+    canvas.width = Math.min(canvas.parentElement.getBoundingClientRect().width, 1100);
+    canvas.height = 260;
+    draw();
+  }
+  window.addEventListener('resize', resize);
+  resize();
+})();
+</script>
+
+<script>
+// ── TAB 5: CountDownLatch Animation ─────────────────────────
+(function(){
+  const canvas = document.getElementById('cdl-canvas');
+  const ctx = canvas.getContext('2d');
+  const commentary = document.getElementById('cdl-commentary');
+  let raf = null, t = 0, running = false;
+
+  const N = 4;
+  const completeTimes = [60, 90, 110, 140];
+  const colors = ['#61afef','#98c379','#e5c07b','#c678dd'];
+
+  function rr(x,y,w,h,r){
+    ctx.beginPath();
+    ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y); ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+    ctx.lineTo(x+w,y+h-r); ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+    ctx.lineTo(x+r,y+h); ctx.quadraticCurveTo(x,y+h,x,y+h-r);
+    ctx.lineTo(x,y+r); ctx.quadraticCurveTo(x,y,x+r,y);
+    ctx.closePath();
+  }
+
+  function draw() {
+    const W = canvas.width, H = 240;
+    ctx.clearRect(0,0,W,H);
+
+    const remaining = completeTimes.filter(ct => t < ct).length;
+    const released = remaining === 0 && t >= completeTimes[N-1];
+
+    // Latch box
+    const lx = W/2, ly = H/2;
+    ctx.fillStyle='#181820'; ctx.strokeStyle = released ? '#98c379' : '#e5c07b'; ctx.lineWidth=2.5;
+    rr(lx-55, ly-28, 110, 56, 8); ctx.fill(); ctx.stroke();
+    ctx.fillStyle='#e5c07b'; ctx.font='bold 11px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText('CountDownLatch', lx, ly-12);
+    ctx.font='bold 16px monospace';
+    ctx.fillStyle = remaining === 0 ? '#98c379' : '#fff';
+    ctx.fillText(`count: ${remaining}`, lx, ly+10);
+    ctx.textBaseline='alphabetic';
+
+    // Worker threads
+    const spacing = W / (N + 2);
+    completeTimes.forEach((ct, i) => {
+      const tx = spacing * (i+1);
+      const ty = 55;
+      const done = t >= ct;
+      ctx.fillStyle = done ? '#1a2a1a' : '#181820';
+      ctx.strokeStyle = done ? '#98c379' : colors[i];
+      ctx.lineWidth = done ? 2 : 1.5;
+      rr(tx-28, ty-20, 56, 40, 6); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = done ? '#98c379' : colors[i];
+      ctx.font='bold 11px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText(`W${i+1}`, tx, ty-6);
+      ctx.font='9px sans-serif';
+      ctx.fillText(done ? 'countDown()' : 'working...', tx, tx+8);
+      ctx.textBaseline='alphabetic';
+
+      if (!done) {
+        const prog = Math.min(t, ct) / ct;
+        ctx.strokeStyle=colors[i]+'44'; ctx.lineWidth=1; ctx.setLineDash([]);
+        ctx.beginPath(); ctx.moveTo(tx, ty+20); ctx.lineTo(lx, ly-28); ctx.stroke();
+        // Progress dot
+        const px = tx + (lx-tx)*prog, py = (ty+20) + (ly-28-(ty+20))*prog;
+        if (t < ct) {
+          ctx.beginPath(); ctx.arc(px,py,5,0,Math.PI*2);
+          ctx.fillStyle=colors[i]; ctx.fill();
+        }
+      }
+    });
+
+    // Main thread
+    const mx = W*0.82, my = H/2;
+    ctx.fillStyle = released ? '#1a2a1a' : '#1a1a2a';
+    ctx.strokeStyle = released ? '#98c379' : (remaining === 0 ? '#98c379' : '#61afef');
+    ctx.lineWidth=2;
+    rr(mx-38, my-22, 76, 44, 6); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = released ? '#98c379' : '#61afef';
+    ctx.font='bold 11px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText('Main', mx, my-8);
+    ctx.font='9px monospace';
+    ctx.fillText(released ? 'released!' : 'await()...', mx, my+8);
+    ctx.textBaseline='alphabetic';
+
+    const msgMap = [
+      [0, 'Main thread calls await() — blocks until count reaches 0.'],
+      [60, 'W1 finishes and calls countDown() → count: 3.'],
+      [90, 'W2 countDown() → count: 2.'],
+      [110, 'W3 countDown() → count: 1.'],
+      [140, 'W4 countDown() → count: 0 — main thread unblocks!'],
+    ];
+    for (let i = msgMap.length-1; i >= 0; i--) {
+      if (t >= msgMap[i][0]) { commentary.textContent = msgMap[i][1]; break; }
+    }
+  }
+
+  window.cdlStart = function() {
+    if (raf) cancelAnimationFrame(raf);
+    t = 0; running = true;
+    function loop() {
+      t = Math.min(t+1, 180);
+      draw();
+      if (t < 180 && running) raf = requestAnimationFrame(loop);
+    }
+    raf = requestAnimationFrame(loop);
+  };
+  window.cdlReset = function() {
+    running = false;
+    if (raf) cancelAnimationFrame(raf);
+    t = 0;
+    commentary.textContent = 'Click to see 4 worker threads count down a latch.';
+    draw();
+  };
+
+  function resize() {
+    canvas.width = Math.min(canvas.parentElement.getBoundingClientRect().width, 1100);
+    canvas.height = 240;
+    draw();
+  }
+  window.addEventListener('resize', resize);
+  resize();
+})();
+</script>
+
+<script>
+// ── TAB 5: CyclicBarrier Animation ───────────────────────────
+(function(){
+  const canvas = document.getElementById('cb-canvas');
+  const ctx = canvas.getContext('2d');
+  const commentary = document.getElementById('cb-commentary');
+  const phaseLabel = document.getElementById('cb-phase-label');
+  let raf = null, t = 0, running = false;
+
+  // 3 threads, 2 phases
+  // Phase 1 arrive times: 50, 70, 90. Release: 90. Phase 2 arrive: 150, 160, 175. Release: 175.
+  const phases = [
+    { arrivals: [50, 70, 90], release: 90, name:'Phase 1' },
+    { arrivals: [150, 160, 175], release: 175, name:'Phase 2' },
+  ];
+  const colors = ['#61afef','#98c379','#e5c07b'];
+
+  function rr(x,y,w,h,r){
+    ctx.beginPath();
+    ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y); ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+    ctx.lineTo(x+w,y+h-r); ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+    ctx.lineTo(x+r,y+h); ctx.quadraticCurveTo(x,y+h,x,y+h-r);
+    ctx.lineTo(x,y+r); ctx.quadraticCurveTo(x,y,x+r,y);
+    ctx.closePath();
+  }
+
+  function threadStatus(i, t) {
+    for (let p = 0; p < phases.length; p++) {
+      const ph = phases[p];
+      if (t < ph.arrivals[i]) return { status: 'running', phase: p };
+      if (t < ph.release) return { status: 'waiting', phase: p };
+    }
+    return { status: 'done', phase: 2 };
+  }
+
+  function draw() {
+    const W = canvas.width, H = 260;
+    ctx.clearRect(0,0,W,H);
+
+    // Current phase
+    let curPhase = 0;
+    if (t > phases[0].release) curPhase = 1;
+    if (t > phases[1].release) curPhase = 2;
+    phaseLabel.textContent = curPhase < 2 ? phases[curPhase].name : 'Complete';
+
+    // Barrier line
+    const bx = W/2;
+    const flash = phases.some(p => t >= p.release && t < p.release + 15);
+    ctx.strokeStyle = flash ? '#98c379' : '#3a3a4a';
+    ctx.lineWidth = flash ? 3 : 1.5;
+    ctx.setLineDash([8,4]);
+    ctx.beginPath(); ctx.moveTo(bx, 20); ctx.lineTo(bx, H-20); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = flash ? '#98c379' : '#555';
+    ctx.font='bold 11px sans-serif'; ctx.textAlign='center';
+    ctx.fillText('BARRIER', bx, 16);
+
+    // Barrier action label
+    if (flash) {
+      ctx.fillStyle='#98c379'; ctx.font='bold 12px sans-serif'; ctx.textAlign='center';
+      ctx.fillText('All arrived → released!', bx, H-8);
+    }
+
+    const spacing = H / 4;
+    [0,1,2].forEach(i => {
+      const ty = spacing * (i+1);
+      const st = threadStatus(i, t);
+
+      // Position: threads move right over time
+      let tx;
+      const phArr = st.phase < 2 ? phases[st.phase].arrivals[i] : 999;
+      const phRel = st.phase < 2 ? phases[st.phase].release : 999;
+      if (st.status === 'running') {
+        const prevRel = st.phase > 0 ? phases[st.phase-1].release : 0;
+        const startX = st.phase > 0 ? bx+20 : 30;
+        const prog = (t - prevRel) / (phArr - prevRel);
+        tx = startX + (bx - 30 - startX) * Math.max(0, Math.min(1, prog));
+      } else if (st.status === 'waiting') {
+        tx = bx - 25;
+      } else {
+        tx = bx + 20 + (W - bx - 60) * Math.min(1, (t - phRel) / 30);
+      }
+
+      ctx.fillStyle = st.status === 'waiting' ? '#1a1a2a' : '#181820';
+      ctx.strokeStyle = st.status === 'waiting' ? '#e5c07b' : (st.status === 'done' ? '#98c379' : colors[i]);
+      ctx.lineWidth = 2;
+      rr(tx-28, ty-20, 56, 40, 6); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = st.status === 'waiting' ? '#e5c07b' : (st.status === 'done' ? '#98c379' : colors[i]);
+      ctx.font='bold 11px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText(`T${i+1}`, tx, ty-6);
+      ctx.font='9px sans-serif';
+      ctx.fillText(st.status === 'waiting' ? 'await()' : (st.status==='done'?'done':'running'), tx, ty+8);
+      ctx.textBaseline='alphabetic';
+    });
+
+    const msgMap = [
+      [0, 'Phase 1: all 3 threads running toward the barrier.'],
+      [50, 'T1 arrives at barrier — calls await(). Waits for T2 and T3.'],
+      [70, 'T2 arrives — 2 of 3 waiting.'],
+      [90, 'T3 arrives — all 3 present. Barrier releases! Barrier action fires.'],
+      [95, 'Phase 2 begins. Barrier auto-resets (CyclicBarrier is reusable).'],
+      [150, 'Phase 2: threads converge at barrier again.'],
+      [175, 'Phase 2 complete. All threads done.'],
+    ];
+    for (let i = msgMap.length-1; i >= 0; i--) {
+      if (t >= msgMap[i][0]) { commentary.textContent = msgMap[i][1]; break; }
+    }
+  }
+
+  window.cbStart = function() {
+    if (raf) cancelAnimationFrame(raf);
+    t = 0; running = true;
+    function loop() {
+      t = Math.min(t+1, 210);
+      draw();
+      if (t < 210 && running) raf = requestAnimationFrame(loop);
+    }
+    raf = requestAnimationFrame(loop);
+  };
+  window.cbReset = function() {
+    running = false;
+    if (raf) cancelAnimationFrame(raf);
+    t = 0;
+    phaseLabel.textContent = '';
+    commentary.textContent = 'Click to simulate 3 threads running 2 phases — each phase requires all threads to reach the barrier before any advances.';
+    draw();
+  };
+
+  function resize() {
+    canvas.width = Math.min(canvas.parentElement.getBoundingClientRect().width, 1100);
+    canvas.height = 260;
+    draw();
+  }
+  window.addEventListener('resize', resize);
+  resize();
+})();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,1629 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SQS/SNS Messaging Patterns -- Interactive Simulation</title>
+<style>
+:root {
+  --bg: #0f0f15;
+  --surface: #181820;
+  --surface-2: #20202a;
+  --border: #2a2a35;
+  --text: #e6e6ea;
+  --text-2: #cfcfd6;
+  --text-3: #888;
+  --accent-red: #e06c75;
+  --accent-green: #98c379;
+  --accent-blue: #61afef;
+  --accent-yellow: #e5c07b;
+  --accent-purple: #c678dd;
+  --accent-cyan: #56b6c2;
+  --accent-orange: #d19a66;
+}
+*, *::before, *::after { box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  padding: 32px 24px;
+  max-width: 1100px;
+  margin: 0 auto;
+  line-height: 1.55;
+}
+h1 { color: #fff; margin-bottom: 4px; }
+h1 + p.sub { color: var(--text-3); font-style: italic; margin-top: 0; margin-bottom: 24px; }
+h2 { color: #fff; margin-top: 32px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+h3 { color: var(--text-2); margin-top: 20px; }
+code {
+  background: var(--surface-2);
+  padding: 2px 6px;
+  border-radius: 3px;
+  color: var(--accent-cyan);
+  font-size: 13px;
+}
+svg {
+  background: var(--surface);
+  border-radius: 8px;
+  display: block;
+  margin: 14px auto;
+  width: 100%;
+  height: auto;
+}
+.tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+.tabs button {
+  padding: 10px 20px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-2);
+  border-radius: 6px;
+  cursor: pointer;
+  min-height: 44px;
+  font-size: 14px;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.tabs button:hover { background: var(--surface); }
+.tabs button.active {
+  border-color: var(--accent-blue);
+  border-bottom: 2px solid var(--accent-blue);
+  color: #fff;
+}
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0;
+  align-items: center;
+}
+.controls button, .btn {
+  padding: 10px 16px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  border-radius: 6px;
+  cursor: pointer;
+  min-height: 44px;
+  font-size: 14px;
+  transition: background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+.controls button:hover, .btn:hover { background: var(--surface); }
+.controls button:disabled, .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.controls button.active-btn { border-color: var(--accent-blue); color: var(--accent-blue); }
+.controls button.danger { border-color: var(--accent-red); color: var(--accent-red); }
+.controls button.danger:hover { background: #2a1520; }
+.slider-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-3);
+  min-width: 180px;
+}
+.slider-group input[type="range"] {
+  flex: 1;
+  min-width: 80px;
+  accent-color: var(--accent-blue);
+}
+.commentary {
+  background: var(--surface-2);
+  padding: 14px;
+  border-radius: 6px;
+  font-size: 14px;
+  color: var(--text-2);
+  margin: 12px 0;
+  min-height: 44px;
+  line-height: 1.5;
+}
+.takeaway {
+  background: #1a1a22;
+  border-left: 3px solid var(--accent-green);
+  padding: 12px 16px;
+  margin: 14px 0;
+  font-size: 14px;
+}
+.takeaway strong { color: var(--accent-green); }
+.takeaway ul { margin: 6px 0 0 0; padding-left: 18px; }
+.takeaway li { margin-bottom: 6px; }
+section[hidden] { display: none !important; }
+.comparison-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 14px 0;
+  font-size: 13px;
+}
+.comparison-table th {
+  background: var(--surface-2);
+  color: var(--accent-blue);
+  padding: 10px 12px;
+  text-align: left;
+  border: 1px solid var(--border);
+  font-weight: 600;
+}
+.comparison-table td {
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  color: var(--text-2);
+  background: var(--surface);
+}
+.comparison-table tr:hover td { background: var(--surface-2); }
+.comparison-table .pro { color: var(--accent-green); font-weight: 600; }
+.comparison-table .con { color: var(--accent-red); font-weight: 600; }
+@media (max-width: 720px) {
+  body { padding: 20px 14px; }
+}
+@media (max-width: 600px) {
+  .tabs { gap: 4px; }
+  .tabs button { padding: 10px 10px; font-size: 12px; flex: 1; min-width: 80px; text-align: center; }
+}
+@media (max-width: 480px) {
+  .controls { flex-direction: column; }
+  .controls button { width: 100%; }
+  .slider-group { width: 100%; min-width: auto; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>SQS / SNS Messaging Patterns</h1>
+  <p class="sub">Competing consumers, fan-out, request-reply, transactional outbox, priority queues. Click "Send Message," watch the flow, internalize the trade-offs.</p>
+</header>
+
+<nav class="tabs">
+  <button class="active" onclick="setActiveTab('competing')">Competing Consumers</button>
+  <button onclick="setActiveTab('fanout')">SNS Fan-out</button>
+  <button onclick="setActiveTab('reqreply')">Request-Reply</button>
+  <button onclick="setActiveTab('outbox')">Transactional Outbox</button>
+  <button onclick="setActiveTab('priority')">Priority &amp; Delay</button>
+</nav>
+
+<!-- ================================================================ -->
+<!-- TAB 1: COMPETING CONSUMERS                                         -->
+<!-- ================================================================ -->
+<section data-tab="competing">
+  <h2>Competing Consumers</h2>
+  <p>N workers poll the same SQS queue. Each message is delivered to exactly one worker. Workers scale horizontally without coordination — the queue is the implicit load balancer.</p>
+
+  <svg id="cc-svg" viewBox="0 0 860 400" preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <marker id="cc-arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="#555"/>
+      </marker>
+    </defs>
+    <g id="cc-scene"></g>
+  </svg>
+
+  <div class="controls">
+    <button onclick="CC.sendMsg()">Send Message</button>
+    <button onclick="CC.burstMsgs()">Burst (5 msgs)</button>
+    <button onclick="CC.crashWorker()" class="danger" id="cc-btn-crash">Crash Worker</button>
+    <button onclick="CC.addWorker()" id="cc-btn-add">Scale Out (+1 Worker)</button>
+    <button onclick="CC.reset()">Reset</button>
+    <div class="slider-group">
+      <span>Process time</span>
+      <input type="range" min="500" max="3000" value="1200" id="cc-proc-time">
+      <span id="cc-proc-label">1200ms</span>
+    </div>
+  </div>
+
+  <div class="commentary" id="cc-commentary">Three workers poll the same SQS queue. Send a message and watch exactly one worker pick it up. Burst five messages to see concurrent processing with zero coordination overhead.</div>
+
+  <div class="takeaway">
+    <strong>Takeaways</strong>
+    <ul>
+      <li><strong>Visibility timeout as distributed lock substitute:</strong> When a worker receives a message, SQS hides it for <code>VisibilityTimeout</code> seconds (default 30s). Other workers cannot see it. If the worker crashes before deleting it, the timeout expires and the message reappears. This is your at-least-once delivery guarantee.</li>
+      <li><strong>Autoscaling:</strong> CloudWatch alarm on <code>ApproximateNumberOfMessagesVisible</code> triggers an ASG scale-out. Set alarm at queue depth / max_throughput_per_instance to pre-scale before backlog grows.</li>
+      <li><strong>Delete = commit:</strong> Workers call <code>DeleteMessage</code> only after successful processing. If you delete before processing, you lose messages on crash. If processing is idempotent, at-least-once is fine.</li>
+      <li><strong>Long polling (20s) reduces empty receives</strong> and API cost by up to 90% compared to short polling.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ================================================================ -->
+<!-- TAB 2: SNS FAN-OUT                                                 -->
+<!-- ================================================================ -->
+<section data-tab="fanout" hidden>
+  <h2>SNS Fan-out Pattern</h2>
+  <p>One SNS publish fans out to all subscribed endpoints simultaneously. Producers are decoupled from the consumer topology — add a new subscriber without touching the producer.</p>
+
+  <svg id="fo-svg" viewBox="0 0 860 420" preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <marker id="fo-arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="#555"/>
+      </marker>
+    </defs>
+    <g id="fo-scene"></g>
+  </svg>
+
+  <div class="controls">
+    <button onclick="FO.publish()">Publish Order Event</button>
+    <button onclick="FO.addSubscriber()" id="fo-btn-add-sub">Add Fraud Detection</button>
+    <button onclick="FO.showDirect()">Show Direct Multi-Queue (bad)</button>
+    <button onclick="FO.reset()">Reset</button>
+  </div>
+
+  <div class="commentary" id="fo-commentary">SNS decouples the publisher from the subscriber topology. Publishing one message to the topic is all the producer ever does — SNS handles fan-out to all subscribers.</div>
+
+  <div class="takeaway">
+    <strong>Takeaways</strong>
+    <ul>
+      <li><strong>Why fan-out wins over direct multi-queue publish:</strong> Direct publish requires the producer to know every queue and write to each — coupling producer code to consumer topology. SNS fan-out means producer code never changes when you add/remove consumers.</li>
+      <li><strong>SQS + SNS is the canonical durable fan-out:</strong> SNS alone (direct Lambda) is brittle — if Lambda is rate-limited or errors, the message is lost. SNS → SQS buffers fan-out delivery, giving each subscriber an independent queue with retry/DLQ.</li>
+      <li><strong>Filter policies (free):</strong> Each SQS subscription can have message attribute filters. Fraud detection subscribes with <code>amount > 1000</code> — SNS only delivers matching messages, reducing queue traffic for subscribers that care about subsets.</li>
+      <li><strong>FIFO SNS + FIFO SQS:</strong> Available when ordering matters end-to-end. Fan-out still works but all subscribers must use FIFO SQS.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ================================================================ -->
+<!-- TAB 3: REQUEST-REPLY (CORRELATION ID)                              -->
+<!-- ================================================================ -->
+<section data-tab="reqreply" hidden>
+  <h2>Request-Reply (Correlation ID)</h2>
+  <p>Asynchronous request-reply over queues. The sender attaches a <code>CorrelationId</code> and a <code>ReplyTo</code> queue address. The worker processes and sends the response to the reply queue. The sender matches response by correlation ID.</p>
+
+  <svg id="rr-svg" viewBox="0 0 860 380" preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <marker id="rr-arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="#555"/>
+      </marker>
+    </defs>
+    <g id="rr-scene"></g>
+  </svg>
+
+  <div class="controls">
+    <button onclick="RR.sendRequest()">Send Request</button>
+    <button onclick="RR.sendMultiple()">3 Concurrent Requests</button>
+    <button onclick="RR.triggerTimeout()">Simulate Timeout</button>
+    <button onclick="RR.toggleSharedReply()">Toggle: Shared Reply Queue</button>
+    <button onclick="RR.reset()">Reset</button>
+    <div class="slider-group">
+      <span>Worker latency</span>
+      <input type="range" min="300" max="2500" value="1000" id="rr-latency">
+      <span id="rr-latency-label">1000ms</span>
+    </div>
+  </div>
+
+  <div class="commentary" id="rr-commentary">The sender publishes to the request queue with a CorrelationId and ReplyTo address. The worker consumes, processes, and sends the result to the reply queue. The sender polls its reply queue and matches responses by CorrelationId.</div>
+
+  <table class="comparison-table" style="margin-top:16px;">
+    <thead>
+      <tr>
+        <th>Approach</th>
+        <th>Latency</th>
+        <th>Complexity</th>
+        <th>Use when</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Synchronous HTTP</td>
+        <td class="pro">Low (direct)</td>
+        <td class="pro">Simple</td>
+        <td>Sub-100ms needed, caller blocks OK</td>
+      </tr>
+      <tr>
+        <td>Async Queue + CorrelationId</td>
+        <td class="con">100ms+ (polling)</td>
+        <td class="con">Timeout/cleanup logic</td>
+        <td>Long-running work, decoupled deployment</td>
+      </tr>
+      <tr>
+        <td>Temporary queue per request</td>
+        <td>~same</td>
+        <td class="con">Queue proliferation</td>
+        <td>Strict isolation, low fan-in</td>
+      </tr>
+      <tr>
+        <td>Shared reply queue + filter</td>
+        <td>~same</td>
+        <td>Medium</td>
+        <td>High concurrency, centralized cleanup</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="takeaway">
+    <strong>Takeaways</strong>
+    <ul>
+      <li><strong>Temporary queues per request:</strong> Simple isolation but creates/destroys a queue per request — expensive at scale (SQS has queue limits). Better as a pattern for low-RPS service-to-service calls.</li>
+      <li><strong>Shared reply queue + CorrelationId filter:</strong> All callers share one reply queue. Each caller polls and ignores messages that don't match its CorrelationId. Watch out: a slow or crashed caller accumulates unconsumed messages, growing the queue.</li>
+      <li><strong>Timeout + cleanup:</strong> If the worker crashes, the caller must timeout, log the failure, and optionally clean up the temporary queue. Build this into your client wrapper, not ad-hoc.</li>
+      <li><strong>SQS message attributes for routing:</strong> Instead of filtering in the consumer, set <code>MessageGroupId</code> (FIFO) or use SNS filter policies to route replies.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ================================================================ -->
+<!-- TAB 4: TRANSACTIONAL OUTBOX                                        -->
+<!-- ================================================================ -->
+<section data-tab="outbox" hidden>
+  <h2>Transactional Outbox with SQS</h2>
+  <p>The core problem: DB write and queue publish are two separate operations — they cannot be atomic without distributed transactions. The outbox pattern uses a single DB transaction to solve this.</p>
+
+  <svg id="ob-svg" viewBox="0 0 860 420" preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <marker id="ob-arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="#555"/>
+      </marker>
+    </defs>
+    <g id="ob-scene"></g>
+  </svg>
+
+  <div class="controls">
+    <button onclick="OB.happyPath()">Happy Path</button>
+    <button onclick="OB.crashAfterDB()">Crash: After DB, Before SQS</button>
+    <button onclick="OB.crashRelay()">Crash: Relay Crash + Replay</button>
+    <button onclick="OB.showDuplicate()">Show Duplicate Handling</button>
+    <button onclick="OB.showCDC()">Compare: Debezium CDC</button>
+    <button onclick="OB.reset()">Reset</button>
+  </div>
+
+  <div class="commentary" id="ob-commentary">The transactional outbox stores the event in the same DB transaction as the business write. A relay process polls the outbox and publishes to SQS. This gives you at-least-once delivery without distributed transactions.</div>
+
+  <div class="takeaway">
+    <strong>Takeaways</strong>
+    <ul>
+      <li><strong>Why not write to SQS directly in the transaction?</strong> DB and SQS are separate systems — if the DB commits but SQS publish fails (network timeout), you lose the event. If you roll back the DB on SQS failure, you need to handle partial failures. The outbox avoids this entirely.</li>
+      <li><strong>At-least-once delivery:</strong> The relay may publish the same event multiple times if it crashes after publishing but before marking it sent. Consumers MUST be idempotent (check event ID before processing).</li>
+      <li><strong>Debezium CDC-based outbox:</strong> Instead of polling, Debezium tails the DB binlog/WAL and streams changes. Lower latency (milliseconds vs polling interval), zero DB polling load, but requires a Kafka Connect cluster — higher operational overhead.</li>
+      <li><strong>Polling interval trade-off:</strong> Short intervals (1s) add DB read load. Long intervals (30s) add latency. Exponential backoff when outbox is empty reduces load at steady state.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ================================================================ -->
+<!-- TAB 5: PRIORITY QUEUE & DELAY QUEUE                                -->
+<!-- ================================================================ -->
+<section data-tab="priority" hidden>
+  <h2>Priority Queue &amp; Delay Queue</h2>
+  <p>SQS has no native message priority. The standard workaround: separate queues per priority tier, with worker allocation proportional to priority.</p>
+
+  <svg id="pq-svg" viewBox="0 0 860 420" preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <marker id="pq-arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="#555"/>
+      </marker>
+    </defs>
+    <g id="pq-scene"></g>
+  </svg>
+
+  <div class="controls">
+    <button onclick="PQ.sendHigh()">Send High Priority</button>
+    <button onclick="PQ.sendNormal()">Send Normal Priority</button>
+    <button onclick="PQ.sendLow()">Send Low Priority</button>
+    <button onclick="PQ.sendDelayed()">Send Delayed (15s)</button>
+    <button onclick="PQ.sendBatch()">Batch (10 msgs)</button>
+    <button onclick="PQ.reset()">Reset</button>
+    <div class="slider-group">
+      <span>Sim speed</span>
+      <input type="range" min="50" max="300" value="150" id="pq-speed">
+      <span id="pq-speed-label">1.0x</span>
+    </div>
+  </div>
+
+  <div class="commentary" id="pq-commentary">Priority simulation: high-priority queue gets 3 dedicated workers, normal gets 2, low gets 1. Workers for high-priority also drain normal when high queue is empty. Send messages and watch allocation in action.</div>
+
+  <table class="comparison-table" style="margin-top:16px;">
+    <thead>
+      <tr>
+        <th>SQS Feature</th>
+        <th>Limit / Detail</th>
+        <th>Interview Insight</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>DelaySeconds</code></td>
+        <td>0–900s (15 min) per message</td>
+        <td>For longer delays: Step Functions Wait state or EventBridge Scheduler</td>
+      </tr>
+      <tr>
+        <td><code>SendMessageBatch</code></td>
+        <td>Up to 10 messages, 256KB total</td>
+        <td>10x throughput, 10x cost reduction — always batch when possible</td>
+      </tr>
+      <tr>
+        <td><code>DeleteMessageBatch</code></td>
+        <td>Up to 10 receipts</td>
+        <td>Delete after successful processing batch, not per-message</td>
+      </tr>
+      <tr>
+        <td>FIFO queue throughput</td>
+        <td>300 msg/s (3000 with batching)</td>
+        <td>Standard queue: ~unlimited. FIFO costs ordering.</td>
+      </tr>
+      <tr>
+        <td>Message retention</td>
+        <td>4 days default, max 14 days</td>
+        <td>DLQ retention should exceed source queue retention</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="takeaway">
+    <strong>Takeaways</strong>
+    <ul>
+      <li><strong>Priority simulation via worker ratios:</strong> 3 queues (High/Normal/Low), 6 workers — allocate 3:2:1. Workers for higher tiers steal from lower tiers when their own queue is empty. This is the SQS-idiomatic priority pattern.</li>
+      <li><strong>Delay queue vs scheduled jobs:</strong> <code>DelaySeconds</code> up to 15 minutes. Beyond that, use EventBridge Scheduler (cron expression or one-time) or Step Functions with a Wait state.</li>
+      <li><strong>Batch size vs latency:</strong> Batch of 10 cuts SQS costs 10x but adds up to 250ms of "filling time" if traffic is low. Use adaptive batching: fill the batch or fire after 250ms, whichever comes first.</li>
+      <li><strong>Cost model:</strong> SQS standard = $0.40/million requests. Each <code>SendMessage</code> = 1 request, each <code>ReceiveMessage</code> (up to 10 msgs) = 1 request. Long-polling + batching are the two levers.</li>
+    </ul>
+  </div>
+</section>
+
+<script>
+/* ================================================================
+   SHARED UTILITIES
+   ================================================================ */
+function delay(ms) { return new Promise(function(r) { setTimeout(r, ms); }); }
+
+function setActiveTab(name) {
+  var tabNames = ['competing', 'fanout', 'reqreply', 'outbox', 'priority'];
+  var btns = document.querySelectorAll('nav.tabs button');
+  btns.forEach(function(b, i) { b.classList.toggle('active', tabNames[i] === name); });
+  document.querySelectorAll('section[data-tab]').forEach(function(s) {
+    s.hidden = s.getAttribute('data-tab') !== name;
+  });
+}
+
+function svgEl(tag, attrs) {
+  var el = document.createElementNS('http://www.w3.org/2000/svg', tag);
+  if (attrs) { for (var k in attrs) { el.setAttribute(k, attrs[k]); } }
+  return el;
+}
+
+function svgText(x, y, text, opts) {
+  var t = svgEl('text', Object.assign({
+    x: x, y: y, 'text-anchor': 'middle', fill: '#888', 'font-size': '11'
+  }, opts || {}));
+  t.textContent = text;
+  return t;
+}
+
+function animPkt(sceneEl, fx, fy, tx, ty, color, label, ms) {
+  return new Promise(function(resolve) {
+    var g = svgEl('g', {});
+    g.appendChild(svgEl('circle', { cx: fx, cy: fy, r: 7, fill: color, opacity: '0.9' }));
+    if (label) {
+      var txt = svgText(fx, fy - 12, label, { fill: color, 'font-size': '9', 'font-weight': '600' });
+      g.appendChild(txt);
+    }
+    sceneEl.appendChild(g);
+    requestAnimationFrame(function() {
+      var ch = g.children;
+      for (var i = 0; i < ch.length; i++) {
+        ch[i].style.transition = 'all ' + ms + 'ms ease';
+        if (ch[i].tagName === 'circle') {
+          ch[i].setAttribute('cx', tx);
+          ch[i].setAttribute('cy', ty);
+        } else {
+          ch[i].setAttribute('x', tx);
+          ch[i].setAttribute('y', ty - 12);
+        }
+      }
+    });
+    setTimeout(function() {
+      if (g.parentNode) g.parentNode.removeChild(g);
+      resolve();
+    }, ms + 30);
+  });
+}
+
+/* ================================================================
+   TAB 1 -- COMPETING CONSUMERS
+   ================================================================ */
+var CC = (function() {
+  var workers = [];
+  var queueMsgs = [];
+  var msgId = 0;
+  var totalProcessed = 0;
+  var crashed = [];
+  var scene;
+  var animating = false;
+  var visTimeouts = {}; // msgId -> timeout element
+
+  // Layout constants
+  var PRODUCER_X = 80;
+  var PRODUCER_Y = 200;
+  var QUEUE_X = 280;
+  var QUEUE_Y = 160;
+  var QUEUE_W = 160;
+  var QUEUE_H = 80;
+  var WORKER_START_X = 560;
+  var WORKER_GAP = 90;
+
+  function getWorkerY(i) { return 80 + i * WORKER_GAP; }
+  function procTime() { return parseInt(document.getElementById('cc-proc-time').value); }
+  document.getElementById('cc-proc-time').addEventListener('input', function() {
+    document.getElementById('cc-proc-label').textContent = this.value + 'ms';
+  });
+
+  function initWorkers(count) {
+    workers = [];
+    crashed = [];
+    for (var i = 0; i < count; i++) {
+      workers.push({ id: i, busy: false, label: 'Worker ' + (i + 1), color: ['#e06c75','#98c379','#61afef','#e5c07b'][i % 4] });
+    }
+  }
+
+  function draw() {
+    scene = document.getElementById('cc-scene');
+    scene.innerHTML = '';
+
+    // Producer
+    scene.appendChild(svgEl('rect', { x: PRODUCER_X - 45, y: PRODUCER_Y - 26, width: 90, height: 52, rx: 6, fill: '#181820', stroke: '#61afef', 'stroke-width': 2 }));
+    scene.appendChild(svgText(PRODUCER_X, PRODUCER_Y, 'Producer', { fill: '#61afef', 'font-size': '12', 'font-weight': '600' }));
+    scene.appendChild(svgText(PRODUCER_X, PRODUCER_Y + 15, '(API server)', { fill: '#555', 'font-size': '10' }));
+
+    // Arrow producer -> queue
+    scene.appendChild(svgEl('line', { x1: PRODUCER_X + 45, y1: PRODUCER_Y, x2: QUEUE_X - 2, y2: PRODUCER_Y, stroke: '#444', 'stroke-width': 1.5, 'marker-end': 'url(#cc-arrow)' }));
+    scene.appendChild(svgText((PRODUCER_X + 45 + QUEUE_X) / 2, PRODUCER_Y - 8, 'SendMessage', { fill: '#555', 'font-size': '9' }));
+
+    // SQS Queue
+    scene.appendChild(svgEl('rect', { x: QUEUE_X, y: QUEUE_Y, width: QUEUE_W, height: QUEUE_H, rx: 6, fill: '#12121a', stroke: '#e5c07b', 'stroke-width': 2 }));
+    scene.appendChild(svgText(QUEUE_X + QUEUE_W / 2, QUEUE_Y + 18, 'SQS Queue', { fill: '#e5c07b', 'font-size': '12', 'font-weight': '700' }));
+    scene.appendChild(svgText(QUEUE_X + QUEUE_W / 2, QUEUE_Y + 36, 'orders-queue', { fill: '#666', 'font-size': '10' }));
+    // Queue depth badge
+    scene.appendChild(svgEl('rect', { x: QUEUE_X + QUEUE_W - 44, y: QUEUE_Y + QUEUE_H - 26, width: 40, height: 20, rx: 4, fill: '#20202a', stroke: '#2a2a35', 'stroke-width': 1 }));
+    scene.appendChild(svgText(QUEUE_X + QUEUE_W - 24, QUEUE_Y + QUEUE_H - 12, 'depth: ' + queueMsgs.length, { fill: '#e5c07b', 'font-size': '9', 'font-weight': '600' }));
+
+    // Queue message indicators
+    var slotW = Math.min(28, (QUEUE_W - 20) / 6);
+    for (var qi = 0; qi < Math.min(queueMsgs.length, 5); qi++) {
+      var mx = QUEUE_X + 10 + qi * (slotW + 3);
+      var my = QUEUE_Y + 52;
+      scene.appendChild(svgEl('rect', { x: mx, y: my, width: slotW, height: 16, rx: 3, fill: '#e5c07b', opacity: '0.7' }));
+      scene.appendChild(svgText(mx + slotW / 2, my + 11, 'M', { fill: '#000', 'font-size': '8', 'font-weight': '700' }));
+    }
+    if (queueMsgs.length > 5) {
+      scene.appendChild(svgText(QUEUE_X + QUEUE_W / 2, QUEUE_Y + QUEUE_H - 8, '+' + (queueMsgs.length - 5) + ' more', { fill: '#888', 'font-size': '9' }));
+    }
+
+    // Processed counter
+    scene.appendChild(svgEl('rect', { x: QUEUE_X + 4, y: QUEUE_Y + QUEUE_H + 14, width: QUEUE_W - 8, height: 26, rx: 4, fill: '#1a1a22', stroke: '#2a2a35', 'stroke-width': 1 }));
+    scene.appendChild(svgText(QUEUE_X + QUEUE_W / 2, QUEUE_Y + QUEUE_H + 31, 'Processed: ' + totalProcessed, { fill: '#98c379', 'font-size': '11', 'font-weight': '600' }));
+
+    // CloudWatch alarm box
+    scene.appendChild(svgEl('rect', { x: QUEUE_X - 20, y: QUEUE_Y + QUEUE_H + 55, width: QUEUE_W + 40, height: 36, rx: 4, fill: '#1a1520', stroke: '#c678dd44', 'stroke-width': 1 }));
+    scene.appendChild(svgText(QUEUE_X + QUEUE_W / 2, QUEUE_Y + QUEUE_H + 71, 'CloudWatch Alarm', { fill: '#c678dd', 'font-size': '10', 'font-weight': '600' }));
+    scene.appendChild(svgText(QUEUE_X + QUEUE_W / 2, QUEUE_Y + QUEUE_H + 84, 'depth > threshold => ASG scale-out', { fill: '#555', 'font-size': '9' }));
+
+    // Workers
+    for (var i = 0; i < workers.length; i++) {
+      var w = workers[i];
+      var wy = getWorkerY(i);
+      var isCrashed = crashed.indexOf(i) !== -1;
+      var stroke = isCrashed ? '#e06c75' : w.color;
+      var fill = isCrashed ? '#1f1015' : (w.busy ? '#1a2015' : '#181820');
+      scene.appendChild(svgEl('rect', { x: WORKER_START_X - 48, y: wy - 26, width: 96, height: 52, rx: 6, fill: fill, stroke: stroke, 'stroke-width': 2 }));
+
+      if (isCrashed) {
+        // X marks
+        scene.appendChild(svgEl('line', { x1: WORKER_START_X - 20, y1: wy - 10, x2: WORKER_START_X + 20, y2: wy + 10, stroke: '#e06c75', 'stroke-width': 3 }));
+        scene.appendChild(svgEl('line', { x1: WORKER_START_X + 20, y1: wy - 10, x2: WORKER_START_X - 20, y2: wy + 10, stroke: '#e06c75', 'stroke-width': 3 }));
+        scene.appendChild(svgText(WORKER_START_X, wy + 32, w.label + ' (crashed)', { fill: '#e06c75', 'font-size': '10' }));
+      } else {
+        scene.appendChild(svgText(WORKER_START_X, wy, w.label, { fill: stroke, 'font-size': '12', 'font-weight': '600' }));
+        scene.appendChild(svgText(WORKER_START_X, wy + 16, w.busy ? 'PROCESSING...' : 'polling', { fill: w.busy ? '#98c379' : '#444', 'font-size': '9' }));
+      }
+
+      // Poll arrows (dashed)
+      if (!isCrashed) {
+        scene.appendChild(svgEl('line', {
+          x1: QUEUE_X + QUEUE_W + 2, y1: QUEUE_Y + QUEUE_H / 2,
+          x2: WORKER_START_X - 49, y2: wy,
+          stroke: '#2a2a35', 'stroke-width': 1, 'stroke-dasharray': '4,4'
+        }));
+      }
+
+      // Visibility timeout bar
+      if (w.busy && !isCrashed) {
+        scene.appendChild(svgEl('rect', { x: WORKER_START_X - 48, y: wy + 28, width: 96, height: 6, rx: 3, fill: '#c678dd33', stroke: '#c678dd44', 'stroke-width': 1 }));
+        scene.appendChild(svgText(WORKER_START_X, wy + 47, 'visibility timeout', { fill: '#c678dd', 'font-size': '8' }));
+      }
+    }
+
+    // Scale-out indicator
+    if (workers.length > 3) {
+      scene.appendChild(svgText(WORKER_START_X, getWorkerY(workers.length - 1) + 50, 'ASG scaled out', { fill: '#98c379', 'font-size': '10', 'font-weight': '600' }));
+    }
+  }
+
+  function commentary(text) { document.getElementById('cc-commentary').textContent = text; }
+
+  function getFreeWorker() {
+    for (var i = 0; i < workers.length; i++) {
+      if (!workers[i].busy && crashed.indexOf(i) === -1) return i;
+    }
+    return -1;
+  }
+
+  async function processMsg(wIdx) {
+    var w = workers[wIdx];
+    w.busy = true;
+    var pt = procTime();
+    draw();
+    await animPkt(scene, QUEUE_X + QUEUE_W / 2, QUEUE_Y + QUEUE_H / 2, WORKER_START_X, getWorkerY(wIdx), w.color, 'msg', 450);
+    commentary(w.label + ' received message. Visibility timeout starts (' + Math.round(pt * 2 / 1000) + 's). Other workers cannot see this message.');
+    await delay(pt);
+    totalProcessed++;
+    w.busy = false;
+    // DeleteMessage animation
+    draw();
+    commentary(w.label + ' finished processing. Calling DeleteMessage to commit. Queue depth: ' + queueMsgs.length);
+    await delay(200);
+    drainQueue();
+  }
+
+  function drainQueue() {
+    if (queueMsgs.length === 0) return;
+    var wIdx = getFreeWorker();
+    if (wIdx === -1) return;
+    queueMsgs.shift();
+    draw();
+    processMsg(wIdx);
+  }
+
+  async function sendMsg() {
+    var id = ++msgId;
+    queueMsgs.push(id);
+    draw();
+    commentary('SendMessage called. Message M' + id + ' enqueued. Queue depth: ' + queueMsgs.length);
+    await animPkt(scene, PRODUCER_X + 45, PRODUCER_Y, QUEUE_X + QUEUE_W / 2, QUEUE_Y + QUEUE_H / 2, '#e5c07b', 'M' + id, 400);
+    draw();
+    drainQueue();
+  }
+
+  async function burstMsgs() {
+    for (var i = 0; i < 5; i++) {
+      sendMsg();
+      await delay(120);
+    }
+  }
+
+  function crashWorker() {
+    var wIdx = -1;
+    for (var i = 0; i < workers.length; i++) {
+      if (workers[i].busy && crashed.indexOf(i) === -1) { wIdx = i; break; }
+    }
+    if (wIdx === -1) {
+      // crash first non-crashed
+      for (var j = 0; j < workers.length; j++) {
+        if (crashed.indexOf(j) === -1) { wIdx = j; break; }
+      }
+    }
+    if (wIdx === -1) { commentary('All workers already crashed. Reset to continue.'); return; }
+    crashed.push(wIdx);
+    workers[wIdx].busy = false;
+    draw();
+    commentary('Worker ' + (wIdx + 1) + ' crashed! Its in-flight message will reappear in the queue after the visibility timeout expires. SQS provides at-least-once delivery -- no message is lost.');
+    // After 2s, simulate message reappearance
+    setTimeout(function() {
+      if (crashed.indexOf(wIdx) !== -1) {
+        queueMsgs.push(++msgId);
+        draw();
+        commentary('Visibility timeout expired. Message reappeared in queue (redelivered to another worker). This is at-least-once guarantee in action.');
+        drainQueue();
+      }
+    }, 2000);
+  }
+
+  function addWorker() {
+    var newIdx = workers.length;
+    if (newIdx >= 6) { commentary('Max 6 workers in this simulation. In production, ASG can scale to hundreds.'); return; }
+    workers.push({ id: newIdx, busy: false, label: 'Worker ' + (newIdx + 1), color: ['#e06c75','#98c379','#61afef','#e5c07b','#c678dd','#56b6c2'][newIdx % 6] });
+    draw();
+    commentary('ASG scale-out triggered. Worker ' + (newIdx + 1) + ' added. Queue depth decreases as new worker starts polling immediately.');
+    drainQueue();
+  }
+
+  function reset() {
+    workers = [];
+    queueMsgs = [];
+    msgId = 0;
+    totalProcessed = 0;
+    crashed = [];
+    initWorkers(3);
+    draw();
+    commentary('Three workers poll the same SQS queue. Send a message and watch exactly one worker pick it up. Burst five messages to see concurrent processing with zero coordination overhead.');
+  }
+
+  initWorkers(3);
+  draw();
+
+  return { sendMsg: sendMsg, burstMsgs: burstMsgs, crashWorker: crashWorker, addWorker: addWorker, reset: reset };
+})();
+
+
+/* ================================================================
+   TAB 2 -- SNS FAN-OUT
+   ================================================================ */
+var FO = (function() {
+  var scene;
+  var subscribers = [
+    { id: 'email',    label: 'SQS: Email Worker',    subLabel: 'sends conf. emails',  color: '#e06c75',  queueX: 660, queueY: 80  },
+    { id: 'analytics',label: 'SQS: Analytics',      subLabel: 'tracks events',       color: '#98c379',  queueX: 660, queueY: 190 },
+    { id: 'push',     label: 'SQS: Mobile Push',    subLabel: 'sends push notifs',   color: '#61afef',  queueX: 660, queueY: 300 },
+    { id: 'lambda',   label: 'Lambda: Fulfillment', subLabel: 'starts workflow',     color: '#c678dd',  queueX: 660, queueY: 380 },
+  ];
+  var extraSub = { id: 'fraud', label: 'SQS: Fraud Detection', subLabel: 'amount filter', color: '#e5c07b', queueX: 660, queueY: 400 };
+  var hasExtra = false;
+  var showingDirect = false;
+  var msgCount = 0;
+
+  var SNS_X = 370, SNS_Y = 210;
+  var PROD_X = 100, PROD_Y = 210;
+
+  function draw() {
+    scene = document.getElementById('fo-scene');
+    scene.innerHTML = '';
+
+    if (showingDirect) {
+      drawDirect();
+      return;
+    }
+
+    // Producer
+    scene.appendChild(svgEl('rect', { x: PROD_X - 50, y: PROD_Y - 28, width: 100, height: 56, rx: 6, fill: '#181820', stroke: '#61afef', 'stroke-width': 2 }));
+    scene.appendChild(svgText(PROD_X, PROD_Y - 8, 'Order', { fill: '#61afef', 'font-size': '12', 'font-weight': '700' }));
+    scene.appendChild(svgText(PROD_X, PROD_Y + 10, 'Service', { fill: '#61afef', 'font-size': '12', 'font-weight': '700' }));
+    scene.appendChild(svgText(PROD_X, PROD_Y + 24, '(producer)', { fill: '#555', 'font-size': '9' }));
+
+    // Arrow to SNS
+    scene.appendChild(svgEl('line', { x1: PROD_X + 50, y1: PROD_Y, x2: SNS_X - 44, y2: SNS_Y, stroke: '#444', 'stroke-width': 1.5, 'marker-end': 'url(#fo-arrow)' }));
+    scene.appendChild(svgText((PROD_X + SNS_X) / 2, PROD_Y - 12, 'Publish()', { fill: '#555', 'font-size': '9' }));
+    scene.appendChild(svgText((PROD_X + SNS_X) / 2, PROD_Y + 4, 'one call', { fill: '#444', 'font-size': '9' }));
+
+    // SNS Topic
+    scene.appendChild(svgEl('ellipse', { cx: SNS_X, cy: SNS_Y, rx: 44, ry: 28, fill: '#12121a', stroke: '#e5c07b', 'stroke-width': 2.5 }));
+    scene.appendChild(svgText(SNS_X, SNS_Y - 4, 'SNS', { fill: '#e5c07b', 'font-size': '13', 'font-weight': '700' }));
+    scene.appendChild(svgText(SNS_X, SNS_Y + 12, 'order-events', { fill: '#777', 'font-size': '9' }));
+
+    // Fan-out lines to subscribers
+    var subs = subscribers.slice();
+    if (hasExtra) subs = subs.concat([extraSub]);
+    var subCount = subs.length;
+    for (var i = 0; i < subCount; i++) {
+      var sub = subs[i];
+      scene.appendChild(svgEl('line', {
+        x1: SNS_X + 44, y1: SNS_Y,
+        x2: sub.queueX - 10, y2: sub.queueY,
+        stroke: sub.color + '55', 'stroke-width': 1.5, 'marker-end': 'url(#fo-arrow)'
+      }));
+
+      var isLambda = sub.id === 'lambda';
+      var boxW = 150, boxH = 44;
+      scene.appendChild(svgEl('rect', {
+        x: sub.queueX - 10, y: sub.queueY - boxH / 2, width: boxW, height: boxH,
+        rx: isLambda ? 20 : 6, fill: '#181820', stroke: sub.color, 'stroke-width': isLambda ? 1.5 : 2
+      }));
+      scene.appendChild(svgText(sub.queueX - 10 + boxW / 2, sub.queueY - 4, sub.label, { fill: sub.color, 'font-size': '10', 'font-weight': '600' }));
+      scene.appendChild(svgText(sub.queueX - 10 + boxW / 2, sub.queueY + 12, sub.subLabel, { fill: '#555', 'font-size': '9' }));
+
+      if (sub.id === 'fraud') {
+        // Filter policy badge
+        scene.appendChild(svgEl('rect', { x: sub.queueX + boxW - 10 - 56, y: sub.queueY - boxH / 2 - 18, width: 56, height: 16, rx: 8, fill: '#e5c07b22', stroke: '#e5c07b44', 'stroke-width': 1 }));
+        scene.appendChild(svgText(sub.queueX + boxW - 10 - 28, sub.queueY - boxH / 2 - 8, 'filter policy', { fill: '#e5c07b', 'font-size': '8' }));
+      }
+    }
+
+    // "Adding subscriber without touching producer" note
+    if (hasExtra) {
+      scene.appendChild(svgEl('rect', { x: 560, y: 380, width: 280, height: 22, rx: 4, fill: '#12251a', stroke: '#98c37944', 'stroke-width': 1 }));
+      scene.appendChild(svgText(700, 394, 'Producer code unchanged — zero coupling', { fill: '#98c379', 'font-size': '10', 'font-weight': '600' }));
+    }
+
+    scene.appendChild(svgText(SNS_X, SNS_Y + 44, msgCount > 0 ? 'msgs published: ' + msgCount : '', { fill: '#98c379', 'font-size': '10', 'font-weight': '600' }));
+  }
+
+  function drawDirect() {
+    // Show the anti-pattern: producer writes to each queue directly
+    scene.appendChild(svgEl('rect', { x: PROD_X - 50, y: 100, width: 100, height: 56, rx: 6, fill: '#1f1015', stroke: '#e06c75', 'stroke-width': 2, 'stroke-dasharray': '6,3' }));
+    scene.appendChild(svgText(PROD_X, 125, 'Order', { fill: '#e06c75', 'font-size': '12', 'font-weight': '700' }));
+    scene.appendChild(svgText(PROD_X, 141, 'Service', { fill: '#e06c75', 'font-size': '12', 'font-weight': '700' }));
+    scene.appendChild(svgText(PROD_X, 172, '(knows all queues!)', { fill: '#e06c75', 'font-size': '9' }));
+
+    // Direct arrows to each queue — producer coupled to topology
+    var directSubs = [
+      { label: 'SQS: Email',     color: '#e06c75', y: 80 },
+      { label: 'SQS: Analytics', color: '#98c379', y: 180 },
+      { label: 'SQS: Push',      color: '#61afef', y: 280 },
+      { label: 'SQS: Fulfillment', color: '#c678dd', y: 360 },
+    ];
+    for (var i = 0; i < directSubs.length; i++) {
+      var ds = directSubs[i];
+      scene.appendChild(svgEl('line', {
+        x1: PROD_X + 50, y1: 128,
+        x2: 620, y2: ds.y,
+        stroke: ds.color + '77', 'stroke-width': 1.5, 'stroke-dasharray': '4,3', 'marker-end': 'url(#fo-arrow)'
+      }));
+      scene.appendChild(svgEl('rect', { x: 620, y: ds.y - 18, width: 150, height: 36, rx: 6, fill: '#181820', stroke: ds.color, 'stroke-width': 1.5 }));
+      scene.appendChild(svgText(695, ds.y + 4, ds.label, { fill: ds.color, 'font-size': '10', 'font-weight': '600' }));
+    }
+
+    // Problem annotation
+    scene.appendChild(svgEl('rect', { x: 10, y: 270, width: 200, height: 90, rx: 6, fill: '#1f1015', stroke: '#e06c7544', 'stroke-width': 1 }));
+    scene.appendChild(svgText(110, 292, 'Problems:', { fill: '#e06c75', 'font-size': '11', 'font-weight': '700' }));
+    scene.appendChild(svgText(110, 308, 'Producer knows all queues', { fill: '#888', 'font-size': '10' }));
+    scene.appendChild(svgText(110, 322, 'Adding consumer = code change', { fill: '#888', 'font-size': '10' }));
+    scene.appendChild(svgText(110, 336, 'N writes = N API calls', { fill: '#888', 'font-size': '10' }));
+    scene.appendChild(svgText(110, 350, 'Partial failure: some queues miss', { fill: '#888', 'font-size': '10' }));
+  }
+
+  function commentary(text) { document.getElementById('fo-commentary').textContent = text; }
+
+  async function publish() {
+    if (showingDirect) { showingDirect = false; draw(); }
+    msgCount++;
+    draw();
+    var subs = subscribers.slice();
+    if (hasExtra) subs = subs.concat([extraSub]);
+    commentary('Publish #' + msgCount + ' to SNS. Fan-out to ' + subs.length + ' subscribers simultaneously. Producer\'s job is done with a single API call.');
+    // Animate packet to SNS first
+    await animPkt(scene, PROD_X + 50, PROD_Y, SNS_X, SNS_Y, '#e5c07b', 'event', 350);
+    draw();
+    // Then fan-out to all subscribers in parallel
+    var ps = [];
+    for (var i = 0; i < subs.length; i++) {
+      ps.push(animPkt(scene, SNS_X, SNS_Y, subs[i].queueX + 65, subs[i].queueY, subs[i].color, '', 500));
+    }
+    await Promise.all(ps);
+    draw();
+    commentary('Message delivered to all ' + subs.length + ' subscribers simultaneously. Each subscriber has an independent queue — failures in one do not affect others.');
+  }
+
+  function addSubscriber() {
+    if (hasExtra) { commentary('Fraud detection already added. Note: the order service code was NOT touched — zero coupling.'); return; }
+    hasExtra = true;
+    // Adjust existing subscriber positions to make room
+    subscribers[3].queueY = 310;
+    extraSub.queueY = 390;
+    draw();
+    commentary('Fraud detection subscriber added to the SNS topic. The order service code was not changed — not even redeployed. This is the core value of the fan-out pattern.');
+    document.getElementById('fo-btn-add-sub').disabled = true;
+  }
+
+  function showDirect() {
+    showingDirect = !showingDirect;
+    draw();
+    if (showingDirect) {
+      commentary('Anti-pattern: producer writes to each queue directly. Every topology change requires a producer code change. Partial failures leave some queues without the message.');
+    } else {
+      commentary('Back to SNS fan-out. The producer publishes once and SNS handles all fan-out, durably.');
+    }
+  }
+
+  function reset() {
+    hasExtra = false;
+    showingDirect = false;
+    msgCount = 0;
+    subscribers[3].queueY = 380;
+    document.getElementById('fo-btn-add-sub').disabled = false;
+    draw();
+    commentary('SNS decouples the publisher from the subscriber topology. Publishing one message to the topic is all the producer ever does — SNS handles fan-out to all subscribers.');
+  }
+
+  draw();
+  return { publish: publish, addSubscriber: addSubscriber, showDirect: showDirect, reset: reset };
+})();
+
+
+/* ================================================================
+   TAB 3 -- REQUEST-REPLY
+   ================================================================ */
+var RR = (function() {
+  var scene;
+  var pendingRequests = {}; // correlationId -> { ts, timedOut }
+  var reqCount = 0;
+  var useSharedReply = false;
+  var workerCrashed = false;
+
+  // Layout
+  var SENDER_X = 80, SENDER_Y = 190;
+  var REQ_QUEUE_X = 280, REQ_QUEUE_Y = 120;
+  var WORKER_X = 540, WORKER_Y = 190;
+  var REPLY_QUEUE_X = 280, REPLY_QUEUE_Y = 270;
+
+  function workerLatency() { return parseInt(document.getElementById('rr-latency').value); }
+  document.getElementById('rr-latency').addEventListener('input', function() {
+    document.getElementById('rr-latency-label').textContent = this.value + 'ms';
+  });
+
+  function draw() {
+    scene = document.getElementById('rr-scene');
+    scene.innerHTML = '';
+
+    // Sender
+    scene.appendChild(svgEl('rect', { x: SENDER_X - 50, y: SENDER_Y - 30, width: 100, height: 60, rx: 6, fill: '#181820', stroke: '#61afef', 'stroke-width': 2 }));
+    scene.appendChild(svgText(SENDER_X, SENDER_Y - 8, 'Sender', { fill: '#61afef', 'font-size': '12', 'font-weight': '700' }));
+    scene.appendChild(svgText(SENDER_X, SENDER_Y + 10, '(API handler)', { fill: '#555', 'font-size': '9' }));
+
+    var pendingIds = Object.keys(pendingRequests);
+    if (pendingIds.length > 0) {
+      scene.appendChild(svgEl('rect', { x: SENDER_X - 50, y: SENDER_Y + 34, width: 100, height: 20, rx: 3, fill: '#12121a', stroke: '#2a2a35', 'stroke-width': 1 }));
+      scene.appendChild(svgText(SENDER_X, SENDER_Y + 48, 'waiting: ' + pendingIds.length, { fill: '#e5c07b', 'font-size': '9', 'font-weight': '600' }));
+    }
+
+    // Request Queue
+    scene.appendChild(svgEl('rect', { x: REQ_QUEUE_X, y: REQ_QUEUE_Y - 26, width: 160, height: 52, rx: 6, fill: '#12121a', stroke: '#e5c07b', 'stroke-width': 2 }));
+    scene.appendChild(svgText(REQ_QUEUE_X + 80, REQ_QUEUE_Y - 8, 'Request Queue', { fill: '#e5c07b', 'font-size': '11', 'font-weight': '700' }));
+    scene.appendChild(svgText(REQ_QUEUE_X + 80, REQ_QUEUE_Y + 10, 'with CorrelationId + ReplyTo', { fill: '#666', 'font-size': '9' }));
+
+    // Worker
+    var workerColor = workerCrashed ? '#e06c75' : '#98c379';
+    scene.appendChild(svgEl('rect', { x: WORKER_X - 50, y: WORKER_Y - 30, width: 100, height: 60, rx: 6, fill: workerCrashed ? '#1f1015' : '#181820', stroke: workerColor, 'stroke-width': 2 }));
+    scene.appendChild(svgText(WORKER_X, WORKER_Y - 8, workerCrashed ? 'Worker' : 'Worker', { fill: workerColor, 'font-size': '12', 'font-weight': '700' }));
+    scene.appendChild(svgText(WORKER_X, WORKER_Y + 10, workerCrashed ? 'CRASHED' : 'processing', { fill: workerCrashed ? '#e06c75' : '#444', 'font-size': '9' }));
+    if (workerCrashed) {
+      scene.appendChild(svgEl('line', { x1: WORKER_X - 20, y1: WORKER_Y - 15, x2: WORKER_X + 20, y2: WORKER_Y + 15, stroke: '#e06c75', 'stroke-width': 3 }));
+      scene.appendChild(svgEl('line', { x1: WORKER_X + 20, y1: WORKER_Y - 15, x2: WORKER_X - 20, y2: WORKER_Y + 15, stroke: '#e06c75', 'stroke-width': 3 }));
+    }
+
+    // Reply Queue
+    var replyLabel = useSharedReply ? 'Shared Reply Queue' : 'Reply Queue';
+    var replySubLabel = useSharedReply ? '(filter by CorrelationId)' : '(per-request or named)';
+    scene.appendChild(svgEl('rect', { x: REPLY_QUEUE_X, y: REPLY_QUEUE_Y - 26, width: 160, height: 52, rx: 6, fill: '#12121a', stroke: '#56b6c2', 'stroke-width': 2 }));
+    scene.appendChild(svgText(REPLY_QUEUE_X + 80, REPLY_QUEUE_Y - 8, replyLabel, { fill: '#56b6c2', 'font-size': '11', 'font-weight': '700' }));
+    scene.appendChild(svgText(REPLY_QUEUE_X + 80, REPLY_QUEUE_Y + 10, replySubLabel, { fill: '#666', 'font-size': '9' }));
+
+    // Arrows
+    // Sender -> Request Queue
+    scene.appendChild(svgEl('line', { x1: SENDER_X + 50, y1: SENDER_Y - 10, x2: REQ_QUEUE_X - 2, y2: REQ_QUEUE_Y, stroke: '#61afef55', 'stroke-width': 1.5, 'marker-end': 'url(#rr-arrow)' }));
+    // Request Queue -> Worker
+    scene.appendChild(svgEl('line', { x1: REQ_QUEUE_X + 160, y1: REQ_QUEUE_Y, x2: WORKER_X - 52, y2: WORKER_Y, stroke: '#e5c07b55', 'stroke-width': 1.5, 'marker-end': 'url(#rr-arrow)' }));
+    // Worker -> Reply Queue
+    scene.appendChild(svgEl('line', { x1: WORKER_X - 50, y1: WORKER_Y + 10, x2: REPLY_QUEUE_X + 160, y2: REPLY_QUEUE_Y, stroke: '#98c37955', 'stroke-width': 1.5, 'marker-end': 'url(#rr-arrow)' }));
+    // Reply Queue -> Sender
+    scene.appendChild(svgEl('line', { x1: REPLY_QUEUE_X, y1: REPLY_QUEUE_Y + 10, x2: SENDER_X + 50, y2: SENDER_Y + 10, stroke: '#56b6c255', 'stroke-width': 1.5, 'marker-end': 'url(#rr-arrow)' }));
+
+    // CorrelationId legend
+    scene.appendChild(svgEl('rect', { x: 650, y: 100, width: 190, height: 120, rx: 6, fill: '#181820', stroke: '#2a2a35', 'stroke-width': 1 }));
+    scene.appendChild(svgText(745, 120, 'Message attributes', { fill: '#61afef', 'font-size': '11', 'font-weight': '700' }));
+    scene.appendChild(svgText(745, 140, 'CorrelationId: uuid', { fill: '#56b6c2', 'font-size': '10' }));
+    scene.appendChild(svgText(745, 157, 'ReplyTo: queue-url', { fill: '#56b6c2', 'font-size': '10' }));
+    scene.appendChild(svgText(745, 174, 'Payload: { ... }', { fill: '#888', 'font-size': '10' }));
+    scene.appendChild(svgText(745, 191, 'Timeout: 30s', { fill: '#e06c75', 'font-size': '10' }));
+    scene.appendChild(svgText(745, 208, useSharedReply ? 'Mode: shared queue' : 'Mode: per-request', { fill: '#e5c07b', 'font-size': '10' }));
+
+    // Timeout warnings
+    for (var cid in pendingRequests) {
+      var req = pendingRequests[cid];
+      if (req.timedOut) {
+        scene.appendChild(svgEl('rect', { x: SENDER_X - 50, y: SENDER_Y + 58, width: 100, height: 24, rx: 4, fill: '#1f1015', stroke: '#e06c7544', 'stroke-width': 1 }));
+        scene.appendChild(svgText(SENDER_X, SENDER_Y + 74, 'TIMEOUT #' + cid, { fill: '#e06c75', 'font-size': '9', 'font-weight': '700' }));
+      }
+    }
+  }
+
+  function commentary(text) { document.getElementById('rr-commentary').textContent = text; }
+
+  async function sendRequest() {
+    var cid = ++reqCount;
+    pendingRequests[cid] = { ts: Date.now(), timedOut: false };
+    draw();
+    commentary('Sender creates request #' + cid + ' with CorrelationId=' + cid + ', ReplyTo=reply-queue. Sends to request queue and starts waiting.');
+
+    // Animate: sender -> req queue
+    await animPkt(scene, SENDER_X + 50, SENDER_Y, REQ_QUEUE_X + 80, REQ_QUEUE_Y, '#61afef', 'CorId=' + cid, 400);
+    draw();
+
+    // Animate: req queue -> worker
+    await animPkt(scene, REQ_QUEUE_X + 160, REQ_QUEUE_Y, WORKER_X, WORKER_Y, '#e5c07b', 'req #' + cid, 450);
+    commentary('Worker received request #' + cid + '. Processing... (worker latency: ' + workerLatency() + 'ms)');
+
+    if (workerCrashed) {
+      commentary('Worker is down! Request #' + cid + ' visibility timeout will expire and the request reappears. The sender is still waiting.');
+      return;
+    }
+
+    await delay(workerLatency());
+    if (!pendingRequests[cid]) return; // cleaned up by timeout
+
+    // Worker -> reply queue
+    await animPkt(scene, WORKER_X - 50, WORKER_Y, REPLY_QUEUE_X + 80, REPLY_QUEUE_Y, '#98c379', 'reply CorId=' + cid, 450);
+
+    // Reply queue -> sender
+    await animPkt(scene, REPLY_QUEUE_X, REPLY_QUEUE_Y, SENDER_X + 50, SENDER_Y, '#56b6c2', 'matched!', 400);
+    delete pendingRequests[cid];
+    draw();
+    commentary('Reply matched by CorrelationId=' + cid + '. Sender unblocked. In-flight requests remaining: ' + Object.keys(pendingRequests).length);
+  }
+
+  async function sendMultiple() {
+    for (var i = 0; i < 3; i++) {
+      sendRequest();
+      await delay(200);
+    }
+  }
+
+  async function triggerTimeout() {
+    var cid = ++reqCount;
+    pendingRequests[cid] = { ts: Date.now(), timedOut: false };
+    draw();
+    commentary('Sending request #' + cid + ' that will time out. In production, the sender sets a deadline and cleans up the temporary queue on expiry.');
+    await animPkt(scene, SENDER_X + 50, SENDER_Y, REQ_QUEUE_X + 80, REQ_QUEUE_Y, '#61afef', 'CorId=' + cid, 400);
+    await delay(2000);
+    if (pendingRequests[cid]) {
+      pendingRequests[cid].timedOut = true;
+      draw();
+      commentary('Timeout! Request #' + cid + ' exceeded deadline. Sender returns error to caller. Temporary reply queue is deleted. The worker may still complete and send a reply to a deleted queue — safely discarded.');
+      delete pendingRequests[cid];
+    }
+  }
+
+  function toggleSharedReply() {
+    useSharedReply = !useSharedReply;
+    draw();
+    if (useSharedReply) {
+      commentary('Shared reply queue mode: all callers share one reply queue. Each caller polls and skips messages where CorrelationId doesn\'t match. Pro: no queue proliferation. Con: accumulated stale messages from crashed callers.');
+    } else {
+      commentary('Per-request reply queue mode: each request creates its own SQS queue for replies. Pro: perfect isolation. Con: queue creation overhead and AWS account-level SQS queue limits (1M queues).');
+    }
+  }
+
+  function reset() {
+    pendingRequests = {};
+    reqCount = 0;
+    workerCrashed = false;
+    draw();
+    commentary('The sender publishes to the request queue with a CorrelationId and ReplyTo address. The worker consumes, processes, and sends the result to the reply queue. The sender polls its reply queue and matches responses by CorrelationId.');
+  }
+
+  draw();
+  return { sendRequest: sendRequest, sendMultiple: sendMultiple, triggerTimeout: triggerTimeout, toggleSharedReply: toggleSharedReply, reset: reset };
+})();
+
+
+/* ================================================================
+   TAB 4 -- TRANSACTIONAL OUTBOX
+   ================================================================ */
+var OB = (function() {
+  var scene;
+  var step = '';
+  var outboxRows = [];
+  var sqsMessages = [];
+  var rowId = 0;
+  var relayCrashed = false;
+  var showCDCMode = false;
+
+  // Layout
+  var API_X = 70, API_Y = 180;
+  var DB_X = 250, DB_Y = 120;
+  var OUTBOX_X = 250, OUTBOX_Y = 260;
+  var RELAY_X = 460, RELAY_Y = 200;
+  var SQS_X = 650, SQS_Y = 120;
+  var CONSUMER_X = 800, CONSUMER_Y = 120;
+
+  function draw() {
+    scene = document.getElementById('ob-scene');
+    scene.innerHTML = '';
+
+    if (showCDCMode) { drawCDC(); return; }
+
+    // Step label
+    if (step) {
+      scene.appendChild(svgEl('rect', { x: 10, y: 6, width: 840, height: 22, rx: 4, fill: '#1a1a22', stroke: '#c678dd33', 'stroke-width': 1 }));
+      scene.appendChild(svgText(430, 21, step, { fill: '#c678dd', 'font-size': '11', 'font-weight': '600' }));
+    }
+
+    // API Handler
+    scene.appendChild(svgEl('rect', { x: API_X - 44, y: API_Y - 26, width: 88, height: 52, rx: 6, fill: '#181820', stroke: '#61afef', 'stroke-width': 2 }));
+    scene.appendChild(svgText(API_X, API_Y - 8, 'API', { fill: '#61afef', 'font-size': '12', 'font-weight': '700' }));
+    scene.appendChild(svgText(API_X, API_Y + 8, 'Handler', { fill: '#61afef', 'font-size': '12', 'font-weight': '700' }));
+
+    // DB (orders table)
+    scene.appendChild(svgEl('rect', { x: DB_X, y: DB_Y - 26, width: 140, height: 52, rx: 6, fill: '#181820', stroke: '#98c379', 'stroke-width': 2 }));
+    scene.appendChild(svgText(DB_X + 70, DB_Y - 8, 'DB: orders', { fill: '#98c379', 'font-size': '11', 'font-weight': '700' }));
+    scene.appendChild(svgText(DB_X + 70, DB_Y + 10, 'business table', { fill: '#555', 'font-size': '9' }));
+
+    // Outbox table
+    var obBgColor = relayCrashed ? '#12121a' : '#12121a';
+    scene.appendChild(svgEl('rect', { x: OUTBOX_X, y: OUTBOX_Y - 26, width: 140, height: 52 + Math.min(outboxRows.length, 3) * 18, rx: 6, fill: obBgColor, stroke: '#e5c07b', 'stroke-width': 2 }));
+    scene.appendChild(svgText(OUTBOX_X + 70, OUTBOX_Y - 8, 'DB: outbox', { fill: '#e5c07b', 'font-size': '11', 'font-weight': '700' }));
+    scene.appendChild(svgText(OUTBOX_X + 70, OUTBOX_Y + 10, '(same transaction)', { fill: '#555', 'font-size': '9' }));
+    for (var ri = 0; ri < Math.min(outboxRows.length, 3); ri++) {
+      var row = outboxRows[ri];
+      var rowColor = row.sent ? '#555' : '#e5c07b';
+      scene.appendChild(svgText(OUTBOX_X + 70, OUTBOX_Y + 26 + ri * 18, 'id=' + row.id + ' ' + (row.sent ? '[SENT]' : '[PENDING]'), { fill: rowColor, 'font-size': '9' }));
+    }
+    if (outboxRows.length > 3) {
+      scene.appendChild(svgText(OUTBOX_X + 70, OUTBOX_Y + 26 + 3 * 18, '+' + (outboxRows.length - 3) + ' more...', { fill: '#555', 'font-size': '9' }));
+    }
+
+    // DB transaction box
+    var txH = 190 + Math.max(0, outboxRows.length - 3) * 18;
+    scene.appendChild(svgEl('rect', { x: DB_X - 8, y: DB_Y - 40, width: 158, height: txH, rx: 8, fill: 'none', stroke: '#98c37933', 'stroke-width': 1.5, 'stroke-dasharray': '6,3' }));
+    scene.appendChild(svgText(DB_X + 70, DB_Y - 46, 'BEGIN TRANSACTION', { fill: '#98c37966', 'font-size': '9' }));
+    scene.appendChild(svgText(DB_X + 70, DB_Y + txH - 14, 'COMMIT', { fill: '#98c37966', 'font-size': '9' }));
+
+    // Relay
+    var relayStroke = relayCrashed ? '#e06c75' : '#c678dd';
+    var relayFill = relayCrashed ? '#1f1015' : '#181820';
+    scene.appendChild(svgEl('rect', { x: RELAY_X - 50, y: RELAY_Y - 30, width: 100, height: 60, rx: 6, fill: relayFill, stroke: relayStroke, 'stroke-width': 2 }));
+    scene.appendChild(svgText(RELAY_X, RELAY_Y - 8, relayCrashed ? 'Relay' : 'Relay', { fill: relayStroke, 'font-size': '12', 'font-weight': '700' }));
+    scene.appendChild(svgText(RELAY_X, RELAY_Y + 10, relayCrashed ? 'CRASHED' : 'polling outbox', { fill: relayCrashed ? '#e06c75' : '#444', 'font-size': '9' }));
+    if (relayCrashed) {
+      scene.appendChild(svgEl('line', { x1: RELAY_X - 20, y1: RELAY_Y - 15, x2: RELAY_X + 20, y2: RELAY_Y + 15, stroke: '#e06c75', 'stroke-width': 3 }));
+      scene.appendChild(svgEl('line', { x1: RELAY_X + 20, y1: RELAY_Y - 15, x2: RELAY_X - 20, y2: RELAY_Y + 15, stroke: '#e06c75', 'stroke-width': 3 }));
+    }
+
+    // SQS Queue
+    scene.appendChild(svgEl('rect', { x: SQS_X - 50, y: SQS_Y - 26, width: 100, height: 52, rx: 6, fill: '#12121a', stroke: '#e5c07b', 'stroke-width': 2 }));
+    scene.appendChild(svgText(SQS_X, SQS_Y - 8, 'SQS', { fill: '#e5c07b', 'font-size': '12', 'font-weight': '700' }));
+    scene.appendChild(svgText(SQS_X, SQS_Y + 10, sqsMessages.length + ' msgs', { fill: sqsMessages.length > 0 ? '#e5c07b' : '#444', 'font-size': '9' }));
+
+    // Consumer
+    scene.appendChild(svgEl('rect', { x: CONSUMER_X - 44, y: CONSUMER_Y - 26, width: 88, height: 52, rx: 6, fill: '#181820', stroke: '#56b6c2', 'stroke-width': 2 }));
+    scene.appendChild(svgText(CONSUMER_X, CONSUMER_Y - 8, 'Consumer', { fill: '#56b6c2', 'font-size': '11', 'font-weight': '700' }));
+    scene.appendChild(svgText(CONSUMER_X, CONSUMER_Y + 8, '(idempotent)', { fill: '#56b6c2', 'font-size': '9' }));
+
+    // Idempotency note
+    scene.appendChild(svgEl('rect', { x: CONSUMER_X - 80, y: CONSUMER_Y + 36, width: 160, height: 40, rx: 4, fill: '#1a1a22', stroke: '#56b6c233', 'stroke-width': 1 }));
+    scene.appendChild(svgText(CONSUMER_X, CONSUMER_Y + 52, 'Check event_id', { fill: '#56b6c2', 'font-size': '9' }));
+    scene.appendChild(svgText(CONSUMER_X, CONSUMER_Y + 65, 'before processing', { fill: '#56b6c2', 'font-size': '9' }));
+
+    // Arrows
+    scene.appendChild(svgEl('line', { x1: API_X + 44, y1: API_Y - 10, x2: DB_X - 2, y2: DB_Y, stroke: '#98c37955', 'stroke-width': 1.5, 'marker-end': 'url(#ob-arrow)' }));
+    scene.appendChild(svgEl('line', { x1: API_X + 44, y1: API_Y + 10, x2: OUTBOX_X - 2, y2: OUTBOX_Y, stroke: '#e5c07b55', 'stroke-width': 1.5, 'marker-end': 'url(#ob-arrow)' }));
+    // Relay polls outbox (dashed)
+    scene.appendChild(svgEl('line', { x1: RELAY_X - 50, y1: RELAY_Y + 10, x2: OUTBOX_X + 140 + 2, y2: OUTBOX_Y + 10, stroke: '#c678dd44', 'stroke-width': 1.5, 'stroke-dasharray': '5,3', 'marker-end': 'url(#ob-arrow)' }));
+    scene.appendChild(svgText((RELAY_X + OUTBOX_X + 140) / 2, RELAY_Y - 4, 'polls pending rows', { fill: '#555', 'font-size': '9' }));
+    // Relay -> SQS
+    scene.appendChild(svgEl('line', { x1: RELAY_X + 50, y1: RELAY_Y - 8, x2: SQS_X - 52, y2: SQS_Y, stroke: '#e5c07b55', 'stroke-width': 1.5, 'marker-end': 'url(#ob-arrow)' }));
+    // SQS -> Consumer
+    scene.appendChild(svgEl('line', { x1: SQS_X + 50, y1: SQS_Y, x2: CONSUMER_X - 46, y2: CONSUMER_Y, stroke: '#56b6c255', 'stroke-width': 1.5, 'marker-end': 'url(#ob-arrow)' }));
+
+    // At-least-once badge
+    scene.appendChild(svgEl('rect', { x: RELAY_X - 80, y: RELAY_Y + 40, width: 160, height: 26, rx: 4, fill: '#12121a', stroke: '#e5c07b33', 'stroke-width': 1 }));
+    scene.appendChild(svgText(RELAY_X, RELAY_Y + 58, 'at-least-once delivery', { fill: '#e5c07b', 'font-size': '9', 'font-weight': '600' }));
+  }
+
+  function drawCDC() {
+    step = 'Debezium CDC-based Outbox (alternative)';
+    scene.appendChild(svgEl('rect', { x: 10, y: 6, width: 840, height: 22, rx: 4, fill: '#1a1520', stroke: '#c678dd44', 'stroke-width': 1 }));
+    scene.appendChild(svgText(430, 21, step, { fill: '#c678dd', 'font-size': '11', 'font-weight': '600' }));
+
+    // DB with WAL
+    scene.appendChild(svgEl('rect', { x: 60, y: 120, width: 160, height: 60, rx: 6, fill: '#181820', stroke: '#98c379', 'stroke-width': 2 }));
+    scene.appendChild(svgText(140, 142, 'PostgreSQL', { fill: '#98c379', 'font-size': '12', 'font-weight': '700' }));
+    scene.appendChild(svgText(140, 160, 'outbox + WAL/binlog', { fill: '#555', 'font-size': '9' }));
+
+    // Debezium Connector
+    scene.appendChild(svgEl('rect', { x: 290, y: 130, width: 140, height: 40, rx: 20, fill: '#1a1520', stroke: '#c678dd', 'stroke-width': 2 }));
+    scene.appendChild(svgText(360, 148, 'Debezium', { fill: '#c678dd', 'font-size': '12', 'font-weight': '700' }));
+    scene.appendChild(svgText(360, 163, 'Connector (Kafka Connect)', { fill: '#666', 'font-size': '9' }));
+
+    // Kafka
+    scene.appendChild(svgEl('rect', { x: 500, y: 120, width: 120, height: 60, rx: 6, fill: '#181820', stroke: '#e5c07b', 'stroke-width': 2 }));
+    scene.appendChild(svgText(560, 142, 'Kafka', { fill: '#e5c07b', 'font-size': '12', 'font-weight': '700' }));
+    scene.appendChild(svgText(560, 160, 'topic: outbox', { fill: '#555', 'font-size': '9' }));
+
+    // Kafka Connect cluster icon
+    scene.appendChild(svgEl('rect', { x: 290, y: 200, width: 140, height: 30, rx: 4, fill: '#12121a', stroke: '#c678dd33', 'stroke-width': 1 }));
+    scene.appendChild(svgText(360, 219, 'Kafka Connect cluster', { fill: '#c678dd', 'font-size': '9' }));
+
+    // Consumer
+    scene.appendChild(svgEl('rect', { x: 700, y: 120, width: 120, height: 60, rx: 6, fill: '#181820', stroke: '#56b6c2', 'stroke-width': 2 }));
+    scene.appendChild(svgText(760, 142, 'Consumer', { fill: '#56b6c2', 'font-size': '12', 'font-weight': '700' }));
+    scene.appendChild(svgText(760, 160, '(Kafka consumer)', { fill: '#555', 'font-size': '9' }));
+
+    // Arrows
+    scene.appendChild(svgEl('line', { x1: 220, y1: 150, x2: 288, y2: 150, stroke: '#c678dd55', 'stroke-width': 1.5, 'marker-end': 'url(#ob-arrow)' }));
+    scene.appendChild(svgText(254, 142, 'tail WAL', { fill: '#555', 'font-size': '9' }));
+    scene.appendChild(svgEl('line', { x1: 430, y1: 150, x2: 498, y2: 150, stroke: '#e5c07b55', 'stroke-width': 1.5, 'marker-end': 'url(#ob-arrow)' }));
+    scene.appendChild(svgEl('line', { x1: 620, y1: 150, x2: 698, y2: 150, stroke: '#56b6c255', 'stroke-width': 1.5, 'marker-end': 'url(#ob-arrow)' }));
+
+    // Comparison table
+    var rows = [
+      ['Polling interval', 'Adds DB load (reads)', 'WAL tail: near-zero DB impact'],
+      ['Latency', 'Polling interval (1-30s)', 'Milliseconds (log-based)'],
+      ['Infra overhead', 'Just a job/lambda', 'Kafka Connect cluster required'],
+      ['Ordering', 'Not guaranteed', 'Partition-level ordering guaranteed'],
+      ['Schema coupling', 'None', 'Outbox schema change breaks connector'],
+    ];
+
+    scene.appendChild(svgEl('rect', { x: 30, y: 250, width: 800, height: 160, rx: 8, fill: '#181820', stroke: '#2a2a35', 'stroke-width': 1 }));
+    scene.appendChild(svgText(430, 272, 'Polling Outbox vs Debezium CDC', { fill: '#fff', 'font-size': '12', 'font-weight': '700' }));
+    var cols = [['Dimension', 200], ['Polling Outbox Relay', 450], ['Debezium CDC', 700]];
+    for (var ci = 0; ci < cols.length; ci++) {
+      scene.appendChild(svgText(cols[ci][1], 290, cols[ci][0], { fill: '#61afef', 'font-size': '10', 'font-weight': '600', 'text-anchor': ci === 0 ? 'start' : 'middle' }));
+    }
+    for (var rowi = 0; rowi < rows.length; rowi++) {
+      var ry = 306 + rowi * 18;
+      scene.appendChild(svgText(200, ry, rows[rowi][0], { fill: '#888', 'font-size': '9', 'text-anchor': 'start' }));
+      var pollColor = rowi < 2 ? '#e06c75' : '#98c379';
+      var cdcColor = rowi < 2 ? '#98c379' : (rowi === 2 ? '#e06c75' : '#888');
+      scene.appendChild(svgText(450, ry, rows[rowi][1], { fill: pollColor, 'font-size': '9' }));
+      scene.appendChild(svgText(700, ry, rows[rowi][2], { fill: cdcColor, 'font-size': '9' }));
+    }
+  }
+
+  function commentary(text) { document.getElementById('ob-commentary').textContent = text; }
+
+  async function happyPath() {
+    if (showCDCMode) { showCDCMode = false; }
+    relayCrashed = false;
+    step = 'Happy Path: DB write + outbox in one transaction';
+    draw();
+    commentary('API handler receives request. Opens a DB transaction. Writes to orders table AND outbox table in the same commit.');
+
+    // API -> DB
+    await animPkt(scene, API_X + 44, API_Y, DB_X + 70, DB_Y, '#98c379', 'INSERT order', 400);
+    var id = ++rowId;
+    draw();
+    commentary('orders row inserted. Now inserting outbox row in the SAME transaction.');
+
+    // API -> Outbox
+    await animPkt(scene, API_X + 44, API_Y, OUTBOX_X + 70, OUTBOX_Y, '#e5c07b', 'INSERT outbox', 400);
+    outboxRows.push({ id: id, sent: false });
+    step = 'Transaction committed. Outbox row pending.';
+    draw();
+    commentary('Transaction committed atomically. If the commit succeeds, both rows exist. If it fails, neither exists. The message is guaranteed to be published eventually.');
+    await delay(800);
+
+    // Relay polls
+    step = 'Relay polling outbox for pending rows';
+    draw();
+    await animPkt(scene, RELAY_X - 50, RELAY_Y, OUTBOX_X + 140, OUTBOX_Y + 10, '#c678dd', 'SELECT WHERE sent=false', 500);
+    commentary('Relay found 1 pending row. Publishing to SQS...');
+
+    // Relay -> SQS
+    await animPkt(scene, RELAY_X + 50, RELAY_Y, SQS_X, SQS_Y, '#e5c07b', 'SendMessage', 450);
+    sqsMessages.push(id);
+    step = 'Published to SQS. Marking outbox row as sent.';
+    draw();
+    commentary('SQS publish succeeded. Relay marks outbox row as sent=true. This is the critical ordering: publish first, then mark sent (not the other way around).');
+
+    outboxRows[outboxRows.length - 1].sent = true;
+    await delay(600);
+    draw();
+
+    // SQS -> Consumer
+    await animPkt(scene, SQS_X + 50, SQS_Y, CONSUMER_X, CONSUMER_Y, '#56b6c2', 'event', 450);
+    sqsMessages.pop();
+    step = 'Consumer processed. Happy path complete.';
+    draw();
+    commentary('Consumer received and processed event. Idempotency check: consumer stores processed event IDs to handle at-least-once redelivery.');
+  }
+
+  async function crashAfterDB() {
+    if (showCDCMode) { showCDCMode = false; }
+    relayCrashed = false;
+    step = 'Failure: API crashes after DB commit, before SQS publish';
+    draw();
+    commentary('This is the classic dual-write problem WITHOUT the outbox pattern. API writes to DB, then crashes before publishing to SQS. Event is permanently lost.');
+
+    await animPkt(scene, API_X + 44, API_Y, DB_X + 70, DB_Y, '#98c379', 'INSERT order', 400);
+    await delay(300);
+    commentary('DB commit succeeded. Now attempting direct SQS publish (without outbox)...');
+
+    // Crash animation
+    scene.appendChild(svgEl('text', Object.assign(
+      { x: API_X, y: API_Y - 50, 'text-anchor': 'middle', fill: '#e06c75', 'font-size': '22', 'font-weight': '900' },
+      {}
+    )));
+    await delay(800);
+    step = 'API CRASHED. SQS message never sent. Event LOST.';
+    draw();
+    commentary('API process died. The order exists in the DB but no event was ever published to SQS. Downstream services never hear about this order. This is why dual-write without an outbox is broken by design.');
+    await delay(1200);
+    commentary('With the Transactional Outbox pattern, the event is written to the outbox table in the same transaction. When the relay runs next, it will find the pending row and publish the event — even after an API crash.');
+  }
+
+  async function crashRelay() {
+    if (showCDCMode) { showCDCMode = false; }
+    relayCrashed = false;
+    step = 'Relay crash scenario: at-least-once delivery';
+    outboxRows = [{ id: ++rowId, sent: false }];
+    draw();
+    commentary('Outbox has 1 pending row. Relay picks it up and publishes to SQS...');
+
+    await animPkt(scene, RELAY_X + 50, RELAY_Y, SQS_X, SQS_Y, '#e5c07b', 'SendMessage', 450);
+    sqsMessages.push(rowId);
+    commentary('SQS publish succeeded! Relay is about to mark the outbox row as sent, but crashes right now...');
+    await delay(600);
+
+    relayCrashed = true;
+    step = 'Relay crashed AFTER publish, BEFORE marking sent';
+    draw();
+    commentary('Relay crashed. The outbox row is still marked sent=false. The message IS in SQS. When relay restarts, it will find the same pending row and publish again — delivering the message TWICE. Consumers must be idempotent.');
+    await delay(1500);
+
+    // Relay restarts
+    relayCrashed = false;
+    step = 'Relay restarted. Re-reads pending rows.';
+    draw();
+    commentary('Relay restarted. Polls outbox: finds row still marked sent=false. Publishes again (duplicate). Consumer\'s event_id deduplication table rejects the duplicate. No harm done — this is exactly the at-least-once + idempotent consumer contract.');
+
+    await animPkt(scene, RELAY_X + 50, RELAY_Y, SQS_X, SQS_Y, '#e5c07b', 'SendMessage (dup)', 450);
+    sqsMessages.push(rowId + 1000);
+    outboxRows[0].sent = true;
+    draw();
+    await animPkt(scene, SQS_X + 50, SQS_Y, CONSUMER_X, CONSUMER_Y, '#56b6c2', 'event (dup)', 450);
+    commentary('Consumer received duplicate. Checks event_id in processed_events table: already exists. Skips processing. DeleteMessage. Queue depth back to 0. System is consistent.');
+    sqsMessages = [];
+    draw();
+  }
+
+  async function showDuplicate() {
+    if (showCDCMode) { showCDCMode = false; }
+    relayCrashed = false;
+    step = 'Duplicate handling: idempotent consumer pattern';
+    draw();
+    commentary('Demonstrating at-least-once delivery and idempotent consumer. Same event delivered twice — consumer handles gracefully.');
+
+    sqsMessages = [rowId, rowId]; // two copies
+    draw();
+    await animPkt(scene, SQS_X + 50, SQS_Y, CONSUMER_X, CONSUMER_Y, '#56b6c2', 'event #' + rowId, 450);
+    commentary('First delivery of event #' + rowId + '. Consumer processes it and inserts event_id into processed_events table.');
+    await delay(600);
+    await animPkt(scene, SQS_X + 50, SQS_Y, CONSUMER_X, CONSUMER_Y, '#e06c75', 'event #' + rowId + ' (dup)', 450);
+    commentary('Second delivery of same event #' + rowId + '. Consumer checks processed_events table: FOUND. Skips all business logic. Calls DeleteMessage. Returns success. Exactly-once processing achieved despite at-least-once delivery.');
+    sqsMessages = [];
+    draw();
+  }
+
+  function showCDC() {
+    showCDCMode = !showCDCMode;
+    step = '';
+    if (!showCDCMode) {
+      draw();
+      commentary('Back to transactional outbox with polling relay.');
+    } else {
+      draw();
+      commentary('Debezium CDC-based outbox: instead of a polling relay, Debezium tails the DB WAL/binlog and streams inserts to the outbox table directly to Kafka. Near-zero DB polling load, millisecond latency, but requires a Kafka Connect cluster.');
+    }
+  }
+
+  function reset() {
+    outboxRows = [];
+    sqsMessages = [];
+    rowId = 0;
+    relayCrashed = false;
+    showCDCMode = false;
+    step = '';
+    draw();
+    commentary('The transactional outbox stores the event in the same DB transaction as the business write. A relay process polls the outbox and publishes to SQS. This gives you at-least-once delivery without distributed transactions.');
+  }
+
+  draw();
+  return { happyPath: happyPath, crashAfterDB: crashAfterDB, crashRelay: crashRelay, showDuplicate: showDuplicate, showCDC: showCDC, reset: reset };
+})();
+
+
+/* ================================================================
+   TAB 5 -- PRIORITY QUEUE & DELAY QUEUE
+   ================================================================ */
+var PQ = (function() {
+  var scene;
+
+  var queues = [
+    { id: 'high',   label: 'High Priority',   color: '#e06c75', msgs: [], workers: 3, y: 80  },
+    { id: 'normal', label: 'Normal Priority',  color: '#e5c07b', msgs: [], workers: 2, y: 200 },
+    { id: 'low',    label: 'Low Priority',     color: '#56b6c2', msgs: [], workers: 1, y: 300 },
+    { id: 'delay',  label: 'Delayed Messages', color: '#c678dd', msgs: [], workers: 1, y: 390 },
+  ];
+
+  var workerPool = [];
+  var msgId = 0;
+  var totalProcessed = 0;
+  var batchLog = [];
+
+  // Layout
+  var QUEUE_X = 180;
+  var QUEUE_W = 200;
+  var QUEUE_H = 52;
+  var WORKER_COL_X = 560;
+
+  function speed() { return parseFloat(document.getElementById('pq-speed').value) / 150; }
+  document.getElementById('pq-speed').addEventListener('input', function() {
+    document.getElementById('pq-speed-label').textContent = (this.value / 150).toFixed(1) + 'x';
+  });
+
+  function initWorkers() {
+    workerPool = [];
+    var wColors = ['#e06c75','#e06c75','#e06c75', '#e5c07b','#e5c07b', '#56b6c2', '#c678dd'];
+    var wTiers  = ['high','high','high', 'normal','normal', 'low', 'delay'];
+    var labels  = ['H1','H2','H3','N1','N2','L1','D1'];
+    for (var i = 0; i < 7; i++) {
+      workerPool.push({ id: i, label: labels[i], tier: wTiers[i], color: wColors[i], busy: false, msgId: null });
+    }
+  }
+
+  function draw() {
+    scene = document.getElementById('pq-scene');
+    scene.innerHTML = '';
+
+    // Title
+    scene.appendChild(svgText(430, 24, 'Worker allocation — High: 3, Normal: 2, Low: 1, Delay: 1 | Total processed: ' + totalProcessed, { fill: '#555', 'font-size': '10' }));
+
+    // Queues
+    for (var qi = 0; qi < queues.length; qi++) {
+      var q = queues[qi];
+      scene.appendChild(svgEl('rect', { x: QUEUE_X, y: q.y - QUEUE_H / 2, width: QUEUE_W, height: QUEUE_H, rx: 6, fill: '#12121a', stroke: q.color, 'stroke-width': 2 }));
+      scene.appendChild(svgText(QUEUE_X + QUEUE_W / 2, q.y - 6, q.label, { fill: q.color, 'font-size': '11', 'font-weight': '700' }));
+      var depthLabel = 'depth: ' + q.msgs.length;
+      if (q.id === 'delay' && q.msgs.length > 0) depthLabel += ' (delayed)';
+      scene.appendChild(svgText(QUEUE_X + QUEUE_W / 2, q.y + 12, depthLabel, { fill: q.msgs.length > 0 ? q.color : '#444', 'font-size': '9' }));
+
+      // Message dots
+      for (var mi = 0; mi < Math.min(q.msgs.length, 8); mi++) {
+        var mx = QUEUE_X + 10 + mi * 22;
+        scene.appendChild(svgEl('circle', { cx: mx, cy: q.y, r: 7, fill: q.color, opacity: '0.7' }));
+      }
+      if (q.msgs.length > 8) {
+        scene.appendChild(svgText(QUEUE_X + QUEUE_W - 20, q.y + 4, '+' + (q.msgs.length - 8), { fill: q.color, 'font-size': '8', 'font-weight': '700' }));
+      }
+
+      // DelaySeconds badge for delay queue
+      if (q.id === 'delay') {
+        scene.appendChild(svgEl('rect', { x: QUEUE_X + QUEUE_W - 90, y: q.y - QUEUE_H / 2 - 18, width: 90, height: 16, rx: 8, fill: '#c678dd22', stroke: '#c678dd44', 'stroke-width': 1 }));
+        scene.appendChild(svgText(QUEUE_X + QUEUE_W - 45, q.y - QUEUE_H / 2 - 7, 'DelaySeconds=900', { fill: '#c678dd', 'font-size': '8' }));
+      }
+
+      // Worker count label (right of queue)
+      scene.appendChild(svgText(QUEUE_X + QUEUE_W + 16, q.y + 4, q.workers + ' workers', { fill: q.color + 'aa', 'font-size': '9', 'text-anchor': 'start' }));
+    }
+
+    // Workers
+    for (var wi = 0; wi < workerPool.length; wi++) {
+      var w = workerPool[wi];
+      var wx = WORKER_COL_X + (wi % 4) * 62;
+      var wy_base = queues.findIndex(function(q) { return q.id === w.tier; });
+      var wy = queues[wy_base >= 0 ? wy_base : 0].y;
+      var fill = w.busy ? '#1a2015' : '#181820';
+      scene.appendChild(svgEl('rect', { x: wx - 24, y: wy - 20, width: 48, height: 40, rx: 4, fill: fill, stroke: w.color, 'stroke-width': 1.5 }));
+      scene.appendChild(svgText(wx, wy - 4, w.label, { fill: w.color, 'font-size': '10', 'font-weight': '700' }));
+      scene.appendChild(svgText(wx, wy + 10, w.busy ? 'busy' : 'idle', { fill: w.busy ? '#98c379' : '#444', 'font-size': '8' }));
+
+      // Arrow from queue to workers (faint)
+      var queueForWorker = queues[wy_base >= 0 ? wy_base : 0];
+      scene.appendChild(svgEl('line', {
+        x1: QUEUE_X + QUEUE_W + 2, y1: queueForWorker.y,
+        x2: wx - 25, y2: wy,
+        stroke: w.color + '22', 'stroke-width': 1, 'stroke-dasharray': '3,4'
+      }));
+    }
+
+    // Batch log
+    if (batchLog.length > 0) {
+      scene.appendChild(svgEl('rect', { x: 10, y: 370, width: 160, height: 18 + batchLog.length * 16, rx: 4, fill: '#181820', stroke: '#2a2a35', 'stroke-width': 1 }));
+      scene.appendChild(svgText(90, 385, 'Batch log', { fill: '#61afef', 'font-size': '10', 'font-weight': '700' }));
+      for (var bi = 0; bi < Math.min(batchLog.length, 3); bi++) {
+        scene.appendChild(svgText(90, 399 + bi * 16, batchLog[batchLog.length - 1 - bi], { fill: '#888', 'font-size': '9' }));
+      }
+    }
+
+    // Step Functions/EventBridge note for long delays
+    scene.appendChild(svgEl('rect', { x: 10, y: 340, width: 160, height: 28, rx: 4, fill: '#1a1520', stroke: '#c678dd33', 'stroke-width': 1 }));
+    scene.appendChild(svgText(90, 352, 'Delays > 15 min:', { fill: '#c678dd', 'font-size': '9', 'font-weight': '700' }));
+    scene.appendChild(svgText(90, 364, 'EventBridge Scheduler', { fill: '#555', 'font-size': '9' }));
+  }
+
+  function commentary(text) { document.getElementById('pq-commentary').textContent = text; }
+
+  function getFreeWorker(tier) {
+    // Find free worker in the right tier, then overflow to adjacent tier
+    for (var i = 0; i < workerPool.length; i++) {
+      if (!workerPool[i].busy && workerPool[i].tier === tier) return i;
+    }
+    // High-priority workers steal normal work when idle
+    if (tier === 'normal') {
+      for (var j = 0; j < workerPool.length; j++) {
+        if (!workerPool[j].busy && workerPool[j].tier === 'high') return j;
+      }
+    }
+    return -1;
+  }
+
+  async function processOne(qIdx, wIdx) {
+    var q = queues[qIdx];
+    var w = workerPool[wIdx];
+    if (q.msgs.length === 0) return;
+
+    q.msgs.shift();
+    w.busy = true;
+    draw();
+
+    await animPkt(scene, QUEUE_X + QUEUE_W, q.y, WORKER_COL_X + (wIdx % 4) * 62, q.y, q.color, 'msg', 400);
+
+    var processMs = (400 + Math.random() * 600) / speed();
+    await delay(processMs);
+
+    w.busy = false;
+    totalProcessed++;
+    draw();
+    // Try to drain more
+    setTimeout(function() { drainQueues(); }, 50);
+  }
+
+  function drainQueues() {
+    for (var qi = 0; qi < queues.length; qi++) {
+      var q = queues[qi];
+      if (q.msgs.length === 0) continue;
+      var wIdx = getFreeWorker(q.id);
+      if (wIdx !== -1) {
+        processOne(qi, wIdx);
+      }
+    }
+  }
+
+  function enqueue(tier, id) {
+    var qIdx = queues.findIndex(function(q) { return q.id === tier; });
+    if (qIdx === -1) return;
+    queues[qIdx].msgs.push(id);
+    draw();
+    drainQueues();
+  }
+
+  function sendHigh() {
+    var id = ++msgId;
+    commentary('Sending HIGH priority message #' + id + '. Will be picked up before normal/low messages — 3 dedicated workers polling high-priority queue first.');
+    enqueue('high', id);
+  }
+
+  function sendNormal() {
+    var id = ++msgId;
+    commentary('Sending NORMAL priority message #' + id + '. 2 dedicated workers + high-priority workers steal normal work when high queue is empty.');
+    enqueue('normal', id);
+  }
+
+  function sendLow() {
+    var id = ++msgId;
+    commentary('Sending LOW priority message #' + id + '. 1 dedicated worker. Will only process when high and normal queues are empty — starvation is possible under sustained high load.');
+    enqueue('low', id);
+  }
+
+  async function sendDelayed() {
+    var id = ++msgId;
+    commentary('Sending message with DelaySeconds=900 (15 min max). Message is invisible in queue until delay expires. Use EventBridge Scheduler for delays beyond 15 minutes.');
+    queues[3].msgs.push(id);
+    draw();
+    // Simulate delay expiry after 3s in the demo
+    await delay(3000 / speed());
+    commentary('Delay expired. Message #' + id + ' is now visible to consumers. DelaySeconds = per-message or per-queue setting. Queue-level default applies to all messages in that queue.');
+    drainQueues();
+  }
+
+  async function sendBatch() {
+    var ids = [];
+    for (var i = 0; i < 10; i++) { ids.push(++msgId); }
+    var batchSize = ids.length;
+    batchLog.push('SendMessageBatch: ' + batchSize + ' msgs');
+    if (batchLog.length > 3) batchLog.shift();
+    commentary('SendMessageBatch: 10 messages in 1 API call. 10x throughput vs individual sends, 10x cost reduction. SQS charges per API call, not per message. Batch limit: 10 messages, 256KB total.');
+    for (var i = 0; i < ids.length; i++) {
+      var tier = i < 3 ? 'high' : (i < 7 ? 'normal' : 'low');
+      queues[queues.findIndex(function(q) { return q.id === tier; })].msgs.push(ids[i]);
+    }
+    draw();
+    drainQueues();
+    await delay(800);
+    commentary('Batch of 10 enqueued. Workers drain queues in priority order. In production, DeleteMessageBatch (up to 10 receipts) after successful batch processing halves your delete API calls.');
+  }
+
+  function reset() {
+    queues.forEach(function(q) { q.msgs = []; });
+    msgId = 0;
+    totalProcessed = 0;
+    batchLog = [];
+    initWorkers();
+    draw();
+    commentary('Priority simulation: high-priority queue gets 3 dedicated workers, normal gets 2, low gets 1. Workers for higher tiers steal from lower tiers when their own queue is empty. Send messages and watch allocation in action.');
+  }
+
+  initWorkers();
+  draw();
+
+  return { sendHigh: sendHigh, sendNormal: sendNormal, sendLow: sendLow, sendDelayed: sendDelayed, sendBatch: sendBatch, reset: reset };
+})();
+</script>
+</body>
+</html>
