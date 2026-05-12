@@ -23,7 +23,7 @@ Hard pace: 1 mock/day Mon–Sat, calibration mocks on Days 9–10. Tier 1 proble
 | 3 | **Distributed Cache (Redis-like)** | `consistent-hashing.md` + visualization | Champion #5 — TODAY 2026-05-09 |
 | 4 | Ride-Sharing Match (Uber) | `geohashing.md` + visualization | Champion #6 |
 | 5 | Payment / Wallet System | `idempotency.md` (idempotency keys, sagas, double-spend, audit log) | Champion #7 |
-| 6 | Distributed Rate Limiter | `rate-limiting-algorithms.md` (token / sliding / leaky bucket) | Champion #8 |
+| 6 | Distributed Rate Limiter ✅ | ✅ `rate-limiting-algorithms.md` (token / sliding / leaky bucket) | Champion #8 — reference writeup 2026-05-12 (mock skipped per user) |
 | — | Job Scheduler / Cron ✅ | _(covered out of band)_ | Stretch #9 — covered |
 | 7 | **Video Streaming Platform** _(if media target — else swap with Day 8)_ | `cdn-adaptive-bitrate.md` (HLS/DASH, ingestion pipeline, transcoding) | Stretch #10 |
 | 8 | **Search Typeahead** _(if search target — else replay weakest Champion as second cold re-mock)_ | `inverted-index.md` (trie, prefix sharding, popularity ranking) | Stretch #11 |
@@ -64,7 +64,7 @@ Hard pace: 1 mock/day Mon–Sat, calibration mocks on Days 9–10. Tier 1 proble
 5. [x] **Distributed Cache (Redis-like)** — consistent hashing, eviction, replication, hot-key. The consistent-hashing concept transfers everywhere — must be reflexive. _(✅ Day 3 mock — see `problems/distributed-cache.md`. Cheat sheets: `patterns/consistent-hashing.md`, `concepts/cache-patterns.md`.)_
 6. [ ] **Ride-Sharing Match (Uber)** — geospatial indexing (geohash/quadtree), realtime dispatch matching, surge pricing. Tests coordination under realtime constraints — distinct concept area. _(Concept gap: `patterns/geohashing.md` + visualization.)_
 7. [ ] **Payment / Wallet System** — strict consistency, idempotency keys, sagas, double-spend prevention, audit log. The single problem where eventual consistency is the wrong default. _(Concept gap: `patterns/idempotency.md`.)_
-8. [ ] **Distributed Rate Limiter** — token bucket / sliding window in shared store, edge vs central enforcement. Quick problem; common screening signal at staff loops. _(Concept gap: `concepts/rate-limiting-algorithms.md`.)_
+8. [x] **Distributed Rate Limiter** — token bucket / sliding window in shared store, edge vs central enforcement. Quick problem; common screening signal at staff loops. _(✅ Day 6 reference — see `problems/distributed-rate-limiter.md`. Cheat sheet: `concepts/rate-limiting-algorithms.md`. Mock skipped per user — direct reference walkthrough.)_
 
 ### Stretch 3 (drill based on target company / time budget)
 9. [x] **Job Scheduler / Cron** — leader election, lease-based execution, missed-fire/overlap handling, time-zone correctness, idempotent jobs, fan-out to workers. Closes the leader-election gap left by the Champion 8. Universally applicable. _(✅ Covered out of band.)_
@@ -142,7 +142,7 @@ Built independently of mocks; referenced as needed during interview prep. All da
 - [x] **Cache sync patterns** (cache-aside / write-through / write-back / refresh-ahead + stampede mitigations) — `concepts/cache-patterns.md` _(✅ Day 3 gap-fill — surfaced by mock; decision matrix + quick-fire)_
 - [ ] **Geohashing / spatial indexing** + visualization — `patterns/geohashing.md` _(Day 4 — Ride-Sharing)_
 - [ ] **Idempotency keys, sagas, double-spend, audit log** — `patterns/idempotency.md` _(Day 5 — Payment)_
-- [ ] **Rate-limiting algorithms** (token / sliding / leaky bucket) — `concepts/rate-limiting-algorithms.md` _(Day 6 — Rate Limiter)_
+- [x] **Rate-limiting algorithms** (token / sliding / leaky bucket) — `concepts/rate-limiting-algorithms.md` _(✅ Day 6 — decision matrix across 5 algos, token bucket workhorse, distributed sub-bucket pattern)_
 - [ ] **CDN + adaptive bitrate** (HLS/DASH, transcoding pipeline) — `concepts/cdn-adaptive-bitrate.md` _(Day 7 — Video Streaming, if media target)_
 - [ ] **Inverted index + trie ranking** (prefix sharding, popularity scoring) — `concepts/inverted-index.md` _(Day 8 — Search Typeahead, if search target)_
 
